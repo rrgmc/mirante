@@ -1,6 +1,5 @@
-// Tests LockState, and TaskCell on the fixtures: the nested view, the
-// dashboard picker, the lock button, the "open alone" button, storing the
-// chosen dashboard in the root dashboard, and the header's menu and drag.
+// Tests LockState, and TaskCell on the fixtures: the nested view, the title,
+// the lock button, the "open alone" button, and the header's menu and drag.
 #include "core/Model.h"
 #include "core/Store.h"
 #include "items/ItemTypeRegistry.h"
@@ -48,7 +47,6 @@ int cellCount(const LayoutView *view)
     return count;
 }
 
-QComboBox *picker(const TaskCell &cell) { return cell.findChild<QComboBox *>(QStringLiteral("dashboardPicker")); }
 QToolButton *lockButton(const TaskCell &cell) { return cell.findChild<QToolButton *>(QStringLiteral("lockButton")); }
 QWidget *header(const TaskCell &cell) { return cell.findChild<QWidget *>(QStringLiteral("taskHeader")); }
 
@@ -77,11 +75,9 @@ private slots:
     void lockState();
     void showsChosenDashboard();
     void fallsBackToDefaultDashboard();
-    void pickerOnlyForSeveralDashboards();
+    void titleNamesTaskAndDashboard();
     void followsModelChanges();
     void lockTogglesEditMode();
-    void choosingDashboardUpdatesRoot();
-    void choosingDashboardWithoutRoot();
     void openAlone();
     void removedTask();
     void headerMenuAndDrag();
@@ -147,7 +143,7 @@ void TestTaskCell::showsChosenDashboard()
     QVERIFY(cell.view());
     QCOMPARE(toJson(cell.view()->tree()), toJson(*m_model->layout({kFixLoginTask, kReviewDashboard})));
     QCOMPARE(cellCount(cell.view()), 4);
-    QCOMPARE(cell.findChild<QLabel *>(QStringLiteral("taskTitle"))->text(), m_model->task(kFixLoginTask)->title);
+    QCOMPARE(cell.findChild<QLabel *>(QStringLiteral("taskTitle"))->text(), QStringLiteral("Fix login timeout / Review"));
     QVERIFY(!cell.view()->editMode());
 }
 
@@ -162,18 +158,17 @@ void TestTaskCell::fallsBackToDefaultDashboard()
     QCOMPARE(unknown.dashboardId(), kWorkDashboard);
 }
 
-void TestTaskCell::pickerOnlyForSeveralDashboards()
+// A task cell shows one task dashboard and has no picker: its title names both.
+void TestTaskCell::titleNamesTaskAndDashboard()
 {
-    TaskCell two(m_services, {QString(), kMorningRoot}, taskRef(kFixLoginTask, kWorkDashboard));
-    QComboBox *twoPicker = picker(two);
-    QVERIFY(twoPicker);
-    QVERIFY(!twoPicker->isHidden());
-    QCOMPARE(twoPicker->count(), 2);
-    QCOMPARE(twoPicker->currentData().toString(), kWorkDashboard);
-
-    TaskCell one(m_services, {QString(), kReleaseRoot}, taskRef(kRateLimitTask, kRateLimitDashboard));
-    QVERIFY(picker(one)->isHidden());
-    QCOMPARE(cellCount(one.view()), int(layout::cellPaths(*m_model->layout({kRateLimitTask, kRateLimitDashboard})).size()));
+    TaskCell cell(m_services, {QString(), kReleaseRoot}, taskRef(kRateLimitTask, kRateLimitDashboard));
+    const Task *task = m_model->task(kRateLimitTask);
+    const Dashboard *dashboard = m_model->taskDashboard(kRateLimitTask, kRateLimitDashboard);
+    QVERIFY(task && dashboard);
+    QCOMPARE(cell.findChild<QLabel *>(QStringLiteral("taskTitle"))->text(),
+             QStringLiteral("%1 / %2").arg(task->title, dashboard->name));
+    QVERIFY(!cell.findChild<QComboBox *>());
+    QCOMPARE(cellCount(cell.view()), int(layout::cellPaths(*m_model->layout({kRateLimitTask, kRateLimitDashboard})).size()));
 }
 
 void TestTaskCell::followsModelChanges()
@@ -223,52 +218,7 @@ void TestTaskCell::lockTogglesEditMode()
     // Another dashboard's lock is its own.
     m_locks->setUnlocked(kReviewDashboard, true);
     QVERIFY(!cell.view()->editMode());
-    picker(cell)->setCurrentIndex(picker(cell)->findData(kReviewDashboard));
-    QVERIFY(cell.view()->editMode());
-    QCOMPARE(button->text(), QStringLiteral("Unlocked"));
-}
-
-void TestTaskCell::choosingDashboardUpdatesRoot()
-{
-    const DashboardRef root{QString(), kMorningRoot};
-    DashboardCellFactory factory(m_services, root);
-    LayoutView rootView(&factory);
-    rootView.setTree(*m_model->layout(root));
-
-    auto *cell = qobject_cast<TaskCell *>(rootView.cellAt({0}));
-    QVERIFY(cell);
-    QCOMPARE(cell->dashboardId(), kWorkDashboard);
-    QSignalSpy spy(m_model, &Model::rootDashboardChanged);
-
-    QComboBox *cellPicker = picker(*cell);
-    cellPicker->setCurrentIndex(cellPicker->findData(kReviewDashboard));
-    QCOMPARE(cell->dashboardId(), kReviewDashboard);
-    QCOMPARE(toJson(cell->view()->tree()), toJson(*m_model->layout({kFixLoginTask, kReviewDashboard})));
-
-    QTRY_COMPARE(spy.count(), 1);
-    QCOMPARE(spy.at(0).at(0).toString(), kMorningRoot);
-    const LayoutNode *node = layout::nodeAt(*m_model->layout(root), {0});
-    QVERIFY(node && node->ref);
-    QCOMPARE(*node->ref, taskRef(kFixLoginTask, kReviewDashboard));
-
-    // The owner passes the new tree back. The cell is made again with the new reference.
-    rootView.setTree(*m_model->layout(root));
-    auto *newCell = qobject_cast<TaskCell *>(rootView.cellAt({0}));
-    QVERIFY(newCell);
-    QCOMPARE(newCell->dashboardId(), kReviewDashboard);
-}
-
-void TestTaskCell::choosingDashboardWithoutRoot()
-{
-    const QByteArray before = toJson(*m_model->layout({QString(), kMorningRoot}));
-    TaskCell cell(m_services, {QString(), kMorningRoot}, taskRef(kFixLoginTask, kWorkDashboard));
-    QSignalSpy spy(m_model, &Model::rootDashboardChanged);
-    picker(cell)->setCurrentIndex(picker(cell)->findData(kReviewDashboard));
-    QCOMPARE(cell.dashboardId(), kReviewDashboard);
-    QCOMPARE(cellCount(cell.view()), 4);
-    QTest::qWait(20);
-    QCOMPARE(spy.count(), 0);
-    QCOMPARE(toJson(*m_model->layout({QString(), kMorningRoot})), before);
+    QCOMPARE(button->text(), QStringLiteral("Locked"));
 }
 
 void TestTaskCell::openAlone()

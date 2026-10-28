@@ -6,12 +6,14 @@
 #include "items/ItemTypeRegistry.h"
 #include "layout/CellFrame.h"
 #include "layout/LayoutView.h"
+#include "ui/ItemWindow.h"
 #include "ui/MainWindow.h"
 #include "ui/RootTabBar.h"
 #include "ui/Sidebar.h"
 
 #include <QApplication>
 #include <QLabel>
+#include <QPointer>
 #include <QSignalSpy>
 #include <QTest>
 #include <QToolButton>
@@ -30,6 +32,9 @@ const QString kOverviewTask = QStringLiteral("c34def7a-af34-507f-a44d-770bb60dbe
 const QString kReviewsItem = QStringLiteral("191057b6-8355-5994-beae-62a500d35f8d");
 
 // The registry has no modules, so every item has an unknown type.
+struct Fixture;
+QString overviewTitle(const Fixture &f);
+
 struct Fixture
 {
     ItemTypeRegistry types;
@@ -47,6 +52,13 @@ struct Fixture
     RootTabBar *bar() const { return window->rootTabBar(); }
     QString tabText(int index) const { return bar()->tabText(index); }
 };
+
+// The tab title of the Overview task's default dashboard: "Task / Dashboard".
+QString overviewTitle(const Fixture &f)
+{
+    const Task *task = f.model.task(kOverviewTask);
+    return QStringLiteral("%1 / %2").arg(task->title, f.model.taskDashboard(kOverviewTask, task->defaultDashboardId)->name);
+}
 
 } // namespace
 
@@ -76,7 +88,7 @@ private slots:
         QCOMPARE(f.bar()->count(), 3);
         QCOMPARE(f.bar()->previewIndex(), 2);
         QCOMPARE(f.bar()->currentIndex(), 2);
-        QCOMPARE(f.tabText(2), QStringLiteral("Fix login timeout"));
+        QCOMPARE(f.tabText(2), QStringLiteral("Fix login timeout / Work"));
         QVERIFY(f.bar()->findChild<QToolButton *>(QStringLiteral("pinButton")));
         f.window->show();
         QVERIFY(QTest::qWaitForWindowExposed(f.window.get()));
@@ -91,7 +103,7 @@ private slots:
         f.window->openTaskPreview(kOverviewTask);
         QCOMPARE(f.bar()->count(), 3);
         QCOMPARE(f.bar()->previewIndex(), 2);
-        QCOMPARE(f.tabText(2), f.model.task(kOverviewTask)->title);
+        QCOMPARE(f.tabText(2), overviewTitle(f));
 
         // Closing the preview removes its tab.
         f.window->closeCurrentTab();
@@ -132,7 +144,7 @@ private slots:
         QCOMPARE(f.bar()->count(), 3);
         QCOMPARE(f.bar()->previewIndex(), -1);
         QCOMPARE(f.bar()->currentIndex(), 0);
-        QCOMPARE(f.tabText(0), QStringLiteral("Fix login timeout"));
+        QCOMPARE(f.tabText(0), QStringLiteral("Fix login timeout / Work"));
 
         const LayoutNode &tree = f.window->currentLayoutView()->tree();
         QCOMPARE(tree.kind, LayoutNode::Kind::Cell);
@@ -167,7 +179,7 @@ private slots:
 
         QTRY_COMPARE(f.bar()->previewIndex(), -1);
         QCOMPARE(int(f.model.rootDashboards().size()), 3);
-        QCOMPARE(f.tabText(f.bar()->currentIndex()), QStringLiteral("Fix login timeout"));
+        QCOMPARE(f.tabText(f.bar()->currentIndex()), QStringLiteral("Fix login timeout / Work"));
     }
 
     void pinButton()
@@ -182,7 +194,7 @@ private slots:
         QCOMPARE(spy.at(0).at(0).toInt(), 2);
         QCOMPARE(f.bar()->previewIndex(), -1);
         QCOMPARE(f.bar()->count(), 3);
-        QCOMPARE(f.tabText(0), f.model.task(kOverviewTask)->title);
+        QCOMPARE(f.tabText(0), overviewTitle(f));
     }
 
     void newRootDashboard()
@@ -274,6 +286,39 @@ private slots:
         show->click();
         QVERIFY(sidebar->isVisibleTo(f.window.get()));
         QVERIFY(!show->isVisibleTo(f.window.get()));
+    }
+
+    void itemWindow()
+    {
+        Fixture f;
+        f.window->openItemWindow(kOverviewTask, kReviewsItem);
+        auto windows = f.window->findChildren<ItemWindow *>();
+        QCOMPARE(windows.size(), 1);
+        QPointer<ItemWindow> window = windows.front();
+        QVERIFY(window->isWindow());
+        QVERIFY(window->isVisible());
+        QCOMPARE(f.bar()->previewIndex(), -1);     // no task dashboard is opened
+
+        // The window holds only the item.
+        const auto frames = window->findChildren<CellFrame *>();
+        QCOMPARE(frames.size(), 1);
+        QVERIFY(frames.front()->ref());
+        QCOMPARE(frames.front()->ref()->item, kReviewsItem);
+        QVERIFY(window->windowTitle().contains(f.model.task(kOverviewTask)->title));
+
+        // Opening it again raises the same window.
+        f.window->openItemWindow(kOverviewTask, kReviewsItem);
+        QCOMPARE(f.window->findChildren<ItemWindow *>().size(), 1);
+
+        // Escape closes it.
+        QTest::keyClick(window.data(), Qt::Key_Escape);
+        QTRY_VERIFY(window.isNull());
+
+        // It also closes when its item is gone.
+        f.window->openItemWindow(kOverviewTask, kReviewsItem);
+        window = f.window->findChildren<ItemWindow *>().front();
+        QVERIFY(store::load(QStringLiteral(MIRANTE_FIXTURES_DIR "/no-such-folder"), f.model).empty());
+        QTRY_VERIFY(window.isNull());
     }
 
     void focusItem()

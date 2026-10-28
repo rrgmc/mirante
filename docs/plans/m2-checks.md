@@ -22,9 +22,11 @@ Tick each box, or note what is wrong next to it.
 ## Root tabs, preview and pinning
 
 - [ ] At start, the tabs "Morning" and "Release" are open.
-- [ ] A single click on a task only selects it. A double click opens it in the preview tab, with an italic title and a pin button. A double click on another task replaces it.
+- [ ] A single click only selects. A double click on a task only expands or collapses it.
+- [ ] A double click on a task dashboard opens it in the preview tab, titled "Task / Dashboard" in italics, with a pin button. A double click on another dashboard replaces it.
+- [ ] A double click on an item opens a maximized window with only that item. `Escape` closes it, and opening the same item again raises the same window.
 - [ ] The pin button, or an edit of the previewed dashboard, pins it: the tab moves to the front and is no longer italic.
-- [ ] A double click on a task that already has a pinned tab switches to that tab.
+- [ ] A double click on a task dashboard that already has a pinned tab switches to that tab.
 - [ ] The `+` button opens a new, empty, unlocked root dashboard.
 - [ ] Closing a root tab hides it, and `Ctrl+K` can open it again.
 - [ ] "Open in new root dashboard" in a task's context menu opens a new tab with that task.
@@ -35,7 +37,7 @@ Tick each box, or note what is wrong next to it.
 - [ ] The `timetrack.entry` item (task "Add rate limiting") says it needs the `timetrack` module.
 - [ ] The empty cell in the archived task "Old Terraform cleanup" says "Empty".
 - [ ] In "Morning" and "Release", task cells show the task's dashboard, with a header that has the task title, a lock button and "Open alone".
-- [ ] "Fix login timeout" has two dashboards. Its task cell has a picker, and choosing the other dashboard switches the cell.
+- [ ] Task cells have no dashboard picker. Their header reads "Task / Dashboard", such as "Fix login timeout / Work".
 
 ## Editing layouts
 

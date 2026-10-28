@@ -37,6 +37,8 @@ public:
     void openRootDashboard(const QString &id);
     void newRootDashboard();
     void focusItem(const QString &taskId, const QString &itemId);
+    // Opens the item on its own in a maximized window, or raises its window.
+    void openItemWindow(const QString &taskId, const QString &itemId);
     void revealInSidebar(const QString &id);
     void showQuickSwitcher();
     void closeCurrentTab();     // the preview tab or the current root tab
