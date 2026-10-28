@@ -99,7 +99,6 @@ struct MainWindow::Private
     QLabel *warningText = nullptr;
     RootTabBar *tabBar = nullptr;
     QToolButton *showSidebarButton = nullptr;
-    QLabel *dashboardName = nullptr;
     QToolButton *lockButton = nullptr;
     QStackedWidget *stack = nullptr;
     Shortcuts *shortcuts = nullptr;
@@ -198,7 +197,6 @@ struct MainWindow::Private
         DashboardPage *page = currentPage();
         if (page)
             stack->setCurrentWidget(page);
-        dashboardName->setText(page ? title(page->ref) : QString());
         updateLockButton();
     }
 
@@ -438,8 +436,6 @@ struct MainWindow::Private
         showSidebarButton->setAutoRaise(true);
         showSidebarButton->hide();
 
-        dashboardName = new QLabel(content);
-
         lockButton = new QToolButton(content);
         lockButton->setObjectName(QStringLiteral("lockButton"));
         lockButton->setCheckable(true);
@@ -448,7 +444,7 @@ struct MainWindow::Private
         auto *toolbar = new QHBoxLayout;
         toolbar->setContentsMargins(4, 2, 4, 2);
         toolbar->addWidget(showSidebarButton);
-        toolbar->addWidget(dashboardName, 1);
+        toolbar->addStretch(1);
         toolbar->addWidget(lockButton);
 
         stack = new QStackedWidget(content);
@@ -497,9 +493,8 @@ MainWindow::MainWindow(Model &model, const ItemTypeRegistry &types, QWidget *par
     setCentralWidget(d->splitter);
 
     // The sidebar.
-    connect(d->sidebar, &Sidebar::taskClicked, this, &MainWindow::openTaskPreview);
-    connect(d->sidebar, &Sidebar::taskDoubleClicked, this, &MainWindow::pinTask);
-    connect(d->sidebar, &Sidebar::itemClicked, this, &MainWindow::focusItem);
+    connect(d->sidebar, &Sidebar::taskOpened, this, &MainWindow::openTaskPreview);
+    connect(d->sidebar, &Sidebar::itemOpened, this, &MainWindow::focusItem);
     connect(d->sidebar, &Sidebar::openInNewRootDashboard, this, [this](const QString &taskId) {
         const QString id = d->addTaskRootDashboard(taskId);
         if (!id.isEmpty())

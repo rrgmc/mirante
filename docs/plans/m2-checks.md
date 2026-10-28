@@ -22,16 +22,16 @@ Tick each box, or note what is wrong next to it.
 ## Root tabs, preview and pinning
 
 - [ ] At start, the tabs "Morning" and "Release" are open.
-- [ ] A single click on a task opens it in the preview tab, with an italic title and a pin button. A click on another task replaces it.
-- [ ] A double click on a task, the pin button, or an edit of the previewed dashboard pins it: the tab moves to the front and is no longer italic.
-- [ ] A click on a task that already has a pinned tab switches to that tab.
+- [ ] A single click on a task only selects it. A double click opens it in the preview tab, with an italic title and a pin button. A double click on another task replaces it.
+- [ ] The pin button, or an edit of the previewed dashboard, pins it: the tab moves to the front and is no longer italic.
+- [ ] A double click on a task that already has a pinned tab switches to that tab.
 - [ ] The `+` button opens a new, empty, unlocked root dashboard.
 - [ ] Closing a root tab hides it, and `Ctrl+K` can open it again.
 - [ ] "Open in new root dashboard" in a task's context menu opens a new tab with that task.
 
 ## Cells and task cells
 
-- [ ] Each cell has a header with an icon and the item name, and a body that names the item type and item.
+- [ ] Each cell has a tinted header with an icon and the item name, and a body that names the item type and item. Task cell headers have a stronger tint.
 - [ ] The `timetrack.entry` item (task "Add rate limiting") says it needs the `timetrack` module.
 - [ ] The empty cell in the archived task "Old Terraform cleanup" says "Empty".
 - [ ] In "Morning" and "Release", task cells show the task's dashboard, with a header that has the task title, a lock button and "Open alone".
@@ -40,6 +40,8 @@ Tick each box, or note what is wrong next to it.
 ## Editing layouts
 
 Unlock a dashboard with the lock button first.
+
+- [ ] Unlocked, every cell of the dashboard has a dashed border in the highlight colour. In a root dashboard, each task cell has one around the whole cell.
 
 - [ ] Every cell menu command works: split right, split down, wrap in tabs, add tab, change item, clear cell, remove cell.
 - [ ] Every tab menu command works: rename, close, move left, move right, collapse when single.

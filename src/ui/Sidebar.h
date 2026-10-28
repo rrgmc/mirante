@@ -24,9 +24,9 @@ public:
     void reveal(const QString &id);
 
 signals:
-    void taskClicked(const QString &taskId);            // opens the preview
-    void taskDoubleClicked(const QString &taskId);      // pins it
-    void itemClicked(const QString &taskId, const QString &itemId);
+    // A double click, or Enter, opens a task or item. A single click only selects.
+    void taskOpened(const QString &taskId);
+    void itemOpened(const QString &taskId, const QString &itemId);
     void openInNewRootDashboard(const QString &taskId);
     void collapseRequested();
 

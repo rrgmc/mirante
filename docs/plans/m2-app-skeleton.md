@@ -308,7 +308,7 @@ The conversion is done once with a small script, which is not committed. The fix
 - Groups use manual order. Projects and tasks are sorted with `Sorting`.
 - A delegate paints the priority marker and dims Low entries.
 - Two filter buttons hide Low entries and done or archived tasks. The second is on by default. A button collapses the sidebar.
-- **Clicks:** a single click on a task opens the preview, and a double click pins it.
+- **Clicks:** a single click selects. A double click, or `Enter`, on a task opens the preview; on an item it opens the task and focuses the item. Groups and projects expand and collapse.
 - **Context menu in M2:** "Open in new root dashboard" only. The rest arrives with editing in M3.
 - **Not in M2:** the Focus entry and sidebar reordering arrive in M3.
 
@@ -316,7 +316,7 @@ The conversion is done once with a small script, which is not committed. The fix
 
 - The preview tab is drawn with an italic title by overriding `paintEvent` for that one tab, and has a pin button.
 - Pinning makes a root dashboard with one task cell, in memory, and puts its tab first.
-- Clicking a task that already has a pinned tab switches to it.
+- Opening a task that already has a pinned tab switches to it.
 - The `+` button makes an empty root dashboard with editing on.
 - Closing a tab hides it. The quick switcher opens it again.
 

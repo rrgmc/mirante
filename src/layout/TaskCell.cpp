@@ -1,5 +1,6 @@
 #include "layout/TaskCell.h"
 
+#include "layout/CellStyle.h"
 #include "layout/DashboardCellFactory.h"
 #include "layout/LayoutEditor.h"
 #include "layout/LayoutView.h"
@@ -274,6 +275,7 @@ TaskCell::TaskCell(const LayoutServices &services, const DashboardRef &rootDashb
     d->q = this;
     d->services = services;
     d->rootDashboard = rootDashboard;
+    setAttribute(Qt::WA_StyledBackground);     // draws the edit mode border
     d->taskId = ref.task;
     d->dashboardId = ref.dashboard;
 
@@ -283,6 +285,7 @@ TaskCell::TaskCell(const LayoutServices &services, const DashboardRef &rootDashb
 
     d->header = new TaskHeader(this);
     d->header->setObjectName(QStringLiteral("taskHeader"));
+    cellstyle::tintHeader(d->header, 0.22);    // stronger than an item header, since it holds cells
     d->header->onDrag = [this] { emit dragStarted(); };
     d->header->setContextMenuPolicy(Qt::CustomContextMenu);
     connect(d->header, &QWidget::customContextMenuRequested, this,
@@ -375,6 +378,11 @@ void TaskCell::setEditMode(bool on)
         d->header->setCursor(Qt::OpenHandCursor);
     else
         d->header->unsetCursor();
+
+    // In the root dashboard's edit mode the whole task cell gets a border, so
+    // it reads as one cell that can be moved or removed.
+    d->layout->setContentsMargins(on ? QMargins(2, 2, 2, 2) : QMargins());
+    setStyleSheet(on ? cellstyle::border(QStringLiteral("mirante--TaskCell"), palette(), true, false) : QString());
 }
 
 } // namespace mirante

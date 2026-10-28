@@ -148,25 +148,21 @@ Sidebar::Sidebar(const Model &model, const ItemTypeRegistry &types, QWidget *par
     });
     d->restoreExpansion({});
 
-    // Clicks.
-    connect(d->tree, &QTreeView::clicked, this, [this](const QModelIndex &index) {
+    // Activation is a double click or Enter. It opens tasks and items, and
+    // expands or collapses groups and projects.
+    connect(d->tree, &QTreeView::activated, this, [this](const QModelIndex &index) {
         const QString taskId = index.data(SidebarModel::TaskIdRole).toString();
         switch (d->kind(index)) {
         case SidebarModel::Kind::Task:
-            emit taskClicked(taskId);
+            emit taskOpened(taskId);
             break;
         case SidebarModel::Kind::Item:
-            emit itemClicked(taskId, d->id(index));
+            emit itemOpened(taskId, d->id(index));
             break;
         default:
+            d->tree->setExpanded(index, !d->tree->isExpanded(index));
             break;
         }
-    });
-    connect(d->tree, &QTreeView::doubleClicked, this, [this](const QModelIndex &index) {
-        if (d->kind(index) == SidebarModel::Kind::Task)
-            emit taskDoubleClicked(d->id(index));
-        else if (d->kind(index) != SidebarModel::Kind::Item)
-            d->tree->setExpanded(index, !d->tree->isExpanded(index));
     });
 
     connect(d->tree, &QWidget::customContextMenuRequested, this, [this](const QPoint &pos) {

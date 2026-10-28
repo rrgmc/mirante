@@ -2,6 +2,7 @@
 
 #include "items/UnknownItemType.h"
 #include "layout/CellFrameSingleView.h"
+#include "layout/CellStyle.h"
 #include "layout/SingleViewTracker.h"
 
 #include <mirante/ItemType.h>
@@ -108,8 +109,7 @@ CellFrame::CellFrame(const std::optional<CellRef> &ref, bool removed, const Item
 
     // Header: type icon, item name, menu button.
     d->header = new CellHeader(this);
-    d->header->setAutoFillBackground(true);
-    d->header->setBackgroundRole(QPalette::Button);
+    cellstyle::tintHeader(d->header, 0.12);
     d->header->onDrag = [this] { emit dragStarted(); };
     auto *headerLayout = new QHBoxLayout(d->header);
     headerLayout->setContentsMargins(6, 1, 2, 1);
@@ -200,12 +200,7 @@ void CellFrame::setEditMode(bool on)
     else
         d->header->unsetCursor();
 
-    // The border: dashed while editing, and in the highlight colour when focused.
-    const QColor colour = palette().color(d->focused ? QPalette::Highlight : QPalette::Mid);
-    const QString lineStyle = on && !d->focused ? QStringLiteral("dashed") : QStringLiteral("solid");
-    setStyleSheet(QStringLiteral("mirante--CellFrame { border: %1px %2 %3; border-radius: 3px; }")
-                      .arg(d->focused ? 2 : 1)
-                      .arg(lineStyle, colour.name()));
+    setStyleSheet(cellstyle::border(QStringLiteral("mirante--CellFrame"), palette(), on, d->focused));
 }
 
 void CellFrame::setCellFocused(bool focused)
