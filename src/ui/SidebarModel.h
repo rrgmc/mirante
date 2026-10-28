@@ -12,8 +12,8 @@ class ItemTypeRegistry;
 class Model;
 
 // The sidebar tree over Model: groups, then projects, then tasks. Each task
-// has two fixed children, "Items" and "Dashboards", which hold the task's
-// items and task dashboards. Groups use their manual order; projects and tasks
+// has two fixed children, "Dashboards" and "Items", which hold the task's
+// task dashboards and items. Groups use their manual order; projects and tasks
 // are sorted with Sorting. Items and dashboards can be dragged, as DragMime
 // payloads; tasks cannot.
 // Implemented in SidebarModel.cpp.

@@ -28,6 +28,8 @@ Each file records one design decision: what was decided, what else was considere
 | [0020](0020-edit-task-dashboards-alone.md) | Task dashboards are edited only on their own | Accepted |
 | [0021](0021-image-items-as-files.md) | Image items, with images stored as files | Accepted |
 | [0022](0022-task-dashboard-tabs.md) | Task dashboards open in their own kind of tab | Accepted |
+| [0023](0023-item-tabs.md) | Items open alone in a tab | Accepted |
+| [0024](0024-detach-root-dashboard-tabs.md) | Only root dashboard tabs can be detached | Accepted |
 
 ## Template
 

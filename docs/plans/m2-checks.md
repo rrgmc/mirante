@@ -14,7 +14,7 @@ Tick each box, or note what is wrong next to it.
 
 ## Sidebar
 
-- [ ] Groups, projects and tasks appear in that order, and each task has the children "Items" and "Dashboards". Projects and tasks are sorted by priority, then their manual order.
+- [ ] Groups, projects and tasks appear in that order, and each task has the children "Dashboards" and "Items", in that order. The selected row stays in full colour when the sidebar loses the focus. Projects and tasks are sorted by priority, then their manual order.
 - [ ] Urgent and High entries have a visible marker. Low entries are dimmed.
 - [ ] The "Active" tab at the bottom of the sidebar is chosen at start and lists active tasks. "Done" lists done and archived tasks under the same groups and projects. "Hide Low" hides Low projects and tasks in both.
 - [ ] The « button hides the sidebar, and the » button at the start of the tab bar row brings it back.
@@ -24,7 +24,7 @@ Tick each box, or note what is wrong next to it.
 - [ ] At start, the tabs "Morning" and "Release" are open.
 - [ ] A single click only selects. A double click on a task only expands or collapses it.
 - [ ] A double click on a task dashboard opens it in the preview tab, titled "Task / Dashboard" in italics, with a pin button. A double click on another dashboard replaces it.
-- [ ] A double click on an item opens a maximized window with only that item. `Escape` closes it, and opening the same item again raises the same window.
+- [ ] A double click on an item opens it alone in the preview tab, titled "Task / Item" with its type icon, read-only and without a lock. Opening it again switches to its tab, and its pin button keeps it.
 - [ ] The pin button, or an edit of the previewed dashboard, pins it: the tab stays open, no longer italic, and the next dashboard opens in a new tab. No root dashboard is added.
 - [ ] Task tabs have the dashboard icon and a title bar with their own lock; the lock at the end of the tab bar row hides while a task tab is in front.
 - [ ] When a task tab comes to the front, the sidebar selects its dashboard under its task.
@@ -53,7 +53,7 @@ Unlock a dashboard with the lock button first.
 
 - [ ] Every cell menu command works: split right, split down, wrap in tabs, add tab, clear cell, remove cell. There is no "Change item".
 - [ ] Holding `Ctrl` while dragging an item, a task dashboard or a cell highlights the whole cell under the cursor, and dropping replaces that cell's content. Without `Ctrl` the usual edges, centre and tab bars apply.
-- [ ] Every tab menu command works: add tab, rename, close, move left, move right, collapse when single.
+- [ ] Every tab menu command works: add tab, rename, close, move left, move right, remove tab group (only with one tab), collapse when single.
 - [ ] Unlocked, each tab group has a `+` button on the right that adds an empty tab at the end. Locked, it is hidden.
 - [ ] Dragging a cell header onto the edge of another cell splits there, onto its centre adds a tab, and onto a tab bar inserts a tab. The drop zones are highlighted while dragging.
 - [ ] Dragging an item from the sidebar works on an unlocked dashboard. A locked dashboard refuses it, with no highlight. A task dashboard refuses items of other tasks.

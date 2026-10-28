@@ -210,7 +210,7 @@ After every edit, the app cleans the tree:
 | Synced (in the shared folder) | Kept on each device |
 |---|---|
 | Groups, projects, tasks, items, dashboards | Local path of each folder |
-| Layout trees, including size ratios | Geometry of detached windows |
+| Layout trees, including size ratios | Geometry of detached root dashboard windows |
 | Connection details without tokens | Open root tabs and the preview tab |
 | Profile overrides | Tokens (in the keychain) |
 | Notes content | Terminal command template |

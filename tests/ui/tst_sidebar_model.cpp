@@ -86,11 +86,11 @@ void TestSidebarModel::structure()
     QCOMPARE(childIds(*f.sidebar, work), (QStringList{backendProject, frontendProject, infraProject}));
     QCOMPARE(f.sidebar->rowCount(f.sidebar->index(1, 0)), 2);
 
-    // A task has two fixed children: its items, then its dashboards.
+    // A task has two fixed children: its dashboards, then its items.
     const QModelIndex fix = f.sidebar->indexOf(fixLoginTimeout);
     QCOMPARE(f.sidebar->rowCount(fix), 2);
-    const QModelIndex items = f.sidebar->index(0, 0, fix);
-    const QModelIndex dashboards = f.sidebar->index(1, 0, fix);
+    const QModelIndex items = f.sidebar->index(1, 0, fix);
+    const QModelIndex dashboards = f.sidebar->index(0, 0, fix);
     QCOMPARE(items.data(SidebarModel::KindRole).toInt(), int(SidebarModel::Kind::ItemList));
     QCOMPARE(dashboards.data(SidebarModel::KindRole).toInt(), int(SidebarModel::Kind::DashboardList));
     QCOMPARE(f.sidebar->rowCount(items), 8);
@@ -164,10 +164,10 @@ void TestSidebarModel::roles()
     QCOMPARE(fix.data(SidebarModel::TaskIdRole).toString(), fixLoginTimeout);
     QCOMPARE(fix.data(SidebarModel::PriorityRole).toInt(), int(Priority::Urgent));
 
-    const QModelIndex items = f.sidebar->index(0, 0, fix);
+    const QModelIndex items = f.sidebar->index(1, 0, fix);
     QCOMPARE(items.data(Qt::DisplayRole).toString(), QStringLiteral("Items"));
     QCOMPARE(items.data(SidebarModel::TaskIdRole).toString(), fixLoginTimeout);
-    const QModelIndex dashboards = f.sidebar->index(1, 0, fix);
+    const QModelIndex dashboards = f.sidebar->index(0, 0, fix);
     QCOMPARE(dashboards.data(Qt::DisplayRole).toString(), QStringLiteral("Dashboards"));
 
     const QModelIndex dashboard = f.sidebar->index(0, 0, dashboards);
@@ -210,9 +210,9 @@ void TestSidebarModel::dragging()
     // lists are not.
     const QModelIndex group = f.sidebar->indexOf(workGroup);
     const QModelIndex task = f.sidebar->indexOf(fixLoginTimeout);
-    const QModelIndex items = f.sidebar->index(0, 0, task);
+    const QModelIndex items = f.sidebar->index(1, 0, task);
     const QModelIndex item = f.sidebar->index(0, 0, items);
-    const QModelIndex dashboard = f.sidebar->index(0, 0, f.sidebar->index(1, 0, task));
+    const QModelIndex dashboard = f.sidebar->index(0, 0, f.sidebar->index(0, 0, task));
     for (const QModelIndex &index : {group, task, items})
         QVERIFY(!f.sidebar->flags(index).testFlag(Qt::ItemIsDragEnabled));
     QVERIFY(f.sidebar->flags(item).testFlag(Qt::ItemIsDragEnabled));

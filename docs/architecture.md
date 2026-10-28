@@ -117,7 +117,7 @@ Code that differs per platform lives only here, behind these classes.
 | `FocusView` | The [Focus](ui.md#focus-view) list |
 | `QuickSwitcher` | `Ctrl+K` fuzzy search |
 | `QuickAdd` | Creates a task from a pasted link, using the modules' quick add handlers. See [quick add](ui.md#quick-add). |
-| `DetachedWindow` | A top-level window holding one placement |
+| `DetachedWindow` | A top-level window holding one detached root dashboard. See [decision 0024](decisions/0024-detach-root-dashboard-tabs.md). |
 | Dialogs | Group, project, task, item, connection and settings editors |
 
 ## Data flow

@@ -324,6 +324,7 @@ void LayoutEditor::Private::showTabMenu(LayoutView *view, const NodePath &tabsPa
     command(LayoutEditor::tr("Move left"), TabCommand::MoveLeft)->setEnabled(index > 0);
     command(LayoutEditor::tr("Move right"), TabCommand::MoveRight)->setEnabled(index + 1 < int(tabs->children.size()));
     menu.addSeparator();
+    command(LayoutEditor::tr("Remove tab group"), TabCommand::RemoveGroup)->setEnabled(tabs->children.size() == 1);
     QAction *collapse = command(LayoutEditor::tr("Collapse when single"), TabCommand::ToggleCollapseSingle);
     collapse->setCheckable(true);
     collapse->setChecked(tabs->collapseSingle);
@@ -536,6 +537,12 @@ void LayoutEditor::tabCommand(const DashboardRef &dashboard, const NodePath &tab
         if (index + 1 >= int(tabs->children.size()))
             return;
         edited = layout::moveTab(*tree, tabsPath, index, index + 1);
+        break;
+    case TabCommand::RemoveGroup:
+        // Normalisation replaces a collapsing group of one tab by its content.
+        if (tabs->children.size() != 1)
+            return;
+        edited = layout::setCollapseSingle(*tree, tabsPath, true);
         break;
     case TabCommand::ToggleCollapseSingle:
         edited = layout::setCollapseSingle(*tree, tabsPath, !tabs->collapseSingle);

@@ -31,7 +31,8 @@ The sidebar can be collapsed.
 - Groups appear in manual order.
 - Projects and tasks are sorted by [priority](data-model.md#priority), then manual order.
 - A coloured marker shows the priority level. Low items are dimmed.
-- Each task has two fixed children: **Items**, with the task's items, and **Dashboards**, with its task dashboards. They are there for every task, even when empty.
+- Each task has two fixed children: **Dashboards**, with its task dashboards, then **Items**, with the task's items. They are there for every task, even when empty.
+- The selected row keeps its full highlight colour when the sidebar does not have the focus, so the dashboard on screen stays easy to see.
 - Two tabs at the bottom, **Active** and **Done**, show the same groups and projects. The first lists active tasks; the second, done and archived ones. A filter, off by default, hides Low items in both.
 - [Attention badges](#attention) appear on tasks, and are summed on projects and groups.
 - **Drag and drop:**
@@ -45,7 +46,7 @@ The sidebar can be collapsed.
 - **Single click:** selects a row. It opens nothing.
 - **Double click** (or `Enter`) on a task: expands or collapses it. Tasks are opened through their dashboards.
 - **Double click** on a task dashboard: opens it in the **preview tab**. The preview tab shows its title in italics. The next dashboard opened this way replaces it. Task dashboard titles name the task and the dashboard: "Task / Dashboard".
-- **Double click** on an item: opens the item alone in its own window, shown maximized. `Escape` closes it. See [decision 0019](decisions/0019-fixed-task-cells-and-item-windows.md).
+- **Double click** on an item: opens the item alone in a tab, the preview tab like a task dashboard, titled "Task / Item" with the item type's icon. It is read-only and can be pinned. See [decision 0023](decisions/0023-item-tabs.md).
 - **Pin:** editing the dashboard, or the pin button, keeps the preview open as a task tab, so the next dashboard opens in a new tab. A task tab is never a root dashboard. Task tabs carry the dashboard icon, come after the root dashboard tabs, and have a title bar "Task / Dashboard" with their own lock. The lock at the end of the tab bar row is for root dashboards, and hides while a task tab is in front. See [decision 0022](decisions/0022-task-dashboard-tabs.md).
 - When a task tab comes to the front, the sidebar selects its dashboard under its task.
 - Opening a task dashboard that already has a tab switches to that tab instead of opening a preview.
@@ -78,7 +79,7 @@ Each cell has a small header containing:
 - the item name and an icon for its type;
 - in a root dashboard, where an item can come from any task, its project and task in dimmed text after the name, such as "backend / Overview";
 - status badges;
-- buttons: refresh, open in browser, detach, and a menu.
+- buttons: refresh, open in browser, and a menu.
 
 ### Layout presets
 
@@ -107,7 +108,9 @@ When editing is on:
   - add tab;
   - clear cell;
   - remove cell.
-- **The tab context menu** offers add tab (an empty tab after the clicked one), rename, close, move to the left or right, and "Collapse when single".
+- **The tab context menu** offers add tab (an empty tab after the clicked one), rename, close, move to the left or right, "Remove tab group" and "Collapse when single".
+  - "Remove tab group" is enabled when the group has one tab. It unwraps the group once: the tab's content takes the group's place.
+  - "Collapse when single" is a setting of the group: whenever it has one tab, now or after closing others, the group is replaced by that tab's content.
 - **A `+` button** at the right of each tab group adds an empty tab at the end.
 - **Drag and drop:** drag a cell by its header, or drag an item from the sidebar. A semi-transparent overlay shows five drop zones on the cell under the cursor:
   - the left, right, top or bottom edge splits the cell on that side;
@@ -119,10 +122,10 @@ After each edit, the tree is [normalised](data-model.md#normalisation).
 
 ## Detached windows
 
-Any cell can be detached into its own operating system window:
+A root dashboard tab can be detached into its own operating system window. Nothing else is detached: not cells, not task dashboard tabs, not item tabs. See [decision 0024](decisions/0024-detach-root-dashboard-tabs.md).
 
-- The cell's place in the layout shows a placeholder: "Detached. Click to bring back."
-- Closing the detached window puts the panel back.
+- The detached window shows the root dashboard, with its own lock.
+- Closing the window puts the tab back in the main window.
 - The window's position and size are stored on each device.
 
 If the same item is shown in two places, each place has its own live view. See [decision 0003](decisions/0003-view-per-placement.md).

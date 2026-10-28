@@ -26,7 +26,7 @@ Profiles isolate storage only. All pages run in the same Chromium processes, so 
 
 ## Placements and live copies
 
-A placement is one place where an item is shown: a cell in a dashboard, a tab, or a detached window.
+A placement is one place where an item is shown: a cell in a dashboard, or an item tab.
 
 - Each visible placement has its own web view. If the same item is visible in two places, there are two independent views of it. They share the profile, so they share the login, but each has its own scroll position, history and unsent input. See [decision 0003](decisions/0003-view-per-placement.md).
 - A view is created when its placement first becomes visible. A hidden tab does not load its pages until it is opened.
@@ -44,7 +44,7 @@ A heavy page such as claude.ai uses a few hundred MB.
 - **Popups.** `WebPanel` overrides `createWindow`. Login popups, for example OAuth sign-in, open in a small dialog using the same profile and close when the page closes them. Ordinary "open in new window" links open in the external browser.
 - **Permissions.** Clipboard access and notifications are asked once per host and per profile, and the answer is remembered. Camera, microphone and location are always denied.
 - **Downloads.** Downloads go to the system download folder, after asking.
-- **Toolbar.** Each web cell header has back, reload, the current address, open in external browser, and detach.
+- **Toolbar.** Each web cell header has back, reload, the current address, and open in external browser.
 
 ## Known risk: logins in embedded browsers
 

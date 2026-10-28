@@ -37,7 +37,7 @@ The reasons for choosing Qt are in [decision 0001](decisions/0001-qt6-widgets.md
 
 - The full hierarchy: groups, projects, tasks and items, with priorities and task states.
 - Task dashboards and root dashboards with freely nested splits and tabs.
-- Detachable panels in separate operating system windows.
+- Root dashboards can be detached into separate operating system windows.
 - Web views with one login profile per group.
 - The first modules: native views of GitLab and Jira data with light actions, web pages, Claude sessions, notes and project folders.
 - Claude sessions on claude.ai in a web view, and local Claude Code sessions started in a terminal.
@@ -51,7 +51,7 @@ The order of work is in the [roadmap](roadmap.md).
 
 - **No central server.** Sync uses a folder that Syncthing, OneDrive or Dropbox keeps in step. See [sync](sync.md).
 - **No unofficial Claude APIs.** Claude Remote Control and cloud sessions are only opened as web pages. See [decision 0008](decisions/0008-claude-sessions.md).
-- **No floating windows inside the main window.** The main window only uses splits and tabs. Panels can still be detached into separate windows.
+- **No floating windows inside the main window.** The main window only uses splits and tabs. Root dashboard tabs can still be detached into separate windows.
 - **No team features.** Mirante is for one person. Jira priority, for example, is ignored on purpose.
 
 ## Documents

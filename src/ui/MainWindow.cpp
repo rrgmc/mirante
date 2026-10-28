@@ -3,6 +3,7 @@
 #include "Version.h"
 #include "core/LayoutTree.h"
 #include "core/Model.h"
+#include "items/ItemTypeRegistry.h"
 #include "layout/CellFrame.h"
 #include "layout/CellStyle.h"
 #include "layout/DashboardCellFactory.h"
@@ -12,7 +13,6 @@
 #include "layout/LockState.h"
 #include "layout/SingleViewTracker.h"
 #include "layout/TaskCell.h"
-#include "ui/ItemWindow.h"
 #include "ui/QuickSwitcher.h"
 #include "ui/RootDashboardsDialog.h"
 #include "ui/RootTabBar.h"
@@ -48,9 +48,12 @@ namespace {
 class DashboardPage : public QWidget
 {
 public:
-    DashboardPage(const LayoutServices &services, const DashboardRef &dashboard, QWidget *parent)
+    // With an item id, the page shows only that item of the task, read-only.
+    DashboardPage(const LayoutServices &services, const DashboardRef &dashboard, QWidget *parent,
+                  const QString &item = QString())
         : QWidget(parent)
         , ref(dashboard)
+        , itemId(item)
         , factory(std::make_unique<DashboardCellFactory>(services, dashboard))
     {
         auto *layout = new QVBoxLayout(this);
@@ -67,10 +70,12 @@ public:
             font.setBold(true);
             title->setFont(font);
             headerLayout->addWidget(title, 1);
-            lock = new QToolButton(header);
-            lock->setObjectName(QStringLiteral("taskLockButton"));
-            lock->setAutoRaise(true);
-            headerLayout->addWidget(lock);
+            if (item.isEmpty()) {
+                lock = new QToolButton(header);
+                lock->setObjectName(QStringLiteral("taskLockButton"));
+                lock->setAutoRaise(true);
+                headerLayout->addWidget(lock);
+            }
             layout->addWidget(header);
         }
         view = new LayoutView(factory.get(), this);
@@ -84,6 +89,7 @@ public:
     }
 
     const DashboardRef ref;
+    const QString itemId;           // set for an item page
     const std::unique_ptr<DashboardCellFactory> factory;
     LayoutView *view = nullptr;
     QLabel *title = nullptr;        // task dashboards only
@@ -180,6 +186,86 @@ struct MainWindow::Private
         return taskDashboardTitle(ref.taskId, ref.dashboardId);
     }
 
+    // A tab's title: the root dashboard's name, "Task / Dashboard", or for an
+    // item page "Task / Item".
+    QString pageTitle(const DashboardPage *page) const
+    {
+        if (page->itemId.isEmpty())
+            return title(page->ref);
+        const Task *task = model->task(page->ref.taskId);
+        const Item *item = model->item(page->ref.taskId, page->itemId);
+        if (!task || !item)
+            return QString();
+        const QString name = item->name.isEmpty() ? types->type(item->type).name() : item->name;
+        return MainWindow::tr("%1 / %2").arg(task->title, name);
+    }
+
+    // Task dashboard tabs carry the dashboard icon and item tabs the item's
+    // type icon, so they read apart from root dashboard tabs, which have none.
+    QIcon pageIcon(const DashboardPage *page) const
+    {
+        if (page->ref.isRoot())
+            return QIcon();
+        if (page->itemId.isEmpty())
+            return QIcon(QStringLiteral(":/icons/dashboard.svg"));
+        const Item *item = model->item(page->ref.taskId, page->itemId);
+        return item ? types->type(item->type).icon() : QIcon();
+    }
+
+    // Puts a new page in the preview tab, replacing the previous preview.
+    void showInPreview(DashboardPage *page)
+    {
+        if (preview) {
+            const int index = indexOf(preview);
+            DashboardPage *old = preview;
+            pages[std::size_t(index)] = page;
+            preview = page;
+            stack->removeWidget(old);
+            delete old;
+            tabBar->setTabText(index, pageTitle(page));
+            tabBar->setTabIcon(index, pageIcon(page));
+            syncPreview();
+        } else {
+            preview = page;
+            insertTab(int(pages.size()), page);
+        }
+        setCurrent(page);
+    }
+
+    // Keeps the preview open: the next preview opens in a new tab.
+    void pinPreview()
+    {
+        if (!preview)
+            return;
+        DashboardPage *page = preview;
+        preview = nullptr;
+        syncPreview();
+        setCurrent(page);
+    }
+
+    // The page that shows one item alone. It is read-only and not attached to
+    // the editor.
+    DashboardPage *makeItemPage(const QString &taskId, const QString &itemId)
+    {
+        auto *page = new DashboardPage(services, DashboardRef{taskId, QString()}, stack, itemId);
+        page->view->setSingleViewTracker(tracker);
+        LayoutNode cell;
+        cell.ref = CellRef{itemId, QString(), QString()};
+        page->view->setTree(cell);
+        page->title->setText(pageTitle(page));
+        stack->addWidget(page);
+        return page;
+    }
+
+    DashboardPage *itemPage(const QString &taskId, const QString &itemId) const
+    {
+        for (DashboardPage *page : pages) {
+            if (page->itemId == itemId && page->ref.taskId == taskId)
+                return page;
+        }
+        return nullptr;
+    }
+
     // A task dashboard is named after its task and itself: "Task / Dashboard".
     QString taskDashboardTitle(const QString &taskId, const QString &dashboardId) const
     {
@@ -213,11 +299,8 @@ struct MainWindow::Private
     void insertTab(int index, DashboardPage *page)
     {
         pages.insert(pages.begin() + index, page);
-        tabBar->insertTab(index, title(page->ref));
-        // Task dashboard tabs carry the dashboard icon, so they read apart
-        // from root dashboard tabs.
-        if (!page->ref.isRoot())
-            tabBar->setTabIcon(index, QIcon(QStringLiteral(":/icons/dashboard.svg")));
+        tabBar->insertTab(index, pageTitle(page));
+        tabBar->setTabIcon(index, pageIcon(page));
         syncPreview();
         syncCurrent();
     }
@@ -266,7 +349,7 @@ struct MainWindow::Private
         if (page != shownPage) {
             shownPage = page;
             if (page && !page->ref.isRoot() && sidebar)
-                sidebar->reveal(page->ref.dashboardId);
+                sidebar->reveal(page->itemId.isEmpty() ? page->ref.dashboardId : page->itemId);
         }
     }
 
@@ -320,7 +403,7 @@ struct MainWindow::Private
     DashboardPage *taskPage(const DashboardRef &ref) const
     {
         for (DashboardPage *page : pages) {
-            if (!page->ref.isRoot() && page->ref == ref)
+            if (!page->ref.isRoot() && page->itemId.isEmpty() && page->ref == ref)
                 return page;
         }
         return nullptr;
@@ -401,22 +484,30 @@ struct MainWindow::Private
 
     void onTaskChanged(const QString &taskId)
     {
+        // An item page whose item is gone closes.
+        for (int i = int(pages.size()) - 1; i >= 0; --i) {
+            const DashboardPage *page = pages[std::size_t(i)];
+            if (page->ref.taskId == taskId && !page->itemId.isEmpty() && !model->item(taskId, page->itemId))
+                removeTab(i);
+        }
         for (std::size_t i = 0; i < pages.size(); ++i) {
             DashboardPage *page = pages[i];
             if (page->ref.taskId != taskId)
                 continue;
-            if (const LayoutNode *tree = model->layout(page->ref))
-                page->view->setTree(*tree);
-            tabBar->setTabText(int(i), title(page->ref));
+            if (page->itemId.isEmpty()) {
+                if (const LayoutNode *tree = model->layout(page->ref))
+                    page->view->setTree(*tree);
+            }
+            tabBar->setTabText(int(i), pageTitle(page));
             if (page->title)
-                page->title->setText(title(page->ref));
+                page->title->setText(pageTitle(page));
         }
         tabBar->updateGeometry();
         syncCurrent();
 
         // Editing the dashboard in the preview tab pins it (docs/ui.md). The
         // change may come from the preview's own view, so pin after it returns.
-        if (preview && preview->ref.taskId == taskId && currentPage() == preview) {
+        if (preview && preview->itemId.isEmpty() && preview->ref.taskId == taskId && currentPage() == preview) {
             const QString dashboardId = preview->ref.dashboardId;
             QTimer::singleShot(0, q, [window = q, taskId, dashboardId] { window->pinTask(taskId, dashboardId); });
         }
@@ -568,7 +659,7 @@ MainWindow::MainWindow(Model &model, const ItemTypeRegistry &types, QWidget *par
 
     // The sidebar.
     connect(d->sidebar, &Sidebar::dashboardOpened, this, &MainWindow::openTaskPreview);
-    connect(d->sidebar, &Sidebar::itemOpened, this, &MainWindow::openItemWindow);
+    connect(d->sidebar, &Sidebar::itemOpened, this, &MainWindow::openItem);
     connect(d->sidebar, &Sidebar::openInNewRootDashboard, this, [this](const QString &taskId) {
         const Task *task = d->model->task(taskId);
         const QString id = task ? d->addTaskRootDashboard(taskId, Private::defaultDashboardOf(*task)) : QString();
@@ -583,7 +674,7 @@ MainWindow::MainWindow(Model &model, const ItemTypeRegistry &types, QWidget *par
     connect(d->tabBar, &QTabBar::tabCloseRequested, this, [this](int index) { d->removeTab(index); });
     connect(d->tabBar, &RootTabBar::pinRequested, this, [this](int index) {
         if (index >= 0 && index < int(d->pages.size()) && d->pages[std::size_t(index)] == d->preview)
-            pinTask(d->preview->ref.taskId, d->preview->ref.dashboardId);
+            d->pinPreview();
     });
     connect(d->tabBar, &RootTabBar::newDashboardRequested, this, &MainWindow::newRootDashboard);
     connect(d->tabBar, &RootTabBar::dashboardListRequested, this, &MainWindow::showDashboardList);
@@ -671,23 +762,7 @@ void MainWindow::openTaskPreview(const QString &taskId, const QString &chosenDas
         return;
     }
 
-    DashboardPage *page = d->makePage(ref);
-    if (d->preview) {
-        // Replace the preview in place.
-        const int index = d->indexOf(d->preview);
-        DashboardPage *old = d->preview;
-        d->pages[std::size_t(index)] = page;
-        d->preview = page;
-        d->stack->removeWidget(old);
-        delete old;
-        d->tabBar->setTabText(index, d->title(ref));
-        d->tabBar->setTabIcon(index, QIcon(QStringLiteral(":/icons/dashboard.svg")));
-        d->syncPreview();
-    } else {
-        d->preview = page;
-        d->insertTab(int(d->pages.size()), page);
-    }
-    d->setCurrent(page);
+    d->showInPreview(d->makePage(ref));
 }
 
 void MainWindow::pinTask(const QString &taskId, const QString &chosenDashboardId)
@@ -702,10 +777,8 @@ void MainWindow::pinTask(const QString &taskId, const QString &chosenDashboardId
 
     // Pinning keeps the task dashboard's tab open: the preview stops being the
     // preview, so the next one opens in a new tab. It is not a root dashboard.
-    if (d->preview && d->preview->ref == ref) {
-        d->preview = nullptr;
-        d->syncPreview();
-        d->setCurrent(d->taskPage(ref));
+    if (d->preview && d->preview->itemId.isEmpty() && d->preview->ref == ref) {
+        d->pinPreview();
         return;
     }
     DashboardPage *page = d->taskPage(ref);
@@ -755,21 +828,15 @@ void MainWindow::showDashboardList()
     d->dashboardList->activateWindow();
 }
 
-void MainWindow::openItemWindow(const QString &taskId, const QString &itemId)
+void MainWindow::openItem(const QString &taskId, const QString &itemId)
 {
     if (!d->model->item(taskId, itemId))
         return;
-    // Item windows are children of the main window, so they close with it.
-    for (ItemWindow *window : findChildren<ItemWindow *>()) {
-        if (window->taskId() == taskId && window->itemId() == itemId) {
-            window->showMaximized();
-            window->raise();
-            window->activateWindow();
-            return;
-        }
+    if (DashboardPage *open = d->itemPage(taskId, itemId)) {
+        d->setCurrent(open);
+        return;
     }
-    auto *window = new ItemWindow(*d->model, *d->types, taskId, itemId, this);
-    window->showMaximized();
+    d->showInPreview(d->makeItemPage(taskId, itemId));
 }
 
 void MainWindow::focusItem(const QString &taskId, const QString &itemId)
