@@ -1,0 +1,33 @@
+{
+    "connectionOverrides": {
+        "gitlab": "6a2269ce-1dd5-5ebf-b064-2ce63914bf73",
+        "jira.dc": "90d3f914-a970-57dc-ab52-a7fb83e824fc"
+    },
+    "folders": [
+        {
+            "id": "8338c237-aceb-56bd-8fb3-3d54a18f1ed2",
+            "main": true,
+            "name": "infra",
+            "remoteUrl": "git@gitlab.acme.internal:ops/infra.git"
+        },
+        {
+            "id": "fef947b1-1651-5be6-993b-2cb861df5b67",
+            "main": false,
+            "name": "runbooks"
+        }
+    ],
+    "groupId": "6d1b9bb9-f4c3-5677-a4e1-683ba618d4c7",
+    "id": "475aa13b-e862-5f2e-b9aa-e1f4950328bc",
+    "moduleSettings": {
+        "gitlab": {
+            "project": "ops/infra"
+        },
+        "jira": {
+            "projectKey": "OPS"
+        }
+    },
+    "name": "infra",
+    "order": 0,
+    "priority": 3,
+    "schemaVersion": 1
+}

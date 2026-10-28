@@ -1,0 +1,223 @@
+{
+    "dashboards": [
+        {
+            "id": "e7c480bf-fc19-50f3-81e4-18fc51f27f6c",
+            "layout": {
+                "children": [
+                    {
+                        "ref": {
+                            "item": "3b610620-18e9-51b3-b413-51a7d696b733"
+                        },
+                        "type": "cell"
+                    },
+                    {
+                        "collapseSingle": false,
+                        "current": 0,
+                        "tabs": [
+                            {
+                                "node": {
+                                    "children": [
+                                        {
+                                            "ref": {
+                                                "item": "a2400d22-15bb-5bb0-be39-6a977ad25b0e"
+                                            },
+                                            "type": "cell"
+                                        },
+                                        {
+                                            "ref": {
+                                                "item": "7152cdf9-61a0-535b-abb3-ea79c3f1ff0b"
+                                            },
+                                            "type": "cell"
+                                        }
+                                    ],
+                                    "dir": "v",
+                                    "sizes": [
+                                        1,
+                                        1
+                                    ],
+                                    "type": "split"
+                                },
+                                "title": "Issue"
+                            },
+                            {
+                                "node": {
+                                    "ref": {
+                                        "item": "74147943-d9e2-59eb-9363-5ec6fdd175ee"
+                                    },
+                                    "type": "cell"
+                                },
+                                "title": "Pipeline"
+                            },
+                            {
+                                "node": {
+                                    "ref": {
+                                        "item": "11039501-ba22-5677-86da-ea27842bf0b1"
+                                    },
+                                    "type": "cell"
+                                },
+                                "title": "Notes"
+                            }
+                        ],
+                        "type": "tabs"
+                    }
+                ],
+                "dir": "h",
+                "sizes": [
+                    2,
+                    1
+                ],
+                "type": "split"
+            },
+            "name": "Work"
+        },
+        {
+            "futureField": {
+                "icon": "review"
+            },
+            "id": "ece7e850-6e0f-51ef-ad23-4ee948afdd66",
+            "layout": {
+                "children": [
+                    {
+                        "collapseSingle": false,
+                        "current": 1,
+                        "tabs": [
+                            {
+                                "node": {
+                                    "ref": {
+                                        "item": "495bba4d-e91e-588f-b062-9f447204f5e2"
+                                    },
+                                    "type": "cell"
+                                },
+                                "title": "MR"
+                            },
+                            {
+                                "node": {
+                                    "ref": {
+                                        "item": "81b47eda-8e42-55bf-aa48-da87340f6fd9"
+                                    },
+                                    "type": "cell"
+                                },
+                                "title": "Issue"
+                            }
+                        ],
+                        "type": "tabs"
+                    },
+                    {
+                        "children": [
+                            {
+                                "ref": {
+                                    "item": "7152cdf9-61a0-535b-abb3-ea79c3f1ff0b"
+                                },
+                                "type": "cell"
+                            },
+                            {
+                                "ref": {
+                                    "item": "d2cef81d-603b-59e6-a898-64afd8a2c70c"
+                                },
+                                "type": "cell"
+                            }
+                        ],
+                        "dir": "v",
+                        "sizes": [
+                            2,
+                            1
+                        ],
+                        "type": "split"
+                    }
+                ],
+                "dir": "h",
+                "futureField": {
+                    "locked": false
+                },
+                "sizes": [
+                    1,
+                    1
+                ],
+                "type": "split"
+            },
+            "name": "Review"
+        }
+    ],
+    "defaultDashboardId": "e7c480bf-fc19-50f3-81e4-18fc51f27f6c",
+    "id": "760c8e20-8555-5a2c-bcbe-75e7fd08ca74",
+    "isDefault": false,
+    "items": [
+        {
+            "config": {
+                "url": "https://claude.ai/code/session_01AbC"
+            },
+            "futureField": {
+                "lastOpened": "2026-10-20T09:15:00Z"
+            },
+            "id": "3b610620-18e9-51b3-b413-51a7d696b733",
+            "name": "Claude: login fix",
+            "type": "claude.session.web"
+        },
+        {
+            "config": {
+                "key": "ACME-412"
+            },
+            "id": "a2400d22-15bb-5bb0-be39-6a977ad25b0e",
+            "name": "ACME-412",
+            "type": "jira.issue.summary"
+        },
+        {
+            "config": {
+                "url": "https://acme.atlassian.net/browse/ACME-412"
+            },
+            "id": "81b47eda-8e42-55bf-aa48-da87340f6fd9",
+            "name": "ACME-412 (page)",
+            "type": "jira.issue.page"
+        },
+        {
+            "config": {
+                "iid": 231,
+                "project": "acme/backend"
+            },
+            "id": "7152cdf9-61a0-535b-abb3-ea79c3f1ff0b",
+            "name": "!231 Fix session refresh",
+            "type": "gitlab.mr.summary"
+        },
+        {
+            "config": {
+                "url": "https://gitlab.com/acme/backend/-/merge_requests/231"
+            },
+            "id": "495bba4d-e91e-588f-b062-9f447204f5e2",
+            "name": "!231 (page)",
+            "type": "gitlab.mr.page"
+        },
+        {
+            "config": {
+                "branch": "",
+                "branchMode": "linkedMergeRequest",
+                "mergeRequestItemId": "7152cdf9-61a0-535b-abb3-ea79c3f1ff0b",
+                "project": ""
+            },
+            "id": "74147943-d9e2-59eb-9363-5ec6fdd175ee",
+            "name": "Pipeline: fix/login-timeout",
+            "type": "gitlab.pipeline"
+        },
+        {
+            "config": {
+                "folderId": "622f4d51-b29b-5213-82cf-6a85939c8b06"
+            },
+            "id": "d2cef81d-603b-59e6-a898-64afd8a2c70c",
+            "name": "backend folder",
+            "type": "folder"
+        },
+        {
+            "config": {
+                "text": "- Proxy drops idle connections after 30 s\n- Try keep-alive on the token refresh call"
+            },
+            "id": "11039501-ba22-5677-86da-ea27842bf0b1",
+            "name": "Notes",
+            "type": "notes"
+        }
+    ],
+    "order": 0,
+    "priority": 0,
+    "projectId": "3dd79dc2-8ec9-5181-b7d0-704a18f494d5",
+    "schemaVersion": 1,
+    "state": "active",
+    "title": "Fix login timeout"
+}

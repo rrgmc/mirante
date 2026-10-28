@@ -1,0 +1,72 @@
+{
+    "id": "5247a9e5-ee54-5552-8831-0b2ff361afba",
+    "layout": {
+        "children": [
+            {
+                "children": [
+                    {
+                        "ref": {
+                            "dashboard": "4eeaa216-cc9a-5055-bca2-5d504578d4e1",
+                            "task": "d71bd575-6d1b-5088-9da0-7d2cebf0d59e"
+                        },
+                        "type": "cell"
+                    },
+                    {
+                        "ref": {
+                            "dashboard": "b95ccdac-fb7e-56ee-b687-e800dacf489a",
+                            "task": "16d3c8ff-5fa8-5cf0-8090-c62592d1bd96"
+                        },
+                        "type": "cell"
+                    },
+                    {
+                        "ref": {
+                            "dashboard": "ece7e850-6e0f-51ef-ad23-4ee948afdd66",
+                            "task": "760c8e20-8555-5a2c-bcbe-75e7fd08ca74"
+                        },
+                        "type": "cell"
+                    }
+                ],
+                "dir": "h",
+                "sizes": [
+                    1,
+                    1,
+                    1
+                ],
+                "type": "split"
+            },
+            {
+                "children": [
+                    {
+                        "ref": {
+                            "item": "90a0177c-6b3d-54e8-9616-a23956f8fd7a",
+                            "task": "c34def7a-af34-507f-a44d-770bb60dbe95"
+                        },
+                        "type": "cell"
+                    },
+                    {
+                        "ref": {
+                            "item": "627898f1-6342-5d8c-ac0e-ba08fa35b24c",
+                            "task": "d71bd575-6d1b-5088-9da0-7d2cebf0d59e"
+                        },
+                        "type": "cell"
+                    }
+                ],
+                "dir": "h",
+                "sizes": [
+                    1,
+                    1
+                ],
+                "type": "split"
+            }
+        ],
+        "dir": "v",
+        "sizes": [
+            2,
+            1
+        ],
+        "type": "split"
+    },
+    "name": "Release",
+    "order": 1,
+    "schemaVersion": 1
+}

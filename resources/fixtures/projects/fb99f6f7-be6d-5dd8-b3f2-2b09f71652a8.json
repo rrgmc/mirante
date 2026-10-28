@@ -1,0 +1,25 @@
+{
+    "connectionOverrides": {},
+    "folders": [
+        {
+            "id": "9f7ef1e0-2452-55c0-8318-6728c2f278f2",
+            "main": true,
+            "name": "frontend",
+            "remoteUrl": "git@gitlab.com:acme/frontend.git"
+        }
+    ],
+    "groupId": "6d1b9bb9-f4c3-5677-a4e1-683ba618d4c7",
+    "id": "fb99f6f7-be6d-5dd8-b3f2-2b09f71652a8",
+    "moduleSettings": {
+        "gitlab": {
+            "project": "acme/frontend"
+        },
+        "jira": {
+            "projectKey": "ACME"
+        }
+    },
+    "name": "frontend",
+    "order": 0,
+    "priority": 2,
+    "schemaVersion": 1
+}

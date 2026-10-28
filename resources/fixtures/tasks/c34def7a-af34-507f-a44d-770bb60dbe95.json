@@ -1,0 +1,87 @@
+{
+    "dashboards": [
+        {
+            "id": "b1befbf2-e377-586f-9515-e711fcdd3094",
+            "layout": {
+                "children": [
+                    {
+                        "ref": {
+                            "item": "191057b6-8355-5994-beae-62a500d35f8d"
+                        },
+                        "type": "cell"
+                    },
+                    {
+                        "children": [
+                            {
+                                "ref": {
+                                    "item": "62f8979b-39df-5d8b-9866-645c0bec9b98"
+                                },
+                                "type": "cell"
+                            },
+                            {
+                                "ref": {
+                                    "item": "90a0177c-6b3d-54e8-9616-a23956f8fd7a"
+                                },
+                                "type": "cell"
+                            }
+                        ],
+                        "dir": "v",
+                        "sizes": [
+                            1,
+                            1
+                        ],
+                        "type": "split"
+                    }
+                ],
+                "dir": "h",
+                "sizes": [
+                    1,
+                    1
+                ],
+                "type": "split"
+            },
+            "name": "Overview"
+        }
+    ],
+    "defaultDashboardId": "b1befbf2-e377-586f-9515-e711fcdd3094",
+    "id": "c34def7a-af34-507f-a44d-770bb60dbe95",
+    "isDefault": true,
+    "items": [
+        {
+            "config": {
+                "filter": "",
+                "preset": "reviewRequested",
+                "project": "",
+                "scope": "project"
+            },
+            "id": "191057b6-8355-5994-beae-62a500d35f8d",
+            "name": "Review requested",
+            "type": "gitlab.mr.list"
+        },
+        {
+            "config": {
+                "jql": "",
+                "preset": "currentSprint"
+            },
+            "id": "62f8979b-39df-5d8b-9866-645c0bec9b98",
+            "name": "Current sprint",
+            "type": "jira.list"
+        },
+        {
+            "config": {
+                "branch": "main",
+                "branchMode": "fixed",
+                "project": ""
+            },
+            "id": "90a0177c-6b3d-54e8-9616-a23956f8fd7a",
+            "name": "main pipeline",
+            "type": "gitlab.pipeline"
+        }
+    ],
+    "order": 0,
+    "priority": 2,
+    "projectId": "3dd79dc2-8ec9-5181-b7d0-704a18f494d5",
+    "schemaVersion": 1,
+    "state": "active",
+    "title": "Default"
+}

@@ -77,10 +77,10 @@ Each preset has a matching build and test preset. On Windows, presets are run fr
 **CI.** `.github/workflows/ci.yml` runs on every push and pull request:
 
 - **build** job, matrix `windows-2022`, `macos-14` and `ubuntu-24.04`:
-  1. install Qt with `jurplel/install-qt-action`, pinned to the newest 6.8 patch release, with its cache on;
-  2. on Linux, install `libsecret-1-dev`, `libx11-dev`, `libxkbcommon-dev` and `libgl1-mesa-dev`;
-  3. on Windows, set up the MSVC environment with `ilammy/msvc-dev-cmd`;
-  4. configure, build and test with the `ci` preset.
+  1. install uv with `astral-sh/setup-uv`, and restore the Qt folder from `actions/cache`, keyed on the operating system, the Qt version and the archives;
+  2. set `MIRANTE_QT_ROOT` to that cached folder outside the checkout, so `tools/setup-qt.*` downloads Qt only when the cache is empty;
+  3. on Linux, install `ninja-build`, `pkg-config`, `libsecret-1-dev`, `libx11-dev`, `libxkbcommon-dev`, `libxkbcommon-x11-0`, `libgl1-mesa-dev`, `libegl1`, `libfontconfig1` and `libdbus-1-3`; on macOS, install `ninja`;
+  4. on Windows, run `tools/build.ps1 -Preset ci`, which gets Qt, enters the MSVC environment, builds and tests in one step; on macOS and Linux, run `tools/setup-qt.sh`, then configure, build and test with the `ci` preset.
 - **no-modules** job, Linux only: configure, build and test with the `ci-no-modules` preset.
 - **module-includes** job: fails if any file under `src/modules/` includes a path that starts with `../`, or a core header by name. The build already blocks the include path. This catches relative paths, which the build cannot block.
 

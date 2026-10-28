@@ -1,0 +1,22 @@
+{
+    "dashboards": [
+        {
+            "id": "ff36e2a0-fc62-5094-a685-62e97c37cc60",
+            "layout": {
+                "ref": null,
+                "type": "cell"
+            },
+            "name": "Main"
+        }
+    ],
+    "defaultDashboardId": "ff36e2a0-fc62-5094-a685-62e97c37cc60",
+    "id": "6c4c764e-dd09-5509-98b1-a9ead0e442ce",
+    "isDefault": false,
+    "items": [],
+    "order": 0,
+    "priority": 2,
+    "projectId": "475aa13b-e862-5f2e-b9aa-e1f4950328bc",
+    "schemaVersion": 1,
+    "state": "archived",
+    "title": "Old Terraform cleanup"
+}
