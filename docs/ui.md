@@ -46,7 +46,7 @@ The sidebar can be collapsed.
 - **Double click** (or `Enter`) on a task: expands or collapses it. Tasks are opened through their dashboards.
 - **Double click** on a task dashboard: opens it in the **preview tab**. The preview tab shows its title in italics. The next dashboard opened this way replaces it. Task dashboard titles name the task and the dashboard: "Task / Dashboard".
 - **Double click** on an item: opens the item alone in its own window, shown maximized. `Escape` closes it. See [decision 0019](decisions/0019-fixed-task-cells-and-item-windows.md).
-- **Pin:** editing the dashboard, or the pin button, turns the preview tab into a normal tab. A pinned task tab is a root dashboard holding one cell with that task. It goes to the front of the tab bar. It shows two lock buttons: the root dashboard's next to the `+` button in the tab bar row, and the task dashboard's in the task header.
+- **Pin:** editing the dashboard, or the pin button, turns the preview tab into a normal tab. A pinned task tab is a root dashboard holding one cell with that task. It goes to the front of the tab bar. Its lock is the one at the far right of the tab bar row, as for every tab.
 - Opening a task dashboard that already has a pinned tab switches to that tab instead of opening a preview.
 
 The open tabs, and which one is the preview, are stored on each device, not synced.
@@ -66,7 +66,7 @@ A root dashboard is a tab in the main tab bar. It has a name and a [layout tree]
 
 - Unlock the dashboard, then drag an item or a task dashboard from the sidebar onto it. A task dashboard dropped on a root dashboard places its task there, showing that dashboard. The drop overlay shows where it lands. See [editing](#editing-layouts). A locked dashboard refuses every drop: it shows no drop zones, and the cursor shows that the drop is not possible.
 - Or use "Add to dashboard…" in the context menu, then pick a dashboard and click a cell. An empty cell is filled; any other cell is split.
-- Tasks go only into root dashboards. Inside a task shown in a root dashboard, only that task's items can be dropped; a task dashboard dragged over its cells is refused. To place a task beside a task cell, drop its dashboard on the task cell's header, which belongs to the root dashboard.
+- Tasks go only into root dashboards. A task dashboard shown in a root dashboard is read-only there: it has no lock, no edit menus, and takes no drops. A drop on it acts on the root dashboard. To change a task dashboard, open it on its own with a double click on its cell, its "Edit task dashboard" button or its menu, and edit it there. See [decision 0020](decisions/0020-edit-task-dashboards-alone.md).
 
 ## Task dashboards
 
@@ -95,7 +95,7 @@ A preset only creates the first tree. The user can change it freely afterwards.
 
 ## Editing layouts
 
-Layouts are locked by default, to prevent accidental changes while working. A lock button on each dashboard turns editing on. Resizing splits works even when locked.
+Layouts are locked by default, to prevent accidental changes while working. The lock button at the far right of the tab bar row turns editing on for the current tab. Task dashboards shown inside a root dashboard have no lock of their own; they are edited on their own tab. Resizing splits works even when locked.
 
 When editing is on:
 

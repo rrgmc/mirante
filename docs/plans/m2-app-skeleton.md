@@ -277,7 +277,7 @@ The conversion is done once with a small script, which is not committed. The fix
 - Empty cells show "Empty". Cells with `removed` set show "Removed".
 - A focused cell gets a highlighted border.
 
-**`TaskCell`** is the cell of a task in a root dashboard. It has a thin header with the task and dashboard names ("Task / Dashboard"), the task dashboard's lock button and an "open alone" button. It has no dashboard picker, see [decision 0019](../decisions/0019-fixed-task-cells-and-item-windows.md). Its body is a nested `LayoutView` on the task dashboard in its reference. Edits there change the task dashboard, as in [decision 0011](../decisions/0011-root-cells-reference-task-dashboards.md). The chosen dashboard is stored in the cell's reference.
+**`TaskCell`** is the cell of a task in a root dashboard. It has a thin header with the task and dashboard names ("Task / Dashboard") and an "Edit task dashboard" button, and no lock: its nested view is read-only, see [decision 0020](../decisions/0020-edit-task-dashboards-alone.md). It has no dashboard picker, see [decision 0019](../decisions/0019-fixed-task-cells-and-item-windows.md). Its body is a nested, read-only `LayoutView` on the task dashboard in its reference. A double click, the button or its menu opens that task dashboard on its own for editing.
 
 **Lock state.** Each dashboard starts locked. A set of unlocked dashboard ids is kept in memory by `MainWindow` and passed to the views. Resizing splitters and switching tabs work while locked.
 

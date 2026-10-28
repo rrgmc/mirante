@@ -467,9 +467,9 @@ struct MainWindow::Private
         tabRow->addWidget(showSidebarButton);
         tabRow->addWidget(tabBar);
         tabRow->addWidget(addButton);
-        tabRow->addWidget(lockButton);
         tabRow->addWidget(listButton);
         tabRow->addStretch(1);
+        tabRow->addWidget(lockButton);      // at the far right
 
         stack = new QStackedWidget(content);
 
@@ -499,7 +499,9 @@ MainWindow::MainWindow(Model &model, const ItemTypeRegistry &types, QWidget *par
     d->services.editor = d->editor;
     d->services.locks = d->locks;
     d->services.tracker = d->tracker;
-    d->services.openTaskAlone = [this](const QString &taskId) { openTaskPreview(taskId); };
+    d->services.openTaskAlone = [this](const QString &taskId, const QString &dashboardId) {
+        openTaskPreview(taskId, dashboardId);
+    };
 
     setWindowTitle(QStringLiteral(MIRANTE_APP_NAME));
     resize(1280, 800);
