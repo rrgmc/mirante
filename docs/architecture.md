@@ -66,12 +66,12 @@ The same `LayoutView` shows task dashboards and root dashboards. A task cell ins
 
 | Class | Responsibility |
 |---|---|
-| `ItemType` | Interface: id, name, icon, fields, rendering, connection kind, status, actions, `fromUrl`, `createView` |
+| `ItemType` | Interface: id, name, icon, fields, rendering, connection kind, status, actions, `fromUrl`, `createView`, and the view flags `singleView` and `reparentSafe`. See [the view](item-types.md#the-view). |
 | `ItemTypeRegistry` | Holds all types, finds a type by id, and finds the type that recognises a pasted URL |
 | `ModuleRegistrar` | Receives what each module registers: item types, connection kinds, settings, quick add handlers, related-item finders. See [modules](modules.md#what-a-module-registers). |
 | `ItemContext` | What an item's code can reach: settings, connections, status, profile, folders, terminal. See [modules](modules.md#item-context). |
 | `UnknownItemType` | Placeholder for an item whose module is not in this build. See [missing modules](modules.md#missing-modules). |
-| `Placement` | One shown instance of an item: owns its view widget, and tells the `ViewPool` when it becomes visible or hidden |
+| `Placement` | One shown instance of an item: owns its view widget, honours the view flags, and tells the `ViewPool` when it becomes visible or hidden |
 | `ViewPool` | Applies the [memory policy](web-views.md#memory-policy) to web views |
 
 Native views are ordinary widgets. Lists use `QTableView` with a model fed from the `StatusCache`.

@@ -39,7 +39,7 @@ Mirante is a personal desktop dashboard for all of one person's work, built with
 
 **Connection kind.** The type of a connection, such as `gitlab` or `jira.cloud`. A module registers it and decides how requests are signed.
 
-**Placement.** One place where an item is shown: a cell, a tab or a detached window. Each visible placement has its own view.
+**Placement.** One place where an item is shown: a cell, a tab or a detached window. Each visible placement has its own view, unless the item type allows only one.
 
 **Dashboard.** A named arrangement of items or tasks, stored as a layout tree.
 - A **task dashboard** belongs to a task and shows its items.
