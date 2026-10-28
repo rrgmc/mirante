@@ -176,11 +176,8 @@ void TaskCell::Private::updatePicker(const Task &task)
 void TaskCell::Private::updateLock()
 {
     const bool unlocked = isUnlocked();
-    {
-        const QSignalBlocker blocker(lockButton);
-        lockButton->setChecked(unlocked);
-    }
-    // The button shows the icon; the text is its accessible name.
+    // The icon shows the state, so the button is not checkable: a checked
+    // button's accent fill would hide the icon. The text is its accessible name.
     lockButton->setIcon(QIcon(unlocked ? QStringLiteral(":/icons/lock-open.svg") : QStringLiteral(":/icons/lock-closed.svg")));
     lockButton->setText(unlocked ? TaskCell::tr("Unlocked") : TaskCell::tr("Locked"));
     lockButton->setToolTip(unlocked ? TaskCell::tr("Lock the task dashboard")
@@ -312,7 +309,6 @@ TaskCell::TaskCell(const LayoutServices &services, const DashboardRef &rootDashb
 
     d->lockButton = new QToolButton(d->header);
     d->lockButton->setObjectName(QStringLiteral("lockButton"));
-    d->lockButton->setCheckable(true);
     d->lockButton->setAutoRaise(true);
     headerLayout->addWidget(d->lockButton);
 
@@ -334,9 +330,9 @@ TaskCell::TaskCell(const LayoutServices &services, const DashboardRef &rootDashb
 
     connect(d->picker, &QComboBox::currentIndexChanged, this,
             [this](int index) { d->choose(d->picker->itemData(index).toString()); });
-    connect(d->lockButton, &QToolButton::toggled, this, [this](bool checked) {
+    connect(d->lockButton, &QToolButton::clicked, this, [this] {
         if (d->services.locks)
-            d->services.locks->setUnlocked(d->dashboardId, checked);
+            d->services.locks->setUnlocked(d->dashboardId, !d->isUnlocked());
         d->updateLock();
     });
     connect(d->openButton, &QToolButton::clicked, this, [this] {
