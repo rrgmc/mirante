@@ -2,7 +2,6 @@
 
 #include "core/Entities.h"
 #include "ui/SidebarModel.h"
-#include "ui/SidebarRoles.h"
 
 #include <QIconEngine>
 #include <QPainter>
@@ -49,8 +48,6 @@ bool isDimmed(const QModelIndex &index)
     const auto kind = SidebarModel::Kind(index.data(SidebarModel::KindRole).toInt());
     if (kind != SidebarModel::Kind::Project && kind != SidebarModel::Kind::Task)
         return false;
-    if (index.data(SidebarDefaultTaskRole).toBool())
-        return false;
     return index.data(SidebarModel::PriorityRole).toInt() == int(Priority::Low);
 }
 
@@ -66,7 +63,6 @@ SidebarDelegate::SidebarDelegate(QObject *parent)
     m_markers[int(Priority::High)] = QIcon(new MarkerIconEngine(QColor(0xe8, 0x86, 0x2a)));
     m_markers[int(Priority::Normal)] = QIcon(new MarkerIconEngine(normal));
     m_markers[int(Priority::Low)] = QIcon(new MarkerIconEngine(QColor(0x9a, 0xa1, 0xad)));
-    m_noMarker = QIcon(new MarkerIconEngine(Qt::transparent));
 }
 
 void SidebarDelegate::paint(QPainter *painter, const QStyleOptionViewItem &option, const QModelIndex &index) const
@@ -90,9 +86,7 @@ void SidebarDelegate::initStyleOption(QStyleOptionViewItem *option, const QModel
         return;
 
     const int priority = index.data(SidebarModel::PriorityRole).toInt();
-    if (index.data(SidebarDefaultTaskRole).toBool())
-        option->icon = m_noMarker;
-    else if (priority >= 0 && priority < 4)
+    if (priority >= 0 && priority < 4)
         option->icon = m_markers[priority];
     else
         return;

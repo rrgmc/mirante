@@ -44,7 +44,6 @@ The base of the Qt app, reading a fixed set of JSON files. Nothing is written ba
 
 - [ ] The data folder can be chosen. `Store` writes changes with `QSaveFile`, and reloads external changes.
 - [ ] Groups, projects, tasks, items and dashboards can be created, edited and deleted.
-- [ ] Each project gets a Default task, which cannot be deleted.
 - [ ] Priorities, including drag across priority levels, and task states work.
 - [ ] The Focus view works.
 - [ ] Project folders can be mapped to a local path on each device.

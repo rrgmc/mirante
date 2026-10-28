@@ -48,7 +48,6 @@
     ],
     "defaultDashboardId": "8f0773ef-e45e-50ea-829b-58227803d4f0",
     "id": "6c78a1cf-df72-550c-b5b7-0c41a424450e",
-    "isDefault": true,
     "items": [
         {
             "config": {
@@ -83,5 +82,5 @@
     "projectId": "475aa13b-e862-5f2e-b9aa-e1f4950328bc",
     "schemaVersion": 1,
     "state": "active",
-    "title": "Default"
+    "title": "Overview"
 }

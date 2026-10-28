@@ -3,7 +3,6 @@
 #include "core/Model.h"
 #include "items/ItemTypeRegistry.h"
 #include "layout/DragMime.h"
-#include "ui/SidebarRoles.h"
 
 #include <QFont>
 #include <QHash>
@@ -270,9 +269,7 @@ QVariant SidebarModel::data(const QModelIndex &index, int role) const
             return task->title;
         if (role == PriorityRole)
             return int(task->priority);
-        if (role == SidebarDefaultTaskRole)
-            return task->isDefault;
-        if (role == Qt::ToolTipRole && !task->isDefault)
+        if (role == Qt::ToolTipRole)
             return tr("Priority: %1").arg(priorityName(task->priority));
         if (role == Qt::FontRole && task->state != TaskState::Active) {
             QFont font;

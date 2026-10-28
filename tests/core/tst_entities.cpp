@@ -36,7 +36,7 @@ QJsonObject roundTrip(const QJsonObject &json)
 
 const char *const FullTask = R"({
     "id": "t-1", "projectId": "p-1", "title": "Fix login",
-    "isDefault": false, "state": "done", "priority": 1, "order": 4,
+    "state": "done", "priority": 1, "order": 4,
     "items": [
         { "id": "i-1", "type": "gitlab.mr.summary", "name": "MR",
           "config": { "mr": 12, "nested": { "a": [1, 2] } }, "connectionId": "c-2" },
@@ -270,9 +270,8 @@ private slots:
         QVERIFY(task);
         QCOMPARE(task->state, TaskState::Active);
         QCOMPARE(task->priority, Priority::Normal);
-        QVERIFY(!task->isDefault);
         QCOMPARE(task->toJson(), parse(R"({ "id": "t-1", "projectId": "p-1", "title": "",
-            "isDefault": false, "state": "active", "priority": 2, "order": 0,
+            "state": "active", "priority": 2, "order": 0,
             "items": [], "dashboards": [], "defaultDashboardId": "" })"));
     }
 
@@ -304,12 +303,14 @@ private slots:
     {
         QFETCH(QString, text);
         QFETCH(TaskState, state);
+        // Files from before decision 0018 have isDefault. It is kept as an unknown field.
         QJsonObject json = parse(R"({ "id": "t-1", "projectId": "p-1", "isDefault": true })");
         json.insert(QStringLiteral("state"), text);
         const auto task = Task::fromJson(json);
         QVERIFY(task);
         QCOMPARE(task->state, state);
-        QVERIFY(task->isDefault);
+        QVERIFY(task->extra.value(QStringLiteral("isDefault")).toBool());
+        QVERIFY(task->toJson().value(QStringLiteral("isDefault")).toBool());
         QCOMPARE(task->toJson().value(QStringLiteral("state")).toString(), text);
     }
 
@@ -346,7 +347,6 @@ private slots:
         QTest::newRow("task priority fraction") << QByteArray(R"({ "priority": 1.5 })") << QStringLiteral("priority");
         QTest::newRow("task order fraction") << QByteArray(R"({ "order": 2.5 })") << QStringLiteral("order");
         QTest::newRow("task order huge") << QByteArray(R"({ "order": 1e20 })") << QStringLiteral("order");
-        QTest::newRow("task isDefault") << QByteArray(R"({ "isDefault": "yes" })") << QStringLiteral("isDefault");
         QTest::newRow("task items") << QByteArray(R"({ "items": { "a": 1 } })") << QStringLiteral("items");
         QTest::newRow("task dashboards") << QByteArray(R"({ "dashboards": null })") << QStringLiteral("dashboards");
         QTest::newRow("task defaultDashboardId") << QByteArray(R"({ "defaultDashboardId": [] })") << QStringLiteral("defaultDashboardId");
@@ -368,7 +368,6 @@ private slots:
         QCOMPARE(task->state, defaults.state);
         QCOMPARE(task->priority, defaults.priority);
         QCOMPARE(task->order, defaults.order);
-        QCOMPARE(task->isDefault, defaults.isDefault);
         QVERIFY(task->items.empty());
         QVERIFY(task->dashboards.empty());
         QCOMPARE(task->defaultDashboardId, defaults.defaultDashboardId);

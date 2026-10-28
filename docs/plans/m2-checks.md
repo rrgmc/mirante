@@ -14,9 +14,9 @@ Tick each box, or note what is wrong next to it.
 
 ## Sidebar
 
-- [ ] Groups, projects, tasks and items appear in that order. Projects and tasks are sorted by priority, and the Default task comes first.
+- [ ] Groups, projects, tasks and items appear in that order. Projects and tasks are sorted by priority, then their manual order.
 - [ ] Urgent and High entries have a visible marker. Low entries are dimmed.
-- [ ] "Hide done" is on at start and hides done and archived tasks. "Hide Low" hides Low projects and tasks, but not Default tasks.
+- [ ] "Hide done" is on at start and hides done and archived tasks. "Hide Low" hides Low projects and tasks.
 - [ ] The « button hides the sidebar, and the » button at the start of the tab bar row brings it back.
 
 ## Root tabs, preview and pinning

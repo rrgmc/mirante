@@ -30,7 +30,6 @@ The sidebar can be collapsed.
 
 - Groups appear in manual order.
 - Projects and tasks are sorted by [priority](data-model.md#priority), then manual order.
-- Each project's Default task is always first.
 - A coloured marker shows the priority level. Low items are dimmed.
 - Tasks can be expanded to show their items, so that items can be dragged onto dashboards.
 - A filter hides Low items, and another hides Done and Archived tasks. The first is off by default, the second on.
@@ -126,7 +125,7 @@ If the same item is shown in two places, each place has its own live view. See [
 
 Focus answers "what should I work on now?", across all projects.
 
-- It lists active tasks from all projects, or from one group, chosen with a filter. Default tasks are not listed.
+- It lists active tasks from all projects, or from one group, chosen with a filter.
 - **Sort order:**
   1. task priority;
   2. project priority, to break ties;

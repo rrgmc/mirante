@@ -26,7 +26,7 @@ const QString kMorning = QStringLiteral("60139a76-dd45-50ea-890b-ae022026e421");
 const QString kRelease = QStringLiteral("5247a9e5-ee54-5552-8831-0b2ff361afba");
 const QString kFixLoginTask = QStringLiteral("760c8e20-8555-5a2c-bcbe-75e7fd08ca74");
 const QString kFixLoginDashboard = QStringLiteral("e7c480bf-fc19-50f3-81e4-18fc51f27f6c");
-const QString kDefaultTask = QStringLiteral("c34def7a-af34-507f-a44d-770bb60dbe95");
+const QString kOverviewTask = QStringLiteral("c34def7a-af34-507f-a44d-770bb60dbe95");
 const QString kReviewsItem = QStringLiteral("191057b6-8355-5994-beae-62a500d35f8d");
 
 // The registry has no modules, so every item has an unknown type.
@@ -88,10 +88,10 @@ private slots:
         QVERIFY(layout::sameShape(f.window->currentLayoutView()->tree(), *expected));
 
         // A second preview replaces the first.
-        f.window->openTaskPreview(kDefaultTask);
+        f.window->openTaskPreview(kOverviewTask);
         QCOMPARE(f.bar()->count(), 3);
         QCOMPARE(f.bar()->previewIndex(), 2);
-        QCOMPARE(f.tabText(2), f.model.task(kDefaultTask)->title);
+        QCOMPARE(f.tabText(2), f.model.task(kOverviewTask)->title);
 
         // Closing the preview removes its tab.
         f.window->closeCurrentTab();
@@ -151,7 +151,7 @@ private slots:
     void pinButton()
     {
         Fixture f;
-        f.window->openTaskPreview(kDefaultTask);
+        f.window->openTaskPreview(kOverviewTask);
         auto *pin = f.bar()->findChild<QToolButton *>(QStringLiteral("pinButton"));
         QVERIFY(pin);
         QSignalSpy spy(f.bar(), &RootTabBar::pinRequested);
@@ -160,7 +160,7 @@ private slots:
         QCOMPARE(spy.at(0).at(0).toInt(), 2);
         QCOMPARE(f.bar()->previewIndex(), -1);
         QCOMPARE(f.bar()->count(), 3);
-        QCOMPARE(f.tabText(0), f.model.task(kDefaultTask)->title);
+        QCOMPARE(f.tabText(0), f.model.task(kOverviewTask)->title);
     }
 
     void newRootDashboard()
@@ -262,7 +262,7 @@ private slots:
         if (!QTest::qWaitForWindowActive(f.window.get()))
             QSKIP("The window cannot be activated on this platform.");
 
-        f.window->focusItem(kDefaultTask, kReviewsItem);
+        f.window->focusItem(kOverviewTask, kReviewsItem);
         QCOMPARE(f.bar()->previewIndex(), 2);
         QWidget *focused = QApplication::focusWidget();
         QVERIFY(focused);

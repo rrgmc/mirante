@@ -390,7 +390,6 @@ std::optional<Task> Task::fromJson(const QJsonObject &json, QString *error)
         || !r.required(QStringLiteral("projectId"), &task.projectId, error))
         return std::nullopt;
     r.string(QStringLiteral("title"), &task.title);
-    r.boolean(QStringLiteral("isDefault"), &task.isDefault);
     r.state(QStringLiteral("state"), &task.state);
     r.priority(QStringLiteral("priority"), &task.priority);
     r.integer(QStringLiteral("order"), &task.order);
@@ -408,7 +407,6 @@ QJsonObject Task::toJson() const
         {QStringLiteral("id"), id},
         {QStringLiteral("projectId"), projectId},
         {QStringLiteral("title"), title},
-        {QStringLiteral("isDefault"), isDefault},
         {QStringLiteral("state"), stateToString(state)},
         {QStringLiteral("priority"), static_cast<int>(priority)},
         {QStringLiteral("order"), order},

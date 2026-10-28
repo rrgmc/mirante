@@ -4,8 +4,8 @@
 
 #include <vector>
 
-// Display order of projects and tasks: priority, then order. The Default task
-// comes first. See docs/data-model.md#priority. Implemented in Sorting.cpp.
+// Display order of projects and tasks: priority, then order.
+// See docs/data-model.md#priority. Implemented in Sorting.cpp.
 
 namespace mirante {
 

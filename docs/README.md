@@ -29,8 +29,6 @@ Mirante is a personal desktop dashboard for all of one person's work, built with
 
 **Task.** A piece of work inside a project. A task has items, dashboards, a state (active, done or archived) and a priority.
 
-**Default task.** The task every project has. It cannot be deleted. It holds items that concern the whole project.
-
 **Item.** One named panel in a task, such as one merge request or one Jira list. A task can have several items of the same type.
 
 **Item type.** What kind of panel an item is, such as "GitLab MR (summary)" or "Jira List". See [item types](item-types.md).

@@ -7,14 +7,14 @@ This document describes the entities, their fields and how layouts are stored. H
 ```
 Group
 └─ Project
-   └─ Task            (every project has one Default task)
+   └─ Task
       ├─ Item         (named, typed; several of the same type allowed)
       └─ Dashboard    (task dashboard; one is the default)
 
 Root dashboard        (outside the hierarchy; holds tasks and items from anywhere)
 ```
 
-Only tasks hold items and dashboards. Groups and projects do not. Project-wide items, such as "all open merge requests of this repository", belong in the project's Default task.
+Only tasks hold items and dashboards. Groups and projects do not. Project-wide items, such as "all open merge requests of this repository", go in an ordinary task, such as one named "Overview". See [decision 0018](decisions/0018-no-default-task.md).
 
 All ids are UUIDs, created once and never reused.
 
@@ -75,7 +75,6 @@ Each device maps a folder id to a local path in its own settings. A device witho
 |---|---|
 | `id`, `projectId` | UUIDs |
 | `title` | Display name |
-| `isDefault` | `true` for the project's Default task |
 | `state` | `active`, `done` or `archived` |
 | `priority` | See [priority](#priority) |
 | `order` | Manual position within its priority level |
@@ -85,7 +84,6 @@ Each device maps a folder id to a local path in its own settings. A device witho
 
 Rules:
 
-- Every project has exactly one Default task. It cannot be deleted, renamed away from "Default", or archived.
 - A new task gets one dashboard with a single empty cell.
 - The user sets the state. The app suggests "done" when all linked merge requests are merged and all linked Jira issues are closed. It never changes the state on its own.
 

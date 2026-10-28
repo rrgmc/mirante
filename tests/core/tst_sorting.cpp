@@ -18,7 +18,7 @@ Project project(const QString &id, const QString &name, Priority priority = Prio
 }
 
 Task task(const QString &id, const QString &title, Priority priority = Priority::Normal, int order = 0,
-          TaskState state = TaskState::Active, bool isDefault = false)
+          TaskState state = TaskState::Active)
 {
     Task t;
     t.id = id;
@@ -26,7 +26,6 @@ Task task(const QString &id, const QString &title, Priority priority = Priority:
     t.priority = priority;
     t.order = order;
     t.state = state;
-    t.isDefault = isDefault;
     return t;
 }
 
@@ -147,17 +146,6 @@ private slots:
         QCOMPARE(projectIds(sortedProjects({nullptr, &p, nullptr}, SortFilter{})), QStringList({"p"}));
     }
 
-    void defaultTaskFirst()
-    {
-        const std::vector<Task> tasks = {
-            task("urgent", "Fix", Priority::Urgent, -10),
-            task("default", "Default", Priority::Low, 99, TaskState::Active, true),
-            task("normal", "Other"),
-        };
-        QCOMPARE(taskIds(sortedTasks(pointers(tasks), SortFilter{})),
-                 QStringList({"default", "urgent", "normal"}));
-    }
-
     void tasksByPriorityOrderTitleId()
     {
         const std::vector<Task> tasks = {
@@ -184,23 +172,15 @@ private slots:
                  QStringList({"active", "done", "archived"}));
     }
 
-    void hideLowTasksKeepsDefault()
+    void hideLowTasks()
     {
         const std::vector<Task> tasks = {
-            task("default", "Default", Priority::Low, 0, TaskState::Active, true),
             task("low", "L", Priority::Low),
             task("normal", "N"),
         };
         const SortFilter filter{true, false};
-        QCOMPARE(taskIds(sortedTasks(pointers(tasks), filter)), QStringList({"default", "normal"}));
-        QVERIFY(taskVisible(tasks[0], filter));
-        QVERIFY(!taskVisible(tasks[1], filter));
-    }
-
-    void defaultTaskIsNeverHidden()
-    {
-        const Task done = task("default", "Default", Priority::Low, 0, TaskState::Done, true);
-        QVERIFY(taskVisible(done, SortFilter{true, true}));
+        QCOMPARE(taskIds(sortedTasks(pointers(tasks), filter)), QStringList({"normal"}));
+        QVERIFY(!taskVisible(tasks[0], filter));
     }
 
     void defaultFilterValues()

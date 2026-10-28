@@ -23,6 +23,7 @@ Each file records one design decision: what was decided, what else was considere
 | [0015](0015-app-skeleton-instead-of-spike.md) | Build the app skeleton directly, with CI from M2 | Accepted |
 | [0016](0016-generic-items.md) | Generic items: any `QWidget`, with two view flags | Accepted |
 | [0017](0017-parallel-tasks-with-fixed-interfaces.md) | Parallel tasks with fixed interfaces and globbed sources | Accepted |
+| [0018](0018-no-default-task.md) | No Default task in projects | Accepted |
 
 ## Template
 

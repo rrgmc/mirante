@@ -21,7 +21,6 @@ protected:
 
 private:
     QIcon m_markers[4];     // indexed by Priority
-    QIcon m_noMarker;       // keeps the Default task's title aligned with the others
 };
 
 } // namespace mirante
