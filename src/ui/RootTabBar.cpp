@@ -1,5 +1,6 @@
 #include "ui/RootTabBar.h"
 
+#include <QIcon>
 #include <QPaintEvent>
 #include <QPointer>
 #include <QStyleOptionTab>
@@ -73,7 +74,8 @@ void RootTabBar::setPreviewIndex(int index)
     if (index >= 0) {
         auto *pin = new QToolButton(this);
         pin->setObjectName(QStringLiteral("pinButton"));
-        pin->setText(QStringLiteral("📌"));
+        pin->setIcon(QIcon(QStringLiteral(":/icons/pin.svg")));
+        pin->setText(tr("Pin"));
         pin->setToolTip(tr("Pin this task"));
         pin->setAutoRaise(true);
         pin->setFocusPolicy(Qt::NoFocus);

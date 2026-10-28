@@ -601,6 +601,7 @@ private slots:
         view.setTree(tree(work));
         view.show();
         QVERIFY(QTest::qWaitForWindowExposed(&view));
+        view.setEditMode(true);
         auto *overlay = new DropOverlay(&view);
         QSignalSpy spy(overlay, &DropOverlay::dropped);
 
@@ -621,11 +622,15 @@ private slots:
         QCOMPARE(target.path, NodePath{0});
         QCOMPARE(target.zone.kind, DropZone::Kind::Centre);
 
-        // A cell move needs edit mode.
+        // A locked dashboard refuses a cell move and a drag from the sidebar.
+        view.setEditMode(false);
         std::unique_ptr<QMimeData> move(dragMimeData(moved(itemRef(claudeItem), work, {0})));
-        QDragEnterEvent locked(pos, Qt::MoveAction, move.get(), Qt::LeftButton, Qt::NoModifier);
-        QApplication::sendEvent(&view, &locked);
-        QVERIFY(!locked.isAccepted());
+        QDragEnterEvent lockedMove(pos, Qt::MoveAction, move.get(), Qt::LeftButton, Qt::NoModifier);
+        QApplication::sendEvent(&view, &lockedMove);
+        QVERIFY(!lockedMove.isAccepted());
+        QDragEnterEvent lockedAdd(pos, Qt::CopyAction, mime.get(), Qt::LeftButton, Qt::NoModifier);
+        QApplication::sendEvent(&view, &lockedAdd);
+        QVERIFY(!lockedAdd.isAccepted());
         QVERIFY(!overlay->isVisible());
     }
 
@@ -637,6 +642,7 @@ private slots:
         view.setTree(tree(work));
         view.show();
         QVERIFY(QTest::qWaitForWindowExposed(&view));
+        view.setEditMode(true);
         auto *overlay = new DropOverlay(&view);
         QSignalSpy spy(overlay, &DropOverlay::dropped);
         int asked = 0;

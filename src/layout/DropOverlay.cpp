@@ -239,9 +239,8 @@ bool DropOverlay::Private::onViewEvent(QEvent *event)
     case QEvent::DragEnter: {
         auto *drag = static_cast<QDragEnterEvent *>(event);
         payload = dragPayload(drag->mimeData());
-        // Moving a cell needs edit mode. A drag from the sidebar works on a
-        // locked dashboard too.
-        if (!payload || (payload->sourceDashboard && !view->editMode())) {
+        // A locked dashboard refuses every drop, from the sidebar too.
+        if (!payload || !view->editMode()) {
             payload.reset();
             drag->ignore();
             return true;
