@@ -4,6 +4,7 @@
 
 #include <QDir>
 #include <QFile>
+#include <QFileInfo>
 #include <QJsonDocument>
 #include <QJsonParseError>
 #include <QJsonValue>
@@ -239,6 +240,23 @@ bool saveWorkspaceName(const QString &dir, const QString &name, QString *error)
     if (!file.commit())
         return fail(file.errorString());
     return true;
+}
+
+QString workspaceFileName() { return kWorkspaceFile; }
+
+bool isWorkspace(const QString &dir)
+{
+    return !dir.isEmpty() && QFileInfo(dir + QLatin1Char('/') + kWorkspaceFile).isFile();
+}
+
+bool createWorkspace(const QString &dir, const QString &name, QString *error)
+{
+    if (!QDir(dir).exists()) {
+        if (error)
+            *error = QStringLiteral("the folder does not exist");
+        return false;
+    }
+    return saveWorkspaceName(dir, name, error);
 }
 
 } // namespace mirante::store

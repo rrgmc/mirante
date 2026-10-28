@@ -32,6 +32,13 @@ std::vector<LoadProblem> load(const QString &dir, Model &model);
 // workspace.mirante is included when the workspace has a name.
 std::map<QString, QJsonObject> serialise(const Model &model);
 
+// A workspace is a folder with workspace.mirante at its top. See
+// docs/decisions/0027-workspace-needs-its-file.md.
+QString workspaceFileName();                // "workspace.mirante"
+bool isWorkspace(const QString &dir);
+// Makes the folder a workspace by writing its workspace.mirante, with the name.
+bool createWorkspace(const QString &dir, const QString &name, QString *error = nullptr);
+
 // Writes the workspace's name into workspace.mirante at the top of the data
 // folder, keeping the file's other keys. The first file M2 writes; see
 // docs/decisions/0025-workspace-file.md. Returns false and sets *error if it

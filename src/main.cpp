@@ -36,12 +36,12 @@ int main(int argc, char *argv[])
     mirante::Model model;
     mirante::MainWindow window(model, types);
 
-    // The workspace given with --data, else the last one used on this device,
-    // else the sample data.
+    // The workspace given with --data, else the last one used on this device
+    // if it is still a workspace, else the sample data.
     const QString last = QSettings().value(QStringLiteral("workspace/last")).toString();
     if (parser.isSet(dataOption))
         window.openWorkspace(parser.value(dataOption));
-    else if (!last.isEmpty() && QDir(last).exists())
+    else if (mirante::store::isWorkspace(last))
         window.openWorkspace(last);
     else
         window.openSampleData();

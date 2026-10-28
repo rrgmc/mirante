@@ -363,6 +363,38 @@ private slots:
         QCOMPARE(f.window->workspace(), folder);
         QVERIFY(!f.window->findChild<QWidget *>(QStringLiteral("warningBar"))->isHidden());
 
+        // The path of workspace.mirante opens its folder.
+        f.window->openSampleData();
+        f.window->openWorkspace(folder + QStringLiteral("/workspace.mirante"));
+        QCOMPARE(f.window->workspace(), folder);
+
+        QSettings().remove(QStringLiteral("workspace"));
+    }
+
+    // A folder is a workspace only with a workspace.mirante in it. Without
+    // one it is not opened; createWorkspace writes the file and opens it.
+    void workspaceNeedsItsFile()
+    {
+        QCoreApplication::setOrganizationName(QStringLiteral("MiranteTests"));
+        QSettings().remove(QStringLiteral("workspace"));
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+
+        Fixture f;
+        f.window->openSampleData();
+        QVERIFY(!store::isWorkspace(dir.path()));
+        f.window->openWorkspace(dir.path());
+        QVERIFY(f.window->workspace().isEmpty());
+        QVERIFY(!f.window->findChild<QWidget *>(QStringLiteral("warningBar"))->isHidden());
+
+        QVERIFY(f.window->createWorkspace(dir.path(), QStringLiteral("Fresh")));
+        QVERIFY(store::isWorkspace(dir.path()));
+        QCOMPARE(f.window->workspace(), QDir(dir.path()).absolutePath());
+        QVERIFY(f.window->windowTitle().startsWith(QStringLiteral("Fresh")));
+        QVERIFY(f.window->findChild<QWidget *>(QStringLiteral("warningBar"))->isHidden());
+
+        // A folder that does not exist cannot be made one.
+        QVERIFY(!f.window->createWorkspace(dir.filePath(QStringLiteral("missing")), QStringLiteral("X")));
         QSettings().remove(QStringLiteral("workspace"));
     }
 

@@ -14,7 +14,7 @@ Tick each box, or note what is wrong next to it.
 
 ## Menus and workspaces
 
-- [ ] File > Open Workspace… opens a data folder; the window title names it. Open Recent lists it, most recent first, and Clear Recent empties the list.
+- [ ] File > Open Workspace… opens a folder by its `workspace.mirante`; the window title names it. File > New Workspace… makes a folder a workspace. A folder without `workspace.mirante`, for example from Open Recent, is not opened; the app offers to make it a workspace. Open Recent lists it, most recent first, and Clear Recent empties the list.
 - [ ] Restarting the app opens the last workspace. Open Sample Data goes back to the built-in data. Reload Workspace (`F5`) loads the folder again.
 - [ ] A recent workspace whose folder is gone shows a warning and leaves the list.
 - [ ] The sidebar header shows the workspace's name. File > Rename Workspace… or a double click on the name renames it; the name is kept in the folder's `workspace.mirante` and comes back after reopening. The sample data cannot be renamed.
