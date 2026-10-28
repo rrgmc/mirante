@@ -89,14 +89,14 @@ Tree buildTree(const Model &model, const SortFilter &filter)
             for (const Task *task : sortedTasks(model.tasksOfProject(project->id), filter)) {
                 const int taskNode = addNode(tree, SidebarModel::Kind::Task, task->id, task->id, projectNode);
                 // The two lists have ids of their own, so their expansion is remembered.
-                const int items = addNode(tree, SidebarModel::Kind::ItemList, task->id + QStringLiteral("/items"),
-                                          task->id, taskNode);
-                for (const Item &item : task->items)
-                    addNode(tree, SidebarModel::Kind::Item, item.id, task->id, items);
                 const int dashboards = addNode(tree, SidebarModel::Kind::DashboardList,
                                                task->id + QStringLiteral("/dashboards"), task->id, taskNode);
                 for (const Dashboard &dashboard : task->dashboards)
                     addNode(tree, SidebarModel::Kind::Dashboard, dashboard.id, task->id, dashboards);
+                const int items = addNode(tree, SidebarModel::Kind::ItemList, task->id + QStringLiteral("/items"),
+                                          task->id, taskNode);
+                for (const Item &item : task->items)
+                    addNode(tree, SidebarModel::Kind::Item, item.id, task->id, items);
             }
         }
     }

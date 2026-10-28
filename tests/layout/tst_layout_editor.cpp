@@ -280,6 +280,22 @@ private slots:
         QVERIFY(!refAt(work, {1, 1}));
     }
 
+    // A tab group with one tab can be removed; its content takes its place.
+    void removeTabGroupUnwrapsASingleTab()
+    {
+        editor->cellCommand(work, {0}, CellCommand::WrapInTabs);
+        QCOMPARE(node(work, {0}).kind, Kind::Tabs);
+        editor->tabCommand(work, {0}, 0, TabCommand::RemoveGroup);
+        QCOMPARE(node(work, {0}).kind, Kind::Cell);
+        QCOMPARE(refAt(work, {0}), itemRef(claudeItem));
+
+        // A group with several tabs is left alone.
+        const std::size_t tabs = node(work, {1}).children.size();
+        editor->tabCommand(work, {1}, 0, TabCommand::RemoveGroup);
+        QCOMPARE(node(work, {1}).kind, Kind::Tabs);
+        QCOMPARE(node(work, {1}).children.size(), tabs);
+    }
+
     void closeTabRemovesIt()
     {
         editor->tabCommand(work, {1}, 2, TabCommand::Close);

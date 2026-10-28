@@ -31,7 +31,8 @@ The sidebar can be collapsed.
 - Groups appear in manual order.
 - Projects and tasks are sorted by [priority](data-model.md#priority), then manual order.
 - A coloured marker shows the priority level. Low items are dimmed.
-- Each task has two fixed children: **Items**, with the task's items, and **Dashboards**, with its task dashboards. They are there for every task, even when empty.
+- Each task has two fixed children: **Dashboards**, with its task dashboards, then **Items**, with the task's items. They are there for every task, even when empty.
+- The selected row keeps its full highlight colour when the sidebar does not have the focus, so the dashboard on screen stays easy to see.
 - Two tabs at the bottom, **Active** and **Done**, show the same groups and projects. The first lists active tasks; the second, done and archived ones. A filter, off by default, hides Low items in both.
 - [Attention badges](#attention) appear on tasks, and are summed on projects and groups.
 - **Drag and drop:**
@@ -107,7 +108,9 @@ When editing is on:
   - add tab;
   - clear cell;
   - remove cell.
-- **The tab context menu** offers add tab (an empty tab after the clicked one), rename, close, move to the left or right, and "Collapse when single".
+- **The tab context menu** offers add tab (an empty tab after the clicked one), rename, close, move to the left or right, "Remove tab group" and "Collapse when single".
+  - "Remove tab group" is enabled when the group has one tab. It unwraps the group once: the tab's content takes the group's place.
+  - "Collapse when single" is a setting of the group: whenever it has one tab, now or after closing others, the group is replaced by that tab's content.
 - **A `+` button** at the right of each tab group adds an empty tab at the end.
 - **Drag and drop:** drag a cell by its header, or drag an item from the sidebar. A semi-transparent overlay shows five drop zones on the cell under the cursor:
   - the left, right, top or bottom edge splits the cell on that side;

@@ -88,6 +88,12 @@ Sidebar::Sidebar(const Model &model, const ItemTypeRegistry &types, QWidget *par
     d->tree->setModel(d->model);
     d->tree->setItemDelegate(new SidebarDelegate(d->tree));
     d->tree->setHeaderHidden(true);
+    // The selection shows the dashboard on screen, and the tree rarely has the
+    // focus while the user works in it, so it keeps its full colour.
+    QPalette treePalette = d->tree->palette();
+    for (const QPalette::ColorRole role : {QPalette::Highlight, QPalette::HighlightedText})
+        treePalette.setColor(QPalette::Inactive, role, treePalette.color(QPalette::Active, role));
+    d->tree->setPalette(treePalette);
     d->tree->setFrameShape(QFrame::NoFrame);
     d->tree->setSelectionMode(QAbstractItemView::SingleSelection);
     d->tree->setDragEnabled(true);
