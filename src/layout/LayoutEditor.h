@@ -32,7 +32,8 @@ public:
 
     // The commands of the cell and tab menus. Public so tests can call them.
     enum class CellCommand { SplitRight, SplitDown, WrapInTabs, AddTab, ClearCell, RemoveCell };
-    enum class TabCommand { Close, MoveLeft, MoveRight, ToggleCollapseSingle };
+    // AddTab inserts an empty tab after the given one, and makes it current.
+    enum class TabCommand { AddTab, Close, MoveLeft, MoveRight, ToggleCollapseSingle };
 
     void cellCommand(const DashboardRef &dashboard, const NodePath &path, CellCommand command);
     void changeItem(const DashboardRef &dashboard, const NodePath &path, const CellRef &ref);

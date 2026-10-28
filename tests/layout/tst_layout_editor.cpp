@@ -263,6 +263,16 @@ private slots:
 
     // Tab commands
 
+    void addTabInsertsAnEmptyTabAfterTheClickedOne()
+    {
+        editor->tabCommand(work, {1}, 0, TabCommand::AddTab);
+        const LayoutNode &tabs = node(work, {1});
+        QCOMPARE(tabs.titles, (std::vector<QString>{QStringLiteral("Issue"), QStringLiteral("New tab"),
+                                                    QStringLiteral("Pipeline"), QStringLiteral("Notes")}));
+        QCOMPARE(tabs.current, 1);
+        QVERIFY(!refAt(work, {1, 1}));
+    }
+
     void closeTabRemovesIt()
     {
         editor->tabCommand(work, {1}, 2, TabCommand::Close);

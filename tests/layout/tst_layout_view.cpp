@@ -16,7 +16,9 @@
 #include <QPushButton>
 #include <QSignalSpy>
 #include <QSplitter>
+#include <QTabBar>
 #include <QTabWidget>
+#include <QToolButton>
 #include <QTest>
 
 #include <set>
@@ -146,6 +148,7 @@ private slots:
     void leftoverCellsAreDestroyed();
     void splitterMoveReportsAfterDelay();
     void tabChangeReportsAtOnce();
+    void addTabButtonInEditMode();
     void cellSignalsCarryPath();
     void editModeReachesFrames();
     void detachAndReattach();
@@ -328,6 +331,33 @@ void TestLayoutView::splitterMoveReportsAfterDelay()
     QCOMPARE(view.cellAt({0}), a);
     QTest::qWait(400);
     QCOMPARE(edited.count(), 1);
+}
+
+// A tab group's + button shows only in edit mode, and reports the group's path.
+void TestLayoutView::addTabButtonInEditMode()
+{
+    FakeFactory factory;
+    LayoutView view(&factory);
+    view.setTree(sampleTree());
+    auto *tabWidget = qobject_cast<QTabWidget *>(view.cellAt({1, 1, 0})->parentWidget()->parentWidget());
+    QVERIFY(tabWidget);
+    auto *add = tabWidget->findChild<QToolButton *>(QStringLiteral("addTabButton"));
+    QVERIFY(add);
+    QVERIFY(add->isHidden());
+
+    view.setEditMode(true);
+    QVERIFY(!add->isHidden());
+    // It sits just after the last tab.
+    QTabBar *bar = tabWidget->tabBar();
+    const QRect last = bar->tabRect(bar->count() - 1);
+    QCOMPARE(add->geometry().left(), bar->mapTo(tabWidget, last.topRight()).x() + 2);
+    QSignalSpy requested(&view, &LayoutView::tabAddRequested);
+    add->click();
+    QCOMPARE(requested.count(), 1);
+    QCOMPARE(requested.at(0).at(0).value<NodePath>(), (NodePath{1, 1}));
+
+    view.setEditMode(false);
+    QVERIFY(add->isHidden());
 }
 
 void TestLayoutView::tabChangeReportsAtOnce()

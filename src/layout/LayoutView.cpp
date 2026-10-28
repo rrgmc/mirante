@@ -11,6 +11,7 @@
 #include <QSplitter>
 #include <QTabBar>
 #include <QTabWidget>
+#include <QToolButton>
 #include <QTimer>
 #include <QVBoxLayout>
 
@@ -24,6 +25,49 @@ namespace mirante {
 namespace {
 
 constexpr int sizeDelayMs = 300;
+
+// Keeps a tab group's + button just after its last tab. In document mode the
+// tab bar spans the whole group, so the position comes from the last tab's
+// rectangle. The placer is a child of the bar, so it goes with it.
+class AddTabPlacer : public QObject
+{
+public:
+    AddTabPlacer(QTabBar *bar, QToolButton *button)
+        : QObject(bar)
+        , m_bar(bar)
+        , m_button(button)
+    {
+        bar->installEventFilter(this);
+        place();
+    }
+
+protected:
+    bool eventFilter(QObject *watched, QEvent *event) override
+    {
+        // Tabs added, removed or renamed lead to a repaint, so Paint covers them.
+        if (watched == m_bar && (event->type() == QEvent::Resize || event->type() == QEvent::Move
+                                 || event->type() == QEvent::Show || event->type() == QEvent::Paint))
+            place();
+        return false;
+    }
+
+private:
+    void place()
+    {
+        if (m_bar->count() == 0)
+            return;
+        const QRect last = m_bar->tabRect(m_bar->count() - 1);
+        const QPoint corner = m_bar->mapTo(m_button->parentWidget(), last.topRight());
+        m_button->adjustSize();
+        const QPoint target(corner.x() + 2, corner.y() + (last.height() - m_button->height()) / 2);
+        if (m_button->pos() != target)
+            m_button->move(target);
+        m_button->raise();
+    }
+
+    QTabBar *m_bar;
+    QToolButton *m_button;
+};
 
 // Forwards the events of the objects it watches to a function.
 class EventWatcher : public QObject
@@ -236,6 +280,20 @@ QWidget *LayoutView::Private::build(const LayoutNode &node, NodePath &path, std:
             if (found == tabs.end())
                 return;
             emit q->tabMenuRequested(found->second, bar->tabAt(pos), bar->mapToGlobal(pos));
+        });
+
+        // In edit mode a + button right after the last tab adds a tab.
+        auto *add = new QToolButton(tabWidget);
+        add->setObjectName(QStringLiteral("addTabButton"));
+        add->setText(QStringLiteral("+"));
+        add->setToolTip(LayoutView::tr("Add tab"));
+        add->setAutoRaise(true);
+        add->setVisible(editMode);
+        new AddTabPlacer(bar, add);
+        QObject::connect(add, &QToolButton::clicked, q, [this, tabWidget] {
+            const auto found = tabs.find(tabWidget);
+            if (found != tabs.end())
+                emit q->tabAddRequested(found->second);
         });
         return tabWidget;
     }
@@ -457,6 +515,10 @@ const LayoutNode &LayoutView::tree() const { return d->tree; }
 void LayoutView::setEditMode(bool on)
 {
     d->editMode = on;
+    for (const auto &[tabWidget, path] : d->tabs) {
+        if (auto *add = tabWidget->findChild<QToolButton *>(QStringLiteral("addTabButton")))
+            add->setVisible(on);
+    }
     for (const auto &[path, cell] : d->cells) {
         if (auto *frame = qobject_cast<CellFrame *>(cell))
             frame->setEditMode(on);

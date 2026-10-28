@@ -107,7 +107,8 @@ When editing is on:
   - change item;
   - clear cell;
   - remove cell.
-- **The tab context menu** offers rename, close, move to the left or right, and "Collapse when single".
+- **The tab context menu** offers add tab (an empty tab after the clicked one), rename, close, move to the left or right, and "Collapse when single".
+- **A `+` button** at the right of each tab group adds an empty tab at the end.
 - **Drag and drop:** drag a cell by its header, or drag an item from the sidebar. A semi-transparent overlay shows five drop zones on the cell under the cursor:
   - the left, right, top or bottom edge splits the cell on that side;
   - the centre adds the dropped content as a tab, turning the cell into a tab group if needed. On an empty cell, the centre fills the cell instead.

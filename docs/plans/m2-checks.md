@@ -49,7 +49,8 @@ Unlock a dashboard with the lock button first.
 - [ ] Unlocked, every cell of the dashboard has a dashed border in the highlight colour. In a root dashboard, each task cell has one around the whole cell.
 
 - [ ] Every cell menu command works: split right, split down, wrap in tabs, add tab, change item, clear cell, remove cell.
-- [ ] Every tab menu command works: rename, close, move left, move right, collapse when single.
+- [ ] Every tab menu command works: add tab, rename, close, move left, move right, collapse when single.
+- [ ] Unlocked, each tab group has a `+` button on the right that adds an empty tab at the end. Locked, it is hidden.
 - [ ] Dragging a cell header onto the edge of another cell splits there, onto its centre adds a tab, and onto a tab bar inserts a tab. The drop zones are highlighted while dragging.
 - [ ] Dragging an item from the sidebar works on an unlocked dashboard. A locked dashboard refuses it, with no highlight. A task dashboard refuses items of other tasks.
 - [ ] A task row in the sidebar cannot be dragged. Its "Dashboards" children can: dropping one on a root dashboard places the task there with that dashboard.
