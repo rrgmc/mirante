@@ -18,6 +18,7 @@ Each file records one design decision: what was decided, what else was considere
 | [0010](0010-folder-identity.md) | Folders stored as identities, mapped to paths per device | Accepted |
 | [0011](0011-root-cells-reference-task-dashboards.md) | Root dashboard cells refer to task dashboards | Accepted |
 | [0012](0012-html-prototype-first.md) | HTML prototype and Qt spike before features | Accepted |
+| [0013](0013-compiled-in-modules.md) | Item types in compiled-in modules, chosen at build time | Accepted |
 
 ## Template
 

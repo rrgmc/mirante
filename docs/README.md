@@ -10,6 +10,7 @@ rraidash is a personal desktop dashboard for all of one person's work, built wit
 | [Data model](data-model.md) | Entities, fields, priorities, connections, layout trees |
 | [User interface](ui.md) | Navigation, dashboards, layout editing, Focus, keyboard, tray |
 | [Item types](item-types.md) | Every type of panel: configuration, display, actions |
+| [Modules](modules.md) | How item types are grouped, built, enabled and contributed |
 | [Integrations](integrations.md) | GitLab, Jira, Claude, polling, terminal launch |
 | [Web views](web-views.md) | Login profiles, live copies, memory, built-in panels |
 | [Sync](sync.md) | Data folder, conflict copies, device settings, secrets |
@@ -34,6 +35,10 @@ rraidash is a personal desktop dashboard for all of one person's work, built wit
 
 **Item type.** What kind of panel an item is, such as "GitLab MR (summary)" or "Jira List". See [item types](item-types.md).
 
+**Module.** A folder of item types and the code they share, such as connection kinds and API clients. Each module can be included or left out when building. See [modules](modules.md).
+
+**Connection kind.** The type of a connection, such as `gitlab` or `jira.cloud`. A module registers it and decides how requests are signed.
+
 **Placement.** One place where an item is shown: a cell, a tab or a detached window. Each visible placement has its own view.
 
 **Dashboard.** A named arrangement of items or tasks, stored as a layout tree.
@@ -56,7 +61,7 @@ rraidash is a personal desktop dashboard for all of one person's work, built wit
 
 **Attention.** A live reason to act now, such as a failed pipeline. Shown as a badge. It is not a priority.
 
-**Connection.** The details for calling one API: kind, base URL and, for Jira Cloud, an email. The token is kept in the keychain. Connections belong to a group.
+**Connection.** The details for calling one API: kind, base URL and the kind's own fields, such as an email for Jira Cloud. The token is kept in the keychain. Connections belong to a group.
 
 **Profile.** A web login storage (cookies and site data). Each group has one, and sites can be sent to a shared profile instead.
 

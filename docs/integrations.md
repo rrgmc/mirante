@@ -2,9 +2,12 @@
 
 This document describes how rraidash talks to GitLab, Jira and Claude, and how it starts terminals. Which connection an item uses is defined in the [data model](data-model.md#connection).
 
+The GitLab, Jira and Claude code lives in the `gitlab`, `jira` and `claude` [modules](modules.md). Polling, caching, errors and terminal launch are core services that all modules use.
+
 ## GitLab
 
 - **API:** REST v4 at `<baseUrl>/api/v4`. It works with gitlab.com and self-hosted GitLab.
+- **Connection kind:** `gitlab`.
 - **Authentication:** a personal access token in the `PRIVATE-TOKEN` header.
 - **Token scope:** `api`, because the light actions write data. A token with only `read_api` works too, but then the actions fail with a clear message.
 - **Caching:** requests send `If-None-Match` with the last ETag. A `304 Not Modified` answer costs almost nothing and keeps cached data.
@@ -32,7 +35,7 @@ Project paths such as `acme/backend` are URL-encoded and used as `:id`.
 
 Jira has two connection kinds, because Cloud and Data Center differ.
 
-| | Jira Cloud (`jira-cloud`) | Jira Data Center (`jira-dc`) |
+| | Jira Cloud (`jira.cloud`) | Jira Data Center (`jira.dc`) |
 |---|---|---|
 | API | REST v3 at `<baseUrl>/rest/api/3` | REST v2 at `<baseUrl>/rest/api/2` |
 | Authentication | Basic, with the account email and an API token | `Authorization: Bearer <personal access token>` |
@@ -78,7 +81,7 @@ The `StatusCache` owns all API data.
   - [attention badges](ui.md#attention) and the tray count;
   - [built-in panels](web-views.md#built-in-panels), through the bridge.
 
-All requests are asynchronous and use one `QNetworkAccessManager`. At most four requests run at once for each connection.
+Modules fetch through the cache, never around it. All requests are asynchronous and use one `QNetworkAccessManager`. At most four requests run at once for each connection.
 
 ## Errors
 

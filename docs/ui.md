@@ -146,7 +146,7 @@ Attention appears as badges. It changes the order only in the Focus view, and on
 
 ## Quick add
 
-Quick add creates a task from a link. Open it with a toolbar button or `Ctrl+Shift+N`, then paste:
+Quick add creates a task from a link. Open it with a toolbar button or `Ctrl+Shift+N`, then paste a link. What it recognises depends on the [modules](modules.md#quick-add) in the build. With the `gitlab` and `jira` modules:
 
 - **A Jira key or issue URL:**
   - The task is named after the issue summary.
@@ -157,7 +157,7 @@ Quick add creates a task from a link. Open it with a toolbar button or `Ctrl+Shi
   - An MR summary item and a CI Pipeline item for its branch are added.
   - A Jira key found in the title or branch adds the issue too.
 
-The project is chosen by matching the merge request's GitLab project or the issue's Jira project key against the projects' settings. If no project matches, or several do, the app asks.
+The project is chosen by matching the merge request's GitLab project or the issue's Jira project key against the projects' module settings. If no project matches, or several do, the app asks.
 
 ## Keyboard
 
