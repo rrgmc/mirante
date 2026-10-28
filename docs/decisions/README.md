@@ -17,9 +17,10 @@ Each file records one design decision: what was decided, what else was considere
 | [0009](0009-priority-and-attention.md) | Four priority levels; attention as badges | Accepted |
 | [0010](0010-folder-identity.md) | Folders stored as identities, mapped to paths per device | Accepted |
 | [0011](0011-root-cells-reference-task-dashboards.md) | Root dashboard cells refer to task dashboards | Accepted |
-| [0012](0012-html-prototype-first.md) | HTML prototype and Qt spike before features | Accepted |
+| [0012](0012-html-prototype-first.md) | HTML prototype and Qt spike before features | Superseded by 0015 |
 | [0013](0013-compiled-in-modules.md) | Item types in compiled-in modules, chosen at build time | Accepted |
 | [0014](0014-name-mirante.md) | Name the app Mirante | Accepted |
+| [0015](0015-app-skeleton-instead-of-spike.md) | Build the app skeleton directly, with CI from M2 | Accepted |
 
 ## Template
 
