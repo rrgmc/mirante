@@ -16,6 +16,7 @@
 #include "ui/Shortcuts.h"
 #include "ui/Sidebar.h"
 
+#include <QIcon>
 #include <QHBoxLayout>
 #include <QKeySequence>
 #include <QLabel>
@@ -207,6 +208,8 @@ struct MainWindow::Private
         const QSignalBlocker blocker(lockButton);
         lockButton->setEnabled(page != nullptr);
         lockButton->setChecked(unlocked);
+        // The button shows the icon; the text is its accessible name.
+        lockButton->setIcon(QIcon(unlocked ? QStringLiteral(":/icons/lock-open.svg") : QStringLiteral(":/icons/lock-closed.svg")));
         lockButton->setText(unlocked ? tr("Editing") : tr("Locked"));
         lockButton->setToolTip(unlocked ? tr("Lock this dashboard") : tr("Unlock this dashboard for editing"));
     }

@@ -6,6 +6,7 @@
 #include "layout/LayoutView.h"
 #include "layout/LockState.h"
 
+#include <QIcon>
 #include <QApplication>
 #include <QComboBox>
 #include <QHBoxLayout>
@@ -179,6 +180,8 @@ void TaskCell::Private::updateLock()
         const QSignalBlocker blocker(lockButton);
         lockButton->setChecked(unlocked);
     }
+    // The button shows the icon; the text is its accessible name.
+    lockButton->setIcon(QIcon(unlocked ? QStringLiteral(":/icons/lock-open.svg") : QStringLiteral(":/icons/lock-closed.svg")));
     lockButton->setText(unlocked ? TaskCell::tr("Unlocked") : TaskCell::tr("Locked"));
     lockButton->setToolTip(unlocked ? TaskCell::tr("Lock the task dashboard")
                                     : TaskCell::tr("Unlock the task dashboard for editing"));
@@ -315,6 +318,7 @@ TaskCell::TaskCell(const LayoutServices &services, const DashboardRef &rootDashb
 
     d->openButton = new QToolButton(d->header);
     d->openButton->setObjectName(QStringLiteral("openAloneButton"));
+    d->openButton->setIcon(QIcon(QStringLiteral(":/icons/open-alone.svg")));
     d->openButton->setText(tr("Open alone"));
     d->openButton->setToolTip(tr("Open this task on its own"));
     d->openButton->setAutoRaise(true);
