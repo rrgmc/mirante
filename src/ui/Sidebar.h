@@ -27,6 +27,7 @@ signals:
     // A double click, or Enter, opens a task or item. A single click only selects.
     void taskOpened(const QString &taskId);
     void itemOpened(const QString &taskId, const QString &itemId);
+    void dashboardOpened(const QString &taskId, const QString &dashboardId);
     void openInNewRootDashboard(const QString &taskId);
     void collapseRequested();
 
