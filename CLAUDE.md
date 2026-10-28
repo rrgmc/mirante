@@ -13,6 +13,7 @@ Several sessions may work on this repository at the same time, so each piece of 
 - If `master` moved since the branch started, merge `master` into the branch and resolve conflicts there before merging back.
 - Push `master` only when the user asks. Never push work branches.
 - Split parallel work so that two worktrees rarely change the same files. For example, give each milestone part its own module.
+- When agents implement a milestone in parallel, follow [decision 0017](docs/decisions/0017-parallel-tasks-with-fixed-interfaces.md) and the task table in the milestone's plan. Each agent commits on its own branch and does not merge. The orchestrating session merges the branches into `master` one at a time.
 
 ## Documentation
 
