@@ -1,0 +1,19 @@
+{
+    "connections": [
+        {
+            "baseUrl": "https://gitlab.com",
+            "fields": {},
+            "id": "fbba0e51-92a5-52aa-983a-bc797ee4016b",
+            "kind": "gitlab",
+            "name": "gitlab.com (personal)"
+        }
+    ],
+    "defaultConnections": {
+        "gitlab": "fbba0e51-92a5-52aa-983a-bc797ee4016b"
+    },
+    "id": "80314e00-c02f-5f8b-977f-0756b76406ea",
+    "name": "Personal",
+    "order": 1,
+    "profileOverrides": {},
+    "schemaVersion": 1
+}

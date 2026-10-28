@@ -1,0 +1,87 @@
+{
+    "dashboards": [
+        {
+            "id": "8f0773ef-e45e-50ea-829b-58227803d4f0",
+            "layout": {
+                "children": [
+                    {
+                        "ref": {
+                            "item": "cdab69f5-6e44-580c-aa70-44c4b44a4a99"
+                        },
+                        "type": "cell"
+                    },
+                    {
+                        "collapseSingle": true,
+                        "current": 0,
+                        "tabs": [
+                            {
+                                "node": {
+                                    "ref": {
+                                        "item": "d769f865-e5c0-5f6d-8b74-ae6c2294ddd0"
+                                    },
+                                    "type": "cell"
+                                },
+                                "title": "Overview"
+                            },
+                            {
+                                "node": {
+                                    "ref": {
+                                        "item": "3b408dd4-aeb2-570b-81db-4e596affa243"
+                                    },
+                                    "type": "cell"
+                                },
+                                "title": "Summary"
+                            }
+                        ],
+                        "type": "tabs"
+                    }
+                ],
+                "dir": "h",
+                "sizes": [
+                    1,
+                    1
+                ],
+                "type": "split"
+            },
+            "name": "Overview"
+        }
+    ],
+    "defaultDashboardId": "8f0773ef-e45e-50ea-829b-58227803d4f0",
+    "id": "6c78a1cf-df72-550c-b5b7-0c41a424450e",
+    "isDefault": true,
+    "items": [
+        {
+            "config": {
+                "branch": "main",
+                "branchMode": "fixed",
+                "project": ""
+            },
+            "id": "cdab69f5-6e44-580c-aa70-44c4b44a4a99",
+            "name": "Deploy pipeline",
+            "type": "gitlab.pipeline"
+        },
+        {
+            "config": {
+                "groupId": "6d1b9bb9-f4c3-5677-a4e1-683ba618d4c7",
+                "panel": "groupOverview"
+            },
+            "id": "d769f865-e5c0-5f6d-8b74-ae6c2294ddd0",
+            "name": "Work overview",
+            "type": "dash.panel"
+        },
+        {
+            "config": {
+                "panel": "taskSummary"
+            },
+            "id": "3b408dd4-aeb2-570b-81db-4e596affa243",
+            "name": "Task summary",
+            "type": "dash.panel"
+        }
+    ],
+    "order": 0,
+    "priority": 2,
+    "projectId": "475aa13b-e862-5f2e-b9aa-e1f4950328bc",
+    "schemaVersion": 1,
+    "state": "active",
+    "title": "Default"
+}

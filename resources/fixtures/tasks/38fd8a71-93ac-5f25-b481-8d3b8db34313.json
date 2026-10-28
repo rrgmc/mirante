@@ -1,0 +1,86 @@
+{
+    "dashboards": [
+        {
+            "id": "e071495a-69db-55ef-95f4-ef6240d4af04",
+            "layout": {
+                "children": [
+                    {
+                        "ref": {
+                            "item": "a61424ad-8593-5f3c-9942-15f73be982e7"
+                        },
+                        "type": "cell"
+                    },
+                    {
+                        "collapseSingle": false,
+                        "current": 0,
+                        "tabs": [
+                            {
+                                "node": {
+                                    "ref": {
+                                        "item": "59d6f0bc-6cf7-5bee-ae9d-06b4f3033ef9"
+                                    },
+                                    "type": "cell"
+                                },
+                                "title": "Docs"
+                            },
+                            {
+                                "node": {
+                                    "ref": {
+                                        "item": "4473a4e5-3af3-5c1c-b864-f68402905bc9"
+                                    },
+                                    "type": "cell"
+                                },
+                                "title": "Notes"
+                            }
+                        ],
+                        "type": "tabs"
+                    }
+                ],
+                "dir": "h",
+                "sizes": [
+                    1,
+                    1
+                ],
+                "type": "split"
+            },
+            "name": "Main"
+        }
+    ],
+    "defaultDashboardId": "e071495a-69db-55ef-95f4-ef6240d4af04",
+    "id": "38fd8a71-93ac-5f25-b481-8d3b8db34313",
+    "isDefault": false,
+    "items": [
+        {
+            "config": {
+                "device": "desk-pc",
+                "folderId": "b7c2c1e5-2687-5bdd-ba31-7fc7fbe22590",
+                "sessionId": "a41d09"
+            },
+            "id": "a61424ad-8593-5f3c-9942-15f73be982e7",
+            "name": "Claude (local)",
+            "type": "claude.session.local"
+        },
+        {
+            "config": {
+                "url": "https://gitlab.com/rr/mirante/-/blob/master/docs/ui.md"
+            },
+            "id": "59d6f0bc-6cf7-5bee-ae9d-06b4f3033ef9",
+            "name": "ui.md",
+            "type": "web.page"
+        },
+        {
+            "config": {
+                "text": ""
+            },
+            "id": "4473a4e5-3af3-5c1c-b864-f68402905bc9",
+            "name": "Notes",
+            "type": "notes"
+        }
+    ],
+    "order": 0,
+    "priority": 0,
+    "projectId": "d7740958-1656-52ae-bb9d-6b6285694e19",
+    "schemaVersion": 1,
+    "state": "done",
+    "title": "M1 HTML prototype"
+}
