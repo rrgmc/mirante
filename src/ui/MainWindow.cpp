@@ -4,6 +4,7 @@
 #include "core/LayoutTree.h"
 #include "core/Model.h"
 #include "layout/CellFrame.h"
+#include "layout/CellStyle.h"
 #include "layout/DashboardCellFactory.h"
 #include "layout/LayoutEditor.h"
 #include "layout/LayoutServices.h"
@@ -41,6 +42,9 @@ namespace mirante {
 namespace {
 
 // One page of the stack: a LayoutView of one dashboard, with its factory.
+// One tab's page. A task dashboard's page has a title bar with its own lock,
+// because a task dashboard is edited on its own (decision 0020). A root
+// dashboard's lock is the one at the end of the tab bar row.
 class DashboardPage : public QWidget
 {
 public:
@@ -49,10 +53,28 @@ public:
         , ref(dashboard)
         , factory(std::make_unique<DashboardCellFactory>(services, dashboard))
     {
-        view = new LayoutView(factory.get(), this);
         auto *layout = new QVBoxLayout(this);
         layout->setContentsMargins(0, 0, 0, 0);
-        layout->addWidget(view);
+        layout->setSpacing(0);
+        if (!dashboard.isRoot()) {
+            auto *header = new QWidget(this);
+            header->setObjectName(QStringLiteral("taskDashboardHeader"));
+            cellstyle::tintHeader(header, 0.22);
+            auto *headerLayout = new QHBoxLayout(header);
+            headerLayout->setContentsMargins(6, 2, 2, 2);
+            title = new QLabel(header);
+            QFont font = title->font();
+            font.setBold(true);
+            title->setFont(font);
+            headerLayout->addWidget(title, 1);
+            lock = new QToolButton(header);
+            lock->setObjectName(QStringLiteral("taskLockButton"));
+            lock->setAutoRaise(true);
+            headerLayout->addWidget(lock);
+            layout->addWidget(header);
+        }
+        view = new LayoutView(factory.get(), this);
+        layout->addWidget(view, 1);
     }
 
     ~DashboardPage() override
@@ -64,7 +86,19 @@ public:
     const DashboardRef ref;
     const std::unique_ptr<DashboardCellFactory> factory;
     LayoutView *view = nullptr;
+    QLabel *title = nullptr;        // task dashboards only
+    QToolButton *lock = nullptr;    // task dashboards only
 };
+
+// Shows a lock's state on its button. The icon shows the state, so the button
+// is not checkable: a checked button's accent fill would hide the icon. The
+// text is its accessible name.
+void showLockState(QToolButton *button, bool unlocked)
+{
+    button->setIcon(QIcon(unlocked ? QStringLiteral(":/icons/lock-open.svg") : QStringLiteral(":/icons/lock-closed.svg")));
+    button->setText(unlocked ? MainWindow::tr("Editing") : MainWindow::tr("Locked"));
+    button->setToolTip(unlocked ? MainWindow::tr("Lock this dashboard") : MainWindow::tr("Unlock this dashboard for editing"));
+}
 
 // The visible cell that shows the item, looking inside task cells too.
 QWidget *findItemCell(const LayoutView *view, const QString &itemId)
@@ -99,6 +133,7 @@ struct MainWindow::Private
 
     QSplitter *splitter = nullptr;
     Sidebar *sidebar = nullptr;
+    QPointer<DashboardPage> shownPage;      // the page syncCurrent() last showed
     QFrame *warningBar = nullptr;
     QLabel *warningText = nullptr;
     RootTabBar *tabBar = nullptr;
@@ -162,7 +197,15 @@ struct MainWindow::Private
         page->view->setSingleViewTracker(tracker);
         if (const LayoutNode *tree = model->layout(ref))
             page->view->setTree(*tree);
-        page->view->setEditMode(locks->isUnlocked(ref.dashboardId));
+        const bool unlocked = locks->isUnlocked(ref.dashboardId);
+        page->view->setEditMode(unlocked);
+        if (page->lock) {
+            page->title->setText(title(ref));
+            showLockState(page->lock, unlocked);
+            QObject::connect(page->lock, &QToolButton::clicked, q, [this, id = ref.dashboardId] {
+                locks->setUnlocked(id, !locks->isUnlocked(id));
+            });
+        }
         stack->addWidget(page);
         return page;
     }
@@ -171,6 +214,10 @@ struct MainWindow::Private
     {
         pages.insert(pages.begin() + index, page);
         tabBar->insertTab(index, title(page->ref));
+        // Task dashboard tabs carry the dashboard icon, so they read apart
+        // from root dashboard tabs.
+        if (!page->ref.isRoot())
+            tabBar->setTabIcon(index, QIcon(QStringLiteral(":/icons/dashboard.svg")));
         syncPreview();
         syncCurrent();
     }
@@ -213,36 +260,45 @@ struct MainWindow::Private
         if (page)
             stack->setCurrentWidget(page);
         updateLockButton();
+        // When a task dashboard's tab comes to the front, the sidebar selects
+        // that dashboard under its task, so it shows which task is on screen.
+        // Only on a change of tab, so the user's own selection is kept.
+        if (page != shownPage) {
+            shownPage = page;
+            if (page && !page->ref.isRoot() && sidebar)
+                sidebar->reveal(page->ref.dashboardId);
+        }
     }
 
+    // The lock at the end of the tab bar row is a root dashboard's. A task
+    // dashboard tab has its own lock in its title bar, so this one hides.
     void updateLockButton()
     {
         const DashboardPage *page = currentPage();
-        const bool unlocked = page && locks->isUnlocked(page->ref.dashboardId);
+        lockButton->setVisible(!page || page->ref.isRoot());
         lockButton->setEnabled(page != nullptr);
-        // The icon shows the state, so the button is not checkable: a checked
-        // button's accent fill would hide the icon. The text is its accessible name.
-        lockButton->setIcon(QIcon(unlocked ? QStringLiteral(":/icons/lock-open.svg") : QStringLiteral(":/icons/lock-closed.svg")));
-        lockButton->setText(unlocked ? tr("Editing") : tr("Locked"));
-        lockButton->setToolTip(unlocked ? tr("Lock this dashboard") : tr("Unlock this dashboard for editing"));
+        showLockState(lockButton, page && locks->isUnlocked(page->ref.dashboardId));
     }
 
     void applyLock(const QString &dashboardId, bool unlocked)
     {
         for (DashboardPage *page : pages) {
-            if (page->ref.dashboardId == dashboardId)
-                page->view->setEditMode(unlocked);
+            if (page->ref.dashboardId != dashboardId)
+                continue;
+            page->view->setEditMode(unlocked);
+            if (page->lock)
+                showLockState(page->lock, unlocked);
         }
         updateLockButton();
     }
 
     // Where a root tab with this order goes: before the first open root tab
-    // with a greater order, and always before the preview.
+    // with a greater order, and always before the task dashboard tabs.
     int rootInsertIndex(int order) const
     {
         for (std::size_t i = 0; i < pages.size(); ++i) {
             const DashboardPage *page = pages[i];
-            if (page == preview)
+            if (!page->ref.isRoot())
                 return int(i);
             const RootDashboard *dashboard = model->rootDashboard(page->ref.dashboardId);
             if (dashboard && dashboard->order > order)
@@ -260,17 +316,14 @@ struct MainWindow::Private
         return dashboards;
     }
 
-    // The root dashboard that pins the task: one whose layout is a single
-    // cell of that task. Empty if there is none.
-    QString pinnedDashboardOf(const QString &taskId, const QString &dashboardId) const
+    // The open tab of a task dashboard, the preview or a pinned one, or nullptr.
+    DashboardPage *taskPage(const DashboardRef &ref) const
     {
-        for (const RootDashboard *dashboard : sortedRootDashboards()) {
-            const LayoutNode &tree = dashboard->layout;
-            if (tree.kind == LayoutNode::Kind::Cell && tree.ref && tree.ref->isTask() && tree.ref->task == taskId
-                && tree.ref->dashboard == dashboardId)
-                return dashboard->id;
+        for (DashboardPage *page : pages) {
+            if (!page->ref.isRoot() && page->ref == ref)
+                return page;
         }
-        return QString();
+        return nullptr;
     }
 
     static QString defaultDashboardOf(const Task &task)
@@ -318,12 +371,6 @@ struct MainWindow::Private
         return dashboard.id;
     }
 
-    void closePreviewOf(const QString &taskId)
-    {
-        if (preview && preview->ref.taskId == taskId)
-            removeTab(indexOf(preview));
-    }
-
     void openInitialTabs()
     {
         for (const RootDashboard *dashboard : sortedRootDashboards())
@@ -361,6 +408,8 @@ struct MainWindow::Private
             if (const LayoutNode *tree = model->layout(page->ref))
                 page->view->setTree(*tree);
             tabBar->setTabText(int(i), title(page->ref));
+            if (page->title)
+                page->title->setText(title(page->ref));
         }
         tabBar->updateGeometry();
         syncCurrent();
@@ -615,15 +664,10 @@ void MainWindow::openTaskPreview(const QString &taskId, const QString &chosenDas
     if (dashboardId.isEmpty() || !d->model->taskDashboard(taskId, dashboardId))
         return;
 
-    const QString pinned = d->pinnedDashboardOf(taskId, dashboardId);
-    if (!pinned.isEmpty()) {
-        openRootDashboard(pinned);
-        return;
-    }
-
+    // A task dashboard already open in a tab, preview or pinned, is shown there.
     const DashboardRef ref{taskId, dashboardId};
-    if (d->preview && d->preview->ref == ref) {
-        d->setCurrent(d->preview);
+    if (DashboardPage *open = d->taskPage(ref)) {
+        d->setCurrent(open);
         return;
     }
 
@@ -637,6 +681,7 @@ void MainWindow::openTaskPreview(const QString &taskId, const QString &chosenDas
         d->stack->removeWidget(old);
         delete old;
         d->tabBar->setTabText(index, d->title(ref));
+        d->tabBar->setTabIcon(index, QIcon(QStringLiteral(":/icons/dashboard.svg")));
         d->syncPreview();
     } else {
         d->preview = page;
@@ -651,11 +696,24 @@ void MainWindow::pinTask(const QString &taskId, const QString &chosenDashboardId
     if (!task)
         return;
     const QString dashboardId = chosenDashboardId.isEmpty() ? Private::defaultDashboardOf(*task) : chosenDashboardId;
-    QString id = d->pinnedDashboardOf(taskId, dashboardId);
-    if (id.isEmpty())
-        id = d->addTaskRootDashboard(taskId, dashboardId);
-    d->closePreviewOf(taskId);
-    openRootDashboard(id);
+    const DashboardRef ref{taskId, dashboardId};
+    if (dashboardId.isEmpty() || !d->model->taskDashboard(taskId, dashboardId))
+        return;
+
+    // Pinning keeps the task dashboard's tab open: the preview stops being the
+    // preview, so the next one opens in a new tab. It is not a root dashboard.
+    if (d->preview && d->preview->ref == ref) {
+        d->preview = nullptr;
+        d->syncPreview();
+        d->setCurrent(d->taskPage(ref));
+        return;
+    }
+    DashboardPage *page = d->taskPage(ref);
+    if (!page) {
+        page = d->makePage(ref);
+        d->insertTab(d->preview ? d->indexOf(d->preview) : int(d->pages.size()), page);
+    }
+    d->setCurrent(page);
 }
 
 void MainWindow::openRootDashboard(const QString &id)

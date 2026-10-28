@@ -46,8 +46,9 @@ The sidebar can be collapsed.
 - **Double click** (or `Enter`) on a task: expands or collapses it. Tasks are opened through their dashboards.
 - **Double click** on a task dashboard: opens it in the **preview tab**. The preview tab shows its title in italics. The next dashboard opened this way replaces it. Task dashboard titles name the task and the dashboard: "Task / Dashboard".
 - **Double click** on an item: opens the item alone in its own window, shown maximized. `Escape` closes it. See [decision 0019](decisions/0019-fixed-task-cells-and-item-windows.md).
-- **Pin:** editing the dashboard, or the pin button, turns the preview tab into a normal tab. A pinned task tab is a root dashboard holding one cell with that task. It goes to the front of the tab bar. Its lock is the one at the far right of the tab bar row, as for every tab.
-- Opening a task dashboard that already has a pinned tab switches to that tab instead of opening a preview.
+- **Pin:** editing the dashboard, or the pin button, keeps the preview open as a task tab, so the next dashboard opens in a new tab. A task tab is never a root dashboard. Task tabs carry the dashboard icon, come after the root dashboard tabs, and have a title bar "Task / Dashboard" with their own lock. The lock at the end of the tab bar row is for root dashboards, and hides while a task tab is in front. See [decision 0022](decisions/0022-task-dashboard-tabs.md).
+- When a task tab comes to the front, the sidebar selects its dashboard under its task.
+- Opening a task dashboard that already has a tab switches to that tab instead of opening a preview.
 
 The open tabs, and which one is the preview, are stored on each device, not synced.
 

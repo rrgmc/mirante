@@ -27,6 +27,7 @@ Each file records one design decision: what was decided, what else was considere
 | [0019](0019-fixed-task-cells-and-item-windows.md) | Task cells show one dashboard, and items open alone | Accepted |
 | [0020](0020-edit-task-dashboards-alone.md) | Task dashboards are edited only on their own | Accepted |
 | [0021](0021-image-items-as-files.md) | Image items, with images stored as files | Accepted |
+| [0022](0022-task-dashboard-tabs.md) | Task dashboards open in their own kind of tab | Accepted |
 
 ## Template
 

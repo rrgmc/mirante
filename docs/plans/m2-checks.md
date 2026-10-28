@@ -25,8 +25,10 @@ Tick each box, or note what is wrong next to it.
 - [ ] A single click only selects. A double click on a task only expands or collapses it.
 - [ ] A double click on a task dashboard opens it in the preview tab, titled "Task / Dashboard" in italics, with a pin button. A double click on another dashboard replaces it.
 - [ ] A double click on an item opens a maximized window with only that item. `Escape` closes it, and opening the same item again raises the same window.
-- [ ] The pin button, or an edit of the previewed dashboard, pins it: the tab moves to the front and is no longer italic.
-- [ ] A double click on a task dashboard that already has a pinned tab switches to that tab.
+- [ ] The pin button, or an edit of the previewed dashboard, pins it: the tab stays open, no longer italic, and the next dashboard opens in a new tab. No root dashboard is added.
+- [ ] Task tabs have the dashboard icon and a title bar with their own lock; the lock at the end of the tab bar row hides while a task tab is in front.
+- [ ] When a task tab comes to the front, the sidebar selects its dashboard under its task.
+- [ ] A double click on a task dashboard that already has a tab switches to that tab.
 - [ ] The `+` button opens a new, empty, unlocked root dashboard.
 - [ ] Closing a root tab, with its close button, a middle click or the tab bar's context menu, hides it. `Ctrl+K` or the dashboard list opens it again.
 - [ ] The lock sits at the far right of the tab bar row. The dashboard list button, after `+`, lists every root dashboard, marks closed ones, opens them, and deletes one only after a confirmation.
