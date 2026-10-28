@@ -44,6 +44,7 @@ The base of the Qt app, reading a fixed set of JSON files. Nothing is written ba
 
 - [ ] The data folder can be chosen. `Store` writes changes with `QSaveFile`, and reloads external changes.
 - [ ] Groups, projects, tasks, items and dashboards can be created, edited and deleted.
+- [ ] The `files/` folder of the data folder: pasting an image from the clipboard creates or fills an Image item and saves the image there; unused files are deleted. See [decision 0021](decisions/0021-image-items-as-files.md).
 - [ ] Priorities, including drag across priority levels, and task states work.
 - [ ] The Focus view works.
 - [ ] Project folders can be mapped to a local path on each device.
@@ -86,6 +87,7 @@ The base of the Qt app, reading a fixed set of JSON files. Nothing is written ba
 - [ ] The Folder / terminal item shows the branch and status, and opens a terminal, editor and file manager.
 - [ ] The CI Pipeline item can follow the current branch of the main folder.
 - [ ] Notes item with Markdown editing and preview.
+- [ ] Image item: the image scaled to fit, the memo under it, a click opens the link, and pasting replaces the image.
 
 ## M8: Tray, notifications and keyboard
 

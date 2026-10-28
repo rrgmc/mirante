@@ -72,9 +72,9 @@ private slots:
         QCOMPARE(count(Kind::Group), 2);
         QCOMPARE(count(Kind::Project), 5);
         QCOMPARE(count(Kind::Task), 17);
-        QCOMPARE(count(Kind::Item), 43);
+        QCOMPARE(count(Kind::Item), 44);
         QCOMPARE(count(Kind::RootDashboard), 2);
-        QCOMPARE(m_entries.size(), std::size_t(69));
+        QCOMPARE(m_entries.size(), std::size_t(70));
     }
 
     void candidateDetails()
@@ -178,7 +178,7 @@ private slots:
 
         switcher.popup();
         QVERIFY(switcher.isVisible());
-        QCOMPARE(list->count(), 69);
+        QCOMPARE(list->count(), 70);
         QVERIFY(switcher.geometry().width() <= window.width());
         QVERIFY(switcher.geometry().center().x() >= window.width() / 2 - 1);
         QVERIFY(switcher.geometry().center().x() <= window.width() / 2 + 1);
@@ -204,7 +204,7 @@ private slots:
         switcher.popup();
         QVERIFY(switcher.isVisible());
         QVERIFY(edit->text().isEmpty());
-        QCOMPARE(list->count(), 69);
+        QCOMPARE(list->count(), 70);
 
         // No match: Enter does nothing.
         QTest::keyClicks(edit, QStringLiteral("zzz"));

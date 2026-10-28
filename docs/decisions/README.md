@@ -26,6 +26,7 @@ Each file records one design decision: what was decided, what else was considere
 | [0018](0018-no-default-task.md) | No Default task in projects | Accepted |
 | [0019](0019-fixed-task-cells-and-item-windows.md) | Task cells show one dashboard, and items open alone | Accepted |
 | [0020](0020-edit-task-dashboards-alone.md) | Task dashboards are edited only on their own | Accepted |
+| [0021](0021-image-items-as-files.md) | Image items, with images stored as files | Accepted |
 
 ## Template
 

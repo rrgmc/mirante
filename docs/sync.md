@@ -12,9 +12,11 @@ The user chooses the data folder on each device. It does not have to be at the s
   projects/<uuid>.json
   tasks/<uuid>.json
   dashboards/<uuid>.json      root dashboards
+  files/<uuid>.<ext>          images of Image items
 ```
 
 - **One file per entity.** A task file holds the task's items and its task dashboards. A group file holds its connections without tokens.
+- **Binary files** of items, such as the images of Image items, sit in `files/` and are referred to by name. See [decision 0021](decisions/0021-image-items-as-files.md).
 - **Why this layout.** Two devices rarely change the same file at the same time. When they do, the sync tool keeps a conflict copy instead of damaging the data.
 - **Version field.** Every file has a `schemaVersion` field. The app migrates older files when it loads them, and writes them back in the new version only when they change for another reason.
 - **Unknown fields** are kept when a file is written back, so an older app version does not delete data written by a newer one.

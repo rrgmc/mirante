@@ -64,7 +64,7 @@ void TestStoreLoad::loadsFixtures()
     }
     QCOMPARE(projects, std::size_t(5));
     QCOMPARE(tasks, std::size_t(17));
-    QCOMPARE(items, std::size_t(43));
+    QCOMPARE(items, std::size_t(44));
     QCOMPARE(dashboards, std::size_t(18));
     QCOMPARE(model.rootDashboards().size(), std::size_t(2));
 }
