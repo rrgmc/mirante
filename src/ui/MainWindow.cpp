@@ -19,11 +19,19 @@
 #include "ui/Shortcuts.h"
 #include "ui/Sidebar.h"
 
-#include <QIcon>
+#include <QAction>
+#include <QApplication>
+#include <QDir>
+#include <QFileDialog>
 #include <QHBoxLayout>
+#include <QIcon>
 #include <QKeySequence>
 #include <QLabel>
+#include <QMenu>
+#include <QMenuBar>
+#include <QMessageBox>
 #include <QPointer>
+#include <QSettings>
 #include <QShortcut>
 #include <QSignalBlocker>
 #include <QSplitter>
@@ -513,8 +521,119 @@ struct MainWindow::Private
         }
     }
 
+    QString workspace;              // the open data folder; empty for the sample data
+    QAction *showSidebarAction = nullptr;
+
+    static constexpr int maxRecent = 10;
+
+    void updateTitle()
+    {
+        const QString name = workspace.isEmpty() ? MainWindow::tr("Sample data") : QDir(workspace).dirName();
+        q->setWindowTitle(MainWindow::tr("%1 - %2").arg(name, QStringLiteral(MIRANTE_APP_NAME)));
+    }
+
+    QStringList recent() const
+    {
+        return QSettings().value(QStringLiteral("workspace/recent")).toStringList();
+    }
+
+    void remember(const QString &folder)
+    {
+        QSettings settings;
+        settings.setValue(QStringLiteral("workspace/last"), folder);
+        if (folder.isEmpty())
+            return;
+        QStringList list = recent();
+        list.removeAll(folder);
+        list.prepend(folder);
+        while (list.size() > maxRecent)
+            list.removeLast();
+        settings.setValue(QStringLiteral("workspace/recent"), list);
+    }
+
+    void forget(const QString &folder)
+    {
+        QStringList list = recent();
+        list.removeAll(folder);
+        QSettings().setValue(QStringLiteral("workspace/recent"), list);
+    }
+
+    // The File, View and Help menus.
+    void buildMenus()
+    {
+        QMenuBar *bar = q->menuBar();
+
+        QMenu *file = bar->addMenu(MainWindow::tr("&File"));
+        QAction *open = file->addAction(MainWindow::tr("&Open Workspace…"));
+        open->setShortcut(QKeySequence::Open);
+        QObject::connect(open, &QAction::triggered, q, [this] {
+            const QString folder = QFileDialog::getExistingDirectory(q, MainWindow::tr("Open Workspace"), workspace);
+            if (!folder.isEmpty())
+                q->openWorkspace(folder);
+        });
+        QMenu *recentMenu = file->addMenu(MainWindow::tr("Open &Recent"));
+        QObject::connect(recentMenu, &QMenu::aboutToShow, q, [this, recentMenu] {
+            recentMenu->clear();
+            const QStringList folders = recent();
+            for (const QString &folder : folders) {
+                QAction *action = recentMenu->addAction(QDir::toNativeSeparators(folder));
+                QObject::connect(action, &QAction::triggered, q, [this, folder] { q->openWorkspace(folder); });
+            }
+            if (folders.isEmpty())
+                recentMenu->addAction(MainWindow::tr("No recent workspaces"))->setEnabled(false);
+            recentMenu->addSeparator();
+            QAction *clear = recentMenu->addAction(MainWindow::tr("Clear Recent"));
+            clear->setEnabled(!folders.isEmpty());
+            QObject::connect(clear, &QAction::triggered, q,
+                             [] { QSettings().remove(QStringLiteral("workspace/recent")); });
+        });
+        QAction *sample = file->addAction(MainWindow::tr("Open &Sample Data"));
+        QObject::connect(sample, &QAction::triggered, q, &MainWindow::openSampleData);
+        QAction *reload = file->addAction(MainWindow::tr("Re&load Workspace"));
+        reload->setShortcut(QKeySequence::Refresh);
+        QObject::connect(reload, &QAction::triggered, q, [this] {
+            if (workspace.isEmpty())
+                q->openSampleData();
+            else
+                q->openWorkspace(workspace);
+        });
+        file->addSeparator();
+        QAction *quit = file->addAction(MainWindow::tr("&Quit"));
+        quit->setShortcut(QKeySequence::Quit);
+        quit->setMenuRole(QAction::QuitRole);
+        QObject::connect(quit, &QAction::triggered, q, &QWidget::close);
+
+        QMenu *view = bar->addMenu(MainWindow::tr("&View"));
+        showSidebarAction = view->addAction(MainWindow::tr("&Sidebar"));
+        showSidebarAction->setCheckable(true);
+        showSidebarAction->setChecked(true);
+        QObject::connect(showSidebarAction, &QAction::triggered, q, [this](bool on) { showSidebar(on); });
+        QAction *expand = view->addAction(MainWindow::tr("&Expand All Tasks"));
+        QObject::connect(expand, &QAction::triggered, sidebar, &Sidebar::expandAllTasks);
+        QAction *collapse = view->addAction(MainWindow::tr("&Collapse All Tasks"));
+        QObject::connect(collapse, &QAction::triggered, sidebar, &Sidebar::collapseAllTasks);
+        view->addSeparator();
+        QAction *switcherAction = view->addAction(MainWindow::tr("&Go To…"));
+        switcherAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_K));
+        QObject::connect(switcherAction, &QAction::triggered, q, &MainWindow::showQuickSwitcher);
+        QAction *list = view->addAction(MainWindow::tr("&All Dashboards…"));
+        QObject::connect(list, &QAction::triggered, q, &MainWindow::showDashboardList);
+        QAction *add = view->addAction(MainWindow::tr("&New Dashboard"));
+        QObject::connect(add, &QAction::triggered, q, &MainWindow::newRootDashboard);
+
+        QMenu *help = bar->addMenu(MainWindow::tr("&Help"));
+        QAction *about = help->addAction(MainWindow::tr("&About Mirante"));
+        about->setMenuRole(QAction::AboutRole);
+        QObject::connect(about, &QAction::triggered, q, &MainWindow::showAbout);
+        QAction *aboutQt = help->addAction(MainWindow::tr("About &Qt"));
+        aboutQt->setMenuRole(QAction::AboutQtRole);
+        QObject::connect(aboutQt, &QAction::triggered, q, [] { QApplication::aboutQt(); });
+    }
+
     void showSidebar(bool show)
     {
+        if (showSidebarAction)
+            showSidebarAction->setChecked(show);
         sidebar->setVisible(show);
         showSidebarButton->setVisible(!show);
     }
@@ -705,9 +824,7 @@ MainWindow::MainWindow(Model &model, const ItemTypeRegistry &types, QWidget *par
     d->switcher = new QuickSwitcher(model, this);
     connect(d->switcher, &QuickSwitcher::activated, this,
             [this](const SwitcherEntry &entry) { d->onSwitcherActivated(entry); });
-    auto *switcherShortcut = new QShortcut(QKeySequence(Qt::CTRL | Qt::Key_K), this);
-    switcherShortcut->setContext(Qt::WindowShortcut);
-    connect(switcherShortcut, &QShortcut::activated, this, &MainWindow::showQuickSwitcher);
+    d->buildMenus();
 
     d->openInitialTabs();
     d->shortcuts = new Shortcuts(this);
@@ -744,6 +861,44 @@ void MainWindow::setLoadProblems(const std::vector<LoadProblem> &problems)
         lines << tr("%1: %2").arg(problem.file, problem.message);
     d->warningText->setText(lines.join(QLatin1Char('\n')));
     d->warningBar->show();
+}
+
+void MainWindow::openWorkspace(const QString &folder)
+{
+    if (folder.isEmpty() || !QDir(folder).exists()) {
+        d->forget(folder);
+        setLoadProblems({LoadProblem{QDir::toNativeSeparators(folder), tr("The workspace folder does not exist.")}});
+        return;
+    }
+    const std::vector<LoadProblem> problems = store::load(folder, *d->model);
+    d->workspace = QDir(folder).absolutePath();
+    d->remember(d->workspace);
+    d->updateTitle();
+    setLoadProblems(problems);
+}
+
+void MainWindow::openSampleData()
+{
+    const std::vector<LoadProblem> problems = store::load(QStringLiteral(":/fixtures"), *d->model);
+    d->workspace.clear();
+    d->remember(QString());
+    d->updateTitle();
+    setLoadProblems(problems);
+}
+
+QString MainWindow::workspace() const { return d->workspace; }
+
+QStringList MainWindow::recentWorkspaces() const { return d->recent(); }
+
+void MainWindow::showAbout()
+{
+    QMessageBox::about(
+        this, tr("About %1").arg(QStringLiteral(MIRANTE_APP_NAME)),
+        tr("<h3>%1 %2</h3><p>%3</p><p>%4 &lt;<a href=\"mailto:%5\">%5</a>&gt;</p>"
+           "<p><a href=\"%6\">%6</a></p><p>Released under the MIT License.</p>")
+            .arg(QStringLiteral(MIRANTE_APP_NAME), QStringLiteral(MIRANTE_VERSION),
+                 QStringLiteral(MIRANTE_DESCRIPTION), QStringLiteral(MIRANTE_AUTHOR),
+                 QStringLiteral(MIRANTE_AUTHOR_EMAIL), QStringLiteral(MIRANTE_HOMEPAGE)));
 }
 
 void MainWindow::openTaskPreview(const QString &taskId, const QString &chosenDashboardId)

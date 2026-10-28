@@ -12,11 +12,20 @@ To check with your own copy of the data, copy `resources/fixtures` somewhere and
 
 Tick each box, or note what is wrong next to it.
 
+## Menus and workspaces
+
+- [ ] File > Open Workspace… opens a data folder; the window title names it. Open Recent lists it, most recent first, and Clear Recent empties the list.
+- [ ] Restarting the app opens the last workspace. Open Sample Data goes back to the built-in data. Reload Workspace (`F5`) loads the folder again.
+- [ ] A recent workspace whose folder is gone shows a warning and leaves the list.
+- [ ] View has Sidebar, Expand All Tasks, Collapse All Tasks, Go To… (`Ctrl+K`), All Dashboards… and New Dashboard, and each works.
+- [ ] Help > About Mirante shows Mirante 0.1, Rangel Reale with the email address, the project's address and the license.
+
 ## Sidebar
 
 - [ ] Groups, projects and tasks appear in that order, and each task has the children "Dashboards" and "Items", in that order. The selected row stays in full colour when the sidebar loses the focus. Projects and tasks are sorted by priority, then their manual order.
 - [ ] Urgent and High entries have a visible marker. Low entries are dimmed.
-- [ ] The "Active" tab at the bottom of the sidebar is chosen at start and lists active tasks. "Done" lists done and archived tasks under the same groups and projects. "Hide Low" hides Low projects and tasks in both.
+- [ ] The sidebar has three tabs at the bottom: "Projects" (chosen at start: active tasks under every project), "Active" (the same without projects that have no active task) and "Done" (done and archived tasks). "Hide Low" works in all three.
+- [ ] The expand and collapse buttons in the sidebar header open or close every task; collapse leaves groups and projects open.
 - [ ] The « button hides the sidebar, and the » button at the start of the tab bar row brings it back.
 
 ## Root tabs, preview and pinning

@@ -33,13 +33,22 @@ The sidebar can be collapsed.
 - A coloured marker shows the priority level. Low items are dimmed.
 - Each task has two fixed children: **Dashboards**, with its task dashboards, then **Items**, with the task's items. They are there for every task, even when empty.
 - The selected row keeps its full highlight colour when the sidebar does not have the focus, so the dashboard on screen stays easy to see.
-- Two tabs at the bottom, **Active** and **Done**, show the same groups and projects. The first lists active tasks; the second, done and archived ones. A filter, off by default, hides Low items in both.
+- Three tabs at the bottom choose the task list. **Projects** lists active tasks under every project, including projects without any. **Active** lists the same tasks, but leaves out projects without active tasks. **Done** lists done and archived tasks under every project. A filter, off by default, hides Low items in all three.
+- Two buttons in the sidebar header expand or collapse every task at once, with its Dashboards and Items. Groups and projects are left as they are; they open and close by hand only.
 - [Attention badges](#attention) appear on tasks, and are summed on projects and groups.
 - **Drag and drop:**
   - Dragging within a priority level changes the order.
   - Dragging across the boundary between two levels changes the priority.
   - A task itself is not dragged onto dashboards. Drag one of its items, to show that item, or one of its dashboards, to show the task with that dashboard in a root dashboard. See [placing tasks](#placing-tasks-and-items).
 - The context menu holds new, rename, set priority, set state, delete, and "Open in new root dashboard".
+
+## Menus
+
+The menu bar has three menus.
+
+- **File:** Open Workspace… (`Ctrl+O`), Open Recent with the last ten workspaces and Clear Recent, Open Sample Data, Reload Workspace (`F5`), and Quit (`Ctrl+Q`). A workspace is a data folder. At start the app opens the workspace given with `--data`, otherwise the last one used on this device, otherwise the sample data. The window title names the workspace.
+- **View:** Sidebar (show or hide), Expand All Tasks, Collapse All Tasks, Go To… (`Ctrl+K`, the [quick switcher](#keyboard)), All Dashboards…, and New Dashboard.
+- **Help:** About Mirante, with the version, the author and the project's address, and About Qt.
 
 ## Opening tasks
 

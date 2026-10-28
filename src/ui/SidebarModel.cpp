@@ -85,8 +85,11 @@ Tree buildTree(const Model &model, const SortFilter &filter)
     for (const Group *group : groups) {
         const int groupNode = addNode(tree, SidebarModel::Kind::Group, group->id, {}, -1);
         for (const Project *project : sortedProjects(model.projectsOfGroup(group->id), filter)) {
+            const std::vector<const Task *> tasks = sortedTasks(model.tasksOfProject(project->id), filter);
+            if (filter.hideEmptyProjects && tasks.empty())
+                continue;
             const int projectNode = addNode(tree, SidebarModel::Kind::Project, project->id, {}, groupNode);
-            for (const Task *task : sortedTasks(model.tasksOfProject(project->id), filter)) {
+            for (const Task *task : tasks) {
                 const int taskNode = addNode(tree, SidebarModel::Kind::Task, task->id, task->id, projectNode);
                 // The two lists have ids of their own, so their expansion is remembered.
                 const int dashboards = addNode(tree, SidebarModel::Kind::DashboardList,
@@ -171,7 +174,8 @@ SidebarModel::~SidebarModel() = default;
 
 void SidebarModel::setFilter(const SortFilter &filter)
 {
-    if (filter.hideLow == d->filter.hideLow && filter.closedTasks == d->filter.closedTasks)
+    if (filter.hideLow == d->filter.hideLow && filter.closedTasks == d->filter.closedTasks
+        && filter.hideEmptyProjects == d->filter.hideEmptyProjects)
         return;
     beginResetModel();
     d->filter = filter;

@@ -42,7 +42,7 @@ The base of the Qt app, reading a fixed set of JSON files. Nothing is written ba
 
 ## M3: Data folder and editing
 
-- [ ] The data folder can be chosen. `Store` writes changes with `QSaveFile`, and reloads external changes.
+- [ ] `Store` writes changes with `QSaveFile`, and reloads external changes. (Choosing the data folder, as a workspace, arrived early in M2.)
 - [ ] Groups, projects, tasks, items and dashboards can be created, edited and deleted.
 - [ ] The `files/` folder of the data folder: pasting an image from the clipboard creates or fills an Image item and saves the image there; unused files are deleted. See [decision 0021](decisions/0021-image-items-as-files.md).
 - [ ] Priorities, including drag across priority levels, and task states work.

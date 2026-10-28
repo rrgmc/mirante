@@ -13,8 +13,10 @@
 #include "ui/SidebarModel.h"
 
 #include <QApplication>
+#include <QDir>
 #include <QLabel>
 #include <QPointer>
+#include <QSettings>
 #include <QSignalSpy>
 #include <QTest>
 #include <QToolButton>
@@ -325,6 +327,40 @@ private slots:
     }
 
     // A middle click closes a tab. Its root dashboard is kept.
+    // A workspace is a data folder. Opening one loads it and remembers it on
+    // this device, first in the recent list. A missing folder is reported and
+    // dropped from the list.
+    void workspaces()
+    {
+        // Keep the test's settings apart from the app's.
+        QCoreApplication::setOrganizationName(QStringLiteral("MiranteTests"));
+        QSettings().remove(QStringLiteral("workspace"));
+
+        Fixture f;
+        f.window->openSampleData();
+        QVERIFY(f.window->workspace().isEmpty());
+        QVERIFY(f.window->windowTitle().contains(QStringLiteral("Sample data")));
+        // The sample data is compiled into the app only, so the test checks no tabs here.
+
+        const QString folder = QDir(QStringLiteral(MIRANTE_FIXTURES_DIR)).absolutePath();
+        f.window->openWorkspace(folder);
+        QCOMPARE(f.window->workspace(), folder);
+        QCOMPARE(f.window->recentWorkspaces(), QStringList{folder});
+        QCOMPARE(QSettings().value(QStringLiteral("workspace/last")).toString(), folder);
+        QVERIFY(f.window->windowTitle().contains(QStringLiteral("fixtures")));
+        QCOMPARE(f.bar()->count(), 2);
+        QVERIFY(f.window->findChild<QWidget *>(QStringLiteral("warningBar"))->isHidden());
+
+        // Opening it again keeps one entry; a missing folder is reported.
+        f.window->openWorkspace(folder);
+        QCOMPARE(f.window->recentWorkspaces(), QStringList{folder});
+        f.window->openWorkspace(folder + QStringLiteral("/no-such-folder"));
+        QCOMPARE(f.window->workspace(), folder);
+        QVERIFY(!f.window->findChild<QWidget *>(QStringLiteral("warningBar"))->isHidden());
+
+        QSettings().remove(QStringLiteral("workspace"));
+    }
+
     void middleClickClosesTab()
     {
         Fixture f;
