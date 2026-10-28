@@ -66,3 +66,5 @@ Mirante is a personal desktop dashboard for all of one person's work, built with
 **Status cache.** The part of the app that polls GitLab and Jira, keeps the results and computes attention.
 
 **Data folder.** The folder holding the synced JSON files.
+
+**Workspace.** The data folder as the app's menus call it: File > Open Workspace opens one, and the app remembers the recent ones on each device.

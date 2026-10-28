@@ -57,7 +57,7 @@ The chosen loser is deleted.
 
 Settings that only make sense on one device are stored with `QSettings`, outside the data folder:
 
-- the data folder path;
+- the data folder path: the last workspace opened, and the list of recent ones;
 - the local path of each project [folder](data-model.md#folder);
 - detached root dashboard window geometry;
 - open root tabs and the preview tab;

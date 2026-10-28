@@ -30,6 +30,19 @@ public:
     // Shows the problems in the warning bar, or hides it if there are none.
     void setLoadProblems(const std::vector<LoadProblem> &problems);
 
+    // A workspace is a data folder. Opening one loads it, remembers it on this
+    // device as the last one, and puts it first in the recent list. In M2
+    // nothing is written back to it.
+    void openWorkspace(const QString &folder);
+    // The sample data compiled into the app, used when there is no workspace.
+    void openSampleData();
+    // The open workspace's folder, or empty for the sample data.
+    QString workspace() const;
+    // The recent workspaces, most recent first.
+    QStringList recentWorkspaces() const;
+
+    void showAbout();
+
     // Navigation, used by the sidebar, the switcher and the shortcuts.
     // Without a dashboard id, these use the task's default dashboard.
     void openTaskPreview(const QString &taskId, const QString &dashboardId = QString());

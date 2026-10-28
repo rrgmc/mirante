@@ -42,6 +42,14 @@ The sidebar can be collapsed.
   - A task itself is not dragged onto dashboards. Drag one of its items, to show that item, or one of its dashboards, to show the task with that dashboard in a root dashboard. See [placing tasks](#placing-tasks-and-items).
 - The context menu holds new, rename, set priority, set state, delete, and "Open in new root dashboard".
 
+## Menus
+
+The menu bar has three menus.
+
+- **File:** Open Workspace… (`Ctrl+O`), Open Recent with the last ten workspaces and Clear Recent, Open Sample Data, Reload Workspace (`F5`), and Quit (`Ctrl+Q`). A workspace is a data folder. At start the app opens the workspace given with `--data`, otherwise the last one used on this device, otherwise the sample data. The window title names the workspace.
+- **View:** Sidebar (show or hide), Expand All Tasks, Collapse All Tasks, Go To… (`Ctrl+K`, the [quick switcher](#keyboard)), All Dashboards…, and New Dashboard.
+- **Help:** About Mirante, with the version, the author and the project's address, and About Qt.
+
 ## Opening tasks
 
 - **Single click:** selects a row. It opens nothing.

@@ -7,6 +7,8 @@
 
 #include <QApplication>
 #include <QCommandLineParser>
+#include <QDir>
+#include <QSettings>
 
 int main(int argc, char *argv[])
 {
@@ -19,7 +21,7 @@ int main(int argc, char *argv[])
     parser.addHelpOption();
     parser.addVersionOption();
     const QCommandLineOption dataOption(QStringLiteral("data"),
-                                        QStringLiteral("Load the data folder <folder> instead of the fixtures."),
+                                        QStringLiteral("Open the workspace <folder> instead of the last one."),
                                         QStringLiteral("folder"));
     parser.addOption(dataOption);
     parser.process(app);
@@ -30,11 +32,17 @@ int main(int argc, char *argv[])
     mirante::registerEnabledModules(types);
 
     mirante::Model model;
-    const QString dataDir = parser.isSet(dataOption) ? parser.value(dataOption) : QStringLiteral(":/fixtures");
-    const auto problems = mirante::store::load(dataDir, model);
-
     mirante::MainWindow window(model, types);
-    window.setLoadProblems(problems);
+
+    // The workspace given with --data, else the last one used on this device,
+    // else the sample data.
+    const QString last = QSettings().value(QStringLiteral("workspace/last")).toString();
+    if (parser.isSet(dataOption))
+        window.openWorkspace(parser.value(dataOption));
+    else if (!last.isEmpty() && QDir(last).exists())
+        window.openWorkspace(last);
+    else
+        window.openSampleData();
     window.show();
 
     return app.exec();

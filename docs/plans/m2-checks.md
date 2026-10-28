@@ -12,6 +12,14 @@ To check with your own copy of the data, copy `resources/fixtures` somewhere and
 
 Tick each box, or note what is wrong next to it.
 
+## Menus and workspaces
+
+- [ ] File > Open Workspace… opens a data folder; the window title names it. Open Recent lists it, most recent first, and Clear Recent empties the list.
+- [ ] Restarting the app opens the last workspace. Open Sample Data goes back to the built-in data. Reload Workspace (`F5`) loads the folder again.
+- [ ] A recent workspace whose folder is gone shows a warning and leaves the list.
+- [ ] View has Sidebar, Expand All Tasks, Collapse All Tasks, Go To… (`Ctrl+K`), All Dashboards… and New Dashboard, and each works.
+- [ ] Help > About Mirante shows Mirante 0.1, Rangel Reale with the email address, the project's address and the license.
+
 ## Sidebar
 
 - [ ] Groups, projects and tasks appear in that order, and each task has the children "Dashboards" and "Items", in that order. The selected row stays in full colour when the sidebar loses the focus. Projects and tasks are sorted by priority, then their manual order.

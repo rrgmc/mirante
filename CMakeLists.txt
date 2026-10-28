@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.21)
 
 project(mirante
-    VERSION 0.1.0
+    VERSION 0.1
     DESCRIPTION "A personal all-work desktop dashboard"
     HOMEPAGE_URL "https://github.com/rrgmc/mirante"
     LANGUAGES CXX)
