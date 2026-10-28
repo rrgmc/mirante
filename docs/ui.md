@@ -129,7 +129,7 @@ When editing is on:
   - "Remove tab group" is enabled when the group has one tab. It unwraps the group once: the tab's content takes the group's place.
   - "Collapse when single" is a setting of the group: whenever it has one tab, now or after closing others, the group is replaced by that tab's content.
 - **A `+` button** at the right of each tab group adds an empty tab at the end.
-- **Drag and drop:** drag a cell by its header, a tab by its tab, a whole tab group by the empty part of its tab bar, or an item from the sidebar. A tab group or a split moves within its own dashboard. A semi-transparent overlay shows five drop zones on the cell under the cursor:
+- **Drag and drop:** drag a cell by its header, a tab by its tab, a whole tab group by the empty part of its tab bar, or an item from the sidebar. Cell headers and tab bars show an open hand while the dashboard is unlocked. A tab group or a split moves within its own dashboard. A semi-transparent overlay shows five drop zones on the cell under the cursor:
   - the left, right, top or bottom edge splits the cell on that side;
   - the centre adds the dropped content as a tab, turning the cell into a tab group if needed. On an empty cell, the centre fills the cell instead.
 - Dropping on a tab bar inserts a new tab at that position.

@@ -371,6 +371,18 @@ void TestLayoutView::tabBarDragsInEditMode()
     QCOMPARE(started.count(), 2);
     QCOMPARE(started.at(1).at(0).value<NodePath>(), (NodePath{1, 1}));
     QCOMPARE(view.widgetAt({1, 1}), static_cast<QWidget *>(tabWidget));
+
+    // Hovering shows the open hand in edit mode only.
+    const auto hover = [bar](const QPoint &at) {
+        QMouseEvent move(QEvent::MouseMove, QPointF(at), bar->mapToGlobal(QPointF(at)), Qt::NoButton, Qt::NoButton,
+                         Qt::NoModifier);
+        QApplication::sendEvent(bar, &move);
+    };
+    hover(empty);
+    QCOMPARE(bar->cursor().shape(), Qt::OpenHandCursor);
+    view.setEditMode(false);
+    hover(onTab);
+    QCOMPARE(bar->cursor().shape(), Qt::ArrowCursor);
 }
 
 // A tab group's + button shows only in edit mode, and reports the group's path.
