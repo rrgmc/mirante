@@ -2,15 +2,17 @@
 
 An item is one panel in a task. Its type decides what the user configures, what the panel shows and what actions it offers. Fields shared by all items are in the [data model](data-model.md#item).
 
+Every item type except built-in panels belongs to a [module](modules.md). A build includes only the enabled modules, so it may offer only some of the types below.
+
 Summary views and web page views are separate types, for example "GitLab MR (summary)" and "GitLab MR (page)". See [decision 0007](decisions/0007-separate-item-types-per-rendering.md).
 
 ## The type registry
 
-Every type registers itself in the `ItemTypeRegistry` with:
+A module registers each of its types in the `ItemTypeRegistry` with:
 
 | Property | Description |
 |---|---|
-| `id` | Stable string stored in task files, such as `gitlab.mr.summary` |
+| `id` | Stable string stored in task files, such as `gitlab.mr.summary`. It starts with the module id. |
 | `name`, `icon` | Shown in menus and cell headers |
 | `fields` | The configuration fields, with type, default and validation |
 | `rendering` | `native` (a Qt widget) or `web` (a [web view](web-views.md)) |
@@ -19,9 +21,9 @@ Every type registers itself in the `ItemTypeRegistry` with:
 | `actions` | Optional: the light actions it offers |
 | `fromUrl` | Optional: recognises a pasted URL and returns a configuration |
 
-New types are added by registering a class. No other code changes.
+New types are added by registering a class in a module. No core code changes. See [adding a module](modules.md#adding-a-module).
 
-When a field has a project default, the type uses it when the field is empty. For example, an empty project path in an MR List uses the project's `gitlabProject`.
+When a field has a project default, the type uses it when the field is empty. For example, an empty project path in an MR List uses the project's `gitlab.project` setting. See [module settings](data-model.md#project).
 
 ## Light actions
 
@@ -37,7 +39,7 @@ Anything else uses the "Open page" button. It opens the matching page type in th
 
 ## GitLab
 
-All GitLab types need a `gitlab` connection.
+Module `gitlab`. All GitLab types need a `gitlab` connection.
 
 ### GitLab MR (summary)
 
@@ -94,7 +96,7 @@ All GitLab types need a `gitlab` connection.
 
 ## Jira
 
-Jira types need a `jira-cloud` or `jira-dc` connection.
+Module `jira`. Jira types need a `jira.cloud` or `jira.dc` connection.
 
 ### Jira Issue (summary)
 
@@ -120,12 +122,14 @@ Jira types need a `jira-cloud` or `jira-dc` connection.
 
 - **Configuration:** a JQL query (Jira's query language), or one of these presets:
   - "My open issues";
-  - "Current sprint of this project", using the project's `jiraProjectKey`;
+  - "Current sprint of this project", using the project's `jira.projectKey` setting;
   - "Recently updated in this project".
 - **Shows:** a sortable table with columns for key, summary, status, assignee and the date of the last update.
 - **Row click:** shows the issue summary in a preview area. A row menu offers "Add to task as item".
 
 ## Claude
+
+Module `claude`.
 
 ### Claude session (web)
 
@@ -153,21 +157,21 @@ Local sessions exist on one device only. On other devices the panel shows the de
 
 ### Web page
 
-`web.page`, web.
+`web.page`, web, module `web`.
 
 - **Configuration:** a URL.
 - **Shows:** the page, using the group's profile, or the shared profile if the host is overridden.
 
 ### Notes
 
-`notes`, native.
+`notes`, native, module `notes`.
 
 - **Configuration:** none.
 - **Shows:** a Markdown editor with a preview. The text is stored in the task file, so it syncs.
 
 ### Folder / terminal
 
-`folder`, native.
+`folder`, native, module `folder`.
 
 - **Configuration:** one of the project's folders.
 - **Shows:**
@@ -176,12 +180,12 @@ Local sessions exist on one device only. On other devices the panel shows the de
   - a short `git status` summary.
 - **Actions:** open a terminal, open in the editor, open in the file manager.
 
-The editor command and the terminal command are device settings.
+The editor command is a device setting of the `folder` module. The terminal command is a core device setting.
 
 ### Built-in panels
 
-`dash.panel`, web, served from `dash://`. See [web views](web-views.md#built-in-panels).
+`dash.panel`, web, served from `dash://`. Part of the core, not a module. See [web views](web-views.md#built-in-panels).
 
 - **Configuration:** which panel. Two exist:
-  - **Task summary:** the status of every GitLab and Jira item in the task, on one page.
+  - **Task summary:** the cached status of every item in the task that reports one, on one page.
   - **Group overview:** active tasks of the group, with their priorities and attention badges.

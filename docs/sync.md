@@ -18,6 +18,7 @@ The user chooses the data folder on each device. It does not have to be at the s
 - **Why this layout.** Two devices rarely change the same file at the same time. When they do, the sync tool keeps a conflict copy instead of damaging the data.
 - **Version field.** Every file has a `schemaVersion` field. The app migrates older files when it loads them, and writes them back in the new version only when they change for another reason.
 - **Unknown fields** are kept when a file is written back, so an older app version does not delete data written by a newer one.
+- **Unknown modules.** Items, connections and project settings of a module that is not in this build are kept unchanged too. A device built without a module never damages its data. See [missing modules](modules.md#missing-modules).
 - **Format.** Files are pretty-printed JSON with sorted keys, so the files are easy to read and compare.
 
 A single SQLite database is not used. Sync tools copy database files whole and can damage them.

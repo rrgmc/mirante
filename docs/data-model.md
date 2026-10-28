@@ -40,11 +40,21 @@ Groups have no priority. They keep their manual order.
 | `priority` | See [priority](#priority) |
 | `order` | Manual position within its priority level |
 | `folders` | List of [folders](#folder); exactly one has `main: true` |
-| `gitlabProject` | Optional GitLab project path, such as `acme/backend` |
-| `jiraProjectKey` | Optional Jira project key, such as `ACME` |
+| `moduleSettings` | Project settings declared by [modules](modules.md#what-a-module-registers), as one object per module id |
 | `connectionOverrides` | Optional map from connection kind to a connection id of the same group |
 
-`gitlabProject` and `jiraProjectKey` are defaults. Items in the project's tasks use them unless they set their own value. Quick add also uses them to choose the project for a pasted link. See [ui](ui.md#quick-add).
+Module settings are defaults. Items in the project's tasks use them unless they set their own value. Quick add also uses them to choose the project for a pasted link. See [ui](ui.md#quick-add).
+
+Example with the `gitlab` and `jira` modules:
+
+```json
+"moduleSettings": {
+  "gitlab": { "project": "acme/backend" },
+  "jira": { "projectKey": "ACME" }
+}
+```
+
+Settings of a module that is not in the build are kept unchanged. See [missing modules](modules.md#missing-modules).
 
 ### Folder
 
@@ -91,6 +101,8 @@ Rules:
 
 A task can hold any number of items of the same type, for example three Jira issues.
 
+An item whose type belongs to a module that is not in the build is shown as a placeholder. Its `type` and `config` are kept unchanged. See [missing modules](modules.md#missing-modules).
+
 ## Priority
 
 Projects and tasks have one of four levels:
@@ -113,10 +125,10 @@ A connection holds the details needed to call one API. Connections belong to a g
 | Field | Description |
 |---|---|
 | `id` | UUID |
-| `kind` | `gitlab`, `jira-cloud` or `jira-dc` (Data Center) |
+| `kind` | A connection kind registered by a module, such as `gitlab`, `jira.cloud` or `jira.dc` (Data Center) |
 | `name` | For example "gitlab.com (work)" |
 | `baseUrl` | For example `https://gitlab.com` or `https://acme.atlassian.net` |
-| `email` | Jira Cloud only; used with the API token |
+| `fields` | Further fields declared by the kind, such as `email` for `jira.cloud` |
 
 The token is never part of the synced data. It is stored in the operating system keychain. See [sync](sync.md#secrets).
 

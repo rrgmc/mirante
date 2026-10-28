@@ -27,12 +27,17 @@ A clickable prototype of the navigation, made of one HTML page with mock data. W
 The real Qt app, reading a fixed set of JSON files. Nothing is written back. There are no web views and no API calls.
 
 - [ ] CMake project with Qt 6.8, qtkeychain and QHotkey. It builds on Windows, macOS and Linux.
+- [ ] The [module](modules.md) mechanism: `rraidash_add_module()`, one option per module, `RRAIDASH_MODULES`, the `DEPENDS` check and the generated `enabled_modules.cpp`.
+- [ ] The module interface target `rraidash::module_api`. Modules cannot include other core headers.
+- [ ] One folder per module in `src/modules/`, each registering its item types with id, name and icon only.
+- [ ] A build with all modules off and a build with all on both succeed.
 - [ ] `core` loads the fixture files into `Model`.
 - [ ] The sidebar, root tab bar and preview tab work as in [ui](ui.md).
 - [ ] `LayoutView` shows any layout tree, with placeholder cells that show the item type and name.
+- [ ] Items whose module is not in the build show the missing-module placeholder.
 - [ ] Layout editing works with the context menu and with drag and drop, including normalisation. Changes are kept in memory only.
 - [ ] `Ctrl+K` switcher and the panel focus shortcuts work.
-- [ ] Tests cover JSON conversion, layout tree edits and normalisation.
+- [ ] Tests cover JSON conversion, layout tree edits and normalisation, and unchanged write-back of data from missing modules.
 
 ## M3: Data folder and editing
 
@@ -57,9 +62,11 @@ The real Qt app, reading a fixed set of JSON files. Nothing is written back. The
 
 ## M5: Connections and status
 
+- [ ] Modules register connection kinds and project settings. The connection and project dialogs are built from their fields.
 - [ ] Connections can be added to groups, with defaults and project overrides.
 - [ ] `SecretStore` stores tokens in the keychain on all three platforms.
-- [ ] `GitLabClient` and `JiraClient` cover the endpoints in [integrations](integrations.md), for both Jira Cloud and Data Center.
+- [ ] `ItemContext` gives modules connections with `authorize()` and `secret()`.
+- [ ] The `gitlab` and `jira` modules' clients cover the endpoints in [integrations](integrations.md), for both Jira Cloud and Data Center.
 - [ ] `StatusCache` polls, caches and computes attention.
 - [ ] Attention badges appear in the sidebar, Focus and cell headers.
 - [ ] Missing tokens, failed authentication and network errors are shown as described.
@@ -74,7 +81,7 @@ The real Qt app, reading a fixed set of JSON files. Nothing is written back. The
 
 ## M7: Quick add, Claude local, folders and notes
 
-- [ ] Quick add from a Jira key or merge request URL, including the project match and related merge requests.
+- [ ] Quick add from a Jira key or merge request URL, through the modules' quick add handlers and related-item finders, including the project match and related merge requests.
 - [ ] Claude session (local) starts `claude --resume` in a terminal, on all three platforms.
 - [ ] The Folder / terminal item shows the branch and status, and opens a terminal, editor and file manager.
 - [ ] The CI Pipeline item can follow the current branch of the main folder.
@@ -95,6 +102,7 @@ The real Qt app, reading a fixed set of JSON files. Nothing is written back. The
 
 ## M10: Packaging and CI
 
-- [ ] A CI build for Windows, macOS and Linux, running the tests.
+- [ ] A CI build for Windows, macOS and Linux, running the tests, with all modules on.
+- [ ] A CI build with all modules off, so the core never depends on a module.
 - [ ] Windows package with `windeployqt`, macOS app bundle with `macdeployqt`.
 - [ ] A short install and first-run guide in the root `README.md`.
