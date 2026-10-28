@@ -289,7 +289,7 @@ The conversion is done once with a small script, which is not committed. The fix
 **Drag and drop.**
 
 - **MIME type** `application/x-mirante-ref`: a JSON object with the reference, plus the source dashboard and path when a cell is moved.
-- **Sources:** cell headers in edit mode, and sidebar tasks and items, which can be dropped even on a locked dashboard, as [ui](../ui.md#placing-tasks-and-items) says.
+- **Sources:** cell headers in edit mode, and sidebar tasks and items. A locked dashboard refuses every drop, as [ui](../ui.md#placing-tasks-and-items) says.
 - **`DropOverlay`** is a transparent child of the top `LayoutView`, shown while a drag is over it. It finds the cell under the cursor and divides it into five zones: each edge is the outer 25%, and the rest is the centre. Over a tab bar, it shows an insert marker instead. It returns a zone, and `LayoutEditor` performs the move or insert.
 - **Rules from [ui](../ui.md#editing-layouts):**
   - a task dashboard accepts only items of its own task;
