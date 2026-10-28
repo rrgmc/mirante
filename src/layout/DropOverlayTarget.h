@@ -23,7 +23,8 @@ struct DropHit
 
 // Finds the cell or tab bar of the view under pos, which is in view
 // coordinates. Each edge of a cell is its outer 25%; the rest is the centre.
-// Implemented in DropOverlay.cpp.
-std::optional<DropHit> dropHitAt(const LayoutView *view, const QPoint &pos);
+// With replace, the whole cell under pos is a Replace zone, and tab bars do
+// not count. Implemented in DropOverlay.cpp.
+std::optional<DropHit> dropHitAt(const LayoutView *view, const QPoint &pos, bool replace = false);
 
 } // namespace mirante

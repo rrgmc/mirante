@@ -227,6 +227,8 @@ LayoutNode removeNode(const LayoutNode &tree, const NodePath &path)
 //   Elsewhere it adds the moved node as a tab, like addTab.
 // - TabBar inserts the moved node into the target tab group at tabIndex, an
 //   index in the tree before the move.
+// - Replace puts the moved node in place of the target cell, whose content
+//   is dropped. The target must be a cell.
 // A node moved out of a tab group keeps its tab title.
 EditResult moveNode(const LayoutNode &tree, const NodePath &from, const NodePath &to,
                     const DropZone &zone)
@@ -237,6 +239,8 @@ EditResult moveNode(const LayoutNode &tree, const NodePath &from, const NodePath
         return {tree, {}};
     if (zone.kind == DropZone::Kind::TabBar
         && (target->kind != Kind::Tabs || zone.tabIndex < 0 || zone.tabIndex > count(target->children)))
+        return {tree, {}};
+    if (zone.kind == DropZone::Kind::Replace && target->kind != Kind::Cell)
         return {tree, {}};
 
     const NodePath fromParent = parentOf(from);
@@ -276,6 +280,10 @@ EditResult moveNode(const LayoutNode &tree, const NodePath &from, const NodePath
     case DropZone::Kind::TabBar:
         insertTabAt(*mutableAt(result, target2), tabIndex, std::move(moved), title);
         newPath = childOf(target2, tabIndex);
+        break;
+    case DropZone::Kind::Replace:
+        *mutableAt(result, target2) = std::move(moved);
+        newPath = target2;
         break;
     }
     return {std::move(result), newPath};

@@ -78,6 +78,13 @@ DropTarget tabBar(const NodePath &path, int index)
     return target;
 }
 
+DropTarget replace(const NodePath &path)
+{
+    DropTarget target{path, {}};
+    target.zone.kind = DropZone::Kind::Replace;
+    return target;
+}
+
 DragPayload fromSidebar(const CellRef &ref) { return DragPayload{ref, std::nullopt, std::nullopt}; }
 
 DragPayload moved(const CellRef &ref, const DashboardRef &source, const NodePath &path)
@@ -399,6 +406,29 @@ private slots:
         QCOMPARE(node(work, {1}).children.size(), std::size_t(2));
     }
 
+    // A drop with Ctrl held replaces the target cell's content.
+    void replaceFromTheSidebar()
+    {
+        const LayoutNode before = tree(work);
+        QVERIFY(editor->drop(work, replace({0}), fromSidebar(itemRef(issuePageItem))));
+        QCOMPARE(refAt(work, {0}), itemRef(issuePageItem));
+        QVERIFY(layout::sameShape(layout::setRef(before, {0}, itemRef(issuePageItem)), tree(work)));
+
+        // Only a cell can be replaced, and a task dashboard still refuses
+        // items of other tasks.
+        QVERIFY(!editor->drop(work, replace({1}), fromSidebar(itemRef(notesItem))));
+        QVERIFY(!editor->drop(work, replace({0}), fromSidebar(itemRef(rateIssueItem))));
+    }
+
+    // A moved cell replaces the target's content and leaves its old place.
+    void replaceWithAMovedCell()
+    {
+        const std::size_t tabs = node(work, {1}).children.size();
+        QVERIFY(editor->drop(work, replace({0}), moved(itemRef(notesItem), work, {1, 2})));
+        QCOMPARE(refAt(work, {0}), itemRef(notesItem));
+        QCOMPARE(node(work, {1}).children.size(), tabs - 1);
+    }
+
     void moveOntoItselfIsRefused()
     {
         const QJsonObject before = json(work);
@@ -575,6 +605,15 @@ private slots:
         checkEdge(0.5, 0.1, Edge::Top);
         checkEdge(0.5, 0.9, Edge::Bottom);
         checkEdge(0.05, 0.2, Edge::Left);   // nearest edge wins
+
+        // With Ctrl held, the whole cell is one Replace zone, even at its edge.
+        for (const QPoint offset : {QPoint(5, 5), QPoint(rect.width() / 2, rect.height() / 2)}) {
+            const auto replaceHit = dropHitAt(&view, rect.topLeft() + offset, true);
+            QVERIFY(replaceHit);
+            QCOMPARE(replaceHit->target.path, NodePath{0});
+            QCOMPARE(replaceHit->target.zone.kind, DropZone::Kind::Replace);
+            QCOMPARE(replaceHit->highlight, rect);
+        }
 
         // The tab bar: before the second tab's middle is index 1.
         auto *tabWidget = view.findChild<QTabWidget *>();

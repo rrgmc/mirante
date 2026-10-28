@@ -280,6 +280,21 @@ private slots:
         QCOMPARE(layout::nodeAt(r.tree, {1})->children.size(), std::size_t(1));
     }
 
+    // Replace puts the moved cell in place of the target cell's content.
+    void moveReplace()
+    {
+        DropZone zone;
+        zone.kind = DropZone::Kind::Replace;
+        const EditResult r = layout::moveNode(sample(), {1, 1}, {0}, zone);
+        QVERIFY(r.path == NodePath({0}));
+        QCOMPARE(itemAt(r.tree, {0}), QStringLiteral("c"));
+        QCOMPARE(layout::nodeAt(r.tree, {1})->children.size(), std::size_t(1));
+
+        // Only a cell can be replaced.
+        const EditResult refused = layout::moveNode(sample(), {0}, {1}, zone);
+        QVERIFY(refused.path.empty());
+    }
+
     void moveCentreAddsTab()
     {
         // Into a cell that is not in a tab group: wraps it first.

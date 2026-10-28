@@ -67,7 +67,9 @@ enum class Edge { Left, Right, Top, Bottom };
 // Where a dragged node or reference lands on a target node.
 struct DropZone
 {
-    enum class Kind { Edge, Centre, TabBar };
+    // Replace puts the dropped content in the target cell instead of what
+    // the cell held. A drag with Ctrl held gives it.
+    enum class Kind { Edge, Centre, TabBar, Replace };
     Kind kind = Kind::Centre;
     Edge edge = Edge::Right;    // for Kind::Edge
     int tabIndex = 0;           // for Kind::TabBar: the insert position

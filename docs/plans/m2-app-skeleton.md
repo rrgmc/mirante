@@ -283,7 +283,7 @@ The conversion is done once with a small script, which is not committed. The fix
 
 **`LayoutEditor`** turns user actions into `LayoutTree` operations. It then calls the `Model` method, which normalises.
 
-- **Cell menu:** split right, split down, wrap in tabs, add tab, change item, clear cell, remove cell. "Change item" lists the task's items, or for a root dashboard, the tasks and the items of the task in the cell.
+- **Cell menu:** split right, split down, wrap in tabs, add tab, clear cell, remove cell. A cell's content is changed by dropping onto it with `Ctrl` held, which replaces it (`DropZone::Kind::Replace`).
 - **Tab menu:** add tab (an empty tab after the clicked one), rename, close, move left, move right, collapse when single.
 
 **Drag and drop.**

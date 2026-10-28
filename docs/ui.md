@@ -105,7 +105,6 @@ When editing is on:
   - split down;
   - wrap in tabs;
   - add tab;
-  - change item;
   - clear cell;
   - remove cell.
 - **The tab context menu** offers add tab (an empty tab after the clicked one), rename, close, move to the left or right, and "Collapse when single".
@@ -114,6 +113,7 @@ When editing is on:
   - the left, right, top or bottom edge splits the cell on that side;
   - the centre adds the dropped content as a tab, turning the cell into a tab group if needed. On an empty cell, the centre fills the cell instead.
 - Dropping on a tab bar inserts a new tab at that position.
+- **Replace:** holding `Ctrl` while dragging makes the drop replace the content of the cell under the cursor, instead of splitting it or adding a tab. The whole cell is highlighted. A moved cell leaves its old place.
 
 After each edit, the tree is [normalised](data-model.md#normalisation).
 
