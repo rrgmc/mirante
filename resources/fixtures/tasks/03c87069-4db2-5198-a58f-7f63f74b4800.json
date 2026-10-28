@@ -1,0 +1,87 @@
+{
+    "dashboards": [
+        {
+            "id": "015d9ae8-cb97-5a47-99d3-a4f9871645be",
+            "layout": {
+                "children": [
+                    {
+                        "ref": {
+                            "item": "59a56f37-0072-59e2-8dff-be09bb94f2c0"
+                        },
+                        "type": "cell"
+                    },
+                    {
+                        "children": [
+                            {
+                                "ref": {
+                                    "item": "5f7e3222-542c-570c-a39a-bf6b824f5cbd"
+                                },
+                                "type": "cell"
+                            },
+                            {
+                                "ref": {
+                                    "item": "035131bf-21a2-5d15-aaa4-f3463d7270c0"
+                                },
+                                "type": "cell"
+                            }
+                        ],
+                        "dir": "h",
+                        "sizes": [
+                            1,
+                            1
+                        ],
+                        "type": "split"
+                    }
+                ],
+                "dir": "v",
+                "sizes": [
+                    1,
+                    1
+                ],
+                "type": "split"
+            },
+            "name": "Main"
+        }
+    ],
+    "defaultDashboardId": "015d9ae8-cb97-5a47-99d3-a4f9871645be",
+    "id": "03c87069-4db2-5198-a58f-7f63f74b4800",
+    "isDefault": false,
+    "items": [
+        {
+            "config": {
+                "text": ""
+            },
+            "id": "59a56f37-0072-59e2-8dff-be09bb94f2c0",
+            "name": "Notes",
+            "type": "notes"
+        },
+        {
+            "config": {
+                "filter": "",
+                "preset": "createdByMe",
+                "project": "",
+                "scope": "all"
+            },
+            "id": "5f7e3222-542c-570c-a39a-bf6b824f5cbd",
+            "name": "My merge requests",
+            "type": "gitlab.mr.list"
+        },
+        {
+            "config": {
+                "filter": "",
+                "preset": "assignedToMe",
+                "project": "rr",
+                "scope": "group"
+            },
+            "id": "035131bf-21a2-5d15-aaa4-f3463d7270c0",
+            "name": "Assigned issues",
+            "type": "gitlab.issue.list"
+        }
+    ],
+    "order": 1,
+    "priority": 0,
+    "projectId": "d7740958-1656-52ae-bb9d-6b6285694e19",
+    "schemaVersion": 1,
+    "state": "active",
+    "title": "M2 Qt skeleton"
+}

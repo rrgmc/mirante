@@ -1,0 +1,62 @@
+{
+    "dashboards": [
+        {
+            "id": "cddb5a7f-e8b2-5cf8-8a69-8e99a121551e",
+            "layout": {
+                "collapseSingle": false,
+                "current": 0,
+                "tabs": [
+                    {
+                        "node": {
+                            "ref": {
+                                "item": "19ba2a88-153b-5f04-a6f0-311ddaf94d10"
+                            },
+                            "type": "cell"
+                        },
+                        "title": "Pipeline"
+                    },
+                    {
+                        "node": {
+                            "ref": {
+                                "item": "d82bc8c2-044e-5601-95db-6e8e6d63fe9e"
+                            },
+                            "type": "cell"
+                        },
+                        "title": "Notes"
+                    }
+                ],
+                "type": "tabs"
+            },
+            "name": "Main"
+        }
+    ],
+    "defaultDashboardId": "cddb5a7f-e8b2-5cf8-8a69-8e99a121551e",
+    "id": "02fc9a52-653c-562f-a3a2-6d5a4ca98623",
+    "isDefault": false,
+    "items": [
+        {
+            "config": {
+                "branch": "",
+                "branchMode": "mainFolder",
+                "project": ""
+            },
+            "id": "19ba2a88-153b-5f04-a6f0-311ddaf94d10",
+            "name": "Pipeline: main",
+            "type": "gitlab.pipeline"
+        },
+        {
+            "config": {
+                "text": "TestSessionExpiry fails about 1 in 20 runs."
+            },
+            "id": "d82bc8c2-044e-5601-95db-6e8e6d63fe9e",
+            "name": "Notes",
+            "type": "notes"
+        }
+    ],
+    "order": 0,
+    "priority": 3,
+    "projectId": "3dd79dc2-8ec9-5181-b7d0-704a18f494d5",
+    "schemaVersion": 1,
+    "state": "active",
+    "title": "Investigate flaky test"
+}

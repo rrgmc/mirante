@@ -126,9 +126,11 @@ LayoutNode setSizes(const LayoutNode &tree, const NodePath &splitPath, const std
 bool sameShape(const LayoutNode &a, const LayoutNode &b);
 
 // Applies the normalisation rules of docs/data-model.md#normalisation until
-// nothing changes. If track is given, it is updated to the same node's path in
-// the result, or cleared if the node is gone. Implemented in LayoutNormalise.cpp.
-LayoutNode normalise(const LayoutNode &tree, const RefExists &exists, NodePath *track = nullptr);
+// nothing changes. If track is given, it is set to the tracked node's new path
+// in the result, or to nullopt if the node is gone. A path that does not lead to
+// a node of the input sets nullopt too. Implemented in LayoutNormalise.cpp.
+LayoutNode normalise(const LayoutNode &tree, const RefExists &exists,
+                     std::optional<NodePath> *track = nullptr);
 
 } // namespace layout
 
