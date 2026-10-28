@@ -70,7 +70,7 @@ Each library compiles every `.cpp` file in its folder, found with `file(GLOB ...
 
 Each preset has a matching build and test preset. On Windows, presets are run from a Developer Command Prompt for MSVC 2022 so Ninja finds the compiler.
 
-**Getting Qt.** `tools/setup-qt.ps1` and `tools/setup-qt.sh` download Qt 6.8.3 (the `qtbase` archive only) with aqtinstall, run through `uvx`. They install it into the folder named by the environment variable `MIRANTE_QT_ROOT`, or into `.qt/` in the repository if it is not set. `.qt/` is ignored by git. Several projects on one machine can share one Qt by setting `MIRANTE_QT_ROOT` to the same folder. No local path is committed.
+**Getting Qt.** `tools/setup-qt.ps1` and `tools/setup-qt.sh` download Qt 6.8.3 (the `qtbase` and `qtsvg` archives; `qtsvg` loads the SVG icons) with aqtinstall, run through `uvx`. They install it into the folder named by the environment variable `MIRANTE_QT_ROOT`, or into `.qt/` in the repository if it is not set. `.qt/` is ignored by git. Several projects on one machine can share one Qt by setting `MIRANTE_QT_ROOT` to the same folder. No local path is committed.
 
 **Build script.** `tools/build.ps1 [-Preset dev] [-NoTest]` runs `setup-qt.ps1`, which downloads Qt only if it is missing. It then finds Visual Studio 2022 with `vswhere`, enters its developer shell with `Enter-VsDevShell -Arch amd64`, and configures, builds and tests the preset. Agents and plain shells build with it, so nobody needs a Developer Command Prompt open. It adds Qt's `bin` folder to `PATH` for the tests.
 
