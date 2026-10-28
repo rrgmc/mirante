@@ -47,7 +47,7 @@ Unlock a dashboard with the lock button first.
 - [ ] Every tab menu command works: rename, close, move left, move right, collapse when single.
 - [ ] Dragging a cell header onto the edge of another cell splits there, onto its centre adds a tab, and onto a tab bar inserts a tab. The drop zones are highlighted while dragging.
 - [ ] Dragging an item from the sidebar works even on a locked dashboard. A task dashboard refuses items of other tasks.
-- [ ] Dragging a task from the sidebar onto a cell inside a task cell places it beside the task cell.
+- [ ] Dragging a task from the sidebar over the cells inside a task cell shows no highlight and the "not allowed" cursor. Over the task cell's header it shows the zones of the whole task cell, and dropping places the task there.
 - [ ] After any edit, no split has a single child, and same-direction splits are merged.
 - [ ] Resizing a splitter and switching tabs work while locked, and the sizes are kept after switching root tabs.
 - [ ] Editing a task dashboard inside a root dashboard changes it everywhere it is shown, including its preview.

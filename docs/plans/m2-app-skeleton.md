@@ -294,7 +294,7 @@ The conversion is done once with a small script, which is not committed. The fix
 - **Rules from [ui](../ui.md#editing-layouts):**
   - a task dashboard accepts only items of its own task;
   - the centre of an empty cell fills it;
-  - a task dropped onto a cell inside a task cell lands beside that task cell.
+  - a task can be dropped only into a root dashboard; over the cells inside a task cell it is refused, and over the task cell's header it lands beside the task cell.
 
 **Done when** every editing action in [ui](../ui.md#editing-layouts) works by hand on the fixtures on Windows, and CI is green.
 

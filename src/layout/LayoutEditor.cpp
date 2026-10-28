@@ -3,7 +3,6 @@
 #include "core/Sorting.h"
 #include "items/ItemTypeRegistry.h"
 #include "layout/LayoutView.h"
-#include "layout/TaskCell.h"
 
 #include <mirante/ItemType.h>
 
@@ -430,41 +429,16 @@ void LayoutEditor::Private::dropFromView(LayoutView *view, const DropTarget &tar
         q->drop(resolved->first, resolved->second, payload);
 }
 
-// The dashboard and target a drop on a view applies to. A task dropped inside
-// a task cell lands beside that task cell in the root dashboard, because a
-// task dashboard holds only its own items.
+// The dashboard a drop on a view applies to. Tasks belong in root dashboards
+// only, so planDrop() refuses a task dropped inside a task cell; it is placed
+// beside the task cell by dropping it on the task cell's header instead.
 std::optional<std::pair<DashboardRef, DropTarget>>
-LayoutEditor::Private::resolveDrop(LayoutView *view, const DropTarget &target, const DragPayload &payload) const
+LayoutEditor::Private::resolveDrop(LayoutView *view, const DropTarget &target, const DragPayload & /*payload*/) const
 {
     const auto found = views.find(view);
     if (found == views.end())
         return std::nullopt;
-    const DashboardRef dashboard = found->second;
-    if (dashboard.isRoot() || !payload.ref.isTask())
-        return std::make_pair(dashboard, target);
-
-    for (QWidget *widget = view->parentWidget(); widget; widget = widget->parentWidget()) {
-        auto *taskCell = qobject_cast<TaskCell *>(widget);
-        if (!taskCell)
-            continue;
-        for (QWidget *outer = taskCell->parentWidget(); outer; outer = outer->parentWidget()) {
-            auto *rootView = qobject_cast<LayoutView *>(outer);
-            if (!rootView)
-                continue;
-            const auto root = views.find(rootView);
-            const std::optional<NodePath> path = rootView->pathOf(taskCell);
-            if (root == views.end() || !path)
-                return std::nullopt;
-            DropTarget beside{*path, target.zone};
-            if (beside.zone.kind != DropZone::Kind::Edge) {
-                beside.zone.kind = DropZone::Kind::Edge;
-                beside.zone.edge = Edge::Right;
-            }
-            return std::make_pair(root->second, beside);
-        }
-        return std::nullopt;
-    }
-    return std::nullopt;
+    return std::make_pair(found->second, target);
 }
 
 LayoutEditor::LayoutEditor(Model &model, const ItemTypeRegistry &types, QObject *parent)
