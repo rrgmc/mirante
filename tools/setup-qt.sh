@@ -22,13 +22,14 @@ REPO=$(cd "$(dirname "$0")/.." && pwd)
 QT_ROOT=${MIRANTE_QT_ROOT:-$REPO/.qt}
 QT_DIR=$QT_ROOT/$QT_VERSION/$QT_ARCH_DIR
 
-if [ ! -d "$QT_DIR/lib/cmake/Qt6" ]; then
+# qtsvg provides the plugin that loads the SVG icons of item types.
+if [ ! -d "$QT_DIR/lib/cmake/Qt6Svg" ]; then
     if ! command -v uvx >/dev/null 2>&1; then
         echo "uv is required to download Qt. Install it from https://docs.astral.sh/uv/ and run this script again." >&2
         exit 1
     fi
     echo "Installing Qt $QT_VERSION into $QT_ROOT" >&2
-    uvx --from aqtinstall aqt install-qt "$QT_HOST" desktop "$QT_VERSION" "$QT_ARCH" -O "$QT_ROOT" --archives qtbase >&2
+    uvx --from aqtinstall aqt install-qt "$QT_HOST" desktop "$QT_VERSION" "$QT_ARCH" -O "$QT_ROOT" --archives qtbase qtsvg >&2
 fi
 
 echo "$QT_DIR"

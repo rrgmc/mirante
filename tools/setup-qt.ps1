@@ -17,12 +17,18 @@ $Repo = Split-Path -Parent $PSScriptRoot
 $QtRoot = if ($env:MIRANTE_QT_ROOT) { $env:MIRANTE_QT_ROOT } else { Join-Path $Repo '.qt' }
 $QtDir = Join-Path $QtRoot "$QtVersion\$QtArchDir"
 
-if (-not (Test-Path (Join-Path $QtDir 'lib\cmake\Qt6'))) {
+# qtsvg provides the plugin that loads the SVG icons of item types.
+if (-not (Test-Path (Join-Path $QtDir 'lib\cmake\Qt6Svg'))) {
     if (-not (Get-Command uvx -ErrorAction SilentlyContinue)) {
         throw 'uv is required to download Qt. Install it from https://docs.astral.sh/uv/ and run this script again.'
     }
     Write-Host "Installing Qt $QtVersion into $QtRoot"
-    & uvx --from aqtinstall aqt install-qt windows desktop $QtVersion $QtArch -O $QtRoot --archives qtbase | Out-Host
+    # uvx and aqt print progress on stderr, which Windows PowerShell turns into
+    # errors. Pass it on as text and check the exit code instead.
+    $ErrorActionPreference = 'Continue'
+    & uvx --from aqtinstall aqt install-qt windows desktop $QtVersion $QtArch -O $QtRoot --archives qtbase qtsvg 2>&1 |
+        ForEach-Object { "$_" } | Out-Host
+    $ErrorActionPreference = 'Stop'
     if ($LASTEXITCODE -ne 0) { throw "aqtinstall failed with exit code $LASTEXITCODE" }
 }
 
