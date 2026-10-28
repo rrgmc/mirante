@@ -103,7 +103,7 @@ DropHit cellHit(const NodePath &path, const QRect &rect, const QPoint &pos)
 
 } // namespace
 
-std::optional<DropHit> dropHitAt(const LayoutView *view, const QPoint &pos)
+std::optional<DropHit> dropHitAt(const LayoutView *view, const QPoint &pos, bool replace)
 {
     for (QWidget *cell : view->visibleCells()) {
         // A detached cell is shown elsewhere.
@@ -120,7 +120,7 @@ std::optional<DropHit> dropHitAt(const LayoutView *view, const QPoint &pos)
                 containers.push_back(widget);
         }
         std::reverse(containers.begin(), containers.end());
-        if (containers.size() == path->size()) {
+        if (!replace && containers.size() == path->size()) {
             for (std::size_t depth = 0; depth < containers.size(); ++depth) {
                 const auto *tabWidget = qobject_cast<QTabWidget *>(containers[depth]);
                 if (!tabWidget || !tabWidget->tabBar()->isVisible())
@@ -136,8 +136,16 @@ std::optional<DropHit> dropHitAt(const LayoutView *view, const QPoint &pos)
         }
 
         const QRect rect = rectIn(cell, view);
-        if (rect.contains(pos))
-            return cellHit(*path, rect, pos);
+        if (!rect.contains(pos))
+            continue;
+        if (replace) {
+            DropHit hit;
+            hit.target.path = *path;
+            hit.target.zone.kind = DropZone::Kind::Replace;
+            hit.highlight = rect;
+            return hit;
+        }
+        return cellHit(*path, rect, pos);
     }
     return std::nullopt;
 }
@@ -183,10 +191,12 @@ protected:
             painter.fillRect(hit->highlight, colour);
             return;
         }
+        // Replacing a cell's content covers the whole cell, more strongly.
+        const bool replace = hit->target.zone.kind == DropZone::Kind::Replace;
         QColor fill = colour;
-        fill.setAlpha(70);
+        fill.setAlpha(replace ? 120 : 70);
         painter.fillRect(hit->highlight, fill);
-        painter.setPen(QPen(colour, 2));
+        painter.setPen(QPen(colour, replace ? 3 : 2));
         painter.drawRect(hit->highlight.adjusted(1, 1, -1, -1));
     }
 };
@@ -205,11 +215,13 @@ struct DropOverlay::Private
     bool onViewEvent(QEvent *event);
 
     // Updates the hit for pos, and says whether a drop there is possible. A
-    // zone where the drop would be refused is not highlighted.
-    bool track(const QPoint &pos)
+    // zone where the drop would be refused is not highlighted. Ctrl makes the
+    // drop replace the content of the cell under the cursor.
+    bool track(const QPoint &pos, Qt::KeyboardModifiers modifiers)
     {
         // A locked dashboard refuses every drop, from the sidebar too.
-        painter->hit = view->editMode() ? dropHitAt(view, pos) : std::nullopt;
+        const bool replace = modifiers.testFlag(Qt::ControlModifier);
+        painter->hit = view->editMode() ? dropHitAt(view, pos, replace) : std::nullopt;
         if (painter->hit && payload && acceptor && !acceptor(painter->hit->target, *payload))
             painter->hit.reset();
         painter->update();
@@ -255,7 +267,7 @@ bool DropOverlay::Private::onViewEvent(QEvent *event)
         fit();
         q->raise();
         q->show();
-        track(drag->position().toPoint());
+        track(drag->position().toPoint(), drag->modifiers());
         // Accepting even outside a cell keeps the move events coming.
         drag->acceptProposedAction();
         return true;
@@ -263,7 +275,7 @@ bool DropOverlay::Private::onViewEvent(QEvent *event)
 
     case QEvent::DragMove: {
         auto *drag = static_cast<QDragMoveEvent *>(event);
-        if (payload && track(drag->position().toPoint()))
+        if (payload && track(drag->position().toPoint(), drag->modifiers()))
             drag->acceptProposedAction();
         else
             drag->ignore();
@@ -277,7 +289,7 @@ bool DropOverlay::Private::onViewEvent(QEvent *event)
     case QEvent::Drop: {
         auto *drop = static_cast<QDropEvent *>(event);
         const std::optional<DragPayload> dropped = payload;
-        const bool hit = dropped && track(drop->position().toPoint());
+        const bool hit = dropped && track(drop->position().toPoint(), drop->modifiers());
         const std::optional<DropHit> target = painter->hit;
         finish();
         if (!hit || !target) {

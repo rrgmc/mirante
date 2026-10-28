@@ -110,8 +110,6 @@ struct LayoutEditor::Private
     // Views
     void forget(LayoutView *view);
     void showCellMenu(LayoutView *view, const NodePath &path, const QPoint &globalPos);
-    void fillChangeMenu(QMenu *menu, Commands &commands, const DashboardRef &dashboard, const NodePath &path,
-                        const LayoutNode &node);
     void showTabMenu(LayoutView *view, const NodePath &tabsPath, int index, const QPoint &globalPos);
     void startDrag(LayoutView *view, const NodePath &path);
     void onDropped(LayoutView *view, const DropTarget &target, const DragPayload &payload);
@@ -231,6 +229,11 @@ std::optional<EditResult> LayoutEditor::Private::insert(const DashboardRef &dash
             || target.zone.tabIndex > int(node->children.size()))
             return std::nullopt;
         return layout::insertTab(tree, target.path, target.zone.tabIndex, ref, title);
+
+    case DropZone::Kind::Replace:
+        if (node->kind != Kind::Cell)
+            return std::nullopt;
+        return EditResult{layout::setRef(tree, target.path, ref), target.path};
     }
     return std::nullopt;
 }
@@ -274,10 +277,6 @@ void LayoutEditor::Private::showCellMenu(LayoutView *view, const NodePath &path,
         command(LayoutEditor::tr("Wrap in tabs"), CellCommand::WrapInTabs);
     command(LayoutEditor::tr("Add tab"), CellCommand::AddTab);
     menu.addSeparator();
-    QMenu *change = menu.addMenu(dashboard.isRoot() ? LayoutEditor::tr("Change task or item")
-                                                    : LayoutEditor::tr("Change item"));
-    fillChangeMenu(change, commands, dashboard, path, *node);
-    change->setEnabled(!change->isEmpty());
     command(LayoutEditor::tr("Clear cell"), CellCommand::ClearCell)
         ->setEnabled(node->kind == Kind::Cell && node->ref.has_value());
     command(LayoutEditor::tr("Remove cell"), CellCommand::RemoveCell)->setEnabled(!path.empty());
@@ -288,60 +287,6 @@ void LayoutEditor::Private::showCellMenu(LayoutView *view, const NodePath &path,
     const auto run = commands.find(chosen);
     if (run != commands.end())
         QTimer::singleShot(0, q, run->second);
-}
-
-// Lists the references the cell can change to: the items of the task, or in a
-// root dashboard the tasks by group and project, and the items of the task in
-// the cell.
-void LayoutEditor::Private::fillChangeMenu(QMenu *menu, Commands &commands, const DashboardRef &dashboard,
-                                           const NodePath &path, const LayoutNode &node)
-{
-    const std::optional<CellRef> current = node.kind == Kind::Cell ? node.ref : std::nullopt;
-    const auto addItems = [&](QMenu *target, const Task &task, const CellRef &base) {
-        for (const Item &item : task.items) {
-            CellRef ref = base;
-            ref.item = item.id;
-            QAction *action = addCommand(target, commands, item.name,
-                                         [this, dashboard, path, ref] { q->changeItem(dashboard, path, ref); });
-            action->setIcon(types.type(item.type).icon());
-            action->setCheckable(true);
-            action->setChecked(current && current->isItem() && current->item == item.id);
-        }
-    };
-
-    if (!dashboard.isRoot()) {
-        if (const Task *task = model.task(dashboard.taskId))
-            addItems(menu, *task, CellRef{});
-        return;
-    }
-
-    if (current && !current->task.isEmpty()) {
-        if (const Task *task = model.task(current->task); task && !task->items.empty()) {
-            menu->addSection(LayoutEditor::tr("Items of %1").arg(task->title));
-            addItems(menu, *task, CellRef{QString(), task->id, QString()});
-            menu->addSection(LayoutEditor::tr("Tasks"));
-        }
-    }
-
-    std::vector<const Group *> groups = model.groups();
-    std::sort(groups.begin(), groups.end(), [](const Group *a, const Group *b) {
-        return a->order != b->order ? a->order < b->order : a->name < b->name;
-    });
-    for (const Group *group : groups) {
-        QMenu *groupMenu = menu->addMenu(group->name);
-        for (const Project *project : sortedProjects(model.projectsOfGroup(group->id), SortFilter{})) {
-            QMenu *projectMenu = groupMenu->addMenu(project->name);
-            for (const Task *task : sortedTasks(model.tasksOfProject(project->id), SortFilter{})) {
-                const CellRef ref{QString(), task->id, task->defaultDashboardId};
-                QAction *action = addCommand(projectMenu, commands, task->title,
-                                             [this, dashboard, path, ref] { q->changeItem(dashboard, path, ref); });
-                action->setCheckable(true);
-                action->setChecked(current && current->isTask() && current->task == task->id);
-            }
-            projectMenu->setEnabled(!projectMenu->isEmpty());
-        }
-        groupMenu->setEnabled(!groupMenu->isEmpty());
-    }
 }
 
 void LayoutEditor::Private::showTabMenu(LayoutView *view, const NodePath &tabsPath, int index,
