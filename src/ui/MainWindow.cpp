@@ -192,7 +192,7 @@ struct MainWindow::Private
         tabBar->updateGeometry();
     }
 
-    // Shows the page of the current tab, and its lock state on the toolbar.
+    // Shows the page of the current tab, and its lock state next to the tabs.
     void syncCurrent()
     {
         DashboardPage *page = currentPage();
@@ -205,10 +205,9 @@ struct MainWindow::Private
     {
         const DashboardPage *page = currentPage();
         const bool unlocked = page && locks->isUnlocked(page->ref.dashboardId);
-        const QSignalBlocker blocker(lockButton);
         lockButton->setEnabled(page != nullptr);
-        lockButton->setChecked(unlocked);
-        // The button shows the icon; the text is its accessible name.
+        // The icon shows the state, so the button is not checkable: a checked
+        // button's accent fill would hide the icon. The text is its accessible name.
         lockButton->setIcon(QIcon(unlocked ? QStringLiteral(":/icons/lock-open.svg") : QStringLiteral(":/icons/lock-closed.svg")));
         lockButton->setText(unlocked ? tr("Editing") : tr("Locked"));
         lockButton->setToolTip(unlocked ? tr("Lock this dashboard") : tr("Unlock this dashboard for editing"));
@@ -427,11 +426,9 @@ struct MainWindow::Private
         auto *tabRow = new QHBoxLayout;
         tabRow->setContentsMargins(4, 4, 4, 0);
         tabRow->setSpacing(2);
-        tabRow->addWidget(tabBar);
-        tabRow->addWidget(addButton);
-        tabRow->addStretch(1);
 
-        // The dashboard toolbar.
+        // The button that brings back a hidden sidebar, before the tabs, and
+        // the current dashboard's lock, after the + button.
         showSidebarButton = new QToolButton(content);
         showSidebarButton->setObjectName(QStringLiteral("showSidebarButton"));
         showSidebarButton->setText(QStringLiteral("»"));
@@ -441,14 +438,13 @@ struct MainWindow::Private
 
         lockButton = new QToolButton(content);
         lockButton->setObjectName(QStringLiteral("lockButton"));
-        lockButton->setCheckable(true);
         lockButton->setAutoRaise(true);
 
-        auto *toolbar = new QHBoxLayout;
-        toolbar->setContentsMargins(4, 2, 4, 2);
-        toolbar->addWidget(showSidebarButton);
-        toolbar->addStretch(1);
-        toolbar->addWidget(lockButton);
+        tabRow->addWidget(showSidebarButton);
+        tabRow->addWidget(tabBar);
+        tabRow->addWidget(addButton);
+        tabRow->addWidget(lockButton);
+        tabRow->addStretch(1);
 
         stack = new QStackedWidget(content);
 
@@ -457,7 +453,6 @@ struct MainWindow::Private
         layout->setSpacing(0);
         layout->addWidget(buildWarningBar());
         layout->addLayout(tabRow);
-        layout->addLayout(toolbar);
         layout->addWidget(stack, 1);
         return content;
     }
@@ -516,10 +511,9 @@ MainWindow::MainWindow(Model &model, const ItemTypeRegistry &types, QWidget *par
     connect(d->tabBar, &RootTabBar::newDashboardRequested, this, &MainWindow::newRootDashboard);
 
     // Locks.
-    connect(d->lockButton, &QToolButton::toggled, this, [this](bool unlocked) {
-        if (const DashboardPage *page = d->currentPage()) {
-            d->locks->setUnlocked(page->ref.dashboardId, unlocked);
-        }
+    connect(d->lockButton, &QToolButton::clicked, this, [this] {
+        if (const DashboardPage *page = d->currentPage())
+            d->locks->setUnlocked(page->ref.dashboardId, !d->locks->isUnlocked(page->ref.dashboardId));
     });
     connect(d->locks, &LockState::changed, this,
             [this](const QString &id, bool unlocked) { d->applyLock(id, unlocked); });

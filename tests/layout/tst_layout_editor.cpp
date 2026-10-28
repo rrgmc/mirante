@@ -625,13 +625,21 @@ private slots:
         // A locked dashboard refuses a cell move and a drag from the sidebar.
         view.setEditMode(false);
         std::unique_ptr<QMimeData> move(dragMimeData(moved(itemRef(claudeItem), work, {0})));
-        QDragEnterEvent lockedMove(pos, Qt::MoveAction, move.get(), Qt::LeftButton, Qt::NoModifier);
-        QApplication::sendEvent(&view, &lockedMove);
-        QVERIFY(!lockedMove.isAccepted());
-        QDragEnterEvent lockedAdd(pos, Qt::CopyAction, mime.get(), Qt::LeftButton, Qt::NoModifier);
-        QApplication::sendEvent(&view, &lockedAdd);
-        QVERIFY(!lockedAdd.isAccepted());
-        QVERIFY(!overlay->isVisible());
+        // The locked view still takes the drag, so it does not pass on to the
+        // widgets around it, such as the root dashboard around a task cell,
+        // but it refuses every move and the drop.
+        for (QMimeData *data : {move.get(), mime.get()}) {
+            QDragEnterEvent enterLocked(pos, Qt::CopyAction, data, Qt::LeftButton, Qt::NoModifier);
+            QApplication::sendEvent(&view, &enterLocked);
+            QVERIFY(enterLocked.isAccepted());
+            QVERIFY(!overlay->isVisible());
+            QDragMoveEvent moveLocked(pos, Qt::CopyAction, data, Qt::LeftButton, Qt::NoModifier);
+            QApplication::sendEvent(&view, &moveLocked);
+            QVERIFY(!moveLocked.isAccepted());
+            QDropEvent dropLocked(QPointF(pos), Qt::CopyAction, data, Qt::LeftButton, Qt::NoModifier);
+            QApplication::sendEvent(&view, &dropLocked);
+        }
+        QCOMPARE(spy.count(), 1);   // only the drop made while unlocked
     }
 
     void overlayRefusesWhatTheAcceptorRefuses()

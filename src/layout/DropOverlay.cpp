@@ -208,7 +208,8 @@ struct DropOverlay::Private
     // zone where the drop would be refused is not highlighted.
     bool track(const QPoint &pos)
     {
-        painter->hit = dropHitAt(view, pos);
+        // A locked dashboard refuses every drop, from the sidebar too.
+        painter->hit = view->editMode() ? dropHitAt(view, pos) : std::nullopt;
         if (painter->hit && payload && acceptor && !acceptor(painter->hit->target, *payload))
             painter->hit.reset();
         painter->update();
@@ -239,10 +240,16 @@ bool DropOverlay::Private::onViewEvent(QEvent *event)
     case QEvent::DragEnter: {
         auto *drag = static_cast<QDragEnterEvent *>(event);
         payload = dragPayload(drag->mimeData());
-        // A locked dashboard refuses every drop, from the sidebar too.
-        if (!payload || !view->editMode()) {
-            payload.reset();
+        if (!payload) {
             drag->ignore();
+            return true;
+        }
+        // The view under the cursor always takes the drag, even when locked,
+        // and refuses it move by move instead. A drag refused here would go on
+        // to the parent widgets, so a locked task cell would pass it to the
+        // root dashboard around it, which decides by its own lock.
+        if (!view->editMode()) {
+            drag->acceptProposedAction();
             return true;
         }
         fit();

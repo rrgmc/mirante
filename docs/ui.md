@@ -45,7 +45,7 @@ The sidebar can be collapsed.
 
 - **Single click:** selects the task. It opens nothing.
 - **Double click** (or `Enter`): opens the task's default dashboard in the **preview tab**. The preview tab shows its title in italics. The next task opened this way replaces it. A double click on an item opens its task the same way and focuses the item's cell.
-- **Pin:** editing the dashboard, or the pin button, turns the preview tab into a normal tab. A pinned task tab is a root dashboard holding one cell with that task. It goes to the front of the tab bar. It shows two lock buttons: the root dashboard's in the toolbar, and the task dashboard's in the task header.
+- **Pin:** editing the dashboard, or the pin button, turns the preview tab into a normal tab. A pinned task tab is a root dashboard holding one cell with that task. It goes to the front of the tab bar. It shows two lock buttons: the root dashboard's next to the `+` button in the tab bar row, and the task dashboard's in the task header.
 - Opening a task that already has a pinned tab switches to that tab instead of opening a preview.
 - **Dashboard picker:** a task with several dashboards shows a small picker in its header to switch between them.
 

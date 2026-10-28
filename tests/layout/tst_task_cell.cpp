@@ -207,7 +207,8 @@ void TestTaskCell::lockTogglesEditMode()
     QToolButton *button = lockButton(cell);
     QVERIFY(button);
     QVERIFY(!button->isHidden());
-    QVERIFY(!button->isChecked());
+    QVERIFY(!button->isCheckable());     // a checked button's fill would hide the icon
+    QCOMPARE(button->text(), QStringLiteral("Locked"));
     QVERIFY(!cell.view()->editMode());
 
     button->click();
@@ -216,7 +217,7 @@ void TestTaskCell::lockTogglesEditMode()
     QVERIFY(cell.view()->editMode());
 
     m_locks->setUnlocked(kWorkDashboard, false);
-    QVERIFY(!button->isChecked());
+    QCOMPARE(button->text(), QStringLiteral("Locked"));
     QVERIFY(!cell.view()->editMode());
 
     // Another dashboard's lock is its own.
@@ -224,7 +225,7 @@ void TestTaskCell::lockTogglesEditMode()
     QVERIFY(!cell.view()->editMode());
     picker(cell)->setCurrentIndex(picker(cell)->findData(kReviewDashboard));
     QVERIFY(cell.view()->editMode());
-    QVERIFY(button->isChecked());
+    QCOMPARE(button->text(), QStringLiteral("Unlocked"));
 }
 
 void TestTaskCell::choosingDashboardUpdatesRoot()
