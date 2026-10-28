@@ -112,6 +112,11 @@ const LayoutNode &at(const LayoutNode &tree, const NodePath &path)
     return *node;
 }
 
+std::optional<NodePath> tracked(const NodePath &path)
+{
+    return path;
+}
+
 } // namespace
 
 Q_DECLARE_METATYPE(LayoutNode)
@@ -291,116 +296,142 @@ private slots:
     void trackNoChange()
     {
         const LayoutNode tree = hsplit({cell("a"), vsplit({cell("b"), cell("c")})});
-        NodePath track{1, 0};
+        std::optional<NodePath> track = NodePath{1, 0};
         layout::normalise(tree, allExist, &track);
-        QCOMPARE(track, (NodePath{1, 0}));
+        QCOMPARE(track, tracked({1, 0}));
     }
 
     void trackThroughMerge()
     {
         // h[a, h[b, v[c, d]], e]: the inner h is absorbed, so d moves from 1/1/1 to 2/1.
         const LayoutNode tree = hsplit({cell("a"), hsplit({cell("b"), vsplit({cell("c"), cell("d")})}), cell("e")});
-        NodePath track{1, 1, 1};
+        std::optional<NodePath> track = NodePath{1, 1, 1};
         const LayoutNode result = layout::normalise(tree, allExist, &track);
-        QCOMPARE(track, (NodePath{2, 1}));
-        QCOMPARE(at(result, track).ref->item, QStringLiteral("d"));
+        QCOMPARE(track, tracked({2, 1}));
+        QCOMPARE(at(result, *track).ref->item, QStringLiteral("d"));
 
         // A sibling after the absorbed split shifts right.
-        track = {2};
+        track = NodePath{2};
         layout::normalise(tree, allExist, &track);
-        QCOMPARE(track, (NodePath{3}));
+        QCOMPARE(track, tracked({3}));
 
         // A sibling before it keeps its index.
-        track = {0};
+        track = NodePath{0};
         layout::normalise(tree, allExist, &track);
-        QCOMPARE(track, (NodePath{0}));
+        QCOMPARE(track, tracked({0}));
     }
 
     void trackAbsorbedSplitCleared()
     {
         const LayoutNode tree = hsplit({cell("a"), hsplit({cell("b"), cell("c")}), cell("d")});
-        NodePath track{1};
+        std::optional<NodePath> track = NodePath{1};
         layout::normalise(tree, allExist, &track);
-        QVERIFY(track.empty());
+        QVERIFY(!track);
     }
 
     void trackWrapperCleared()
     {
         const LayoutNode tree = vsplit({cell("a"), hsplit({cell("b")})});
-        NodePath track{1};
+        std::optional<NodePath> track = NodePath{1};
         layout::normalise(tree, allExist, &track);
-        QVERIFY(track.empty());
+        QVERIFY(!track);
 
         const LayoutNode tabTree = vsplit({cell("a"), tabs({cell("b")}, true)});
-        track = {1};
+        track = NodePath{1};
         layout::normalise(tabTree, allExist, &track);
-        QVERIFY(track.empty());
+        QVERIFY(!track);
     }
 
     void trackChildOfWrapperFollows()
     {
         // v[a, h[b]]: b moves from 1/0 to 1.
         const LayoutNode tree = vsplit({cell("a"), hsplit({cell("b")})});
-        NodePath track{1, 0};
+        std::optional<NodePath> track = NodePath{1, 0};
         layout::normalise(tree, allExist, &track);
-        QCOMPARE(track, (NodePath{1}));
+        QCOMPARE(track, tracked({1}));
 
         // v[a, tabs(collapse)[h[b, c]]]: c moves from 1/0/1 to 1/1.
         const LayoutNode tabTree = vsplit({cell("a"), tabs({hsplit({cell("b"), cell("c")})}, true)});
-        track = {1, 0, 1};
+        track = NodePath{1, 0, 1};
         const LayoutNode result = layout::normalise(tabTree, allExist, &track);
-        QCOMPARE(track, (NodePath{1, 1}));
-        QCOMPARE(at(result, track).ref->item, QStringLiteral("c"));
+        QCOMPARE(track, tracked({1, 1}));
+        QCOMPARE(at(result, *track).ref->item, QStringLiteral("c"));
     }
 
     void trackChildOfWrapperThenMerged()
     {
         // h[a, v[h[b, c]]]: the v wrapper goes (rule 1), then its h child is absorbed (rule 2).
         const LayoutNode tree = hsplit({cell("a"), vsplit({hsplit({cell("b"), cell("c")})})});
-        NodePath track{1, 0, 1};
+        std::optional<NodePath> track = NodePath{1, 0, 1};
         const LayoutNode result = layout::normalise(tree, allExist, &track);
         QCOMPARE(describe(result), QStringLiteral("h[1:a,0.5:b,0.5:c]"));
-        QCOMPARE(track, (NodePath{2}));
+        QCOMPARE(track, tracked({2}));
 
-        track = {1, 0};
+        track = NodePath{1, 0};
         layout::normalise(tree, allExist, &track);
-        QVERIFY(track.empty());
+        QVERIFY(!track);
     }
 
     void trackRootWrapperChild()
     {
         // h[v[a, b]]: the root is replaced by v, so b moves from 0/1 to 1.
         const LayoutNode tree = hsplit({vsplit({cell("a"), cell("b")})});
-        NodePath track{0, 1};
+        std::optional<NodePath> track = NodePath{0, 1};
         layout::normalise(tree, allExist, &track);
-        QCOMPARE(track, (NodePath{1}));
+        QCOMPARE(track, tracked({1}));
+    }
+
+    void trackRootReplaced()
+    {
+        // h[v[a, b]]: the root h is replaced by its only child v.
+        const LayoutNode tree = hsplit({vsplit({cell("a"), cell("b")})});
+        std::optional<NodePath> track = NodePath{};
+        layout::normalise(tree, allExist, &track);
+        QVERIFY(!track);
+
+        track = NodePath{0};
+        const LayoutNode result = layout::normalise(tree, allExist, &track);
+        QCOMPARE(track, tracked({}));
+        QCOMPARE(describe(at(result, *track)), QStringLiteral("v[1:a,1:b]"));
+
+        // The root kept in place is still the root.
+        track = NodePath{};
+        layout::normalise(hsplit({cell("a"), cell("b")}), allExist, &track);
+        QCOMPARE(track, tracked({}));
+    }
+
+    void trackNullopt()
+    {
+        std::optional<NodePath> track;
+        layout::normalise(hsplit({cell("a")}), allExist, &track);
+        QVERIFY(!track);
     }
 
     void trackKeptInPlace()
     {
         // A cell whose ref is gone stays in place.
         const LayoutNode tree = hsplit({cell("a"), cell("gone")});
-        NodePath track{1};
+        std::optional<NodePath> track = NodePath{1};
         layout::normalise(tree, allExcept(QStringLiteral("gone")), &track);
-        QCOMPARE(track, (NodePath{1}));
+        QCOMPARE(track, tracked({1}));
 
         // An empty tab group becomes an empty cell in the same place.
         const LayoutNode tabTree = hsplit({cell("a"), tabs({})});
-        track = {1};
+        track = NodePath{1};
         layout::normalise(tabTree, allExist, &track);
-        QCOMPARE(track, (NodePath{1}));
+        QCOMPARE(track, tracked({1}));
     }
 
     void trackInvalidPathCleared()
     {
         const LayoutNode tree = hsplit({cell("a"), cell("b")});
-        NodePath track{5};
+        std::optional<NodePath> track = NodePath{5};
         layout::normalise(tree, allExist, &track);
-        QVERIFY(track.empty());
+        QVERIFY(!track);
 
-        track = {0, 0};
+        track = NodePath{0, 0};
         layout::normalise(tree, allExist, &track);
-        QVERIFY(track.empty());
+        QVERIFY(!track);
     }
 };
 

@@ -16,13 +16,13 @@
 // Tracking. The tracked node keeps its identity while the tree changes around
 // it, and its path is updated as siblings are merged or wrappers removed.
 // - A split or tab group replaced by its only child (rules 1 and 4), or a split
-//   absorbed by its parent (rule 2), is gone: tracking it clears the path.
+//   absorbed by its parent (rule 2), is gone: tracking it gives nullopt.
 //   Tracking that child, or a node inside it, follows it to its new path.
 // - A split or tab group with no children turns into an empty cell in the same
 //   place (rule 3). That counts as the same node, so its path is kept.
 // - A cell whose reference is gone stays in place (rule 6), so its path is kept.
-// - A path that does not lead to a node of the input tree is cleared.
-// A cleared path is empty. The extra keys of a removed wrapper are dropped.
+// - A path that does not lead to a node of the input tree gives nullopt.
+// A node that is gone gives nullopt. The extra keys of a removed wrapper are dropped.
 
 #include "core/LayoutTree.h"
 
@@ -259,11 +259,11 @@ private:
 
 } // namespace
 
-LayoutNode normalise(const LayoutNode &tree, const RefExists &exists, NodePath *track)
+LayoutNode normalise(const LayoutNode &tree, const RefExists &exists, std::optional<NodePath> *track)
 {
     LayoutNode result = tree;
     Track tracked;
-    if (track && validPath(tree, *track))
+    if (track && *track && validPath(tree, **track))
         tracked = *track;
 
     Normaliser normaliser(exists);
@@ -272,7 +272,7 @@ LayoutNode normalise(const LayoutNode &tree, const RefExists &exists, NodePath *
         changed = normaliser.pass(result, tracked ? &tracked : nullptr);
 
     if (track)
-        *track = tracked ? *tracked : NodePath();
+        *track = tracked;
     return result;
 }
 
