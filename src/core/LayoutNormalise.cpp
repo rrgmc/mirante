@@ -3,7 +3,7 @@
 // Each pass walks the tree bottom-up and applies every rule once. normalise()
 // repeats passes until one changes nothing.
 //
-// Besides the six rules, a pass makes the tree valid:
+// Besides the seven rules, a pass makes the tree valid:
 // - a split with no children becomes an empty cell;
 // - split sizes with the wrong count, or with a value that is not positive and
 //   finite, become equal sizes;
@@ -15,7 +15,7 @@
 //
 // Tracking. The tracked node keeps its identity while the tree changes around
 // it, and its path is updated as siblings are merged or wrappers removed.
-// - A split or tab group replaced by its only child (rules 1 and 4), or a split
+// - A split or tab group replaced by its only child (rules 1, 4 and 7), or a split
 //   absorbed by its parent (rule 2), is gone: tracking it gives nullopt.
 //   Tracking that child, or a node inside it, follows it to its new path.
 // - A split or tab group with no children turns into an empty cell in the same
@@ -243,8 +243,10 @@ private:
         std::optional<ChildTrack> inner;
         changed |= children(node, track, inner);
 
-        // Rule 4.
-        if (node.children.size() == 1 && node.collapseSingle) {
+        // Rule 4, and rule 7: a single tab that holds another tab group adds a
+        // tab bar and nothing else, so the inner group takes its place.
+        if (node.children.size() == 1
+            && (node.collapseSingle || node.children.front().kind == LayoutNode::Kind::Tabs)) {
             replaceByChild(node, track, inner);
             return true;
         }

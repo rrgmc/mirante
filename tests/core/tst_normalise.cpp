@@ -188,6 +188,17 @@ private slots:
         QCOMPARE(normalised(tabs({cell("a"), cell("b")}, true)), QStringLiteral("tabs0c[t0=a,t1=b]"));
     }
 
+    void rule7SingleTabAroundTabs()
+    {
+        // The inner group replaces the outer one, at any depth of nesting.
+        QCOMPARE(normalised(tabs({tabs({cell("a"), cell("b")})})), QStringLiteral("tabs0[t0=a,t1=b]"));
+        QCOMPARE(normalised(tabs({tabs({tabs({cell("a")})})})), QStringLiteral("tabs0[t0=a]"));
+        QCOMPARE(normalised(hsplit({cell("x"), tabs({tabs({cell("a")})})})), QStringLiteral("h[1:x,1:tabs0[t0=a]]"));
+        // Tabs inside one of several tabs stay: they add a level the user can see.
+        const LayoutNode kept = tabs({tabs({cell("a"), cell("b")}), cell("c")});
+        QCOMPARE(normalised(kept), describe(kept));
+    }
+
     void rule5EmptyCellsKept()
     {
         QCOMPARE(normalised(hsplit({empty(), empty()})), QStringLiteral("h[1:-,1:-]"));

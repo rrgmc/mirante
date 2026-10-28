@@ -47,6 +47,14 @@ std::optional<NodePath> parentOf(const NodePath &path)
     return NodePath(path.begin(), path.end() - 1);
 }
 
+// True if the node at path is a tab of a tab group.
+bool isTab(const LayoutNode &tree, const NodePath &path)
+{
+    const std::optional<NodePath> parent = parentOf(path);
+    const LayoutNode *node = parent ? layout::nodeAt(tree, *parent) : nullptr;
+    return node && node->kind == Kind::Tabs;
+}
+
 // The commands of a menu, run after the menu has closed.
 using Commands = std::map<QAction *, std::function<void()>>;
 
@@ -238,7 +246,10 @@ void LayoutEditor::Private::showCellMenu(LayoutView *view, const NodePath &path,
     };
     command(LayoutEditor::tr("Split right"), CellCommand::SplitRight);
     command(LayoutEditor::tr("Split down"), CellCommand::SplitDown);
-    command(LayoutEditor::tr("Wrap in tabs"), CellCommand::WrapInTabs);
+    // A cell that is already a tab gets more tabs with "Add tab". Wrapping it
+    // again would only nest another tab bar.
+    if (!isTab(*tree, path))
+        command(LayoutEditor::tr("Wrap in tabs"), CellCommand::WrapInTabs);
     command(LayoutEditor::tr("Add tab"), CellCommand::AddTab);
     menu.addSeparator();
     QMenu *change = menu.addMenu(dashboard.isRoot() ? LayoutEditor::tr("Change task or item")
@@ -511,6 +522,8 @@ void LayoutEditor::cellCommand(const DashboardRef &dashboard, const NodePath &pa
         edited = layout::splitCell(*tree, path, Edge::Bottom, std::nullopt).tree;
         break;
     case CellCommand::WrapInTabs:
+        if (isTab(*tree, path))
+            return;
         edited = layout::wrapInTabs(*tree, path, d->titleFor(dashboard, node)).tree;
         break;
     case CellCommand::AddTab: {
