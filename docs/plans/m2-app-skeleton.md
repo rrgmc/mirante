@@ -157,7 +157,7 @@ With no modules enabled, the generated function is empty and the app still runs.
 - `README.md`;
 - `<Name>Module.cpp`, registering every item type listed for the module, through one small `StubItemType` class per module that holds id, name and icon;
 - one SVG icon per module, used by all its types for now;
-- `tests/tst_register.cpp`, which registers the module into a fresh registry and checks its ids and that its icon is not null.
+- `tests/tst_register.cpp`, which registers the module into a fresh registry and checks its ids and that its icon renders, with `icon.pixmap(16, 16)`. It uses `QTEST_MAIN`, because rendering needs a GUI application. The `web` module is the model to copy.
 
 **Done when** the `dev` and `no-modules` presets both build and pass their tests, and CI runs both.
 

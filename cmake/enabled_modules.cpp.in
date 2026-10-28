@@ -5,14 +5,13 @@
 #include <mirante/Module.h>
 
 @MIRANTE_MODULE_DECLARATIONS@
-
 namespace mirante {
 
 void registerEnabledModules(ItemTypeRegistry &registry)
 {
+    // Unused when the build has no modules.
     (void)registry;
-@MIRANTE_MODULE_CALLS@
-}
+@MIRANTE_MODULE_CALLS@}
 
 QStringList enabledModuleIds()
 {
