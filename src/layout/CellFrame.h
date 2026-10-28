@@ -27,6 +27,11 @@ public:
 
     std::optional<CellRef> ref() const;
 
+    // Dimmed text after the item name that says where the item comes from,
+    // such as "backend / Overview". Used for items placed directly in a root
+    // dashboard. Empty hides it.
+    void setContext(const QString &text);
+
     // In edit mode the header is a drag handle.
     void setEditMode(bool on);
 

@@ -88,6 +88,7 @@ struct CellFrame::Private
     bool focused = false;
 
     CellHeader *header = nullptr;
+    QLabel *context = nullptr;
     QStackedWidget *body = nullptr;
     QWidget *elsewhere = nullptr;       // the "Shown in another cell" page
     CellFrameSingleView *singleView = nullptr;
@@ -125,8 +126,17 @@ CellFrame::CellFrame(const std::optional<CellRef> &ref, bool removed, const Item
     auto *name = new QLabel(itemName, d->header);
     name->setTextFormat(Qt::PlainText);
     name->setMinimumWidth(1);
-    name->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
-    headerLayout->addWidget(name, 1);
+    headerLayout->addWidget(name);
+
+    // Where the item comes from, after its name. It takes the free space and
+    // is the first to be cut when the header is narrow.
+    d->context = new QLabel(d->header);
+    d->context->setObjectName(QStringLiteral("cellContext"));
+    d->context->setTextFormat(Qt::PlainText);
+    d->context->setForegroundRole(QPalette::PlaceholderText);
+    d->context->setMinimumWidth(1);
+    d->context->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
+    headerLayout->addWidget(d->context, 1);
 
     auto *menuButton = new QToolButton(d->header);
     menuButton->setAutoRaise(true);
@@ -190,6 +200,12 @@ CellFrame::~CellFrame()
 }
 
 std::optional<CellRef> CellFrame::ref() const { return d->ref; }
+
+void CellFrame::setContext(const QString &text)
+{
+    d->context->setText(text);
+    d->context->setToolTip(text);
+}
 
 void CellFrame::setEditMode(bool on)
 {

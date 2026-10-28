@@ -18,6 +18,9 @@
 #include <QTest>
 #include <QToolButton>
 
+#include <memory>
+#include <optional>
+
 using namespace mirante;
 
 namespace {
@@ -78,6 +81,7 @@ private slots:
     void titleNamesTaskAndDashboard();
     void followsModelChanges();
     void lockTogglesEditMode();
+    void rootItemsNameTheirTask();
     void openAlone();
     void removedTask();
     void headerMenuAndDrag();
@@ -219,6 +223,34 @@ void TestTaskCell::lockTogglesEditMode()
     m_locks->setUnlocked(kReviewDashboard, true);
     QVERIFY(!cell.view()->editMode());
     QCOMPARE(button->text(), QStringLiteral("Locked"));
+}
+
+// An item placed directly in a root dashboard names its project and task in
+// the header. Inside a task dashboard it does not, since the task is known.
+void TestTaskCell::rootItemsNameTheirTask()
+{
+    const DashboardRef morning{QString(), kMorningRoot};
+    std::optional<CellRef> itemRef;
+    for (const NodePath &path : layout::cellPaths(*m_model->layout(morning))) {
+        const LayoutNode *node = layout::nodeAt(*m_model->layout(morning), path);
+        if (node->ref && node->ref->isItem()) {
+            itemRef = node->ref;
+            break;
+        }
+    }
+    QVERIFY(itemRef);
+    const Task *task = m_model->task(itemRef->task);
+    const Project *project = m_model->project(task->projectId);
+
+    DashboardCellFactory rootFactory(m_services, morning);
+    std::unique_ptr<QWidget> rootCell(rootFactory.createCell(itemRef, false, nullptr));
+    auto *context = rootCell->findChild<QLabel *>(QStringLiteral("cellContext"));
+    QVERIFY(context);
+    QCOMPARE(context->text(), QStringLiteral("%1 / %2").arg(project->name, task->title));
+
+    DashboardCellFactory taskFactory(m_services, {task->id, task->defaultDashboardId});
+    std::unique_ptr<QWidget> taskCell(taskFactory.createCell(CellRef{itemRef->item, QString(), QString()}, false, nullptr));
+    QVERIFY(taskCell->findChild<QLabel *>(QStringLiteral("cellContext"))->text().isEmpty());
 }
 
 void TestTaskCell::openAlone()

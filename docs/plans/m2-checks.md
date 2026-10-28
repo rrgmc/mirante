@@ -37,6 +37,7 @@ Tick each box, or note what is wrong next to it.
 - [ ] The `timetrack.entry` item (task "Add rate limiting") says it needs the `timetrack` module.
 - [ ] The empty cell in the archived task "Old Terraform cleanup" says "Empty".
 - [ ] In "Morning" and "Release", task cells show the task's dashboard, with a header that has the task title, a lock button and "Open alone".
+- [ ] An item placed directly in a root dashboard shows its project and task, dimmed, after its name, such as "Review requested backend / Overview".
 - [ ] Task cells have no dashboard picker. Their header reads "Task / Dashboard", such as "Fix login timeout / Work".
 
 ## Editing layouts
