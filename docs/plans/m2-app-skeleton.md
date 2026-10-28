@@ -77,12 +77,12 @@ Each preset has a matching build and test preset. On Windows, presets are run fr
 **CI.** `.github/workflows/ci.yml` runs on every push and pull request:
 
 - **build** job, matrix `windows-2022`, `macos-14` and `ubuntu-24.04`:
-  1. install Qt with `jurplel/install-qt-action`, pinned to the newest 6.8 patch release, with its cache on;
-  2. on Linux, install `libsecret-1-dev`, `libx11-dev`, `libxkbcommon-dev` and `libgl1-mesa-dev`;
-  3. on Windows, set up the MSVC environment with `ilammy/msvc-dev-cmd`;
-  4. configure, build and test with the `ci` preset.
+  1. install uv with `astral-sh/setup-uv`, and restore the Qt folder from `actions/cache`, keyed on the operating system, the Qt version and the archives;
+  2. set `MIRANTE_QT_ROOT` to that cached folder outside the checkout, so `tools/setup-qt.*` downloads Qt only when the cache is empty;
+  3. on Linux, install `ninja-build`, `pkg-config`, `libsecret-1-dev`, `libx11-dev`, `libxkbcommon-dev`, `libxkbcommon-x11-0`, `libgl1-mesa-dev`, `libegl1`, `libfontconfig1` and `libdbus-1-3`; on macOS, install `ninja`;
+  4. on Windows, run `tools/build.ps1 -Preset ci`, which gets Qt, enters the MSVC environment, builds and tests in one step; on macOS and Linux, run `tools/setup-qt.sh`, then configure, build and test with the `ci` preset.
 - **no-modules** job, Linux only: configure, build and test with the `ci-no-modules` preset.
-- **module-includes** job: fails if any file under `src/modules/` includes a path that starts with `../`, or a core header by name. The build already blocks the include path. This catches relative paths, which the build cannot block.
+- **module-includes** job: fails if any file under `src/modules/` includes a path that starts with `../`, or a core header by name. The build already blocks the include path. This catches relative paths, which the build cannot block. Module tests in `src/modules/<id>/tests/` are skipped, because they register into the real registry and link `mirante_items`.
 
 **Executable.** `main.cpp` creates `QApplication`, the registries, `Model` and `MainWindow`, in the order given in [architecture](../architecture.md#ownership-and-lifetime). Services that do not exist yet are left out. The application name, organisation and version come from CMake through a generated `Version.h`.
 
@@ -157,7 +157,7 @@ With no modules enabled, the generated function is empty and the app still runs.
 - `README.md`;
 - `<Name>Module.cpp`, registering every item type listed for the module, through one small `StubItemType` class per module that holds id, name and icon;
 - one SVG icon per module, used by all its types for now;
-- `tests/tst_register.cpp`, which registers the module into a fresh registry and checks its ids and that its icon is not null.
+- `tests/tst_register.cpp`, which registers the module into a fresh registry and checks its ids and that its icon renders, with `icon.pixmap(16, 16)`. It uses `QTEST_MAIN`, because rendering needs a GUI application. The `web` module is the model to copy.
 
 **Done when** the `dev` and `no-modules` presets both build and pass their tests, and CI runs both.
 

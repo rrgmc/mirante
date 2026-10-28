@@ -1,0 +1,58 @@
+{
+    "dashboards": [
+        {
+            "id": "b95ccdac-fb7e-56ee-b687-e800dacf489a",
+            "layout": {
+                "children": [
+                    {
+                        "ref": {
+                            "item": "cbf96850-c70e-5530-a6fb-f07697432aec"
+                        },
+                        "type": "cell"
+                    },
+                    {
+                        "ref": {
+                            "item": "35c85246-04c4-5b89-97b3-9f745c9cc73d"
+                        },
+                        "type": "cell"
+                    }
+                ],
+                "dir": "h",
+                "sizes": [
+                    1,
+                    1
+                ],
+                "type": "split"
+            },
+            "name": "Main"
+        }
+    ],
+    "defaultDashboardId": "b95ccdac-fb7e-56ee-b687-e800dacf489a",
+    "id": "16d3c8ff-5fa8-5cf0-8090-c62592d1bd96",
+    "isDefault": false,
+    "items": [
+        {
+            "config": {
+                "key": "OPS-77"
+            },
+            "connectionId": "90d3f914-a970-57dc-ab52-a7fb83e824fc",
+            "id": "cbf96850-c70e-5530-a6fb-f07697432aec",
+            "name": "OPS-77",
+            "type": "jira.issue.summary"
+        },
+        {
+            "config": {
+                "folderId": "8338c237-aceb-56bd-8fb3-3d54a18f1ed2"
+            },
+            "id": "35c85246-04c4-5b89-97b3-9f745c9cc73d",
+            "name": "infra folder",
+            "type": "folder"
+        }
+    ],
+    "order": 0,
+    "priority": 1,
+    "projectId": "475aa13b-e862-5f2e-b9aa-e1f4950328bc",
+    "schemaVersion": 1,
+    "state": "active",
+    "title": "Rotate TLS certificates"
+}

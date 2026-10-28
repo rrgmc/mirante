@@ -25,6 +25,7 @@ src/modules/gitlab/
   README.md              what the module does, its types and connection kinds
   GitLabModule.cpp       the register function
   GitLabClient.h/.cpp    module code, freely organised
+  icons/                 SVG icons, compiled in as resources
   ...
   tests/                 Qt Test sources for this module
 ```
@@ -35,7 +36,8 @@ A module may add more folders inside its own folder. It never adds files outside
 
 - A module id is lowercase letters and digits only, such as `gitlab`.
 - Every id a module registers is the module id, or starts with the module id and a dot. This applies to item types (`gitlab.mr.summary`), connection kinds (`jira.cloud`) and settings.
-- The prefix `dash` is reserved for the core.
+- The prefix `dash` is reserved for the core. The build refuses a module with the id `dash`.
+- An id has no empty parts: `gitlab..mr` and `gitlab.` are refused.
 
 The prefix tells the core which module an unknown id belongs to, so a placeholder can name the missing module.
 
@@ -47,6 +49,7 @@ Each module's `CMakeLists.txt` calls one function, defined in `cmake/MiranteModu
 mirante_add_module(gitlab
     SOURCES GitLabModule.cpp GitLabClient.cpp ...
     TESTS   tests/tst_urls.cpp tests/tst_attention.cpp
+    RESOURCES icons/gitlab.svg
     DEPENDS          # other module ids, usually none
     DEFAULT ON)
 ```
@@ -56,8 +59,9 @@ The function:
 1. creates the option `MIRANTE_MODULE_GITLAB`, with the given default;
 2. if the option is off, does nothing more;
 3. builds a static library `mirante_module_gitlab`, linked only to the module interface and Qt;
-4. adds the module's tests to CTest;
-5. adds the module to the list of enabled modules.
+4. compiles the resources in, served as `:/modules/<id>/<path>`, such as `:/modules/gitlab/icons/gitlab.svg`;
+5. adds the module's tests to CTest, named `module_<id>_<file>`;
+6. adds the module to the list of enabled modules.
 
 The top-level `CMakeLists.txt` adds every folder in `src/modules/` that has a `CMakeLists.txt`. After all modules are added, it checks `DEPENDS`. If an enabled module depends on a disabled one, configuration stops with a message that names both.
 
@@ -72,8 +76,8 @@ The top-level `CMakeLists.txt` adds every folder in `src/modules/` that has a `C
 ```cpp
 void registerEnabledModules(ItemTypeRegistry &registry)
 {
-    registry.registerModule("folder", &mirante::modules::folder::registerModule);
-    registry.registerModule("gitlab", &mirante::modules::gitlab::registerModule);
+    registry.registerModule(QStringLiteral("folder"), &mirante::modules::folder::registerModule);
+    registry.registerModule(QStringLiteral("gitlab"), &mirante::modules::gitlab::registerModule);
     // ...
 }
 ```

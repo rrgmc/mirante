@@ -1,0 +1,117 @@
+{
+    "dashboards": [
+        {
+            "id": "4eeaa216-cc9a-5055-bca2-5d504578d4e1",
+            "layout": {
+                "children": [
+                    {
+                        "ref": {
+                            "item": "b85ef73b-3fc3-516e-800f-327adea55eab"
+                        },
+                        "type": "cell"
+                    },
+                    {
+                        "children": [
+                            {
+                                "ref": {
+                                    "item": "e1fe6fb5-34ad-5838-9e03-bec6ea410351"
+                                },
+                                "type": "cell"
+                            },
+                            {
+                                "ref": {
+                                    "item": "ca707f7f-c174-52af-85c7-26b6a5ebc731"
+                                },
+                                "type": "cell"
+                            },
+                            {
+                                "ref": {
+                                    "item": "627898f1-6342-5d8c-ac0e-ba08fa35b24c"
+                                },
+                                "type": "cell"
+                            }
+                        ],
+                        "dir": "v",
+                        "sizes": [
+                            1,
+                            1,
+                            1
+                        ],
+                        "type": "split"
+                    }
+                ],
+                "dir": "h",
+                "sizes": [
+                    1,
+                    1
+                ],
+                "type": "split"
+            },
+            "name": "Main"
+        }
+    ],
+    "defaultDashboardId": "4eeaa216-cc9a-5055-bca2-5d504578d4e1",
+    "futureField": {
+        "estimate": {
+            "points": 5
+        }
+    },
+    "id": "d71bd575-6d1b-5088-9da0-7d2cebf0d59e",
+    "isDefault": false,
+    "items": [
+        {
+            "config": {
+                "key": "ACME-398"
+            },
+            "id": "e1fe6fb5-34ad-5838-9e03-bec6ea410351",
+            "name": "ACME-398",
+            "type": "jira.issue.summary"
+        },
+        {
+            "config": {
+                "iid": 228,
+                "project": "acme/backend"
+            },
+            "id": "ca707f7f-c174-52af-85c7-26b6a5ebc731",
+            "name": "!228 Token bucket limiter",
+            "type": "gitlab.mr.summary"
+        },
+        {
+            "config": {
+                "device": "desk-pc",
+                "folderId": "622f4d51-b29b-5213-82cf-6a85939c8b06",
+                "sessionId": "8f2c1e"
+            },
+            "id": "b85ef73b-3fc3-516e-800f-327adea55eab",
+            "name": "Claude (local)",
+            "type": "claude.session.local"
+        },
+        {
+            "config": {
+                "activity": "Development",
+                "budgetMinutes": 480,
+                "entries": [
+                    {
+                        "date": "2026-10-21",
+                        "minutes": 95
+                    },
+                    {
+                        "date": "2026-10-22",
+                        "minutes": 140
+                    }
+                ],
+                "ticket": "ACME-398"
+            },
+            "connectionId": "e4977249-d87d-5c68-9a67-55ecadcf9381",
+            "id": "627898f1-6342-5d8c-ac0e-ba08fa35b24c",
+            "name": "Time: rate limiting",
+            "type": "timetrack.entry"
+        }
+    ],
+    "order": 0,
+    "priority": 1,
+    "projectId": "3dd79dc2-8ec9-5181-b7d0-704a18f494d5",
+    "schemaVersion": 1,
+    "state": "active",
+    "title": "Add rate limiting"
+}

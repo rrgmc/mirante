@@ -1,0 +1,33 @@
+{
+    "dashboards": [
+        {
+            "id": "b5a2ba74-05a8-5dea-9356-f0e70841de10",
+            "layout": {
+                "ref": {
+                    "item": "422f2d4c-e27c-594c-bf2e-f1a5bfb7cf50"
+                },
+                "type": "cell"
+            },
+            "name": "Overview"
+        }
+    ],
+    "defaultDashboardId": "b5a2ba74-05a8-5dea-9356-f0e70841de10",
+    "id": "d71f3227-79a2-55e9-a0d8-429b99432282",
+    "isDefault": true,
+    "items": [
+        {
+            "config": {
+                "text": ""
+            },
+            "id": "422f2d4c-e27c-594c-bf2e-f1a5bfb7cf50",
+            "name": "Notes",
+            "type": "notes"
+        }
+    ],
+    "order": 0,
+    "priority": 2,
+    "projectId": "a9e5cd89-4e6d-596c-93ae-61d66d4c9c3d",
+    "schemaVersion": 1,
+    "state": "active",
+    "title": "Default"
+}

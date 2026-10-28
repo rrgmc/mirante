@@ -1,0 +1,107 @@
+{
+    "dashboards": [
+        {
+            "id": "757751c8-70ed-564e-b5c1-12d7c8882118",
+            "layout": {
+                "children": [
+                    {
+                        "children": [
+                            {
+                                "ref": {
+                                    "item": "c3ab8b0b-2480-5e6d-9437-6cf48a1f1d4f"
+                                },
+                                "type": "cell"
+                            },
+                            {
+                                "ref": {
+                                    "item": "33fcb13f-18c3-593d-8814-c2a2752e4560"
+                                },
+                                "type": "cell"
+                            }
+                        ],
+                        "dir": "h",
+                        "sizes": [
+                            1,
+                            1
+                        ],
+                        "type": "split"
+                    },
+                    {
+                        "children": [
+                            {
+                                "ref": {
+                                    "item": "4b6ec04b-cf47-5a2f-ba2e-91b2b0e4fcd6"
+                                },
+                                "type": "cell"
+                            },
+                            {
+                                "ref": {
+                                    "item": "ec330397-91e3-5caa-a947-f52ac3d418b8"
+                                },
+                                "type": "cell"
+                            }
+                        ],
+                        "dir": "h",
+                        "sizes": [
+                            1,
+                            1
+                        ],
+                        "type": "split"
+                    }
+                ],
+                "dir": "v",
+                "sizes": [
+                    1,
+                    1
+                ],
+                "type": "split"
+            },
+            "name": "Grid"
+        }
+    ],
+    "defaultDashboardId": "757751c8-70ed-564e-b5c1-12d7c8882118",
+    "id": "bd986bec-58f5-57cb-899d-6174cdaa0af7",
+    "isDefault": false,
+    "items": [
+        {
+            "config": {
+                "iid": 87,
+                "project": "acme/frontend"
+            },
+            "id": "c3ab8b0b-2480-5e6d-9437-6cf48a1f1d4f",
+            "name": "#87 Dark mode",
+            "type": "gitlab.issue.summary"
+        },
+        {
+            "config": {
+                "url": "https://gitlab.com/acme/frontend/-/issues/87"
+            },
+            "id": "ec330397-91e3-5caa-a947-f52ac3d418b8",
+            "name": "#87 (page)",
+            "type": "gitlab.issue.page"
+        },
+        {
+            "config": {
+                "iid": 112,
+                "project": "acme/frontend"
+            },
+            "id": "33fcb13f-18c3-593d-8814-c2a2752e4560",
+            "name": "!112 Theme switch",
+            "type": "gitlab.mr.summary"
+        },
+        {
+            "config": {
+                "url": "https://figma.com/file/acme-themes"
+            },
+            "id": "4b6ec04b-cf47-5a2f-ba2e-91b2b0e4fcd6",
+            "name": "Figma: themes",
+            "type": "web.page"
+        }
+    ],
+    "order": 0,
+    "priority": 2,
+    "projectId": "fb99f6f7-be6d-5dd8-b3f2-2b09f71652a8",
+    "schemaVersion": 1,
+    "state": "active",
+    "title": "Dark mode toggle"
+}

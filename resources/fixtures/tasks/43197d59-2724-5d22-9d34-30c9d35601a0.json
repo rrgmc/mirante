@@ -1,0 +1,63 @@
+{
+    "dashboards": [
+        {
+            "id": "0f568bbe-d814-556e-b514-a5c01418c321",
+            "layout": {
+                "children": [
+                    {
+                        "ref": {
+                            "item": "a3edf8e5-4685-57f2-82df-d11e525039b0"
+                        },
+                        "type": "cell"
+                    },
+                    {
+                        "ref": {
+                            "item": "c24f87d1-76ae-53db-9603-a5b1cec13acb"
+                        },
+                        "type": "cell"
+                    }
+                ],
+                "dir": "v",
+                "sizes": [
+                    1,
+                    1
+                ],
+                "type": "split"
+            },
+            "name": "Overview"
+        }
+    ],
+    "defaultDashboardId": "0f568bbe-d814-556e-b514-a5c01418c321",
+    "id": "43197d59-2724-5d22-9d34-30c9d35601a0",
+    "isDefault": true,
+    "items": [
+        {
+            "config": {
+                "filter": "",
+                "preset": "assignedToMe",
+                "project": "",
+                "scope": "project"
+            },
+            "id": "a3edf8e5-4685-57f2-82df-d11e525039b0",
+            "name": "Assigned to me",
+            "type": "gitlab.mr.list"
+        },
+        {
+            "config": {
+                "filter": "labels=ui",
+                "preset": "allOpen",
+                "project": "",
+                "scope": "project"
+            },
+            "id": "c24f87d1-76ae-53db-9603-a5b1cec13acb",
+            "name": "Open issues",
+            "type": "gitlab.issue.list"
+        }
+    ],
+    "order": 0,
+    "priority": 2,
+    "projectId": "fb99f6f7-be6d-5dd8-b3f2-2b09f71652a8",
+    "schemaVersion": 1,
+    "state": "active",
+    "title": "Default"
+}
