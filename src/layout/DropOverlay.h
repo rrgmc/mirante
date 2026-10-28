@@ -28,6 +28,8 @@ class DropOverlay : public QWidget
 
 public:
     explicit DropOverlay(LayoutView *view);
+    // Holding a drag this long over a tab that is not shown opens it.
+    static constexpr int tabOpenDelay = 600;
     ~DropOverlay() override;
 
     // Says whether a drop would be accepted. The overlay highlights a zone,

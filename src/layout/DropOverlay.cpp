@@ -8,9 +8,11 @@
 #include <QDropEvent>
 #include <QMimeData>
 #include <QPainter>
+#include <QPointer>
 #include <QSplitter>
 #include <QTabBar>
 #include <QTabWidget>
+#include <QTimer>
 
 #include <algorithm>
 #include <cstddef>
@@ -212,6 +214,35 @@ struct DropOverlay::Private
     std::optional<DragPayload> payload;
     Acceptor acceptor;
 
+    // Holding a drag over a tab opens it, so its content can take the drop.
+    QTimer *tabTimer = nullptr;
+    QPointer<QTabBar> hoveredBar;
+    int hoveredTab = -1;
+
+    void hoverTab(const QPoint &pos)
+    {
+        QTabBar *bar = nullptr;
+        for (QWidget *widget = view->childAt(pos); widget && widget != view; widget = widget->parentWidget()) {
+            if ((bar = qobject_cast<QTabBar *>(widget)))
+                break;
+        }
+        const int tab = bar ? bar->tabAt(bar->mapFrom(view, pos)) : -1;
+        if (bar == hoveredBar && tab == hoveredTab)
+            return;
+        hoveredBar = bar;
+        hoveredTab = tab;
+        if (bar && tab >= 0 && tab != bar->currentIndex())
+            tabTimer->start();
+        else
+            tabTimer->stop();
+    }
+
+    void openHoveredTab()
+    {
+        if (hoveredBar && hoveredTab >= 0 && hoveredTab < hoveredBar->count())
+            hoveredBar->setCurrentIndex(hoveredTab);
+    }
+
     bool onViewEvent(QEvent *event);
 
     // Updates the hit for pos, and says whether a drop there is possible. A
@@ -221,6 +252,8 @@ struct DropOverlay::Private
     {
         // A locked dashboard refuses every drop, from the sidebar too.
         const bool replace = modifiers.testFlag(Qt::ControlModifier);
+        if (view->editMode())
+            hoverTab(pos);
         painter->hit = view->editMode() ? dropHitAt(view, pos, replace) : std::nullopt;
         if (painter->hit && payload && acceptor && !acceptor(painter->hit->target, *payload))
             painter->hit.reset();
@@ -236,6 +269,9 @@ struct DropOverlay::Private
 
     void finish()
     {
+        tabTimer->stop();
+        hoveredBar = nullptr;
+        hoveredTab = -1;
         payload.reset();
         painter->hit.reset();
         q->hide();
@@ -313,6 +349,10 @@ DropOverlay::DropOverlay(LayoutView *view)
     d->q = this;
     d->view = view;
     d->painter = new HitPainter(this);
+    d->tabTimer = new QTimer(this);
+    d->tabTimer->setSingleShot(true);
+    d->tabTimer->setInterval(tabOpenDelay);
+    connect(d->tabTimer, &QTimer::timeout, this, [this] { d->openHoveredTab(); });
     // The overlay only paints. Drag events reach the view, which is watched
     // here, so Qt keeps finding the cells below as the widgets under the cursor.
     setAttribute(Qt::WA_TransparentForMouseEvents);
@@ -328,6 +368,8 @@ DropOverlay::DropOverlay(LayoutView *view)
 DropOverlay::~DropOverlay()
 {
     d->watcher.handler = nullptr;
+    d->tabTimer->stop();
+    d->tabTimer->disconnect(this);
 }
 
 void DropOverlay::setAcceptor(Acceptor acceptor)
