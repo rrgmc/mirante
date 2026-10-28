@@ -1,0 +1,72 @@
+{
+    "connections": [
+        {
+            "baseUrl": "https://gitlab.com",
+            "fields": {},
+            "id": "8ef145f6-9585-55de-a438-70969ec1bad0",
+            "kind": "gitlab",
+            "name": "gitlab.com (work)"
+        },
+        {
+            "baseUrl": "https://gitlab.acme.internal",
+            "fields": {
+                "apiVersion": "v4"
+            },
+            "futureField": {
+                "addedIn": 7,
+                "tls": {
+                    "pinned": true
+                }
+            },
+            "id": "6a2269ce-1dd5-5ebf-b064-2ce63914bf73",
+            "kind": "gitlab",
+            "name": "GitLab (Acme self-hosted)"
+        },
+        {
+            "baseUrl": "https://acme.atlassian.net",
+            "fields": {
+                "email": "dev@acme.example"
+            },
+            "id": "4a4110cf-dc32-5070-b993-1f27604765b1",
+            "kind": "jira.cloud",
+            "name": "Acme Jira Cloud"
+        },
+        {
+            "baseUrl": "https://jira.acme.internal",
+            "fields": {},
+            "id": "90d3f914-a970-57dc-ab52-a7fb83e824fc",
+            "kind": "jira.dc",
+            "name": "Ops Jira (Data Center)"
+        },
+        {
+            "baseUrl": "https://time.acme.example",
+            "fields": {
+                "workspace": "acme-dev"
+            },
+            "id": "e4977249-d87d-5c68-9a67-55ecadcf9381",
+            "kind": "timetrack",
+            "name": "Acme time tracking"
+        }
+    ],
+    "defaultConnections": {
+        "gitlab": "8ef145f6-9585-55de-a438-70969ec1bad0",
+        "jira.cloud": "4a4110cf-dc32-5070-b993-1f27604765b1",
+        "jira.dc": "90d3f914-a970-57dc-ab52-a7fb83e824fc",
+        "timetrack": "e4977249-d87d-5c68-9a67-55ecadcf9381"
+    },
+    "futureField": {
+        "color": "#3a7bd5",
+        "tags": [
+            "office",
+            "billable"
+        ]
+    },
+    "id": "6d1b9bb9-f4c3-5677-a4e1-683ba618d4c7",
+    "name": "Work",
+    "order": 0,
+    "profileOverrides": {
+        "figma.com": "shared",
+        "www.w3.org": "shared"
+    },
+    "schemaVersion": 1
+}

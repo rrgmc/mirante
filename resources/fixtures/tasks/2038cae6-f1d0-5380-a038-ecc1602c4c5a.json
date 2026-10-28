@@ -1,0 +1,57 @@
+{
+    "dashboards": [
+        {
+            "id": "87886848-a92a-5036-a6f6-6399523f6a36",
+            "layout": {
+                "children": [
+                    {
+                        "ref": {
+                            "item": "161e69b0-d18e-595b-8a31-08f457e40d3b"
+                        },
+                        "type": "cell"
+                    },
+                    {
+                        "ref": {
+                            "item": "ca44a161-08dd-5515-9b29-4caa12fb1c7c"
+                        },
+                        "type": "cell"
+                    }
+                ],
+                "dir": "h",
+                "sizes": [
+                    0.6,
+                    0.4
+                ],
+                "type": "split"
+            },
+            "name": "Main"
+        }
+    ],
+    "defaultDashboardId": "87886848-a92a-5036-a6f6-6399523f6a36",
+    "id": "2038cae6-f1d0-5380-a038-ecc1602c4c5a",
+    "isDefault": false,
+    "items": [
+        {
+            "config": {
+                "url": "https://www.w3.org/WAI/WCAG22/quickref/"
+            },
+            "id": "161e69b0-d18e-595b-8a31-08f457e40d3b",
+            "name": "WCAG checklist",
+            "type": "web.page"
+        },
+        {
+            "config": {
+                "text": ""
+            },
+            "id": "ca44a161-08dd-5515-9b29-4caa12fb1c7c",
+            "name": "Findings",
+            "type": "notes"
+        }
+    ],
+    "order": 1,
+    "priority": 2,
+    "projectId": "fb99f6f7-be6d-5dd8-b3f2-2b09f71652a8",
+    "schemaVersion": 1,
+    "state": "active",
+    "title": "Accessibility audit"
+}

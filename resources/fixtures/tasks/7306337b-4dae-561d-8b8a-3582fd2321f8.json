@@ -1,0 +1,57 @@
+{
+    "dashboards": [
+        {
+            "id": "aba5e20f-7ec4-510a-8741-b178aab488fb",
+            "layout": {
+                "children": [
+                    {
+                        "ref": {
+                            "item": "fa4c4f63-8375-5595-b8c7-3d7802ea1153"
+                        },
+                        "type": "cell"
+                    },
+                    {
+                        "ref": {
+                            "item": "3d064f70-6e20-5179-bdfe-f5afbba1a3f4"
+                        },
+                        "type": "cell"
+                    }
+                ],
+                "dir": "h",
+                "sizes": [
+                    2,
+                    1
+                ],
+                "type": "split"
+            },
+            "name": "Main"
+        }
+    ],
+    "defaultDashboardId": "aba5e20f-7ec4-510a-8741-b178aab488fb",
+    "id": "7306337b-4dae-561d-8b8a-3582fd2321f8",
+    "isDefault": false,
+    "items": [
+        {
+            "config": {
+                "url": "https://tax.example.gov"
+            },
+            "id": "fa4c4f63-8375-5595-b8c7-3d7802ea1153",
+            "name": "Tax portal",
+            "type": "web.page"
+        },
+        {
+            "config": {
+                "text": "- [ ] Bank statements\n- [ ] Receipts"
+            },
+            "id": "3d064f70-6e20-5179-bdfe-f5afbba1a3f4",
+            "name": "Checklist",
+            "type": "notes"
+        }
+    ],
+    "order": 0,
+    "priority": 1,
+    "projectId": "a9e5cd89-4e6d-596c-93ae-61d66d4c9c3d",
+    "schemaVersion": 1,
+    "state": "active",
+    "title": "Tax documents"
+}

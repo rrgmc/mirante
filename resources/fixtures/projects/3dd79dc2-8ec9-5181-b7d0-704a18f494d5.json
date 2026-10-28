@@ -1,0 +1,44 @@
+{
+    "connectionOverrides": {},
+    "folders": [
+        {
+            "id": "622f4d51-b29b-5213-82cf-6a85939c8b06",
+            "main": true,
+            "name": "backend",
+            "remoteUrl": "git@gitlab.com:acme/backend.git"
+        },
+        {
+            "futureField": {
+                "sparseCheckout": [
+                    "k8s/"
+                ]
+            },
+            "id": "e11c5dbc-ce60-59ee-94f8-15b28d8e5ee1",
+            "main": false,
+            "name": "deploy-scripts",
+            "remoteUrl": "git@gitlab.acme.internal:ops/deploy-scripts.git"
+        }
+    ],
+    "groupId": "6d1b9bb9-f4c3-5677-a4e1-683ba618d4c7",
+    "id": "3dd79dc2-8ec9-5181-b7d0-704a18f494d5",
+    "moduleSettings": {
+        "gitlab": {
+            "project": "acme/backend"
+        },
+        "jira": {
+            "projectKey": "ACME"
+        },
+        "timetrack": {
+            "billable": true,
+            "client": "Acme",
+            "rate": {
+                "currency": "EUR",
+                "hourly": 95
+            }
+        }
+    },
+    "name": "backend",
+    "order": 0,
+    "priority": 1,
+    "schemaVersion": 1
+}

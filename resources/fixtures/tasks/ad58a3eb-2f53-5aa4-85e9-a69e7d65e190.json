@@ -1,0 +1,57 @@
+{
+    "dashboards": [
+        {
+            "id": "643e177a-aa8c-5035-9620-152b2a2cd442",
+            "layout": {
+                "children": [
+                    {
+                        "ref": {
+                            "item": "dd3dda51-308e-5501-8e13-1a3c538963db"
+                        },
+                        "type": "cell"
+                    },
+                    {
+                        "ref": {
+                            "item": "27003dc8-373e-524e-948a-2852029733fd"
+                        },
+                        "type": "cell"
+                    }
+                ],
+                "dir": "h",
+                "sizes": [
+                    1,
+                    1
+                ],
+                "type": "split"
+            },
+            "name": "Overview"
+        }
+    ],
+    "defaultDashboardId": "643e177a-aa8c-5035-9620-152b2a2cd442",
+    "id": "ad58a3eb-2f53-5aa4-85e9-a69e7d65e190",
+    "isDefault": true,
+    "items": [
+        {
+            "config": {
+                "folderId": "b7c2c1e5-2687-5bdd-ba31-7fc7fbe22590"
+            },
+            "id": "dd3dda51-308e-5501-8e13-1a3c538963db",
+            "name": "Mirante folder",
+            "type": "folder"
+        },
+        {
+            "config": {
+                "text": "- Calendar item type?\n- Pomodoro timer in the tray"
+            },
+            "id": "27003dc8-373e-524e-948a-2852029733fd",
+            "name": "Ideas",
+            "type": "notes"
+        }
+    ],
+    "order": 0,
+    "priority": 2,
+    "projectId": "d7740958-1656-52ae-bb9d-6b6285694e19",
+    "schemaVersion": 1,
+    "state": "active",
+    "title": "Default"
+}
