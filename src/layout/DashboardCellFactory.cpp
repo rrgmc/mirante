@@ -4,6 +4,8 @@
 #include "layout/CellFrame.h"
 #include "layout/TaskCell.h"
 
+#include <QCoreApplication>
+
 namespace mirante {
 
 struct DashboardCellFactory::Private
@@ -19,6 +21,16 @@ struct DashboardCellFactory::Private
             return nullptr;
         const QString taskId = dashboard.isRoot() ? ref.task : dashboard.taskId;
         return services.model->item(taskId, ref.item);
+    }
+
+    // "Project / Task" for an item reference in a root dashboard.
+    QString origin(const CellRef &ref) const
+    {
+        const Task *task = services.model ? services.model->task(ref.task) : nullptr;
+        if (!task)
+            return QString();
+        const Project *project = services.model->project(task->projectId);
+        return project ? QCoreApplication::translate("DashboardCellFactory", "%1 / %2").arg(project->name, task->title) : task->title;
     }
 
     const ItemType *type(const Item &item) const
@@ -46,7 +58,12 @@ QWidget *DashboardCellFactory::createCell(const std::optional<CellRef> &ref, boo
     const Item *item = d->item(*ref);
     if (!item)
         return new CellFrame(ref, true, nullptr, QString(), parent);
-    return new CellFrame(ref, false, d->type(*item), item->name, parent);
+    auto *frame = new CellFrame(ref, false, d->type(*item), item->name, parent);
+    // In a task dashboard every item is of that task. In a root dashboard an
+    // item can come from anywhere, so its header names its project and task.
+    if (d->dashboard.isRoot())
+        frame->setContext(d->origin(*ref));
+    return frame;
 }
 
 bool DashboardCellFactory::canReparent(const std::optional<CellRef> &ref) const

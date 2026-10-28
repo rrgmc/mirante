@@ -73,6 +73,7 @@ A task dashboard has the same layout engine as a root dashboard. Its cells hold 
 Each cell has a small header containing:
 
 - the item name and an icon for its type;
+- in a root dashboard, where an item can come from any task, its project and task in dimmed text after the name, such as "backend / Overview";
 - status badges;
 - buttons: refresh, open in browser, detach, and a menu.
 
