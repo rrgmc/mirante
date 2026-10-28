@@ -12,6 +12,7 @@ namespace mirante {
 // only change when the task is replaced.
 struct Model::Private
 {
+    QString workspaceName;
     std::map<QString, Group> groups;
     std::map<QString, Project> projects;
     std::map<QString, Task> tasks;
@@ -70,6 +71,7 @@ Model::~Model() = default;
 void Model::reset(std::vector<Group> groups, std::vector<Project> projects, std::vector<Task> tasks,
                   std::vector<RootDashboard> rootDashboards)
 {
+    d->workspaceName.clear();
     d = std::make_unique<Private>();
     for (Group &group : groups) {
         const QString id = group.id;
@@ -232,6 +234,16 @@ void Model::removeRootDashboard(const QString &id)
     if (d->rootDashboards.erase(id) == 0)
         return;
     emit rootDashboardRemoved(id);
+}
+
+QString Model::workspaceName() const { return d->workspaceName; }
+
+void Model::setWorkspaceName(const QString &name)
+{
+    if (name == d->workspaceName)
+        return;
+    d->workspaceName = name;
+    emit workspaceNameChanged();
 }
 
 } // namespace mirante

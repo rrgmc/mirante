@@ -24,6 +24,9 @@ public:
     // task list that holds it.
     void reveal(const QString &id);
 
+    // The title above the tree: the workspace's name.
+    void setTitle(const QString &title);
+
     // Expand or collapse every task, with its Dashboards and Items lists.
     // Groups and projects are left as they are.
     void expandAllTasks();
@@ -39,6 +42,8 @@ signals:
     void openInNewRootDashboard(const QString &taskId, const QString &dashboardId);
     void openItemInNewRootDashboard(const QString &taskId, const QString &itemId);
     void collapseRequested();
+    // A double click on the title, to rename the workspace.
+    void titleDoubleClicked();
 
 private:
     struct Private;

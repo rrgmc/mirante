@@ -14,10 +14,14 @@
 
 #include <QApplication>
 #include <QDir>
+#include <QDirIterator>
+#include <QFile>
+#include <QFileInfo>
 #include <QLabel>
 #include <QPointer>
 #include <QSettings>
 #include <QSignalSpy>
+#include <QTemporaryDir>
 #include <QTest>
 #include <QToolButton>
 #include <QTreeView>
@@ -347,7 +351,8 @@ private slots:
         QCOMPARE(f.window->workspace(), folder);
         QCOMPARE(f.window->recentWorkspaces(), QStringList{folder});
         QCOMPARE(QSettings().value(QStringLiteral("workspace/last")).toString(), folder);
-        QVERIFY(f.window->windowTitle().contains(QStringLiteral("fixtures")));
+        // The fixtures have a workspace.json naming them, which the title shows.
+        QVERIFY(f.window->windowTitle().startsWith(QStringLiteral("Sample data")));
         QCOMPARE(f.bar()->count(), 2);
         QVERIFY(f.window->findChild<QWidget *>(QStringLiteral("warningBar"))->isHidden());
 
@@ -358,6 +363,42 @@ private slots:
         QCOMPARE(f.window->workspace(), folder);
         QVERIFY(!f.window->findChild<QWidget *>(QStringLiteral("warningBar"))->isHidden());
 
+        QSettings().remove(QStringLiteral("workspace"));
+    }
+
+    // A workspace's name lives in its workspace.json. Renaming writes it, and
+    // the sidebar title and the window title show it.
+    void renameWorkspace()
+    {
+        QCoreApplication::setOrganizationName(QStringLiteral("MiranteTests"));
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        QDirIterator files(QStringLiteral(MIRANTE_FIXTURES_DIR), QDir::Files, QDirIterator::Subdirectories);
+        while (files.hasNext()) {
+            const QString source = files.next();
+            const QString relative = QDir(QStringLiteral(MIRANTE_FIXTURES_DIR)).relativeFilePath(source);
+            QVERIFY(QDir(dir.path()).mkpath(QFileInfo(relative).path()));
+            QVERIFY(QFile::copy(source, dir.filePath(relative)));
+        }
+
+        Fixture f;
+        f.window->openWorkspace(dir.path());
+        auto *title = f.window->findChild<QLabel *>(QStringLiteral("workspaceTitle"));
+        QVERIFY(title);
+        QCOMPARE(title->text(), QStringLiteral("Sample data"));
+
+        QVERIFY(f.window->renameWorkspace(QStringLiteral("Work stuff")));
+        QCOMPARE(title->text(), QStringLiteral("Work stuff"));
+        QVERIFY(f.window->windowTitle().startsWith(QStringLiteral("Work stuff")));
+
+        // Opening it again reads the name back.
+        f.window->openSampleData();
+        f.window->openWorkspace(dir.path());
+        QCOMPARE(title->text(), QStringLiteral("Work stuff"));
+
+        // The sample data cannot be renamed.
+        f.window->openSampleData();
+        QVERIFY(!f.window->renameWorkspace(QStringLiteral("Other")));
         QSettings().remove(QStringLiteral("workspace"));
     }
 

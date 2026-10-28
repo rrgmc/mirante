@@ -3,6 +3,7 @@
 #include "ui/SidebarDelegate.h"
 #include "ui/SidebarModel.h"
 
+#include <QEvent>
 #include <QHBoxLayout>
 #include <QIcon>
 #include <QLabel>
@@ -22,6 +23,30 @@ namespace {
 // The task lists, in the order of their tabs.
 enum TaskList { ProjectsList, ActiveList, DoneList };
 
+// Reports double clicks on the title label.
+class TitleClicks : public QObject
+{
+public:
+    TitleClicks(QObject *parent, std::function<void()> onDoubleClick)
+        : QObject(parent)
+        , m_onDoubleClick(std::move(onDoubleClick))
+    {
+    }
+
+protected:
+    bool eventFilter(QObject *watched, QEvent *event) override
+    {
+        if (event->type() == QEvent::MouseButtonDblClick && m_onDoubleClick) {
+            m_onDoubleClick();
+            return true;
+        }
+        return QObject::eventFilter(watched, event);
+    }
+
+private:
+    std::function<void()> m_onDoubleClick;
+};
+
 } // namespace
 
 struct Sidebar::Private
@@ -29,6 +54,7 @@ struct Sidebar::Private
     SidebarModel *model = nullptr;
     QTreeView *tree = nullptr;
     QToolButton *hideLow = nullptr;
+    QLabel *title = nullptr;
     QTabBar *stateTabs = nullptr;       // the task lists: "Projects", "Active" and "Done"
 
     // Expansion survives a reset of the model. Groups and projects start
@@ -92,6 +118,10 @@ Sidebar::Sidebar(const Model &model, const ItemTypeRegistry &types, QWidget *par
 
     // Header: title and the collapse button.
     auto *title = new QLabel(QStringLiteral("Mirante"), this);
+    title->setObjectName(QStringLiteral("workspaceTitle"));
+    title->setToolTip(tr("The workspace. Double-click to rename it."));
+    title->installEventFilter(new TitleClicks(this, [this] { emit titleDoubleClicked(); }));
+    d->title = title;
     QFont titleFont = title->font();
     titleFont.setBold(true);
     title->setFont(titleFont);
@@ -272,6 +302,8 @@ void Sidebar::reveal(const QString &id)
     d->tree->setCurrentIndex(index);
     d->tree->scrollTo(index);
 }
+
+void Sidebar::setTitle(const QString &title) { d->title->setText(title); }
 
 void Sidebar::expandAllTasks()
 {

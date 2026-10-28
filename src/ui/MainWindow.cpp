@@ -27,8 +27,10 @@
 #include <QGuiApplication>
 #include <QHBoxLayout>
 #include <QIcon>
+#include <QInputDialog>
 #include <QKeySequence>
 #include <QLabel>
+#include <QLineEdit>
 #include <QMenu>
 #include <QMenuBar>
 #include <QMessageBox>
@@ -547,10 +549,36 @@ struct MainWindow::Private
 
     static constexpr int maxRecent = 10;
 
+    // The workspace's name, else its folder's name, else "Sample data".
+    QString workspaceDisplayName() const
+    {
+        if (!model->workspaceName().isEmpty())
+            return model->workspaceName();
+        return workspace.isEmpty() ? MainWindow::tr("Sample data") : QDir(workspace).dirName();
+    }
+
     void updateTitle()
     {
-        const QString name = workspace.isEmpty() ? MainWindow::tr("Sample data") : QDir(workspace).dirName();
+        const QString name = workspaceDisplayName();
         q->setWindowTitle(MainWindow::tr("%1 - %2").arg(name, QStringLiteral(MIRANTE_APP_NAME)));
+        if (sidebar)
+            sidebar->setTitle(name);
+    }
+
+    // Asks for a new name for the open workspace.
+    void promptRename()
+    {
+        if (workspace.isEmpty()) {
+            QMessageBox::information(q, MainWindow::tr("Rename Workspace"),
+                                     MainWindow::tr("The sample data cannot be renamed. Open a workspace folder first."));
+            return;
+        }
+        bool ok = false;
+        const QString name = QInputDialog::getText(q, MainWindow::tr("Rename Workspace"), MainWindow::tr("Name:"),
+                                                   QLineEdit::Normal, workspaceDisplayName(), &ok)
+                                 .trimmed();
+        if (ok && !name.isEmpty())
+            q->renameWorkspace(name);
     }
 
     QStringList recent() const
@@ -608,6 +636,9 @@ struct MainWindow::Private
             QObject::connect(clear, &QAction::triggered, q,
                              [] { QSettings().remove(QStringLiteral("workspace/recent")); });
         });
+        QAction *rename = file->addAction(MainWindow::tr("Re&name Workspace…"));
+        QObject::connect(rename, &QAction::triggered, q, [this] { promptRename(); });
+        QObject::connect(file, &QMenu::aboutToShow, q, [this, rename] { rename->setEnabled(!workspace.isEmpty()); });
         QAction *sample = file->addAction(MainWindow::tr("Open &Sample Data"));
         QObject::connect(sample, &QAction::triggered, q, &MainWindow::openSampleData);
         QAction *reload = file->addAction(MainWindow::tr("Re&load Workspace"));
@@ -826,6 +857,8 @@ MainWindow::MainWindow(Model &model, const ItemTypeRegistry &types, QWidget *par
             openRootDashboard(id);
     });
     connect(d->sidebar, &Sidebar::collapseRequested, this, [this] { d->showSidebar(false); });
+    connect(d->sidebar, &Sidebar::titleDoubleClicked, this, [this] { d->promptRename(); });
+    connect(&model, &Model::workspaceNameChanged, this, [this] { d->updateTitle(); });
     connect(d->showSidebarButton, &QToolButton::clicked, this, [this] { d->showSidebar(true); });
 
     // The tab bar.
@@ -934,6 +967,19 @@ void MainWindow::openSampleData()
     d->remember(QString());
     d->updateTitle();
     setLoadProblems(problems);
+}
+
+bool MainWindow::renameWorkspace(const QString &name)
+{
+    if (d->workspace.isEmpty() || name.trimmed().isEmpty())
+        return false;
+    QString error;
+    if (!store::saveWorkspaceName(d->workspace, name.trimmed(), &error)) {
+        setLoadProblems({LoadProblem{QStringLiteral("workspace.json"), tr("cannot be written: %1").arg(error)}});
+        return false;
+    }
+    d->model->setWorkspaceName(name.trimmed());
+    return true;
 }
 
 QString MainWindow::workspace() const { return d->workspace; }

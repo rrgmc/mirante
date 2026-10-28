@@ -40,6 +40,9 @@ public:
     QString workspace() const;
     // The recent workspaces, most recent first.
     QStringList recentWorkspaces() const;
+    // Renames the open workspace, in its workspace.json. The sample data
+    // cannot be renamed. Returns false, and shows why, if it fails.
+    bool renameWorkspace(const QString &name);
 
     void showAbout();
 

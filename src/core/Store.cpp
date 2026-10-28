@@ -7,6 +7,7 @@
 #include <QJsonDocument>
 #include <QJsonParseError>
 #include <QJsonValue>
+#include <QSaveFile>
 #include <QSet>
 
 #include <algorithm>
@@ -24,6 +25,8 @@ const QString kGroups = QStringLiteral("groups");
 const QString kProjects = QStringLiteral("projects");
 const QString kTasks = QStringLiteral("tasks");
 const QString kDashboards = QStringLiteral("dashboards");
+const QString kWorkspaceFile = QStringLiteral("workspace.json");
+const QString kName = QStringLiteral("name");
 
 QString pathOf(const QString &subfolder, const QString &id)
 {
@@ -128,6 +131,31 @@ QSet<QString> idsOf(const std::vector<T> &entities)
     return ids;
 }
 
+// Reads workspace.json, if there is one. A missing file is not a problem.
+std::optional<QJsonObject> readWorkspaceFile(const QString &dir, std::vector<LoadProblem> *problems)
+{
+    QFile file(dir + QLatin1Char('/') + kWorkspaceFile);
+    if (!file.exists())
+        return std::nullopt;
+    const auto problem = [&](const QString &message) { problems->push_back({kWorkspaceFile, message}); };
+    if (!file.open(QIODevice::ReadOnly)) {
+        problem(QStringLiteral("cannot be read: %1").arg(file.errorString()));
+        return std::nullopt;
+    }
+    QJsonParseError error;
+    const QJsonDocument document = QJsonDocument::fromJson(file.readAll(), &error);
+    if (error.error != QJsonParseError::NoError || !document.isObject()) {
+        problem(QStringLiteral("not a valid JSON object"));
+        return std::nullopt;
+    }
+    const QJsonValue version = document.object().value(kSchemaVersion);
+    if (!version.isDouble() || version.toDouble() != kCurrentSchemaVersion) {
+        problem(QStringLiteral("unsupported schemaVersion"));
+        return std::nullopt;
+    }
+    return document.object();
+}
+
 QJsonObject withSchemaVersion(QJsonObject json)
 {
     json.insert(kSchemaVersion, kCurrentSchemaVersion);
@@ -150,11 +178,14 @@ std::vector<LoadProblem> load(const QString &dir, Model &model)
     tasks = withParent(std::move(tasks), idsOf(projects), [](const Task &t) { return t.projectId; },
                        kTasks, QStringLiteral("project"), &problems);
 
+    const std::optional<QJsonObject> workspace = readWorkspaceFile(dir, &problems);
     std::sort(problems.begin(), problems.end(), [](const LoadProblem &a, const LoadProblem &b) {
         return a.file < b.file || (a.file == b.file && a.message < b.message);
     });
 
     model.reset(std::move(groups), std::move(projects), std::move(tasks), std::move(dashboards));
+    if (workspace)
+        model.setWorkspaceName(workspace->value(kName).toString());
     return problems;
 }
 
@@ -173,7 +204,41 @@ std::map<QString, QJsonObject> serialise(const Model &model)
     }
     for (const RootDashboard *dashboard : model.rootDashboards())
         files.emplace(pathOf(kDashboards, dashboard->id), withSchemaVersion(dashboard->toJson()));
+    if (!model.workspaceName().isEmpty())
+        files.emplace(kWorkspaceFile, withSchemaVersion(QJsonObject{{kName, model.workspaceName()}}));
     return files;
+}
+
+bool saveWorkspaceName(const QString &dir, const QString &name, QString *error)
+{
+    const QString path = dir + QLatin1Char('/') + kWorkspaceFile;
+    const auto fail = [error](const QString &message) {
+        if (error)
+            *error = message;
+        return false;
+    };
+
+    // Keep the keys this version does not know.
+    QJsonObject json;
+    QFile existing(path);
+    if (existing.exists()) {
+        if (!existing.open(QIODevice::ReadOnly))
+            return fail(existing.errorString());
+        const QJsonDocument document = QJsonDocument::fromJson(existing.readAll());
+        if (document.isObject())
+            json = document.object();
+        existing.close();
+    }
+    json.insert(kName, name);
+    json.insert(kSchemaVersion, kCurrentSchemaVersion);
+
+    QSaveFile file(path);
+    if (!file.open(QIODevice::WriteOnly))
+        return fail(file.errorString());
+    file.write(QJsonDocument(json).toJson(QJsonDocument::Indented));
+    if (!file.commit())
+        return fail(file.errorString());
+    return true;
 }
 
 } // namespace mirante::store

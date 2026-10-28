@@ -30,6 +30,7 @@ Each file records one design decision: what was decided, what else was considere
 | [0022](0022-task-dashboard-tabs.md) | Task dashboards open in their own kind of tab | Accepted |
 | [0023](0023-item-tabs.md) | Items open alone in a tab | Accepted |
 | [0024](0024-detach-root-dashboard-tabs.md) | Only root dashboard tabs can be detached | Accepted |
+| [0025](0025-workspace-file.md) | A workspace file holds the workspace's name | Accepted |
 
 ## Template
 
