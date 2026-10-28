@@ -1,2 +1,5 @@
 # Shell scripts must keep LF endings to run on macOS and Linux.
 *.sh text eol=lf
+
+# Fixture data files are compared with what the app writes, which uses LF.
+resources/fixtures/**/*.json text eol=lf

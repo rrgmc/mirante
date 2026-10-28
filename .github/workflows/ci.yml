@@ -1,0 +1,105 @@
+# Builds and tests Mirante on Windows, macOS and Linux, with all modules and
+# with none, and checks that modules include only the module API.
+# Qt comes from tools/setup-qt, as in local builds, into a cached folder
+# outside the checkout. See docs/plans/m2-app-skeleton.md, part 1.
+
+name: CI
+
+on:
+  push:
+  pull_request:
+
+env:
+  QT_VERSION: 6.8.3
+
+jobs:
+  build:
+    name: build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-2022, macos-14, ubuntu-24.04]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v6
+
+      - name: Cache Qt
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/qt
+          # Change the last part when setup-qt installs other archives.
+          key: qt-${{ runner.os }}-${{ env.QT_VERSION }}-qtbase-qtsvg
+
+      - name: Install Linux packages
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            ninja-build pkg-config libsecret-1-dev libx11-dev libxkbcommon-dev \
+            libxkbcommon-x11-0 libgl1-mesa-dev libegl1 libfontconfig1 libdbus-1-3
+
+      - name: Install macOS packages
+        if: runner.os == 'macOS'
+        run: brew install ninja
+
+      # build.ps1 gets Qt, enters the Visual Studio 2022 developer shell, and
+      # configures, builds and tests the preset.
+      - name: Build and test (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          MIRANTE_QT_ROOT: ${{ runner.temp }}/qt
+        run: ./tools/build.ps1 -Preset ci
+
+      - name: Build and test (macOS, Linux)
+        if: runner.os != 'Windows'
+        env:
+          MIRANTE_QT_ROOT: ${{ runner.temp }}/qt
+        run: |
+          QT_DIR=$(sh tools/setup-qt.sh)
+          cmake --preset ci -DCMAKE_PREFIX_PATH="$QT_DIR"
+          cmake --build --preset ci
+          ctest --preset ci
+
+  no-modules:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v6
+
+      - name: Cache Qt
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/qt
+          key: qt-${{ runner.os }}-${{ env.QT_VERSION }}-qtbase-qtsvg
+
+      - name: Install Linux packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            ninja-build pkg-config libsecret-1-dev libx11-dev libxkbcommon-dev \
+            libxkbcommon-x11-0 libgl1-mesa-dev libegl1 libfontconfig1 libdbus-1-3
+
+      - name: Build and test
+        env:
+          MIRANTE_QT_ROOT: ${{ runner.temp }}/qt
+        run: |
+          QT_DIR=$(sh tools/setup-qt.sh)
+          cmake --preset ci-no-modules -DCMAKE_PREFIX_PATH="$QT_DIR"
+          cmake --build --preset ci-no-modules
+          ctest --preset ci-no-modules
+
+  module-includes:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Check module includes
+        run: python tools/check-module-includes.py
