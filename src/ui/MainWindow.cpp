@@ -24,6 +24,7 @@
 #include <QSplitter>
 #include <QStackedWidget>
 #include <QStringList>
+#include <QTimer>
 #include <QToolButton>
 #include <QUuid>
 #include <QVBoxLayout>
@@ -348,6 +349,11 @@ struct MainWindow::Private
         }
         tabBar->updateGeometry();
         syncCurrent();
+
+        // Editing the dashboard in the preview tab pins it (docs/ui.md). The
+        // change may come from the preview's own view, so pin after it returns.
+        if (preview && preview->ref.taskId == taskId && currentPage() == preview)
+            QTimer::singleShot(0, q, [window = q, taskId] { window->pinTask(taskId); });
     }
 
     void showSidebar(bool show)
@@ -514,9 +520,7 @@ MainWindow::MainWindow(Model &model, const ItemTypeRegistry &types, QWidget *par
     // Locks.
     connect(d->lockButton, &QToolButton::toggled, this, [this](bool unlocked) {
         if (const DashboardPage *page = d->currentPage()) {
-            const QString id = page->ref.dashboardId;
-            d->locks->setUnlocked(id, unlocked);
-            d->applyLock(id, unlocked);
+            d->locks->setUnlocked(page->ref.dashboardId, unlocked);
         }
     });
     connect(d->locks, &LockState::changed, this,
@@ -649,7 +653,6 @@ void MainWindow::newRootDashboard()
     d->model->addRootDashboard(dashboard);
     d->locks->setUnlocked(dashboard.id, true);
     openRootDashboard(dashboard.id);
-    d->applyLock(dashboard.id, true);
 }
 
 void MainWindow::focusItem(const QString &taskId, const QString &itemId)
