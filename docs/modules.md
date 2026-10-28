@@ -70,10 +70,10 @@ The top-level `CMakeLists.txt` adds every folder in `src/modules/` that has a `C
 **Registration.** CMake generates `enabled_modules.cpp` in the build folder. It calls each enabled module's register function, in alphabetical order of module id:
 
 ```cpp
-void registerEnabledModules(ModuleRegistrar &r)
+void registerEnabledModules(ItemTypeRegistry &registry)
 {
-    mirante::modules::folder::registerModule(r);
-    mirante::modules::gitlab::registerModule(r);
+    registry.registerModule("folder", &mirante::modules::folder::registerModule);
+    registry.registerModule("gitlab", &mirante::modules::gitlab::registerModule);
     // ...
 }
 ```

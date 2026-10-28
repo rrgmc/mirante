@@ -1,0 +1,57 @@
+{
+  "version": 3,
+  "cmakeMinimumRequired": { "major": 3, "minor": 21, "patch": 0 },
+  "configurePresets": [
+    {
+      "name": "base",
+      "hidden": true,
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/${presetName}"
+    },
+    {
+      "name": "dev",
+      "displayName": "Debug, all modules",
+      "inherits": "base",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug" }
+    },
+    {
+      "name": "release",
+      "displayName": "Release, all modules",
+      "inherits": "base",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Release" }
+    },
+    {
+      "name": "no-modules",
+      "displayName": "Debug, no modules",
+      "inherits": "base",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug", "MIRANTE_MODULES": "" }
+    },
+    {
+      "name": "ci",
+      "displayName": "CI: Release, all modules, warnings as errors",
+      "inherits": "base",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Release", "MIRANTE_WERROR": "ON" }
+    },
+    {
+      "name": "ci-no-modules",
+      "displayName": "CI: Release, no modules, warnings as errors",
+      "inherits": "ci",
+      "cacheVariables": { "MIRANTE_MODULES": "" }
+    }
+  ],
+  "buildPresets": [
+    { "name": "dev", "configurePreset": "dev" },
+    { "name": "release", "configurePreset": "release" },
+    { "name": "no-modules", "configurePreset": "no-modules" },
+    { "name": "ci", "configurePreset": "ci" },
+    { "name": "ci-no-modules", "configurePreset": "ci-no-modules" }
+  ],
+  "testPresets": [
+    { "name": "base", "hidden": true, "output": { "outputOnFailure": true } },
+    { "name": "dev", "inherits": "base", "configurePreset": "dev" },
+    { "name": "release", "inherits": "base", "configurePreset": "release" },
+    { "name": "no-modules", "inherits": "base", "configurePreset": "no-modules" },
+    { "name": "ci", "inherits": "base", "configurePreset": "ci" },
+    { "name": "ci-no-modules", "inherits": "base", "configurePreset": "ci-no-modules" }
+  ]
+}

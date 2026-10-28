@@ -24,10 +24,11 @@ src/
   core/          mirante_core: entities, Model, Store (read only), Sorting, LayoutTree, FuzzyMatch
   module_api/    mirante::module_api: the headers modules may include
     mirante/Module.h  mirante/ItemType.h
-  items/         mirante_items: ItemTypeRegistry, ModuleRegistrar, UnknownItemType, Placement
-  layout/        mirante_layout: LayoutView, CellFrame, TaskCell, DropOverlay, LayoutEditor
+  items/         mirante_items: ItemTypeRegistry, UnknownItemType, EnabledModules
+  layout/        mirante_layout: LayoutView, CellFrame, TaskCell, DropOverlay, LayoutEditor,
+                 DashboardCellFactory, LayoutServices, LockState, SingleViewTracker, DragMime
   ui/            mirante_ui: MainWindow, Sidebar, RootTabBar, QuickSwitcher, Shortcuts
-  platform/      mirante_platform: empty in M2 apart from linking qtkeychain and QHotkey
+  platform/      mirante_platform: only systemName() in M2, and links qtkeychain and QHotkey
   modules/
     claude/ folder/ gitlab/ jira/ notes/ web/     one stub module each
 resources/
@@ -39,6 +40,8 @@ tests/
   ui/            tests for the sidebar model and the switcher
 tools/
   build.ps1      builds and tests a preset on Windows from any shell
+  setup-qt.ps1   downloads Qt with aqtinstall on Windows
+  setup-qt.sh    the same on macOS and Linux
 ```
 
 Each folder in `src/` is one static library. The executable `mirante` links them all, plus the enabled modules. Dependencies follow [architecture](../architecture.md#source-folders): `ui → layout → items → core`, with `platform` used by `ui` only.
@@ -67,7 +70,9 @@ Each library compiles every `.cpp` file in its folder, found with `file(GLOB ...
 
 Each preset has a matching build and test preset. On Windows, presets are run from a Developer Command Prompt for MSVC 2022 so Ninja finds the compiler.
 
-**Build script.** `tools/build.ps1 [-Preset dev]` finds Visual Studio 2022 with `vswhere`, enters its developer shell with `Enter-VsDevShell -Arch amd64`, then configures, builds and tests the preset. Agents and plain shells build with it, so nobody needs a Developer Command Prompt open. It finds Qt through `CMAKE_PREFIX_PATH` or the environment variable `MIRANTE_QT_DIR`.
+**Getting Qt.** `tools/setup-qt.ps1` and `tools/setup-qt.sh` download Qt 6.8.3 (the `qtbase` archive only) with aqtinstall, run through `uvx`. They install it into the folder named by the environment variable `MIRANTE_QT_ROOT`, or into `.qt/` in the repository if it is not set. `.qt/` is ignored by git. Several projects on one machine can share one Qt by setting `MIRANTE_QT_ROOT` to the same folder. No local path is committed.
+
+**Build script.** `tools/build.ps1 [-Preset dev] [-NoTest]` runs `setup-qt.ps1`, which downloads Qt only if it is missing. It then finds Visual Studio 2022 with `vswhere`, enters its developer shell with `Enter-VsDevShell -Arch amd64`, and configures, builds and tests the preset. Agents and plain shells build with it, so nobody needs a Developer Command Prompt open. It adds Qt's `bin` folder to `PATH` for the tests.
 
 **CI.** `.github/workflows/ci.yml` runs on every push and pull request:
 
@@ -119,6 +124,8 @@ public:
 ```
 
 `ModuleRegistrar` is abstract, so a module's static library has no link dependency on core code. The implementation lives in `items/`.
+
+The generated `registerEnabledModules(ItemTypeRegistry &)` calls `registry.registerModule("<id>", &mirante::modules::<id>::registerModule)` for each module. Passing the id lets the registry check that each type id starts with it.
 
 **`ItemTypeRegistry`** owns the item types. It implements `ModuleRegistrar` through a small adapter that knows the current module id, and rejects, with a `qFatal`, an id that does not equal the module id or start with it and a dot, and an id registered twice. A mistake there is a programming error in a module, found by its own tests.
 
@@ -336,6 +343,7 @@ The parts above say what is built. This section splits them into tasks, each sma
 ### Rules
 
 - **Interfaces first.** Task T0 writes every header named in this plan, with the declarations given here, and a stub implementation that compiles and does nothing. Later tasks fill in the implementations behind those headers.
+- **Private data behind `d`.** Every class with state keeps it in a `struct Private` defined in its `.cpp` file, behind `std::unique_ptr<Private> d`. The task that implements the class can then choose its members without changing the header.
 - **Each task owns its files.** A task changes only the files listed for it, and may add new files in the folders it owns. If it needs a change to a header it does not own, it stops and reports the change it needs. The orchestrator makes that change on `master`, and the task merges `master` and carries on.
 - **No shared file lists.** Libraries and test folders find their files by globbing, as described under [source layout](#source-layout). Two tasks that add files never edit the same `CMakeLists.txt`.
 - **Tests without the whole app.** Each task checks its work with its own tests. Widget tasks build their widgets from hand-made trees and a fake `CellFactory`, so they do not wait for `Model` or `MainWindow`.
@@ -359,7 +367,7 @@ Each agent gets this brief, with its task id filled in:
 | Task | Branch | Work | Owns | Needs |
 |---|---|---|---|---|
 | T0 | `m2-skeleton` | Part 1 except CI. Every library target, the test helpers and `tools/build.ps1`. `mirante::module_api` with its two headers. Every header named in parts 2 to 5, with stubs. `MiranteModule.cmake` with the real signatures, generating an empty registration. `main.cpp` showing an empty `MainWindow`. One smoke test. | everything it creates; after merging, the headers and the `CMakeLists.txt` files belong to the orchestrator | none |
-| T1 | `m2-ci` | The CI workflow and the module-includes check. | `.github/`, `tools/check-module-includes.py` | T0 |
+| T1 | `m2-ci` | The CI workflow and the module-includes check. CI may install Qt with `tools/setup-qt.sh` instead of `jurplel/install-qt-action`, so local and CI builds get Qt the same way. | `.github/`, `tools/check-module-includes.py` | T0 |
 | T2 | `m2-modules` | The module mechanism of Part 2: `mirante_add_module()`, `mirante_finish_modules()`, the generated registration, `ItemTypeRegistry`, `UnknownItemType`, `tst_registry`. The `web` module as the first stub module. | `cmake/MiranteModule.cmake`, `cmake/enabled_modules.cpp.in`, `src/items/*.cpp`, `src/modules/web/`, `tests/items/` | T0 |
 | T3 | `m2-entities` | The entity structs' `fromJson()` and `toJson()`, and the JSON conversion of `LayoutNode`. `tst_entities`. | `src/core/Entities.cpp`, `src/core/LayoutTreeJson.cpp`, `tests/core/tst_entities.cpp` | T0 |
 | T4 | `m2-layout-edits` | The `LayoutTree` edit operations and `sameShape`. `tst_layout_edits`. | `src/core/LayoutTree.cpp`, `tests/core/tst_layout_edits.cpp` | T0 |
@@ -368,11 +376,11 @@ Each agent gets this brief, with its task id filled in:
 | T7 | `m2-fixtures` | The fixture data folder, as described in Part 3. | `resources/fixtures/` | T0 |
 | T8 | `m2-model-store` | `Model` and `Store`. `tst_store_load`, `tst_write_back`. | `src/core/Model.cpp`, `src/core/Store.cpp`, their tests | T3, T5, T7 |
 | T9 | `m2-stub-modules` | The other five stub modules: `claude`, `folder`, `gitlab`, `jira`, `notes`. Each folder is independent, so this task can be split into five. | `src/modules/<id>/` for those five | T2 |
-| T10 | `m2-layout-view` | `LayoutView`, `CellFrame`, `SingleViewTracker`, the frame pool and splitter sizes. Tests on hand-made trees: a resize keeps every frame, a structural change reuses frames, a frame that is not `reparentSafe` is made again. | `src/layout/LayoutView.cpp`, `CellFrame.cpp`, `SingleViewTracker.cpp`, `tests/layout/tst_layout_view.cpp` | T2, T4 |
+| T10 | `m2-layout-view` | `LayoutView`, `CellFrame`, `SingleViewTracker`, the frame pool and splitter sizes. Tests on hand-made trees: a resize keeps every frame, a structural change reuses frames, a frame that is not `reparentSafe` is made again. | `src/layout/LayoutView.cpp`, `CellFrame.cpp`, `SingleViewTracker.cpp`, `DashboardCellFactory.cpp`, `tests/layout/tst_layout_view.cpp` | T2, T4 |
 | T11 | `m2-sidebar` | `SidebarModel`, `Sidebar` and its delegate and filters. A test with `QAbstractItemModelTester` on the fixtures. | `src/ui/Sidebar*.cpp`, `tests/ui/tst_sidebar_model.cpp` | T6, T8 |
 | T12 | `m2-switcher` | `QuickSwitcher` and its ranking over the model. A test of the candidate list and ranking. | `src/ui/QuickSwitcher.cpp`, `tests/ui/tst_switcher.cpp` | T6, T8 |
 | T13 | `m2-layout-editing` | `LayoutEditor`, the cell and tab menus, the drag MIME type, `DropOverlay` and the drop rules. Tests of the editor's actions against the model. | `src/layout/LayoutEditor.cpp`, `DropOverlay.cpp`, `DragMime.cpp`, `tests/layout/tst_layout_editor.cpp` | T8, T10 |
-| T14 | `m2-task-cell` | `TaskCell`, its dashboard picker and the lock state. | `src/layout/TaskCell.cpp` | T8, T10 |
+| T14 | `m2-task-cell` | `TaskCell`, its dashboard picker and the lock state. | `src/layout/TaskCell.cpp`, `src/layout/LockState.cpp` | T8, T10 |
 | T15 | `m2-main-window` | `MainWindow`, `RootTabBar`, the preview tab, pinning, the `+` button and the warning bar. `main.cpp` loads the fixtures or `--data`. | `src/ui/MainWindow.cpp`, `src/ui/RootTabBar.cpp`, `src/main.cpp` | T8, T10 |
 | T16 | `m2-shortcuts` | `Shortcuts`: focus movement, tab switching, maximise and close. | `src/ui/Shortcuts.cpp` | T15 |
 | T17 | none | Done by the orchestrator: connect anything left, run both presets, write the list of checks by hand for the user, and tick the roadmap boxes once the user has checked them. | any | all |
