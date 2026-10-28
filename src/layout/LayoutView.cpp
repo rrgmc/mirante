@@ -43,6 +43,8 @@ public:
         , m_editMode(std::move(editMode))
         , m_onDrag(std::move(onDrag))
     {
+        // Hovering shows the open hand where a drag can start.
+        bar->setMouseTracking(true);
         bar->installEventFilter(this);
     }
 
@@ -56,6 +58,12 @@ protected:
             m_pressed = mouse->button() == Qt::LeftButton && m_editMode();
             m_pressPos = mouse->position().toPoint();
             m_tab = m_bar->tabAt(m_pressPos);
+        } else if (event->type() == QEvent::Enter
+                   || (event->type() == QEvent::MouseMove && !m_pressed)) {
+            if (m_editMode())
+                m_bar->setCursor(Qt::OpenHandCursor);
+            else
+                m_bar->unsetCursor();
         } else if (event->type() == QEvent::MouseMove && m_pressed) {
             const auto *mouse = static_cast<QMouseEvent *>(event);
             if ((mouse->position().toPoint() - m_pressPos).manhattanLength() >= QApplication::startDragDistance()) {
