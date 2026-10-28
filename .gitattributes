@@ -1,5 +1,9 @@
-# Shell scripts must keep LF endings to run on macOS and Linux.
-*.sh text eol=lf
+# Every text file uses LF, in the repository and in checkouts, on every
+# platform. This overrides core.autocrlf, so Git never converts line endings
+# and never warns about them. MSVC, CMake, Qt and PowerShell all read LF.
+* text=auto eol=lf
 
-# Fixture data files are compared with what the app writes, which uses LF.
-resources/fixtures/**/*.json text eol=lf
+# Binary files are never converted.
+*.png binary
+*.ico binary
+*.icns binary
