@@ -329,7 +329,7 @@ The conversion is done once with a small script, which is not committed. The fix
 
 **`Shortcuts`.** Each shortcut is a `QShortcut` on the main window with `Qt::WindowShortcut`. `QKeySequence` already maps `Ctrl` to `Cmd` on macOS.
 
-- **`Ctrl+Alt+Arrow`** moves focus to the nearest visible cell in that direction, measured from the centre of the focused cell. Cells inside other tabs are not visible and are skipped.
+- **`Ctrl+Alt+Arrow`** moves focus to the nearest visible cell in that direction. Only cells whose centre lies in that direction from the focused cell's centre count. Cells that overlap the focused cell across the direction of movement come first, so Down goes to the cell below rather than to a nearer cell beside it. Then the shortest distance along the axis wins, then the smallest offset across it. Cells inside other tabs are not visible and are skipped.
 - **`Ctrl+Tab`** and **`Ctrl+Shift+Tab`** change the tab in the tab group that holds the focused cell.
 - **`Ctrl+PgDown`** and **`Ctrl+PgUp`** change the root tab.
 - **`Ctrl+Shift+M`** maximises the focused cell by moving its frame into a layer that fills the content area, and moves it back on the second press. This uses the same reparenting as layout updates. A frame whose type is not `reparentSafe` is made again.
