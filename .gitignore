@@ -13,3 +13,6 @@ aqtinstall.log
 .vs/
 .vscode/
 *.user
+
+# local
+local/
