@@ -438,8 +438,10 @@ private slots:
         QCOMPARE(json(review), before);
     }
 
-    // A task dropped inside a task cell lands beside the task cell.
-    void taskDroppedInATaskCellLandsBesideIt()
+    // Inside a task cell only that task's items can be dropped. A task is
+    // placed beside a task cell through the task cell's header, which belongs
+    // to the root dashboard.
+    void taskDroppedInATaskCellIsRefused()
     {
         FakeFactory rootFactory;
         rootFactory.services.model = model.get();
@@ -458,10 +460,12 @@ private slots:
 
         auto *overlay = nested->findChild<DropOverlay *>();
         QVERIFY(overlay);
+        const QJsonObject morningBefore = json(morning);
+        const QJsonObject workBefore = json(work);
         emit overlay->dropped(centre({1, 1}), fromSidebar(taskRef(flakyTask)));
-        QTRY_COMPARE(tree(morning).children.size(), std::size_t(3));
-        QCOMPARE(refAt(morning, {1}), taskRef(flakyTask, model->task(flakyTask)->defaultDashboardId));
-        QCOMPARE(tree(work).children.size(), std::size_t(2));
+        QTest::qWait(20);   // drops are applied after the event that made them
+        QCOMPARE(json(morning), morningBefore);
+        QCOMPARE(json(work), workBefore);
 
         // An item drop in the nested view stays in the task dashboard.
         emit overlay->dropped(centre({0}), fromSidebar(itemRef(notesItem, loginTask)));

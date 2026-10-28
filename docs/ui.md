@@ -64,7 +64,7 @@ A root dashboard is a tab in the main tab bar. It has a name and a [layout tree]
 
 - Drag a task or an item from the sidebar onto a dashboard. The drop overlay shows where it lands. See [editing](#editing-layouts). This works even when the layout is locked, because a drag from the sidebar is deliberate.
 - Or use "Add to dashboard…" in the context menu, then pick a dashboard and click a cell. An empty cell is filled; any other cell is split.
-- A task dropped onto a cell inside a task shown in a root dashboard lands beside that task's cell, since a task dashboard holds only its own items.
+- Tasks go only into root dashboards. Inside a task shown in a root dashboard, only that task's items can be dropped; a task dragged over its cells is refused. To place a task beside a task cell, drop it on the task cell's header, which belongs to the root dashboard.
 
 ## Task dashboards
 
