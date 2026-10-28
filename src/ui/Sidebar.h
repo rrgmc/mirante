@@ -35,7 +35,9 @@ signals:
     // click only selects.
     void itemOpened(const QString &taskId, const QString &itemId);
     void dashboardOpened(const QString &taskId, const QString &dashboardId);
-    void openInNewRootDashboard(const QString &taskId);
+    // From the context menu of a task dashboard or an item.
+    void openInNewRootDashboard(const QString &taskId, const QString &dashboardId);
+    void openItemInNewRootDashboard(const QString &taskId, const QString &itemId);
     void collapseRequested();
 
 private:

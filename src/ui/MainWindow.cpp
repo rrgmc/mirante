@@ -21,8 +21,10 @@
 
 #include <QAction>
 #include <QApplication>
+#include <QCloseEvent>
 #include <QDir>
 #include <QFileDialog>
+#include <QGuiApplication>
 #include <QHBoxLayout>
 #include <QIcon>
 #include <QKeySequence>
@@ -31,6 +33,7 @@
 #include <QMenuBar>
 #include <QMessageBox>
 #include <QPointer>
+#include <QScreen>
 #include <QSettings>
 #include <QShortcut>
 #include <QSignalBlocker>
@@ -442,6 +445,24 @@ struct MainWindow::Private
         return dashboards.empty() ? -1 : order;
     }
 
+    // Adds a root dashboard with one cell of the item, placed before every
+    // other root dashboard. Returns its id, or an empty string.
+    QString addItemRootDashboard(const QString &taskId, const QString &itemId)
+    {
+        const Task *task = model->task(taskId);
+        const Item *item = model->item(taskId, itemId);
+        if (!task || !item)
+            return QString();
+        RootDashboard dashboard;
+        dashboard.id = QUuid::createUuid().toString(QUuid::WithoutBraces);
+        const QString name = item->name.isEmpty() ? types->type(item->type).name() : item->name;
+        dashboard.name = MainWindow::tr("%1 / %2").arg(task->title, name);
+        dashboard.order = minOrder() - 1;
+        dashboard.layout.ref = CellRef{itemId, taskId, QString()};
+        model->addRootDashboard(dashboard);
+        return dashboard.id;
+    }
+
     // Adds a root dashboard with one cell of the task, placed before every
     // other root dashboard. Returns its id, or an empty string.
     QString addTaskRootDashboard(const QString &taskId, const QString &dashboardId)
@@ -774,14 +795,33 @@ MainWindow::MainWindow(Model &model, const ItemTypeRegistry &types, QWidget *par
     d->splitter->setStretchFactor(0, 0);
     d->splitter->setStretchFactor(1, 1);
     d->splitter->setSizes({260, 1020});
+
+    // The window's size and sidebar width from the last session on this
+    // device. The window always opens centred on the screen.
+    const QSettings settings;
+    const QSize size = settings.value(QStringLiteral("window/size")).toSize();
+    if (size.isValid())
+        resize(size);
+    if (const QScreen *screen = QGuiApplication::primaryScreen()) {
+        QRect frame(QPoint(0, 0), this->size());
+        frame.moveCenter(screen->availableGeometry().center());
+        move(frame.topLeft());
+    }
+    if (settings.value(QStringLiteral("window/maximized")).toBool())
+        setWindowState(windowState() | Qt::WindowMaximized);
+    d->splitter->restoreState(settings.value(QStringLiteral("window/splitter")).toByteArray());
     setCentralWidget(d->splitter);
 
     // The sidebar.
     connect(d->sidebar, &Sidebar::dashboardOpened, this, &MainWindow::openTaskPreview);
     connect(d->sidebar, &Sidebar::itemOpened, this, &MainWindow::openItem);
-    connect(d->sidebar, &Sidebar::openInNewRootDashboard, this, [this](const QString &taskId) {
-        const Task *task = d->model->task(taskId);
-        const QString id = task ? d->addTaskRootDashboard(taskId, Private::defaultDashboardOf(*task)) : QString();
+    connect(d->sidebar, &Sidebar::openInNewRootDashboard, this, [this](const QString &taskId, const QString &dashboardId) {
+        const QString id = d->addTaskRootDashboard(taskId, dashboardId);
+        if (!id.isEmpty())
+            openRootDashboard(id);
+    });
+    connect(d->sidebar, &Sidebar::openItemInNewRootDashboard, this, [this](const QString &taskId, const QString &itemId) {
+        const QString id = d->addItemRootDashboard(taskId, itemId);
         if (!id.isEmpty())
             openRootDashboard(id);
     });
@@ -846,6 +886,16 @@ MainWindow::~MainWindow()
     d->splitter = nullptr;
     d->tabBar = nullptr;
     d->stack = nullptr;
+}
+
+void MainWindow::closeEvent(QCloseEvent *event)
+{
+    // The size of the normal, not maximized, window is kept.
+    QSettings settings;
+    settings.setValue(QStringLiteral("window/size"), normalGeometry().size());
+    settings.setValue(QStringLiteral("window/maximized"), isMaximized());
+    settings.setValue(QStringLiteral("window/splitter"), d->splitter->saveState());
+    QMainWindow::closeEvent(event);
 }
 
 void MainWindow::setLoadProblems(const std::vector<LoadProblem> &problems)

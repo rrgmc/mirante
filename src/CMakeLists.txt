@@ -11,6 +11,10 @@ add_subdirectory(ui)
 add_subdirectory(modules)
 
 qt_add_executable(mirante WIN32 MACOSX_BUNDLE main.cpp)
+# The executable's icon on Windows. The window icon comes from resources/icons.
+if(WIN32)
+    target_sources(mirante PRIVATE "${PROJECT_SOURCE_DIR}/resources/app/mirante.rc")
+endif()
 target_link_libraries(mirante PRIVATE mirante_ui)
 mirante_set_warnings(mirante)
 mirante_finish_modules(mirante)

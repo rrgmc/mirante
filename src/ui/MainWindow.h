@@ -65,6 +65,11 @@ public:
     QWidget *contentArea() const;     // the area a maximised cell fills
     Shortcuts *shortcuts() const;
 
+protected:
+    // Saves the window's size, whether it is maximized, and the sidebar width
+    // on this device. The window always opens centred.
+    void closeEvent(QCloseEvent *event) override;
+
 private:
     struct Private;
     std::unique_ptr<Private> d;

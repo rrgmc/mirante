@@ -225,13 +225,20 @@ Sidebar::Sidebar(const Model &model, const ItemTypeRegistry &types, QWidget *par
     });
 
     connect(d->tree, &QWidget::customContextMenuRequested, this, [this](const QPoint &pos) {
+        // Task dashboards and items can each be put in a new root dashboard.
         const QModelIndex index = d->tree->indexAt(pos);
-        if (!index.isValid() || d->kind(index) != SidebarModel::Kind::Task)
+        const SidebarModel::Kind kind = index.isValid() ? d->kind(index) : SidebarModel::Kind::Group;
+        if (kind != SidebarModel::Kind::Dashboard && kind != SidebarModel::Kind::Item)
             return;
-        const QString taskId = d->id(index);
+        const QString taskId = index.data(SidebarModel::TaskIdRole).toString();
+        const QString id = d->id(index);
         QMenu menu(this);
-        menu.addAction(tr("Open in new root dashboard"), this,
-                       [this, taskId] { emit openInNewRootDashboard(taskId); });
+        menu.addAction(tr("Open in new root dashboard"), this, [this, kind, taskId, id] {
+            if (kind == SidebarModel::Kind::Dashboard)
+                emit openInNewRootDashboard(taskId, id);
+            else
+                emit openItemInNewRootDashboard(taskId, id);
+        });
         menu.exec(d->tree->viewport()->mapToGlobal(pos));
     });
 }

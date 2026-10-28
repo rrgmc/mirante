@@ -40,7 +40,13 @@ The sidebar can be collapsed.
   - Dragging within a priority level changes the order.
   - Dragging across the boundary between two levels changes the priority.
   - A task itself is not dragged onto dashboards. Drag one of its items, to show that item, or one of its dashboards, to show the task with that dashboard in a root dashboard. See [placing tasks](#placing-tasks-and-items).
-- The context menu holds new, rename, set priority, set state, delete, and "Open in new root dashboard".
+- The context menu holds new, rename, set priority, set state and delete. On a task dashboard or an item it also holds "Open in new root dashboard", which makes a root dashboard showing just that dashboard or item.
+- Project rows have a light tinted background, so they stand out between groups and tasks.
+- Every delete asks for confirmation first.
+
+## Window
+
+The window opens centred on the screen, at the size it had when it was last closed on this device, maximized if it was. The sidebar width is kept too. The app's icon, a temporary one, is a blue square with three dashboard panes.
 
 ## Menus
 
@@ -117,6 +123,8 @@ When editing is on:
   - add tab;
   - clear cell;
   - remove cell.
+
+  Clear cell, remove cell, and closing a tab of a tab group ask for confirmation, since they remove content from the layout.
 - **The tab context menu** offers add tab (an empty tab after the clicked one), rename, close, move to the left or right, "Remove tab group" and "Collapse when single".
   - "Remove tab group" is enabled when the group has one tab. It unwraps the group once: the tab's content takes the group's place.
   - "Collapse when single" is a setting of the group: whenever it has one tab, now or after closing others, the group is replaced by that tab's content.

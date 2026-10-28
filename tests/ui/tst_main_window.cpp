@@ -361,6 +361,26 @@ private slots:
         QSettings().remove(QStringLiteral("workspace"));
     }
 
+    // From the sidebar menu, a task dashboard or a single item opens in a new
+    // root dashboard.
+    void openInNewRootDashboard()
+    {
+        Fixture f;
+        auto *sidebar = f.window->findChild<Sidebar *>();
+        emit sidebar->openInNewRootDashboard(kFixLoginTask, kFixLoginDashboard);
+        QCOMPARE(int(f.model.rootDashboards().size()), 3);
+        const LayoutNode &taskTree = f.window->currentLayoutView()->tree();
+        QVERIFY(taskTree.ref && taskTree.ref->isTask());
+        QCOMPARE(taskTree.ref->dashboard, kFixLoginDashboard);
+
+        emit sidebar->openItemInNewRootDashboard(kOverviewTask, kReviewsItem);
+        QCOMPARE(int(f.model.rootDashboards().size()), 4);
+        const LayoutNode &itemTree = f.window->currentLayoutView()->tree();
+        QVERIFY(itemTree.ref && itemTree.ref->isItem());
+        QCOMPARE(itemTree.ref->item, kReviewsItem);
+        QCOMPARE(itemTree.ref->task, kOverviewTask);
+    }
+
     void middleClickClosesTab()
     {
         Fixture f;
