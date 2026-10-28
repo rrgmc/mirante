@@ -11,6 +11,7 @@
 #include "ui/RootDashboardsDialog.h"
 #include "ui/RootTabBar.h"
 #include "ui/Sidebar.h"
+#include "ui/SidebarModel.h"
 
 #include <QApplication>
 #include <QLabel>
@@ -18,6 +19,7 @@
 #include <QSignalSpy>
 #include <QTest>
 #include <QToolButton>
+#include <QTreeView>
 
 #include <memory>
 
@@ -127,43 +129,75 @@ private slots:
         QVERIFY(layout::sameShape(f.window->currentLayoutView()->tree(), *reviewTree));
         f.window->pinTask(kFixLoginTask, review);
         QCOMPARE(f.bar()->previewIndex(), -1);
-        const LayoutNode &pinned = f.window->currentLayoutView()->tree();
-        QVERIFY(pinned.ref && pinned.ref->isTask());
-        QCOMPARE(pinned.ref->dashboard, review);
+        QVERIFY(layout::sameShape(f.window->currentLayoutView()->tree(), *reviewTree));
         f.window->openTaskPreview(kFixLoginTask);
         QCOMPARE(f.bar()->previewIndex(), 3);      // the default dashboard is not pinned yet
     }
 
+    // Pinning keeps a task dashboard in its own tab. It does not make a root
+    // dashboard: a task dashboard in a root dashboard is read-only.
     void pinTask()
     {
         Fixture f;
         f.window->openTaskPreview(kFixLoginTask);
         f.window->pinTask(kFixLoginTask);
 
-        const auto dashboards = f.model.rootDashboards();
-        QCOMPARE(int(dashboards.size()), 3);
+        QCOMPARE(int(f.model.rootDashboards().size()), 2);
         QCOMPARE(f.bar()->count(), 3);
         QCOMPARE(f.bar()->previewIndex(), -1);
-        QCOMPARE(f.bar()->currentIndex(), 0);
-        QCOMPARE(f.tabText(0), QStringLiteral("Fix login timeout / Work"));
-
-        const LayoutNode &tree = f.window->currentLayoutView()->tree();
-        QCOMPARE(tree.kind, LayoutNode::Kind::Cell);
-        QVERIFY(tree.ref && tree.ref->isTask());
-        QCOMPARE(tree.ref->task, kFixLoginTask);
-        QCOMPARE(tree.ref->dashboard, kFixLoginDashboard);
-
-        // A preview of a pinned task switches to its tab.
-        f.window->openRootDashboard(kRelease);
         QCOMPARE(f.bar()->currentIndex(), 2);
+        QCOMPARE(f.tabText(2), QStringLiteral("Fix login timeout / Work"));
+        QVERIFY(!f.bar()->tabIcon(2).isNull());    // a task dashboard tab
+        QVERIFY(f.bar()->tabIcon(0).isNull());     // a root dashboard tab
+        const LayoutNode *work = f.model.layout(DashboardRef{kFixLoginTask, kFixLoginDashboard});
+        QVERIFY(layout::sameShape(f.window->currentLayoutView()->tree(), *work));
+
+        // Opening it again switches to its tab.
+        f.window->openRootDashboard(kRelease);
+        QCOMPARE(f.bar()->currentIndex(), 1);
         f.window->openTaskPreview(kFixLoginTask);
-        QCOMPARE(f.bar()->currentIndex(), 0);
+        QCOMPARE(f.bar()->currentIndex(), 2);
         QCOMPARE(f.bar()->count(), 3);
         QCOMPARE(f.bar()->previewIndex(), -1);
 
-        // Pinning it again makes no second dashboard.
-        f.window->pinTask(kFixLoginTask);
-        QCOMPARE(int(f.model.rootDashboards().size()), 3);
+        // The next preview opens in a new tab after it.
+        f.window->openTaskPreview(kOverviewTask);
+        QCOMPARE(f.bar()->count(), 4);
+        QCOMPARE(f.bar()->previewIndex(), 3);
+    }
+
+    // A task dashboard tab has its own lock in its title bar. The lock at the
+    // end of the tab bar row is for root dashboards only.
+    void taskTabHasItsOwnLock()
+    {
+        Fixture f;
+        f.window->show();
+        QVERIFY(QTest::qWaitForWindowExposed(f.window.get()));
+        QToolButton *rootLock = nullptr;
+        for (QToolButton *button : f.window->findChildren<QToolButton *>(QStringLiteral("lockButton")))
+            rootLock = button;
+        QVERIFY(rootLock);
+        QVERIFY(rootLock->isVisible());
+
+        f.window->openTaskPreview(kFixLoginTask);
+        QVERIFY(!rootLock->isVisible());
+
+        // The sidebar selects the dashboard on screen, under its task.
+        auto *tree = f.window->findChild<Sidebar *>()->findChild<QTreeView *>();
+        QVERIFY(tree);
+        QCOMPARE(tree->currentIndex().data(SidebarModel::IdRole).toString(), kFixLoginDashboard);
+        QCOMPARE(tree->currentIndex().data(SidebarModel::TaskIdRole).toString(), kFixLoginTask);
+        QWidget *page = f.window->currentLayoutView()->parentWidget();
+        auto *taskLock = page->findChild<QToolButton *>(QStringLiteral("taskLockButton"));
+        QVERIFY(taskLock);
+        QVERIFY(taskLock->isVisible());
+        QVERIFY(!f.window->currentLayoutView()->editMode());
+        taskLock->click();
+        QVERIFY(f.window->currentLayoutView()->editMode());
+
+        f.window->openRootDashboard(kMorning);
+        QVERIFY(rootLock->isVisible());
+        QVERIFY(!f.window->currentLayoutView()->editMode());
     }
 
     void editingPreviewPinsIt()
@@ -179,7 +213,8 @@ private slots:
         f.model.setLayout(ref, layout::splitCell(*tree, {}, Edge::Right, std::nullopt).tree);
 
         QTRY_COMPARE(f.bar()->previewIndex(), -1);
-        QCOMPARE(int(f.model.rootDashboards().size()), 3);
+        QCOMPARE(int(f.model.rootDashboards().size()), 2);
+        QCOMPARE(f.bar()->count(), 3);
         QCOMPARE(f.tabText(f.bar()->currentIndex()), QStringLiteral("Fix login timeout / Work"));
     }
 
@@ -195,7 +230,8 @@ private slots:
         QCOMPARE(spy.at(0).at(0).toInt(), 2);
         QCOMPARE(f.bar()->previewIndex(), -1);
         QCOMPARE(f.bar()->count(), 3);
-        QCOMPARE(f.tabText(0), overviewTitle(f));
+        QCOMPARE(f.tabText(2), overviewTitle(f));
+        QCOMPARE(int(f.model.rootDashboards().size()), 2);
     }
 
     void newRootDashboard()
