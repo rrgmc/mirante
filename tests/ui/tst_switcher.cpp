@@ -146,11 +146,14 @@ private slots:
         QVERIFY(!ranked.empty());
         QCOMPARE(ranked[0].label, QStringLiteral("Add rate limiting"));
 
-        // Identical labels keep the kind order, so all five Default tasks.
-        ranked = QuickSwitcher::rank(m_entries, QStringLiteral("default"));
-        QCOMPARE(ranked.size(), std::size_t(5));
-        for (const SwitcherEntry &entry : ranked)
-            QCOMPARE(entry.kind, Kind::Task);
+        // Exact matches come first, and identical labels keep the kind order:
+        // the five Overview tasks before the item "Work overview".
+        ranked = QuickSwitcher::rank(m_entries, QStringLiteral("overview"));
+        QVERIFY(ranked.size() > 5);
+        for (std::size_t i = 0; i < 5; ++i) {
+            QCOMPARE(ranked[i].kind, Kind::Task);
+            QCOMPARE(ranked[i].label, QStringLiteral("Overview"));
+        }
 
         QVERIFY(QuickSwitcher::rank(m_entries, QStringLiteral("zzz")).empty());
     }

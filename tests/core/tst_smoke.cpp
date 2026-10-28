@@ -13,7 +13,6 @@ private slots:
         const mirante::Task task;
         QCOMPARE(task.priority, mirante::Priority::Normal);
         QCOMPARE(task.state, mirante::TaskState::Active);
-        QVERIFY(!task.isDefault);
     }
 };
 

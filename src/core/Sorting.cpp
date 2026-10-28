@@ -38,11 +38,9 @@ bool projectBefore(const Project &a, const Project &b)
     return a.id < b.id;
 }
 
-// The Default task first, then the same keys as projects, with the title.
+// The same keys as projects, with the title.
 bool taskBefore(const Task &a, const Task &b)
 {
-    if (a.isDefault != b.isDefault)
-        return a.isDefault;
     if (a.priority != b.priority)
         return a.priority < b.priority;
     if (a.order != b.order)
@@ -58,11 +56,8 @@ bool projectVisible(const Project &project, const SortFilter &filter)
     return !(filter.hideLow && project.priority == Priority::Low);
 }
 
-// The Default task is always shown: it is the home of its project.
 bool taskVisible(const Task &task, const SortFilter &filter)
 {
-    if (task.isDefault)
-        return true;
     if (filter.hideLow && task.priority == Priority::Low)
         return false;
     if (filter.hideClosed && task.state != TaskState::Active)

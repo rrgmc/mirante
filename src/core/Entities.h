@@ -121,7 +121,6 @@ struct Task
     QString id;
     QString projectId;
     QString title;
-    bool isDefault = false;
     TaskState state = TaskState::Active;
     Priority priority = Priority::Normal;
     int order = 0;

@@ -25,7 +25,7 @@ const QString personalGroup = QStringLiteral("80314e00-c02f-5f8b-977f-0756b76406
 const QString backendProject = QStringLiteral("3dd79dc2-8ec9-5181-b7d0-704a18f494d5");
 const QString frontendProject = QStringLiteral("fb99f6f7-be6d-5dd8-b3f2-2b09f71652a8");
 const QString infraProject = QStringLiteral("475aa13b-e862-5f2e-b9aa-e1f4950328bc");
-const QString backendDefault = QStringLiteral("c34def7a-af34-507f-a44d-770bb60dbe95");
+const QString backendOverview = QStringLiteral("c34def7a-af34-507f-a44d-770bb60dbe95");   // Normal, order 0
 const QString fixLoginTimeout = QStringLiteral("760c8e20-8555-5a2c-bcbe-75e7fd08ca74");     // Urgent
 const QString addRateLimiting = QStringLiteral("d71bd575-6d1b-5088-9da0-7d2cebf0d59e");     // High
 const QString upgradeGo = QStringLiteral("493ef622-9528-5506-b3c2-a1f07b3de3d1");           // Normal, done
@@ -67,7 +67,6 @@ private slots:
     void taskOrder();
     void hidesClosedByDefault();
     void hidesLow();
-    void keepsDefaultTask();
     void roles();
     void findsIndexes();
     void dragging();
@@ -95,7 +94,7 @@ void TestSidebarModel::taskOrder()
 {
     Fixture f;
     const QModelIndex backend = f.sidebar->indexOf(backendProject);
-    QCOMPARE(childIds(*f.sidebar, backend), (QStringList{backendDefault, fixLoginTimeout, addRateLimiting, flakyTest}));
+    QCOMPARE(childIds(*f.sidebar, backend), (QStringList{fixLoginTimeout, addRateLimiting, backendOverview, flakyTest}));
 }
 
 void TestSidebarModel::hidesClosedByDefault()
@@ -111,7 +110,7 @@ void TestSidebarModel::hidesClosedByDefault()
     f.sidebar->setFilter(filter);
     QCOMPARE(reset.count(), 1);
     QCOMPARE(childIds(*f.sidebar, f.sidebar->indexOf(backendProject)),
-             (QStringList{backendDefault, fixLoginTimeout, addRateLimiting, upgradeGo, flakyTest}));
+             (QStringList{fixLoginTimeout, addRateLimiting, backendOverview, upgradeGo, flakyTest}));
 
     // Setting the same filter again changes nothing.
     f.sidebar->setFilter(filter);
@@ -129,37 +128,7 @@ void TestSidebarModel::hidesLow()
     QCOMPARE(childIds(*f.sidebar, f.sidebar->index(0, 0)), (QStringList{backendProject, frontendProject}));
     QVERIFY(!f.sidebar->indexOf(infraProject).isValid());
     QCOMPARE(childIds(*f.sidebar, f.sidebar->indexOf(backendProject)),
-             (QStringList{backendDefault, fixLoginTimeout, addRateLimiting}));
-}
-
-void TestSidebarModel::keepsDefaultTask()
-{
-    Group group;
-    group.id = QStringLiteral("g");
-    group.name = QStringLiteral("Group");
-    Project project;
-    project.id = QStringLiteral("p");
-    project.groupId = group.id;
-    project.name = QStringLiteral("Project");
-    Task defaultTask;
-    defaultTask.id = QStringLiteral("t");
-    defaultTask.projectId = project.id;
-    defaultTask.title = QStringLiteral("Default");
-    defaultTask.isDefault = true;
-    defaultTask.priority = Priority::Low;
-    defaultTask.state = TaskState::Done;
-
-    Model model;
-    model.reset({group}, {project}, {defaultTask}, {});
-    ItemTypeRegistry types;
-    SidebarModel sidebar(model, types);
-    QAbstractItemModelTester tester(&sidebar, QAbstractItemModelTester::FailureReportingMode::Fatal);
-
-    SortFilter filter;
-    filter.hideLow = true;
-    filter.hideClosed = true;
-    sidebar.setFilter(filter);
-    QVERIFY(sidebar.indexOf(defaultTask.id).isValid());
+             (QStringList{fixLoginTimeout, addRateLimiting, backendOverview}));
 }
 
 void TestSidebarModel::roles()

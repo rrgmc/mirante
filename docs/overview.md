@@ -10,7 +10,7 @@ Work is organised in four levels:
 
 1. **Groups**, such as "Personal" and "Work".
 2. **Projects** inside a group. A project usually maps to one repository.
-3. **Tasks** inside a project. Every project also has a Default task.
+3. **Tasks** inside a project.
 4. **Items** inside a task. An item is one typed panel, such as one merge request or one Jira list.
 
 Items are arranged on **dashboards**. A dashboard is a layout of splits, tabs and cells that the user can change freely. Each task has its own dashboards. Root dashboards combine several tasks, or single items, from anywhere.
