@@ -1,4 +1,4 @@
-﻿#include "layout/SingleViewTracker.h"
+#include "layout/SingleViewTracker.h"
 
 #include <QHash>
 #include <QWidget>
