@@ -10,6 +10,7 @@
 #include <QIcon>
 #include <QMimeData>
 #include <QSignalSpy>
+#include <QTabBar>
 #include <QTest>
 #include <QToolButton>
 #include <QTreeView>
@@ -108,17 +109,20 @@ void TestSidebarModel::taskOrder()
 void TestSidebarModel::hidesClosedByDefault()
 {
     Fixture f;
-    QVERIFY(f.sidebar->filter().hideClosed);
+    QVERIFY(!f.sidebar->filter().closedTasks);
     QVERIFY(!f.sidebar->filter().hideLow);
     QVERIFY(!f.sidebar->indexOf(upgradeGo).isValid());
 
+    // The closed list shows the same groups and projects, with only done and
+    // archived tasks.
     QSignalSpy reset(f.sidebar.get(), &QAbstractItemModel::modelReset);
     SortFilter filter;
-    filter.hideClosed = false;
+    filter.closedTasks = true;
     f.sidebar->setFilter(filter);
     QCOMPARE(reset.count(), 1);
-    QCOMPARE(childIds(*f.sidebar, f.sidebar->indexOf(backendProject)),
-             (QStringList{fixLoginTimeout, addRateLimiting, backendOverview, upgradeGo, flakyTest}));
+    QCOMPARE(childIds(*f.sidebar, {}), (QStringList{workGroup, personalGroup}));
+    QCOMPARE(childIds(*f.sidebar, f.sidebar->index(0, 0)), (QStringList{backendProject, frontendProject, infraProject}));
+    QCOMPARE(childIds(*f.sidebar, f.sidebar->indexOf(backendProject)), QStringList{upgradeGo});
 
     // Setting the same filter again changes nothing.
     f.sidebar->setFilter(filter);
@@ -301,6 +305,20 @@ void TestSidebarModel::sidebarWidget()
     // The current entry and the expanded task survive the reset.
     QCOMPARE(tree->currentIndex(), sidebarModel->indexOf(itemId));
     QVERIFY(tree->isExpanded(sidebarModel->indexOf(fixLoginTimeout)));
+
+    // The "Done" tab lists done and archived tasks.
+    auto *stateTabs = sidebar.findChild<QTabBar *>(QStringLiteral("taskStateTabs"));
+    QVERIFY(stateTabs);
+    QCOMPARE(stateTabs->count(), 2);
+    QCOMPARE(stateTabs->currentIndex(), 0);
+    stateTabs->setCurrentIndex(1);
+    QVERIFY(sidebarModel->filter().closedTasks);
+    QVERIFY(!sidebarModel->indexOf(fixLoginTimeout).isValid());
+
+    // Revealing an active task switches back to the "Active" tab.
+    sidebar.reveal(fixLoginTimeout);
+    QCOMPARE(stateTabs->currentIndex(), 0);
+    QCOMPARE(tree->currentIndex(), sidebarModel->indexOf(fixLoginTimeout));
 }
 
 QTEST_MAIN(TestSidebarModel)

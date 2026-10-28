@@ -1,6 +1,9 @@
 #include "ui/RootTabBar.h"
 
+#include <QContextMenuEvent>
 #include <QIcon>
+#include <QMenu>
+#include <QMouseEvent>
 #include <QPaintEvent>
 #include <QPointer>
 #include <QStyleOptionTab>
@@ -119,6 +122,36 @@ void RootTabBar::paintEvent(QPaintEvent *event)
     }
     if (selected >= 0 && isTabVisible(selected))
         drawTab(selected);
+}
+
+// A middle click on a tab closes it, as in web browsers.
+void RootTabBar::mouseReleaseEvent(QMouseEvent *event)
+{
+    if (event->button() == Qt::MiddleButton) {
+        const int index = tabAt(event->position().toPoint());
+        if (index >= 0) {
+            emit tabCloseRequested(index);
+            return;
+        }
+    }
+    QTabBar::mouseReleaseEvent(event);
+}
+
+void RootTabBar::contextMenuEvent(QContextMenuEvent *event)
+{
+    const int index = tabAt(event->pos());
+    QMenu menu(this);
+    QAction *add = menu.addAction(tr("New dashboard"));
+    QAction *close = index >= 0 ? menu.addAction(tr("Close tab")) : nullptr;
+    menu.addSeparator();
+    QAction *list = menu.addAction(tr("All dashboards…"));
+    QAction *chosen = menu.exec(event->globalPos());
+    if (chosen == add)
+        emit newDashboardRequested();
+    else if (chosen && chosen == close)
+        emit tabCloseRequested(index);
+    else if (chosen == list)
+        emit dashboardListRequested();
 }
 
 } // namespace mirante

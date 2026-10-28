@@ -134,10 +134,12 @@ private slots:
         QVERIFY(!projectVisible(projects[0], SortFilter{true, false}));
     }
 
-    void hideClosedDoesNotApplyToProjects()
+    // Both task lists, active and closed, show every project.
+    void closedTasksDoesNotApplyToProjects()
     {
         const Project p = project("p", "P", Priority::Normal);
         QVERIFY(projectVisible(p, SortFilter{false, true}));
+        QVERIFY(projectVisible(p, SortFilter{false, false}));
     }
 
     void nullProjectsAreDropped()
@@ -160,16 +162,16 @@ private slots:
                  QStringList({"u", "h", "n1", "n3", "n4", "n2"}));
     }
 
-    void hideClosedTasks()
+    // The active list holds active tasks; the closed list, done and archived ones.
+    void activeOrClosedTasks()
     {
         const std::vector<Task> tasks = {
             task("active", "A"),
             task("done", "B", Priority::Normal, 0, TaskState::Done),
             task("archived", "C", Priority::Normal, 0, TaskState::Archived),
         };
-        QCOMPARE(taskIds(sortedTasks(pointers(tasks), SortFilter{false, true})), QStringList({"active"}));
-        QCOMPARE(taskIds(sortedTasks(pointers(tasks), SortFilter{false, false})),
-                 QStringList({"active", "done", "archived"}));
+        QCOMPARE(taskIds(sortedTasks(pointers(tasks), SortFilter{false, false})), QStringList({"active"}));
+        QCOMPARE(taskIds(sortedTasks(pointers(tasks), SortFilter{false, true})), QStringList({"done", "archived"}));
     }
 
     void hideLowTasks()
@@ -187,7 +189,7 @@ private slots:
     {
         const SortFilter filter;
         QVERIFY(!filter.hideLow);
-        QVERIFY(filter.hideClosed);
+        QVERIFY(!filter.closedTasks);
         QVERIFY(!taskVisible(task("d", "D", Priority::Normal, 0, TaskState::Done), filter));
         QVERIFY(taskVisible(task("l", "L", Priority::Low), filter));
     }

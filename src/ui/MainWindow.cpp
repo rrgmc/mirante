@@ -13,6 +13,7 @@
 #include "layout/TaskCell.h"
 #include "ui/ItemWindow.h"
 #include "ui/QuickSwitcher.h"
+#include "ui/RootDashboardsDialog.h"
 #include "ui/RootTabBar.h"
 #include "ui/Shortcuts.h"
 #include "ui/Sidebar.h"
@@ -21,6 +22,7 @@
 #include <QHBoxLayout>
 #include <QKeySequence>
 #include <QLabel>
+#include <QPointer>
 #include <QShortcut>
 #include <QSignalBlocker>
 #include <QSplitter>
@@ -105,6 +107,8 @@ struct MainWindow::Private
     QStackedWidget *stack = nullptr;
     Shortcuts *shortcuts = nullptr;
     QuickSwitcher *switcher = nullptr;
+    QToolButton *listButton = nullptr;
+    QPointer<RootDashboardsDialog> dashboardList;
 
     std::vector<DashboardPage *> pages;     // in tab order
     DashboardPage *preview = nullptr;       // also in pages, always last
@@ -453,10 +457,18 @@ struct MainWindow::Private
         lockButton->setObjectName(QStringLiteral("lockButton"));
         lockButton->setAutoRaise(true);
 
+        listButton = new QToolButton(content);
+        listButton->setObjectName(QStringLiteral("dashboardListButton"));
+        listButton->setIcon(QIcon(QStringLiteral(":/icons/dashboards.svg")));
+        listButton->setText(tr("All dashboards"));
+        listButton->setToolTip(tr("All root dashboards, including closed ones"));
+        listButton->setAutoRaise(true);
+
         tabRow->addWidget(showSidebarButton);
         tabRow->addWidget(tabBar);
         tabRow->addWidget(addButton);
         tabRow->addWidget(lockButton);
+        tabRow->addWidget(listButton);
         tabRow->addStretch(1);
 
         stack = new QStackedWidget(content);
@@ -523,6 +535,8 @@ MainWindow::MainWindow(Model &model, const ItemTypeRegistry &types, QWidget *par
             pinTask(d->preview->ref.taskId, d->preview->ref.dashboardId);
     });
     connect(d->tabBar, &RootTabBar::newDashboardRequested, this, &MainWindow::newRootDashboard);
+    connect(d->tabBar, &RootTabBar::dashboardListRequested, this, &MainWindow::showDashboardList);
+    connect(d->listButton, &QToolButton::clicked, this, &MainWindow::showDashboardList);
 
     // Locks.
     connect(d->lockButton, &QToolButton::clicked, this, [this] {
@@ -534,6 +548,11 @@ MainWindow::MainWindow(Model &model, const ItemTypeRegistry &types, QWidget *par
 
     // The model.
     connect(&model, &Model::rootDashboardChanged, this, [this](const QString &id) { d->onRootDashboardChanged(id); });
+    // A deleted root dashboard loses its tab. Closing a tab does not delete it.
+    connect(&model, &Model::rootDashboardRemoved, this, [this](const QString &id) {
+        if (DashboardPage *page = d->rootPage(id))
+            d->removeTab(d->indexOf(page));
+    });
     connect(&model, &Model::taskChanged, this, [this](const QString &taskId) { d->onTaskChanged(taskId); });
     connect(&model, &Model::modelReset, this, [this] {
         d->closeAllTabs();
@@ -661,6 +680,19 @@ void MainWindow::newRootDashboard()
     d->model->addRootDashboard(dashboard);
     d->locks->setUnlocked(dashboard.id, true);
     openRootDashboard(dashboard.id);
+}
+
+void MainWindow::showDashboardList()
+{
+    if (!d->dashboardList) {
+        d->dashboardList = new RootDashboardsDialog(
+            *d->model, [this](const QString &id) { return d->rootPage(id) != nullptr; }, this);
+        d->dashboardList->setAttribute(Qt::WA_DeleteOnClose);
+        connect(d->dashboardList, &RootDashboardsDialog::openRequested, this, &MainWindow::openRootDashboard);
+    }
+    d->dashboardList->show();
+    d->dashboardList->raise();
+    d->dashboardList->activateWindow();
 }
 
 void MainWindow::openItemWindow(const QString &taskId, const QString &itemId)

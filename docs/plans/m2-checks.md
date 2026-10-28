@@ -16,7 +16,7 @@ Tick each box, or note what is wrong next to it.
 
 - [ ] Groups, projects and tasks appear in that order, and each task has the children "Items" and "Dashboards". Projects and tasks are sorted by priority, then their manual order.
 - [ ] Urgent and High entries have a visible marker. Low entries are dimmed.
-- [ ] "Hide done" is on at start and hides done and archived tasks. "Hide Low" hides Low projects and tasks.
+- [ ] The "Active" tab at the bottom of the sidebar is chosen at start and lists active tasks. "Done" lists done and archived tasks under the same groups and projects. "Hide Low" hides Low projects and tasks in both.
 - [ ] The « button hides the sidebar, and the » button at the start of the tab bar row brings it back.
 
 ## Root tabs, preview and pinning
@@ -28,7 +28,9 @@ Tick each box, or note what is wrong next to it.
 - [ ] The pin button, or an edit of the previewed dashboard, pins it: the tab moves to the front and is no longer italic.
 - [ ] A double click on a task dashboard that already has a pinned tab switches to that tab.
 - [ ] The `+` button opens a new, empty, unlocked root dashboard.
-- [ ] Closing a root tab hides it, and `Ctrl+K` can open it again.
+- [ ] Closing a root tab, with its close button, a middle click or the tab bar's context menu, hides it. `Ctrl+K` or the dashboard list opens it again.
+- [ ] The dashboard list button, after the lock, lists every root dashboard, marks closed ones, opens them, and deletes one only after a confirmation.
+- [ ] Right-clicking the tab bar shows "New dashboard", "Close tab" over a tab, and "All dashboards…".
 - [ ] "Open in new root dashboard" in a task's context menu opens a new tab with that task.
 
 ## Cells and task cells

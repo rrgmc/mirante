@@ -8,6 +8,7 @@
 #include "layout/LayoutView.h"
 #include "ui/ItemWindow.h"
 #include "ui/MainWindow.h"
+#include "ui/RootDashboardsDialog.h"
 #include "ui/RootTabBar.h"
 #include "ui/Sidebar.h"
 
@@ -286,6 +287,54 @@ private slots:
         show->click();
         QVERIFY(sidebar->isVisibleTo(f.window.get()));
         QVERIFY(!show->isVisibleTo(f.window.get()));
+    }
+
+    // A middle click closes a tab. Its root dashboard is kept.
+    void middleClickClosesTab()
+    {
+        Fixture f;
+        f.window->show();
+        QVERIFY(QTest::qWaitForWindowExposed(f.window.get()));
+        QTRY_VERIFY(f.bar()->height() > 0);
+        QTest::mouseClick(f.bar(), Qt::MiddleButton, {}, f.bar()->tabRect(0).center());
+        QCOMPARE(f.bar()->count(), 1);
+        QCOMPARE(f.tabText(0), QStringLiteral("Release"));
+        QVERIFY(f.model.rootDashboard(kMorning));
+    }
+
+    // The list holds every root dashboard. It opens closed ones again, and is
+    // the only place where one is deleted.
+    void dashboardList()
+    {
+        Fixture f;
+        f.window->closeCurrentTab();    // closes Morning
+        QCOMPARE(f.bar()->count(), 1);
+
+        f.window->showDashboardList();
+        auto *list = f.window->findChild<RootDashboardsDialog *>();
+        QVERIFY(list);
+        QCOMPARE(list->ids(), (QStringList{kMorning, kRelease}));
+
+        list->select(kMorning);
+        list->openSelected();
+        QCOMPARE(f.bar()->count(), 2);
+        QCOMPARE(f.tabText(f.bar()->currentIndex()), QStringLiteral("Morning"));
+
+        // Deleting asks first. Saying no keeps the dashboard.
+        QString asked;
+        list->setConfirmDelete([&asked](const QString &name) {
+            asked = name;
+            return false;
+        });
+        list->deleteSelected();
+        QCOMPARE(asked, QStringLiteral("Morning"));
+        QVERIFY(f.model.rootDashboard(kMorning));
+
+        list->setConfirmDelete([](const QString &) { return true; });
+        list->deleteSelected();
+        QVERIFY(!f.model.rootDashboard(kMorning));
+        QCOMPARE(f.bar()->count(), 1);
+        QCOMPARE(list->ids(), QStringList{kRelease});
     }
 
     void itemWindow()

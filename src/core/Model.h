@@ -67,12 +67,15 @@ public:
     void setRootDashboardLayout(const QString &id, const LayoutNode &tree);
     void setLayout(const DashboardRef &dashboard, const LayoutNode &tree);   // calls one of the two above
     void addRootDashboard(const RootDashboard &dashboard);
+    // Deletes a root dashboard. Closing its tab does not; this does.
+    void removeRootDashboard(const QString &id);
 
 signals:
     void modelReset();
     void taskChanged(const QString &taskId);
     void rootDashboardChanged(const QString &id);
     void rootDashboardAdded(const QString &id);
+    void rootDashboardRemoved(const QString &id);
 
 private:
     struct Private;

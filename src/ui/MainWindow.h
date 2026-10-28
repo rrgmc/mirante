@@ -36,6 +36,9 @@ public:
     void pinTask(const QString &taskId, const QString &dashboardId = QString());
     void openRootDashboard(const QString &id);
     void newRootDashboard();
+    // Shows the list of all root dashboards, where closed ones are opened again
+    // and any can be deleted.
+    void showDashboardList();
     void focusItem(const QString &taskId, const QString &itemId);
     // Opens the item on its own in a maximized window, or raises its window.
     void openItemWindow(const QString &taskId, const QString &itemId);

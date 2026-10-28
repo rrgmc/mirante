@@ -7,7 +7,9 @@
 namespace mirante {
 
 // The tab bar of root dashboards. The preview tab has an italic title and a
-// pin button. The + button asks for a new root dashboard.
+// pin button. The + button asks for a new root dashboard. A middle click on a
+// tab asks to close it, and the context menu holds "New dashboard", "Close tab"
+// and "All dashboards…".
 // Implemented in RootTabBar.cpp.
 class RootTabBar : public QTabBar
 {
@@ -24,9 +26,12 @@ public:
 signals:
     void pinRequested(int index);
     void newDashboardRequested();
+    void dashboardListRequested();
 
 protected:
     void paintEvent(QPaintEvent *event) override;
+    void mouseReleaseEvent(QMouseEvent *event) override;
+    void contextMenuEvent(QContextMenuEvent *event) override;
 
 private:
     struct Private;

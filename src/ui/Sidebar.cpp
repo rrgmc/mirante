@@ -7,6 +7,7 @@
 #include <QLabel>
 #include <QMenu>
 #include <QSet>
+#include <QTabBar>
 #include <QToolButton>
 #include <QTreeView>
 #include <QVBoxLayout>
@@ -18,7 +19,7 @@ struct Sidebar::Private
     SidebarModel *model = nullptr;
     QTreeView *tree = nullptr;
     QToolButton *hideLow = nullptr;
-    QToolButton *hideClosed = nullptr;
+    QTabBar *stateTabs = nullptr;       // "Active" and "Done"
 
     // Expansion survives a reset of the model. Groups and projects start
     // expanded, so the user's collapsed ones are kept; tasks start collapsed.
@@ -54,7 +55,7 @@ struct Sidebar::Private
     {
         SortFilter filter = model->filter();
         filter.hideLow = hideLow->isChecked();
-        filter.hideClosed = hideClosed->isChecked();
+        filter.closedTasks = stateTabs->currentIndex() == 1;
         model->setFilter(filter);
     }
 };
@@ -102,21 +103,26 @@ Sidebar::Sidebar(const Model &model, const ItemTypeRegistry &types, QWidget *par
     d->hideLow->setChecked(d->model->filter().hideLow);
     d->hideLow->setAutoRaise(true);
 
-    d->hideClosed = new QToolButton(this);
-    d->hideClosed->setText(tr("Hide done"));
-    d->hideClosed->setToolTip(tr("Hide done and archived tasks"));
-    d->hideClosed->setCheckable(true);
-    d->hideClosed->setChecked(d->model->filter().hideClosed);
-    d->hideClosed->setAutoRaise(true);
+    // Two task lists over the same groups and projects: active tasks, and
+    // done and archived ones.
+    d->stateTabs = new QTabBar(this);
+    d->stateTabs->setObjectName(QStringLiteral("taskStateTabs"));
+    d->stateTabs->setShape(QTabBar::RoundedSouth);
+    d->stateTabs->setDrawBase(false);
+    d->stateTabs->setExpanding(false);
+    d->stateTabs->addTab(tr("Active"));
+    d->stateTabs->addTab(tr("Done"));
+    d->stateTabs->setTabToolTip(1, tr("Done and archived tasks"));
+    d->stateTabs->setCurrentIndex(d->model->filter().closedTasks ? 1 : 0);
 
     connect(d->hideLow, &QToolButton::toggled, this, [this] { d->applyFilter(); });
-    connect(d->hideClosed, &QToolButton::toggled, this, [this] { d->applyFilter(); });
+    connect(d->stateTabs, &QTabBar::currentChanged, this, [this] { d->applyFilter(); });
 
     auto *footer = new QHBoxLayout;
-    footer->setContentsMargins(4, 4, 4, 4);
-    footer->addWidget(d->hideLow);
-    footer->addWidget(d->hideClosed);
+    footer->setContentsMargins(4, 0, 4, 4);
+    footer->addWidget(d->stateTabs);
     footer->addStretch(1);
+    footer->addWidget(d->hideLow);
 
     auto *layout = new QVBoxLayout(this);
     layout->setContentsMargins(0, 0, 0, 0);
@@ -177,13 +183,27 @@ Sidebar::Sidebar(const Model &model, const ItemTypeRegistry &types, QWidget *par
     });
 }
 
-Sidebar::~Sidebar() = default;
+Sidebar::~Sidebar()
+{
+    // The children outlive d, so their signals must not reach it.
+    d->stateTabs->disconnect(this);
+    d->hideLow->disconnect(this);
+    d->tree->disconnect(this);
+    d->model->disconnect(this);
+}
 
 void Sidebar::reveal(const QString &id)
 {
-    const QModelIndex index = d->model->indexOf(id);
-    if (!index.isValid())
-        return;
+    QModelIndex index = d->model->indexOf(id);
+    if (!index.isValid()) {
+        // The entry may be in the other task list, active or done.
+        d->stateTabs->setCurrentIndex(1 - d->stateTabs->currentIndex());
+        index = d->model->indexOf(id);
+        if (!index.isValid()) {
+            d->stateTabs->setCurrentIndex(1 - d->stateTabs->currentIndex());
+            return;
+        }
+    }
     for (QModelIndex parent = index.parent(); parent.isValid(); parent = parent.parent())
         d->tree->expand(parent);
     d->tree->setCurrentIndex(index);
