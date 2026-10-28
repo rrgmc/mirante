@@ -32,7 +32,7 @@ The sidebar can be collapsed.
 - Projects and tasks are sorted by [priority](data-model.md#priority), then manual order.
 - A coloured marker shows the priority level. Low items are dimmed.
 - Each task has two fixed children: **Items**, with the task's items, and **Dashboards**, with its task dashboards. They are there for every task, even when empty.
-- A filter hides Low items, and another hides Done and Archived tasks. The first is off by default, the second on.
+- Two tabs at the bottom, **Active** and **Done**, show the same groups and projects. The first lists active tasks; the second, done and archived ones. A filter, off by default, hides Low items in both.
 - [Attention badges](#attention) appear on tasks, and are summed on projects and groups.
 - **Drag and drop:**
   - Dragging within a priority level changes the order.
@@ -58,7 +58,9 @@ A root dashboard is a tab in the main tab bar. It has a name and a [layout tree]
 - A cell can hold a task, showing one of the task's dashboards, or a single item from any task.
 - A task dashboard inside a root dashboard shows a thin header with the task and dashboard names, its lock, and a button to open it alone. It has no picker: to show another dashboard of the task, drop that dashboard from the sidebar.
 - The `+` button creates an empty root dashboard, with editing on.
-- Closing a root dashboard's tab does not delete it. It can be opened again with the [quick switcher](#keyboard).
+- Closing a root dashboard's tab, with its close button, a middle click or the tab bar's context menu, does not delete it. It can be opened again with the [quick switcher](#keyboard) or the dashboard list.
+- The **dashboard list**, opened with the button after the lock in the tab bar row or with "All dashboards…" in the tab bar's context menu, lists every root dashboard and marks closed ones. It opens a dashboard again, and it is the only place where a root dashboard is deleted, after a confirmation.
+- Right-clicking the tab bar shows "New dashboard", "Close tab" over a tab, and "All dashboards…".
 
 ### Placing tasks and items
 

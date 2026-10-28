@@ -223,7 +223,7 @@ using NodePath = std::vector<int>;   // child indices from the root
 - A second function, `serialise(Model)`, returns the files the model would write. It is used by the write-back test and becomes the base of writing in M3.
 - `QJsonDocument` writes object keys in sorted order and `Indented` format gives the pretty-printing that [sync](../sync.md#the-data-folder) asks for.
 
-**`Sorting`.** Sort keys for projects and tasks: priority, then `order`. Done and archived tasks can be filtered out. Used by the sidebar now and by Focus in M3.
+**`Sorting`.** Sort keys for projects and tasks: priority, then `order`. A filter shows either active tasks, or done and archived ones. Used by the sidebar now and by Focus in M3.
 
 **`FuzzyMatch`.** A scoring function for the switcher: characters of the query in order, with bonuses for word starts and consecutive matches, case-insensitive. A pure function, tested on its own.
 

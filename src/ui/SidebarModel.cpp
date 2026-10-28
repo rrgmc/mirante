@@ -171,7 +171,7 @@ SidebarModel::~SidebarModel() = default;
 
 void SidebarModel::setFilter(const SortFilter &filter)
 {
-    if (filter.hideLow == d->filter.hideLow && filter.hideClosed == d->filter.hideClosed)
+    if (filter.hideLow == d->filter.hideLow && filter.closedTasks == d->filter.closedTasks)
         return;
     beginResetModel();
     d->filter = filter;

@@ -227,4 +227,11 @@ void Model::addRootDashboard(const RootDashboard &dashboard)
     emit rootDashboardAdded(dashboard.id);
 }
 
+void Model::removeRootDashboard(const QString &id)
+{
+    if (d->rootDashboards.erase(id) == 0)
+        return;
+    emit rootDashboardRemoved(id);
+}
+
 } // namespace mirante

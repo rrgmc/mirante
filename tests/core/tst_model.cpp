@@ -105,6 +105,7 @@ private slots:
     void setterRemovesLayoutFromExtra();
     void unknownIdsAreIgnored();
     void addRootDashboard();
+    void removeRootDashboard();
     void pointersStayValid();
 };
 
@@ -340,6 +341,25 @@ void TestModel::addRootDashboard()
     model.addRootDashboard(added);
     QCOMPARE(spy.count(), 1);
     QCOMPARE(model.rootDashboards().size(), std::size_t(2));
+}
+
+void TestModel::removeRootDashboard()
+{
+    Model model;
+    fill(model);
+    const std::size_t before = model.rootDashboards().size();
+    const QString id = model.rootDashboards().front()->id;
+    QSignalSpy spy(&model, &Model::rootDashboardRemoved);
+
+    model.removeRootDashboard(id);
+    QCOMPARE(spy.count(), 1);
+    QCOMPARE(spy.at(0).at(0).toString(), id);
+    QVERIFY(!model.rootDashboard(id));
+    QCOMPARE(model.rootDashboards().size(), before - 1);
+
+    // An unknown id changes nothing.
+    model.removeRootDashboard(QStringLiteral("no-such-id"));
+    QCOMPARE(spy.count(), 1);
 }
 
 void TestModel::pointersStayValid()

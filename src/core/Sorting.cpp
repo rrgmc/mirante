@@ -50,7 +50,7 @@ bool taskBefore(const Task &a, const Task &b)
     return a.id < b.id;
 }
 
-// hideClosed does not apply to projects, which have no state.
+// closedTasks does not apply to projects, which have no state.
 bool projectVisible(const Project &project, const SortFilter &filter)
 {
     return !(filter.hideLow && project.priority == Priority::Low);
@@ -60,9 +60,7 @@ bool taskVisible(const Task &task, const SortFilter &filter)
 {
     if (filter.hideLow && task.priority == Priority::Low)
         return false;
-    if (filter.hideClosed && task.state != TaskState::Active)
-        return false;
-    return true;
+    return (task.state != TaskState::Active) == filter.closedTasks;
 }
 
 std::vector<const Project *> sortedProjects(std::vector<const Project *> projects, const SortFilter &filter)
