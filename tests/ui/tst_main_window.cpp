@@ -351,7 +351,7 @@ private slots:
         QCOMPARE(f.window->workspace(), folder);
         QCOMPARE(f.window->recentWorkspaces(), QStringList{folder});
         QCOMPARE(QSettings().value(QStringLiteral("workspace/last")).toString(), folder);
-        // The fixtures have a workspace.json naming them, which the title shows.
+        // The fixtures have a workspace.mirante naming them, which the title shows.
         QVERIFY(f.window->windowTitle().startsWith(QStringLiteral("Sample data")));
         QCOMPARE(f.bar()->count(), 2);
         QVERIFY(f.window->findChild<QWidget *>(QStringLiteral("warningBar"))->isHidden());
@@ -366,7 +366,7 @@ private slots:
         QSettings().remove(QStringLiteral("workspace"));
     }
 
-    // A workspace's name lives in its workspace.json. Renaming writes it, and
+    // A workspace's name lives in its workspace.mirante. Renaming writes it, and
     // the sidebar title and the window title show it.
     void renameWorkspace()
     {

@@ -52,7 +52,7 @@ The window opens centred on the screen, at the size it had when it was last clos
 
 The menu bar has three menus.
 
-- **File:** Open Workspace… (`Ctrl+O`), Open Recent with the last ten workspaces and Clear Recent, Rename Workspace…, Open Sample Data, Reload Workspace (`F5`), and Quit (`Ctrl+Q`). A workspace is a data folder. At start the app opens the workspace given with `--data`, otherwise the last one used on this device, otherwise the sample data. The window title and the sidebar header show the workspace's name: the name in its `workspace.json`, else the folder's name. Rename Workspace…, or a double click on the name in the sidebar header, renames it and writes `workspace.json` at once. The sample data cannot be renamed. See [decision 0025](decisions/0025-workspace-file.md).
+- **File:** Open Workspace… (`Ctrl+O`), Open Recent with the last ten workspaces and Clear Recent, Rename Workspace…, Open Sample Data, Reload Workspace (`F5`), and Quit (`Ctrl+Q`). A workspace is a data folder. At start the app opens the workspace given with `--data`, otherwise the last one used on this device, otherwise the sample data. The window title and the sidebar header show the workspace's name: the name in its `workspace.mirante`, else the folder's name. Rename Workspace…, or a double click on the name in the sidebar header, renames it and writes `workspace.mirante` at once. The sample data cannot be renamed. See [decision 0025](decisions/0025-workspace-file.md).
 - **View:** Sidebar (show or hide), Expand All Tasks, Collapse All Tasks, Go To… (`Ctrl+K`, the [quick switcher](#keyboard)), All Dashboards…, and New Dashboard.
 - **Help:** About Mirante, with the version, the author and the project's address, and About Qt.
 

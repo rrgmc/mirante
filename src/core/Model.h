@@ -59,7 +59,7 @@ public:
     std::vector<const Task *> tasksOfProject(const QString &projectId) const;
     std::vector<const RootDashboard *> rootDashboards() const;
 
-    // The workspace's name, from workspace.json in the data folder. Empty if
+    // The workspace's name, from workspace.mirante in the data folder. Empty if
     // it has none. reset() clears it.
     QString workspaceName() const;
     void setWorkspaceName(const QString &name);

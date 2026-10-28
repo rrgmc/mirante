@@ -20,7 +20,9 @@ mirante_set_warnings(mirante)
 mirante_finish_modules(mirante)
 
 # The fixture data folder, loaded unless the app is started with --data.
-file(GLOB_RECURSE fixture_files CONFIGURE_DEPENDS "${PROJECT_SOURCE_DIR}/resources/fixtures/*.json")
+file(GLOB_RECURSE fixture_files CONFIGURE_DEPENDS
+    "${PROJECT_SOURCE_DIR}/resources/fixtures/*.json"
+    "${PROJECT_SOURCE_DIR}/resources/fixtures/*.mirante")
 if(fixture_files)
     qt_add_resources(mirante fixtures
         PREFIX /fixtures
