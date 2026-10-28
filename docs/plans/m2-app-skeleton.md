@@ -82,7 +82,7 @@ Each preset has a matching build and test preset. On Windows, presets are run fr
   3. on Linux, install `ninja-build`, `pkg-config`, `libsecret-1-dev`, `libx11-dev`, `libxkbcommon-dev`, `libxkbcommon-x11-0`, `libgl1-mesa-dev`, `libegl1`, `libfontconfig1` and `libdbus-1-3`; on macOS, install `ninja`;
   4. on Windows, run `tools/build.ps1 -Preset ci`, which gets Qt, enters the MSVC environment, builds and tests in one step; on macOS and Linux, run `tools/setup-qt.sh`, then configure, build and test with the `ci` preset.
 - **no-modules** job, Linux only: configure, build and test with the `ci-no-modules` preset.
-- **module-includes** job: fails if any file under `src/modules/` includes a path that starts with `../`, or a core header by name. The build already blocks the include path. This catches relative paths, which the build cannot block.
+- **module-includes** job: fails if any file under `src/modules/` includes a path that starts with `../`, or a core header by name. The build already blocks the include path. This catches relative paths, which the build cannot block. Module tests in `src/modules/<id>/tests/` are skipped, because they register into the real registry and link `mirante_items`.
 
 **Executable.** `main.cpp` creates `QApplication`, the registries, `Model` and `MainWindow`, in the order given in [architecture](../architecture.md#ownership-and-lifetime). Services that do not exist yet are left out. The application name, organisation and version come from CMake through a generated `Version.h`.
 
