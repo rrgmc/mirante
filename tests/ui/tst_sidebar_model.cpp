@@ -265,6 +265,14 @@ void TestSidebarModel::sidebarWidget()
     auto *sidebarModel = qobject_cast<SidebarModel *>(tree->model());
     QVERIFY(sidebarModel);
 
+    // Shown, every row has a height. With uniform row heights the tree once
+    // measured 0 and drew nothing.
+    sidebar.resize(280, 600);
+    sidebar.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&sidebar));
+    QTRY_VERIFY(tree->visualRect(sidebarModel->index(0, 0)).height() > 0);
+    QVERIFY(tree->visualRect(sidebarModel->index(1, 0)).top() > tree->visualRect(sidebarModel->index(0, 0)).top());
+
     const QString itemId = model.task(fixLoginTimeout)->items.front().id;
     sidebar.reveal(itemId);
     QCOMPARE(tree->currentIndex(), sidebarModel->indexOf(itemId));
