@@ -93,6 +93,20 @@ struct LayoutEditor::Private
     std::optional<EditResult> insert(const DashboardRef &dashboard, const LayoutNode &tree, const DropTarget &target,
                                      const std::optional<CellRef> &ref, const QString &title) const;
 
+    // Drops. A drop is planned first and stored only if the plan exists, so
+    // the overlay can ask whether a drop would work without making it.
+    struct DropPlan
+    {
+        std::optional<DashboardRef> source;     // set when a cell leaves another dashboard
+        LayoutNode sourceTree;
+        DashboardRef target;
+        LayoutNode tree;
+    };
+    std::optional<DropPlan> planDrop(const DashboardRef &dashboard, const DropTarget &target,
+                                     const DragPayload &payload) const;
+    std::optional<std::pair<DashboardRef, DropTarget>> resolveDrop(LayoutView *view, const DropTarget &target,
+                                                                   const DragPayload &payload) const;
+
     // Views
     void forget(LayoutView *view);
     void showCellMenu(LayoutView *view, const NodePath &path, const QPoint &globalPos);
@@ -410,18 +424,24 @@ void LayoutEditor::Private::onDropped(LayoutView *view, const DropTarget &target
         QTimer::singleShot(0, q, apply);
 }
 
-// A task dropped inside a task cell lands beside that task cell in the root
-// dashboard, because a task dashboard holds only its own items.
 void LayoutEditor::Private::dropFromView(LayoutView *view, const DropTarget &target, const DragPayload &payload)
+{
+    if (const auto resolved = resolveDrop(view, target, payload))
+        q->drop(resolved->first, resolved->second, payload);
+}
+
+// The dashboard and target a drop on a view applies to. A task dropped inside
+// a task cell lands beside that task cell in the root dashboard, because a
+// task dashboard holds only its own items.
+std::optional<std::pair<DashboardRef, DropTarget>>
+LayoutEditor::Private::resolveDrop(LayoutView *view, const DropTarget &target, const DragPayload &payload) const
 {
     const auto found = views.find(view);
     if (found == views.end())
-        return;
+        return std::nullopt;
     const DashboardRef dashboard = found->second;
-    if (dashboard.isRoot() || !payload.ref.isTask()) {
-        q->drop(dashboard, target, payload);
-        return;
-    }
+    if (dashboard.isRoot() || !payload.ref.isTask())
+        return std::make_pair(dashboard, target);
 
     for (QWidget *widget = view->parentWidget(); widget; widget = widget->parentWidget()) {
         auto *taskCell = qobject_cast<TaskCell *>(widget);
@@ -434,17 +454,17 @@ void LayoutEditor::Private::dropFromView(LayoutView *view, const DropTarget &tar
             const auto root = views.find(rootView);
             const std::optional<NodePath> path = rootView->pathOf(taskCell);
             if (root == views.end() || !path)
-                return;
+                return std::nullopt;
             DropTarget beside{*path, target.zone};
             if (beside.zone.kind != DropZone::Kind::Edge) {
                 beside.zone.kind = DropZone::Kind::Edge;
                 beside.zone.edge = Edge::Right;
             }
-            q->drop(root->second, beside, payload);
-            return;
+            return std::make_pair(root->second, beside);
         }
-        return;
+        return std::nullopt;
     }
+    return std::nullopt;
 }
 
 LayoutEditor::LayoutEditor(Model &model, const ItemTypeRegistry &types, QObject *parent)
@@ -490,6 +510,10 @@ void LayoutEditor::attach(LayoutView *view, const DashboardRef &dashboard)
 
     auto *overlay = new DropOverlay(view);
     d->overlays[view] = overlay;
+    overlay->setAcceptor([this, view](const DropTarget &target, const DragPayload &payload) {
+        const auto resolved = d->resolveDrop(view, target, payload);
+        return resolved && d->planDrop(resolved->first, resolved->second, payload).has_value();
+    });
     connect(overlay, &DropOverlay::dropped, this, [this, view](const DropTarget &target, const DragPayload &payload) {
         d->onDropped(view, target, payload);
     });
@@ -591,55 +615,66 @@ void LayoutEditor::renameTab(const DashboardRef &dashboard, const NodePath &tabs
 
 bool LayoutEditor::drop(const DashboardRef &dashboard, const DropTarget &target, const DragPayload &payload)
 {
-    const LayoutNode *tree = d->model.layout(dashboard);
-    if (!tree)
+    // Both trees are made before either is stored, since storing replaces them.
+    const std::optional<Private::DropPlan> plan = d->planDrop(dashboard, target, payload);
+    if (!plan)
         return false;
+    if (plan->source)
+        d->model.setLayout(*plan->source, plan->sourceTree);
+    d->model.setLayout(plan->target, plan->tree);
+    return true;
+}
+
+std::optional<LayoutEditor::Private::DropPlan>
+LayoutEditor::Private::planDrop(const DashboardRef &dashboard, const DropTarget &target,
+                                const DragPayload &payload) const
+{
+    const LayoutNode *tree = model.layout(dashboard);
+    if (!tree)
+        return std::nullopt;
 
     const bool isMove = payload.sourceDashboard && payload.sourcePath;
     if (isMove && *payload.sourceDashboard == dashboard) {
         const EditResult result = layout::moveNode(*tree, *payload.sourcePath, target.path, target.zone);
         // A failed move returns the root path; a done one never does.
         if (result.path.empty())
-            return false;
-        d->model.setLayout(dashboard, d->nameUntitledTabs(dashboard, result.tree, result.path));
-        return true;
+            return std::nullopt;
+        return DropPlan{std::nullopt, {}, dashboard, nameUntitledTabs(dashboard, result.tree, result.path)};
     }
 
     std::optional<CellRef> stored;
-    if (!d->accepts(dashboard, payload.ref, &stored))
-        return false;
+    if (!accepts(dashboard, payload.ref, &stored))
+        return std::nullopt;
 
     // A cell moved from another dashboard leaves its source, keeping its tab title.
-    std::optional<LayoutNode> sourceTree;
+    DropPlan plan;
+    plan.target = dashboard;
     QString title;
     if (isMove) {
-        const LayoutNode *source = d->model.layout(*payload.sourceDashboard);
+        const LayoutNode *source = model.layout(*payload.sourceDashboard);
         const LayoutNode *node = source ? layout::nodeAt(*source, *payload.sourcePath) : nullptr;
         if (!node || node->kind != Kind::Cell || node->ref.value_or(CellRef{}) != payload.ref)
-            return false;
+            return std::nullopt;
         if (const std::optional<NodePath> parentPath = parentOf(*payload.sourcePath)) {
             const LayoutNode *parent = layout::nodeAt(*source, *parentPath);
             const auto index = std::size_t(payload.sourcePath->back());
             if (parent->kind == Kind::Tabs && index < parent->titles.size())
                 title = parent->titles[index];
         }
-        sourceTree = layout::removeNode(*source, *payload.sourcePath);
+        plan.source = *payload.sourceDashboard;
+        plan.sourceTree = layout::removeNode(*source, *payload.sourcePath);
     }
 
     LayoutNode cell;
     cell.ref = stored;
     if (title.isEmpty())
-        title = d->titleFor(dashboard, &cell);
+        title = titleFor(dashboard, &cell);
 
-    const std::optional<EditResult> result = d->insert(dashboard, *tree, target, stored, title);
+    const std::optional<EditResult> result = insert(dashboard, *tree, target, stored, title);
     if (!result)
-        return false;
-    // Both trees are made before either is stored, since storing replaces them.
-    const LayoutNode edited = result->tree;
-    if (sourceTree)
-        d->model.setLayout(*payload.sourceDashboard, *sourceTree);
-    d->model.setLayout(dashboard, edited);
-    return true;
+        return std::nullopt;
+    plan.tree = result->tree;
+    return plan;
 }
 
 } // namespace mirante
