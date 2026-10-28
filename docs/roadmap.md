@@ -14,13 +14,13 @@ The documents in this folder.
 
 A clickable prototype of the navigation, made of one HTML page with mock data. Web pages and API data are shown as placeholders. See [decision 0012](decisions/0012-html-prototype-first.md).
 
-- [ ] The sidebar shows groups, projects and tasks, sorted by priority, with markers and dimmed Low items.
-- [ ] Clicking a task opens it in a preview tab, and pinning works.
-- [ ] Root dashboards and task dashboards show nested splits and tabs.
-- [ ] Layouts can be edited with the context menu and with drag and drop onto edges and centres.
-- [ ] Detaching is simulated.
-- [ ] The Focus view and the `Ctrl+K` switcher work on the mock data.
-- [ ] The user has tried it, and [ui.md](ui.md) is updated with the changes agreed.
+- [x] The sidebar shows groups, projects and tasks, sorted by priority, with markers and dimmed Low items.
+- [x] Clicking a task opens it in a preview tab, and pinning works.
+- [x] Root dashboards and task dashboards show nested splits and tabs.
+- [x] Layouts can be edited with the context menu and with drag and drop onto edges and centres.
+- [x] Detaching is simulated.
+- [x] The Focus view and the `Ctrl+K` switcher work on the mock data.
+- [x] The user has tried it, and [ui.md](ui.md) is updated with the changes agreed.
 
 ## M2: Qt spike with fixture data
 

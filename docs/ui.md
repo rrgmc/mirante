@@ -1,6 +1,6 @@
 # User interface
 
-This document describes navigation, dashboards and editing. It is a first version. It will be refined after the clickable HTML prototype in [milestone M1](roadmap.md#m1-html-prototype).
+This document describes navigation, dashboards and editing. It was checked with the clickable HTML prototype in [milestone M1](roadmap.md#m1-html-prototype).
 
 ## Main window
 
@@ -32,7 +32,8 @@ The sidebar can be collapsed.
 - Projects and tasks are sorted by [priority](data-model.md#priority), then manual order.
 - Each project's Default task is always first.
 - A coloured marker shows the priority level. Low items are dimmed.
-- A filter hides Low items, and another hides Done and Archived tasks. Both are on by default for archived tasks.
+- Tasks can be expanded to show their items, so that items can be dragged onto dashboards.
+- A filter hides Low items, and another hides Done and Archived tasks. The first is off by default, the second on.
 - [Attention badges](#attention) appear on tasks, and are summed on projects and groups.
 - **Drag and drop:**
   - Dragging within a priority level changes the order.
@@ -43,7 +44,8 @@ The sidebar can be collapsed.
 ## Opening tasks
 
 - **Single click:** opens the task's default dashboard in the **preview tab**. The preview tab shows its title in italics. The next single click on another task replaces it.
-- **Pin:** a double click, editing the dashboard, or the pin button turns the preview tab into a normal tab. A pinned task tab is a root dashboard holding one cell with that task.
+- **Pin:** a double click, editing the dashboard, or the pin button turns the preview tab into a normal tab. A pinned task tab is a root dashboard holding one cell with that task. It goes to the front of the tab bar. It shows two lock buttons: the root dashboard's in the toolbar, and the task dashboard's in the task header.
+- Clicking a task that already has a pinned tab switches to that tab instead of opening a preview.
 - **Dashboard picker:** a task with several dashboards shows a small picker in its header to switch between them.
 
 The open tabs, and which one is the preview, are stored on each device, not synced.
@@ -54,12 +56,14 @@ A root dashboard is a tab in the main tab bar. It has a name and a [layout tree]
 
 - A cell can hold a task, showing one of the task's dashboards, or a single item from any task.
 - A task inside a root dashboard shows a thin header with the task name, its dashboard picker, and a button to open the task alone.
-- The `+` button creates an empty root dashboard.
+- The `+` button creates an empty root dashboard, with editing on.
+- Closing a root dashboard's tab does not delete it. It can be opened again with the [quick switcher](#keyboard).
 
 ### Placing tasks and items
 
-- Drag a task or an item from the sidebar onto a dashboard. The drop overlay shows where it lands. See [editing](#editing-layouts).
-- Or use "Add to dashboard…" in the context menu, then pick a dashboard and a cell.
+- Drag a task or an item from the sidebar onto a dashboard. The drop overlay shows where it lands. See [editing](#editing-layouts). This works even when the layout is locked, because a drag from the sidebar is deliberate.
+- Or use "Add to dashboard…" in the context menu, then pick a dashboard and click a cell. An empty cell is filled; any other cell is split.
+- A task dropped onto a cell inside a task shown in a root dashboard lands beside that task's cell, since a task dashboard holds only its own items.
 
 ## Task dashboards
 
@@ -102,7 +106,7 @@ When editing is on:
 - **The tab context menu** offers rename, close, move to the left or right, and "Collapse when single".
 - **Drag and drop:** drag a cell by its header, or drag an item from the sidebar. A semi-transparent overlay shows five drop zones on the cell under the cursor:
   - the left, right, top or bottom edge splits the cell on that side;
-  - the centre adds the dropped content as a tab, turning the cell into a tab group if needed.
+  - the centre adds the dropped content as a tab, turning the cell into a tab group if needed. On an empty cell, the centre fills the cell instead.
 - Dropping on a tab bar inserts a new tab at that position.
 
 After each edit, the tree is [normalised](data-model.md#normalisation).
@@ -121,7 +125,7 @@ If the same item is shown in two places, each place has its own live view. See [
 
 Focus answers "what should I work on now?", across all projects.
 
-- It lists active tasks from all projects, or from one group, chosen with a filter.
+- It lists active tasks from all projects, or from one group, chosen with a filter. Default tasks are not listed.
 - **Sort order:**
   1. task priority;
   2. project priority, to break ties;
