@@ -42,11 +42,12 @@ The sidebar can be collapsed.
 
 ## Opening tasks
 
-- **Single click:** selects the task. It opens nothing.
-- **Double click** (or `Enter`): opens the task's default dashboard in the **preview tab**. The preview tab shows its title in italics. The next task opened this way replaces it. A double click on an item opens its task the same way and focuses the item's cell. A double click on a dashboard opens the task with that dashboard.
+- **Single click:** selects a row. It opens nothing.
+- **Double click** (or `Enter`) on a task: expands or collapses it. Tasks are opened through their dashboards.
+- **Double click** on a task dashboard: opens it in the **preview tab**. The preview tab shows its title in italics. The next dashboard opened this way replaces it. Task dashboard titles name the task and the dashboard: "Task / Dashboard".
+- **Double click** on an item: opens the item alone in its own window, shown maximized. `Escape` closes it. See [decision 0019](decisions/0019-fixed-task-cells-and-item-windows.md).
 - **Pin:** editing the dashboard, or the pin button, turns the preview tab into a normal tab. A pinned task tab is a root dashboard holding one cell with that task. It goes to the front of the tab bar. It shows two lock buttons: the root dashboard's next to the `+` button in the tab bar row, and the task dashboard's in the task header.
-- Opening a task that already has a pinned tab switches to that tab instead of opening a preview.
-- **Dashboard picker:** a task with several dashboards shows a small picker in its header to switch between them.
+- Opening a task dashboard that already has a pinned tab switches to that tab instead of opening a preview.
 
 The open tabs, and which one is the preview, are stored on each device, not synced.
 
@@ -55,7 +56,7 @@ The open tabs, and which one is the preview, are stored on each device, not sync
 A root dashboard is a tab in the main tab bar. It has a name and a [layout tree](data-model.md#layout-tree).
 
 - A cell can hold a task, showing one of the task's dashboards, or a single item from any task.
-- A task inside a root dashboard shows a thin header with the task name, its dashboard picker, and a button to open the task alone.
+- A task dashboard inside a root dashboard shows a thin header with the task and dashboard names, its lock, and a button to open it alone. It has no picker: to show another dashboard of the task, drop that dashboard from the sidebar.
 - The `+` button creates an empty root dashboard, with editing on.
 - Closing a root dashboard's tab does not delete it. It can be opened again with the [quick switcher](#keyboard).
 
@@ -131,7 +132,7 @@ Focus answers "what should I work on now?", across all projects.
   2. project priority, to break ties;
   3. manual order.
 - A toggle, "Needs attention first", moves tasks with attention badges to the top.
-- A double click opens the task in the preview tab, as in the sidebar.
+- A double click opens the task's default dashboard in the preview tab.
 
 ## Attention
 

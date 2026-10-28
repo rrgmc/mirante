@@ -277,7 +277,7 @@ The conversion is done once with a small script, which is not committed. The fix
 - Empty cells show "Empty". Cells with `removed` set show "Removed".
 - A focused cell gets a highlighted border.
 
-**`TaskCell`** is the cell of a task in a root dashboard. It has a thin header with the task name, a dashboard picker when the task has more than one dashboard, the task dashboard's lock button and an "open alone" button. Its body is a nested `LayoutView` on the chosen task dashboard. Edits there change the task dashboard, as in [decision 0011](../decisions/0011-root-cells-reference-task-dashboards.md). The chosen dashboard is stored in the cell's reference.
+**`TaskCell`** is the cell of a task in a root dashboard. It has a thin header with the task and dashboard names ("Task / Dashboard"), the task dashboard's lock button and an "open alone" button. It has no dashboard picker, see [decision 0019](../decisions/0019-fixed-task-cells-and-item-windows.md). Its body is a nested `LayoutView` on the task dashboard in its reference. Edits there change the task dashboard, as in [decision 0011](../decisions/0011-root-cells-reference-task-dashboards.md). The chosen dashboard is stored in the cell's reference.
 
 **Lock state.** Each dashboard starts locked. A set of unlocked dashboard ids is kept in memory by `MainWindow` and passed to the views. Resizing splitters and switching tabs work while locked.
 
@@ -308,7 +308,7 @@ The conversion is done once with a small script, which is not committed. The fix
 - Groups use manual order. Projects and tasks are sorted with `Sorting`.
 - A delegate paints the priority marker and dims Low entries.
 - Two filter buttons hide Low entries and done or archived tasks. The second is on by default. A button collapses the sidebar.
-- **Clicks:** a single click selects. A double click, or `Enter`, on a task opens the preview; on an item it opens the task and focuses the item. Groups and projects expand and collapse.
+- **Clicks:** a single click selects. A double click, or `Enter`, on a task dashboard opens the preview; on an item it opens the item alone in an `ItemWindow`. Groups, projects, tasks and the two lists expand and collapse.
 - **Context menu in M2:** "Open in new root dashboard" only. The rest arrives with editing in M3.
 - **Not in M2:** the Focus entry and sidebar reordering arrive in M3.
 

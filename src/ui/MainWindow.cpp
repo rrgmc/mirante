@@ -11,6 +11,7 @@
 #include "layout/LockState.h"
 #include "layout/SingleViewTracker.h"
 #include "layout/TaskCell.h"
+#include "ui/ItemWindow.h"
 #include "ui/QuickSwitcher.h"
 #include "ui/RootTabBar.h"
 #include "ui/Shortcuts.h"
@@ -137,8 +138,17 @@ struct MainWindow::Private
             const RootDashboard *dashboard = model->rootDashboard(ref.dashboardId);
             return dashboard ? dashboard->name : QString();
         }
-        const Task *task = model->task(ref.taskId);
-        return task ? task->title : QString();
+        return taskDashboardTitle(ref.taskId, ref.dashboardId);
+    }
+
+    // A task dashboard is named after its task and itself: "Task / Dashboard".
+    QString taskDashboardTitle(const QString &taskId, const QString &dashboardId) const
+    {
+        const Task *task = model->task(taskId);
+        if (!task)
+            return QString();
+        const Dashboard *dashboard = model->taskDashboard(taskId, dashboardId);
+        return dashboard ? MainWindow::tr("%1 / %2").arg(task->title, dashboard->name) : task->title;
     }
 
     DashboardPage *makePage(const DashboardRef &ref)
@@ -297,7 +307,7 @@ struct MainWindow::Private
 
         RootDashboard dashboard;
         dashboard.id = QUuid::createUuid().toString(QUuid::WithoutBraces);
-        dashboard.name = task->title;
+        dashboard.name = taskDashboardTitle(task->id, dashboardId);
         dashboard.order = minOrder() - 1;
         dashboard.layout.ref = ref;
         model->addRootDashboard(dashboard);
@@ -494,9 +504,8 @@ MainWindow::MainWindow(Model &model, const ItemTypeRegistry &types, QWidget *par
     setCentralWidget(d->splitter);
 
     // The sidebar.
-    connect(d->sidebar, &Sidebar::taskOpened, this, [this](const QString &taskId) { openTaskPreview(taskId); });
     connect(d->sidebar, &Sidebar::dashboardOpened, this, &MainWindow::openTaskPreview);
-    connect(d->sidebar, &Sidebar::itemOpened, this, &MainWindow::focusItem);
+    connect(d->sidebar, &Sidebar::itemOpened, this, &MainWindow::openItemWindow);
     connect(d->sidebar, &Sidebar::openInNewRootDashboard, this, [this](const QString &taskId) {
         const Task *task = d->model->task(taskId);
         const QString id = task ? d->addTaskRootDashboard(taskId, Private::defaultDashboardOf(*task)) : QString();
@@ -652,6 +661,23 @@ void MainWindow::newRootDashboard()
     d->model->addRootDashboard(dashboard);
     d->locks->setUnlocked(dashboard.id, true);
     openRootDashboard(dashboard.id);
+}
+
+void MainWindow::openItemWindow(const QString &taskId, const QString &itemId)
+{
+    if (!d->model->item(taskId, itemId))
+        return;
+    // Item windows are children of the main window, so they close with it.
+    for (ItemWindow *window : findChildren<ItemWindow *>()) {
+        if (window->taskId() == taskId && window->itemId() == itemId) {
+            window->showMaximized();
+            window->raise();
+            window->activateWindow();
+            return;
+        }
+    }
+    auto *window = new ItemWindow(*d->model, *d->types, taskId, itemId, this);
+    window->showMaximized();
 }
 
 void MainWindow::focusItem(const QString &taskId, const QString &itemId)

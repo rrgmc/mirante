@@ -12,9 +12,9 @@ namespace mirante {
 
 class LayoutView;
 
-// The cell of a task in a root dashboard: a thin header with the task name, a
-// dashboard picker, the lock button and an "open alone" button, over a nested
-// LayoutView of the chosen task dashboard. Edits in the nested view change the
+// The cell of a task dashboard in a root dashboard: a thin header with the
+// task and dashboard names, the lock button and an "open alone" button, over a
+// nested LayoutView of that task dashboard. Edits in the nested view change the
 // task dashboard. See docs/decisions/0011-root-cells-reference-task-dashboards.md.
 // Implemented in TaskCell.cpp.
 class TaskCell : public QWidget
@@ -22,14 +22,14 @@ class TaskCell : public QWidget
     Q_OBJECT
 
 public:
-    // rootDashboard is the root dashboard that holds the cell. Choosing another
-    // task dashboard updates the cell's reference in it.
+    // rootDashboard is the root dashboard that holds the cell. The cell shows
+    // ref.dashboard, or the task's default dashboard if ref has none.
     TaskCell(const LayoutServices &services, const DashboardRef &rootDashboard, const CellRef &ref,
              QWidget *parent = nullptr);
     ~TaskCell() override;
 
     QString taskId() const;
-    QString dashboardId() const;    // the chosen task dashboard
+    QString dashboardId() const;    // the task dashboard shown
     LayoutView *view() const;       // the nested view
 
     // The root dashboard's edit mode, which makes the header a drag handle.

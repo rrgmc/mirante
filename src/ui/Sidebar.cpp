@@ -148,14 +148,11 @@ Sidebar::Sidebar(const Model &model, const ItemTypeRegistry &types, QWidget *par
     });
     d->restoreExpansion({});
 
-    // Activation is a double click or Enter. It opens tasks, items and
-    // dashboards, and expands or collapses the other rows.
+    // Activation is a double click or Enter. It opens items and dashboards,
+    // and expands or collapses every other row, tasks included.
     connect(d->tree, &QTreeView::activated, this, [this](const QModelIndex &index) {
         const QString taskId = index.data(SidebarModel::TaskIdRole).toString();
         switch (d->kind(index)) {
-        case SidebarModel::Kind::Task:
-            emit taskOpened(taskId);
-            break;
         case SidebarModel::Kind::Item:
             emit itemOpened(taskId, d->id(index));
             break;

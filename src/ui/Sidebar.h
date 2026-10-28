@@ -24,8 +24,9 @@ public:
     void reveal(const QString &id);
 
 signals:
-    // A double click, or Enter, opens a task or item. A single click only selects.
-    void taskOpened(const QString &taskId);
+    // A double click, or Enter, opens an item or a task dashboard. On every
+    // other row, tasks included, it expands or collapses the row. A single
+    // click only selects.
     void itemOpened(const QString &taskId, const QString &itemId);
     void dashboardOpened(const QString &taskId, const QString &dashboardId);
     void openInNewRootDashboard(const QString &taskId);

@@ -8,12 +8,9 @@
 
 #include <QIcon>
 #include <QApplication>
-#include <QComboBox>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QMouseEvent>
-#include <QSignalBlocker>
-#include <QTimer>
 #include <QToolButton>
 #include <QVBoxLayout>
 
@@ -113,7 +110,6 @@ struct TaskCell::Private
     QVBoxLayout *layout = nullptr;
     TaskHeader *header = nullptr;
     QLabel *title = nullptr;
-    QComboBox *picker = nullptr;
     QToolButton *lockButton = nullptr;
     QToolButton *openButton = nullptr;
     QLabel *removedLabel = nullptr;
@@ -123,17 +119,13 @@ struct TaskCell::Private
     bool isUnlocked() const { return services.locks && services.locks->isUnlocked(dashboardId); }
 
     void refresh();
-    void updatePicker(const Task &task);
     void updateLock();
     void buildView();
     void dropView();
     void showTree();
-    void choose(const QString &id);
-    void storeChoice();
 };
 
-// Brings the cell in line with the model: title, picker, chosen dashboard and
-// the nested tree.
+// Brings the cell in line with the model: title, dashboard and the nested tree.
 void TaskCell::Private::refresh()
 {
     const Task *current = task();
@@ -145,32 +137,27 @@ void TaskCell::Private::refresh()
     openButton->setVisible(!removed && services.openTaskAlone);
     if (removed) {
         title->setText(TaskCell::tr("Removed task"));
-        picker->hide();
         dropView();
         return;
     }
 
-    title->setText(current->title);
     const QString chosen = chooseDashboard(*current, dashboardId);
     const bool rebuild = !view || chosen != dashboardId;
     dashboardId = chosen;
-    updatePicker(*current);
+    // The cell shows one task dashboard, so its title names the task and it.
+    QString dashboardName;
+    for (const Dashboard &dashboard : current->dashboards) {
+        if (dashboard.id == dashboardId)
+            dashboardName = dashboard.name;
+    }
+    title->setText(dashboardName.isEmpty() ? current->title
+                                           : TaskCell::tr("%1 / %2").arg(current->title, dashboardName));
     if (rebuild) {
         buildView();
         updateLock();
     } else {
         showTree();
     }
-}
-
-void TaskCell::Private::updatePicker(const Task &task)
-{
-    const QSignalBlocker blocker(picker);
-    picker->clear();
-    for (const Dashboard &dashboard : task.dashboards)
-        picker->addItem(dashboard.name, dashboard.id);
-    picker->setCurrentIndex(picker->findData(dashboardId));
-    picker->setVisible(task.dashboards.size() > 1);
 }
 
 void TaskCell::Private::updateLock()
@@ -224,49 +211,6 @@ void TaskCell::Private::showTree()
     view->setTree(tree ? *tree : layout::emptyLayout());
 }
 
-// The user picked another dashboard.
-void TaskCell::Private::choose(const QString &id)
-{
-    if (id.isEmpty() || id == dashboardId || removed)
-        return;
-    dashboardId = id;
-    buildView();
-    updateLock();
-    storeChoice();
-}
-
-// Writes the chosen dashboard into the cell's reference in the root dashboard.
-// The write is queued, because the root view may replace this cell when the
-// root tree changes, and the picker's signal is still being delivered.
-void TaskCell::Private::storeChoice()
-{
-    if (!services.model || !rootDashboard.isRoot())
-        return;
-    LayoutView *outer = nullptr;
-    for (QWidget *parent = q->parentWidget(); parent && !outer; parent = parent->parentWidget())
-        outer = qobject_cast<LayoutView *>(parent);
-    if (!outer)
-        return;
-    const std::optional<NodePath> path = outer->pathOf(q);
-    if (!path)
-        return;
-
-    Model *model = services.model;
-    const QString rootId = rootDashboard.dashboardId;
-    const CellRef ref{QString(), taskId, dashboardId};
-    const NodePath cellPath = *path;
-    QTimer::singleShot(0, model, [model, rootId, ref, cellPath] {
-        const LayoutNode *tree = model->layout({QString(), rootId});
-        if (!tree)
-            return;
-        const LayoutNode *node = layout::nodeAt(*tree, cellPath);
-        if (!node || node->kind != LayoutNode::Kind::Cell || !node->ref || !node->ref->isTask()
-            || node->ref->task != ref.task || *node->ref == ref)
-            return;
-        model->setRootDashboardLayout(rootId, layout::setRef(*tree, cellPath, ref));
-    });
-}
-
 TaskCell::TaskCell(const LayoutServices &services, const DashboardRef &rootDashboard, const CellRef &ref,
                    QWidget *parent)
     : QWidget(parent)
@@ -301,11 +245,6 @@ TaskCell::TaskCell(const LayoutServices &services, const DashboardRef &rootDashb
     d->title->setFont(font);
     headerLayout->addWidget(d->title, 1);
 
-    d->picker = new QComboBox(d->header);
-    d->picker->setObjectName(QStringLiteral("dashboardPicker"));
-    d->picker->setToolTip(tr("Task dashboard"));
-    d->picker->setSizeAdjustPolicy(QComboBox::AdjustToContents);
-    headerLayout->addWidget(d->picker);
 
     d->lockButton = new QToolButton(d->header);
     d->lockButton->setObjectName(QStringLiteral("lockButton"));
@@ -328,8 +267,6 @@ TaskCell::TaskCell(const LayoutServices &services, const DashboardRef &rootDashb
     d->removedLabel->setEnabled(false);
     d->layout->addWidget(d->removedLabel, 1);
 
-    connect(d->picker, &QComboBox::currentIndexChanged, this,
-            [this](int index) { d->choose(d->picker->itemData(index).toString()); });
     connect(d->lockButton, &QToolButton::clicked, this, [this] {
         if (d->services.locks)
             d->services.locks->setUnlocked(d->dashboardId, !d->isUnlocked());
@@ -362,7 +299,6 @@ TaskCell::~TaskCell()
     // The child widgets outlive d, so their signals must not reach it.
     d->header->onDrag = nullptr;
     d->header->disconnect(this);
-    d->picker->disconnect(this);
     d->lockButton->disconnect(this);
     d->openButton->disconnect(this);
 }

@@ -24,6 +24,7 @@ Each file records one design decision: what was decided, what else was considere
 | [0016](0016-generic-items.md) | Generic items: any `QWidget`, with two view flags | Accepted |
 | [0017](0017-parallel-tasks-with-fixed-interfaces.md) | Parallel tasks with fixed interfaces and globbed sources | Accepted |
 | [0018](0018-no-default-task.md) | No Default task in projects | Accepted |
+| [0019](0019-fixed-task-cells-and-item-windows.md) | Task cells show one dashboard, and items open alone | Accepted |
 
 ## Template
 
