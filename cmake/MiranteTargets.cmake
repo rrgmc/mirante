@@ -44,6 +44,11 @@ function(mirante_add_test name)
     target_compile_definitions(${name} PRIVATE
         MIRANTE_FIXTURES_DIR="${PROJECT_SOURCE_DIR}/resources/fixtures")
     mirante_set_warnings(${name})
+    # QSKIP and other Qt Test macros are variadic. Called with one argument,
+    # they trip this pedantic Clang warning in C++17.
+    if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+        target_compile_options(${name} PRIVATE -Wno-gnu-zero-variadic-macro-arguments)
+    endif()
     add_test(NAME ${name} COMMAND ${name})
     set_tests_properties(${name} PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 endfunction()
