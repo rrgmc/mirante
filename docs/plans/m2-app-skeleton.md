@@ -207,7 +207,7 @@ using NodePath = std::vector<int>;   // child indices from the root
   - `moveNode(tree, from, to, Zone)`, where the zone is an edge, the centre or a tab bar position;
   - `renameTab`, `moveTab`, `setCurrentTab`, `setCollapseSingle`;
   - `setSizes(tree, splitPath, sizes)`.
-- `normalise(tree, exists)` applies the six [normalisation rules](../data-model.md#normalisation), repeated until nothing changes. `exists` is a function that says whether a `CellRef` still refers to something. A dangling reference becomes an empty cell with `removed` set.
+- `normalise(tree, exists)` applies the seven [normalisation rules](../data-model.md#normalisation), repeated until nothing changes. `exists` is a function that says whether a `CellRef` still refers to something. A dangling reference becomes an empty cell with `removed` set.
 - `sameShape(a, b)` compares two trees, ignoring `sizes` and `current`. `LayoutView` uses it to tell a resize from a structural change.
 
 **`Model`** is a `QObject` that owns all entities.
@@ -374,7 +374,7 @@ Each agent gets this brief, with its task id filled in:
 | T2 | `m2-modules` | The module mechanism of Part 2: `mirante_add_module()`, `mirante_finish_modules()`, the generated registration, `ItemTypeRegistry`, `UnknownItemType`, `tst_registry`. The `web` module as the first stub module. | `cmake/MiranteModule.cmake`, `cmake/enabled_modules.cpp.in`, `src/items/*.cpp`, `src/modules/web/`, `tests/items/` | T0 |
 | T3 | `m2-entities` | The entity structs' `fromJson()` and `toJson()`, and the JSON conversion of `LayoutNode`. `tst_entities`. | `src/core/Entities.cpp`, `src/core/LayoutTreeJson.cpp`, `tests/core/tst_entities.cpp` | T0 |
 | T4 | `m2-layout-edits` | The `LayoutTree` edit operations and `sameShape`. `tst_layout_edits`. | `src/core/LayoutTree.cpp`, `tests/core/tst_layout_edits.cpp` | T0 |
-| T5 | `m2-normalise` | `normalise()` with the six rules and size scaling. `tst_normalise`. | `src/core/LayoutNormalise.cpp`, `tests/core/tst_normalise.cpp` | T0 |
+| T5 | `m2-normalise` | `normalise()` with the normalisation rules and size scaling. `tst_normalise`. | `src/core/LayoutNormalise.cpp`, `tests/core/tst_normalise.cpp` | T0 |
 | T6 | `m2-sorting-fuzzy` | `Sorting` and `FuzzyMatch`. `tst_sorting`, `tst_fuzzy`. | `src/core/Sorting.cpp`, `src/core/FuzzyMatch.cpp`, their tests | T0 |
 | T7 | `m2-fixtures` | The fixture data folder, as described in Part 3. | `resources/fixtures/` | T0 |
 | T8 | `m2-model-store` | `Model` and `Store`. `tst_store_load`, `tst_write_back`. | `src/core/Model.cpp`, `src/core/Store.cpp`, their tests | T3, T5, T7 |

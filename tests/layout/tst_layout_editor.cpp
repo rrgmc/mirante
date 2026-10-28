@@ -182,6 +182,18 @@ private slots:
         QCOMPARE(refAt(work, {0, 0}), itemRef(claudeItem));
     }
 
+    void wrapInTabsTwiceDoesNotNest()
+    {
+        editor->cellCommand(work, {0}, CellCommand::WrapInTabs);
+        editor->cellCommand(work, {0, 0}, CellCommand::WrapInTabs);
+        editor->cellCommand(work, {0}, CellCommand::WrapInTabs);
+        const LayoutNode &tabs = node(work, {0});
+        QCOMPARE(tabs.kind, Kind::Tabs);
+        QCOMPARE(tabs.children.size(), std::size_t(1));
+        QCOMPARE(tabs.children[0].kind, Kind::Cell);
+        QCOMPARE(refAt(work, {0, 0}), itemRef(claudeItem));
+    }
+
     void addTabWrapsACellAndAddsAnEmptyTab()
     {
         editor->cellCommand(work, {0}, CellCommand::AddTab);

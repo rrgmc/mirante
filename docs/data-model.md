@@ -205,6 +205,7 @@ After every edit, the app cleans the tree:
 4. A tabs node with one tab keeps its tab bar, unless `collapseSingle` is `true`. Then it is replaced by the tab's node.
 5. Removing an item from a cell leaves an empty cell, not a gap.
 6. A cell that refers to a deleted item, task or dashboard becomes an empty cell showing "Removed".
+7. A tabs node with one tab whose node is another tabs node is replaced by that inner tabs node. A tab bar with one tab around another tab bar shows nothing new.
 
 ## What is synced
 
