@@ -232,6 +232,7 @@ struct QuickSwitcher::Private
     const Model *model = nullptr;
     QLineEdit *edit = nullptr;
     QListWidget *list = nullptr;
+    QObject *filter = nullptr;
     std::vector<SwitcherEntry> candidates;
     std::vector<SwitcherEntry> shown;
 
@@ -364,6 +365,7 @@ QuickSwitcher::QuickSwitcher(const Model &model, QWidget *parent)
             return false;
         },
         this);
+    d->filter = filter;
     d->edit->installEventFilter(filter);
     if (parent)
         parent->installEventFilter(filter);
@@ -381,7 +383,16 @@ QuickSwitcher::QuickSwitcher(const Model &model, QWidget *parent)
     hide();
 }
 
-QuickSwitcher::~QuickSwitcher() = default;
+QuickSwitcher::~QuickSwitcher()
+{
+    // The filter and the connections below read d. The children they watch
+    // still receive events, such as focus changes, while QWidget's destructor
+    // runs after d is gone, so remove them first.
+    delete d->filter;
+    disconnect(qApp, nullptr, this, nullptr);
+    d->edit->disconnect(this);
+    d->list->disconnect(this);
+}
 
 void QuickSwitcher::popup()
 {
