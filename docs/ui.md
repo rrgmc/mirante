@@ -31,19 +31,19 @@ The sidebar can be collapsed.
 - Groups appear in manual order.
 - Projects and tasks are sorted by [priority](data-model.md#priority), then manual order.
 - A coloured marker shows the priority level. Low items are dimmed.
-- Tasks can be expanded to show their items, so that items can be dragged onto dashboards.
+- Each task has two fixed children: **Items**, with the task's items, and **Dashboards**, with its task dashboards. They are there for every task, even when empty.
 - A filter hides Low items, and another hides Done and Archived tasks. The first is off by default, the second on.
 - [Attention badges](#attention) appear on tasks, and are summed on projects and groups.
 - **Drag and drop:**
   - Dragging within a priority level changes the order.
   - Dragging across the boundary between two levels changes the priority.
-  - Dragging a task onto the content area places it in a root dashboard. See [placing tasks](#placing-tasks-and-items).
+  - A task itself is not dragged onto dashboards. Drag one of its items, to show that item, or one of its dashboards, to show the task with that dashboard in a root dashboard. See [placing tasks](#placing-tasks-and-items).
 - The context menu holds new, rename, set priority, set state, delete, and "Open in new root dashboard".
 
 ## Opening tasks
 
 - **Single click:** selects the task. It opens nothing.
-- **Double click** (or `Enter`): opens the task's default dashboard in the **preview tab**. The preview tab shows its title in italics. The next task opened this way replaces it. A double click on an item opens its task the same way and focuses the item's cell.
+- **Double click** (or `Enter`): opens the task's default dashboard in the **preview tab**. The preview tab shows its title in italics. The next task opened this way replaces it. A double click on an item opens its task the same way and focuses the item's cell. A double click on a dashboard opens the task with that dashboard.
 - **Pin:** editing the dashboard, or the pin button, turns the preview tab into a normal tab. A pinned task tab is a root dashboard holding one cell with that task. It goes to the front of the tab bar. It shows two lock buttons: the root dashboard's next to the `+` button in the tab bar row, and the task dashboard's in the task header.
 - Opening a task that already has a pinned tab switches to that tab instead of opening a preview.
 - **Dashboard picker:** a task with several dashboards shows a small picker in its header to switch between them.
@@ -61,9 +61,9 @@ A root dashboard is a tab in the main tab bar. It has a name and a [layout tree]
 
 ### Placing tasks and items
 
-- Unlock the dashboard, then drag a task or an item from the sidebar onto it. The drop overlay shows where it lands. See [editing](#editing-layouts). A locked dashboard refuses every drop: it shows no drop zones, and the cursor shows that the drop is not possible.
+- Unlock the dashboard, then drag an item or a task dashboard from the sidebar onto it. A task dashboard dropped on a root dashboard places its task there, showing that dashboard. The drop overlay shows where it lands. See [editing](#editing-layouts). A locked dashboard refuses every drop: it shows no drop zones, and the cursor shows that the drop is not possible.
 - Or use "Add to dashboard…" in the context menu, then pick a dashboard and click a cell. An empty cell is filled; any other cell is split.
-- Tasks go only into root dashboards. Inside a task shown in a root dashboard, only that task's items can be dropped; a task dragged over its cells is refused. To place a task beside a task cell, drop it on the task cell's header, which belongs to the root dashboard.
+- Tasks go only into root dashboards. Inside a task shown in a root dashboard, only that task's items can be dropped; a task dashboard dragged over its cells is refused. To place a task beside a task cell, drop its dashboard on the task cell's header, which belongs to the root dashboard.
 
 ## Task dashboards
 

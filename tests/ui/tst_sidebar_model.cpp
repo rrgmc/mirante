@@ -85,9 +85,17 @@ void TestSidebarModel::structure()
     QCOMPARE(childIds(*f.sidebar, work), (QStringList{backendProject, frontendProject, infraProject}));
     QCOMPARE(f.sidebar->rowCount(f.sidebar->index(1, 0)), 2);
 
+    // A task has two fixed children: its items, then its dashboards.
     const QModelIndex fix = f.sidebar->indexOf(fixLoginTimeout);
-    QCOMPARE(f.sidebar->rowCount(fix), 8);
-    QCOMPARE(f.sidebar->rowCount(f.sidebar->index(0, 0, fix)), 0);
+    QCOMPARE(f.sidebar->rowCount(fix), 2);
+    const QModelIndex items = f.sidebar->index(0, 0, fix);
+    const QModelIndex dashboards = f.sidebar->index(1, 0, fix);
+    QCOMPARE(items.data(SidebarModel::KindRole).toInt(), int(SidebarModel::Kind::ItemList));
+    QCOMPARE(dashboards.data(SidebarModel::KindRole).toInt(), int(SidebarModel::Kind::DashboardList));
+    QCOMPARE(f.sidebar->rowCount(items), 8);
+    QCOMPARE(f.sidebar->rowCount(dashboards), 2);
+    QCOMPARE(f.sidebar->rowCount(f.sidebar->index(0, 0, items)), 0);
+    QCOMPARE(f.sidebar->rowCount(f.sidebar->index(0, 0, dashboards)), 0);
 }
 
 void TestSidebarModel::taskOrder()
@@ -152,7 +160,21 @@ void TestSidebarModel::roles()
     QCOMPARE(fix.data(SidebarModel::TaskIdRole).toString(), fixLoginTimeout);
     QCOMPARE(fix.data(SidebarModel::PriorityRole).toInt(), int(Priority::Urgent));
 
-    const QModelIndex item = f.sidebar->index(0, 0, fix);
+    const QModelIndex items = f.sidebar->index(0, 0, fix);
+    QCOMPARE(items.data(Qt::DisplayRole).toString(), QStringLiteral("Items"));
+    QCOMPARE(items.data(SidebarModel::TaskIdRole).toString(), fixLoginTimeout);
+    const QModelIndex dashboards = f.sidebar->index(1, 0, fix);
+    QCOMPARE(dashboards.data(Qt::DisplayRole).toString(), QStringLiteral("Dashboards"));
+
+    const QModelIndex dashboard = f.sidebar->index(0, 0, dashboards);
+    const Dashboard &firstDashboard = f.model.task(fixLoginTimeout)->dashboards.front();
+    QCOMPARE(dashboard.data(SidebarModel::KindRole).toInt(), int(SidebarModel::Kind::Dashboard));
+    QCOMPARE(dashboard.data(SidebarModel::IdRole).toString(), firstDashboard.id);
+    QCOMPARE(dashboard.data(SidebarModel::TaskIdRole).toString(), fixLoginTimeout);
+    QCOMPARE(dashboard.data(Qt::DisplayRole).toString(), firstDashboard.name);
+    QVERIFY(!dashboard.data(Qt::DecorationRole).value<QIcon>().isNull());
+
+    const QModelIndex item = f.sidebar->index(0, 0, items);
     const Item &first = f.model.task(fixLoginTimeout)->items.front();
     QCOMPARE(item.data(SidebarModel::KindRole).toInt(), int(SidebarModel::Kind::Item));
     QCOMPARE(item.data(SidebarModel::IdRole).toString(), first.id);
@@ -171,7 +193,7 @@ void TestSidebarModel::findsIndexes()
         QVERIFY(index.isValid());
         QCOMPARE(index.data(SidebarModel::IdRole).toString(), id);
     }
-    QCOMPARE(f.sidebar->indexOf(itemId).parent(), f.sidebar->indexOf(fixLoginTimeout));
+    QCOMPARE(f.sidebar->indexOf(itemId).parent().parent(), f.sidebar->indexOf(fixLoginTimeout));
     QVERIFY(!f.sidebar->indexOf(QStringLiteral("no-such-id")).isValid());
 }
 
@@ -180,18 +202,35 @@ void TestSidebarModel::dragging()
     Fixture f;
     QCOMPARE(f.sidebar->mimeTypes(), QStringList{QString::fromLatin1(dragMimeType)});
 
+    // Items and dashboards are dragged; groups, projects, tasks and the two
+    // lists are not.
     const QModelIndex group = f.sidebar->indexOf(workGroup);
     const QModelIndex task = f.sidebar->indexOf(fixLoginTimeout);
-    const QModelIndex item = f.sidebar->index(0, 0, task);
-    QVERIFY(!f.sidebar->flags(group).testFlag(Qt::ItemIsDragEnabled));
-    QVERIFY(f.sidebar->flags(task).testFlag(Qt::ItemIsDragEnabled));
+    const QModelIndex items = f.sidebar->index(0, 0, task);
+    const QModelIndex item = f.sidebar->index(0, 0, items);
+    const QModelIndex dashboard = f.sidebar->index(0, 0, f.sidebar->index(1, 0, task));
+    for (const QModelIndex &index : {group, task, items})
+        QVERIFY(!f.sidebar->flags(index).testFlag(Qt::ItemIsDragEnabled));
     QVERIFY(f.sidebar->flags(item).testFlag(Qt::ItemIsDragEnabled));
+    QVERIFY(f.sidebar->flags(dashboard).testFlag(Qt::ItemIsDragEnabled));
 
-    std::unique_ptr<QMimeData> taskData(f.sidebar->mimeData({task}));
-    QVERIFY(taskData);
+    QVERIFY(!f.sidebar->mimeData({group}));
+    QVERIFY(!f.sidebar->mimeData({task}));
+
     std::unique_ptr<QMimeData> itemData(f.sidebar->mimeData({item}));
     QVERIFY(itemData);
-    QVERIFY(!f.sidebar->mimeData({group}));
+    const std::optional<DragPayload> itemPayload = dragPayload(itemData.get());
+    QVERIFY(itemPayload);
+    QCOMPARE(itemPayload->ref.item, f.model.task(fixLoginTimeout)->items.front().id);
+    QCOMPARE(itemPayload->ref.task, fixLoginTimeout);
+
+    // A dashboard becomes a task cell that shows that dashboard.
+    std::unique_ptr<QMimeData> dashboardData(f.sidebar->mimeData({dashboard}));
+    const std::optional<DragPayload> dashboardPayload = dragPayload(dashboardData.get());
+    QVERIFY(dashboardPayload);
+    QVERIFY(dashboardPayload->ref.isTask());
+    QCOMPARE(dashboardPayload->ref.task, fixLoginTimeout);
+    QCOMPARE(dashboardPayload->ref.dashboard, f.model.task(fixLoginTimeout)->dashboards.front().id);
 }
 
 void TestSidebarModel::resetsOnModelReset()
@@ -216,9 +255,12 @@ void TestSidebarModel::repaintsChangedTask()
     const Task *task = f.model.task(fixLoginTimeout);
     f.model.setTaskDashboardLayout(fixLoginTimeout, task->dashboards.front().id, LayoutNode{});
 
+    // The task and every row under it are repainted, and nothing else.
     QCOMPARE(reset.count(), 0);
-    QCOMPARE(changed.count(), 2);
+    QVERIFY(changed.count() > 1);
     QCOMPARE(changed.at(0).at(0).value<QModelIndex>(), f.sidebar->indexOf(fixLoginTimeout));
+    for (const QList<QVariant> &signal : changed)
+        QCOMPARE(signal.at(0).value<QModelIndex>().data(SidebarModel::TaskIdRole).toString(), fixLoginTimeout);
 }
 
 // The widget: reveal selects the entry, and the filter buttons change the model.

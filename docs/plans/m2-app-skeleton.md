@@ -304,7 +304,7 @@ The conversion is done once with a small script, which is not committed. The fix
 
 **`Sidebar`.**
 
-- A `QTreeView` on a `SidebarModel`, a `QAbstractItemModel` over `Model`. The tree shows groups, then projects, then tasks, then items.
+- A `QTreeView` on a `SidebarModel`, a `QAbstractItemModel` over `Model`. The tree shows groups, then projects, then tasks. Each task has two fixed children, "Items" and "Dashboards", with its items and its task dashboards. Items and dashboards can be dragged; tasks cannot.
 - Groups use manual order. Projects and tasks are sorted with `Sorting`.
 - A delegate paints the priority marker and dims Low entries.
 - Two filter buttons hide Low entries and done or archived tasks. The second is on by default. A button collapses the sidebar.

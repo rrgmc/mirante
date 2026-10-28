@@ -31,8 +31,9 @@ public:
     void setLoadProblems(const std::vector<LoadProblem> &problems);
 
     // Navigation, used by the sidebar, the switcher and the shortcuts.
-    void openTaskPreview(const QString &taskId);
-    void pinTask(const QString &taskId);
+    // Without a dashboard id, these use the task's default dashboard.
+    void openTaskPreview(const QString &taskId, const QString &dashboardId = QString());
+    void pinTask(const QString &taskId, const QString &dashboardId = QString());
     void openRootDashboard(const QString &id);
     void newRootDashboard();
     void focusItem(const QString &taskId, const QString &itemId);

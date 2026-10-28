@@ -5,6 +5,7 @@
 #include "layout/DragMime.h"
 
 #include <QFont>
+#include <QIcon>
 #include <QHash>
 #include <QMimeData>
 
@@ -23,7 +24,7 @@ struct Node
 {
     SidebarModel::Kind kind = SidebarModel::Kind::Group;
     QString id;
-    QString taskId;             // for tasks and items
+    QString taskId;             // for a task and everything under it
     int parent = -1;            // node index, or -1 for a group
     int row = 0;
     std::vector<int> children;  // node indices
@@ -87,8 +88,15 @@ Tree buildTree(const Model &model, const SortFilter &filter)
             const int projectNode = addNode(tree, SidebarModel::Kind::Project, project->id, {}, groupNode);
             for (const Task *task : sortedTasks(model.tasksOfProject(project->id), filter)) {
                 const int taskNode = addNode(tree, SidebarModel::Kind::Task, task->id, task->id, projectNode);
+                // The two lists have ids of their own, so their expansion is remembered.
+                const int items = addNode(tree, SidebarModel::Kind::ItemList, task->id + QStringLiteral("/items"),
+                                          task->id, taskNode);
                 for (const Item &item : task->items)
-                    addNode(tree, SidebarModel::Kind::Item, item.id, task->id, taskNode);
+                    addNode(tree, SidebarModel::Kind::Item, item.id, task->id, items);
+                const int dashboards = addNode(tree, SidebarModel::Kind::DashboardList,
+                                               task->id + QStringLiteral("/dashboards"), task->id, taskNode);
+                for (const Dashboard &dashboard : task->dashboards)
+                    addNode(tree, SidebarModel::Kind::Dashboard, dashboard.id, task->id, dashboards);
             }
         }
     }
@@ -155,10 +163,7 @@ SidebarModel::SidebarModel(const Model &model, const ItemTypeRegistry &types, QO
         const QModelIndex task = indexOf(taskId);
         if (!task.isValid())
             return;
-        emit dataChanged(task, task);
-        const int items = rowCount(task);
-        if (items > 0)
-            emit dataChanged(index(0, 0, task), index(items - 1, 0, task));
+        emitChanged(task);
     });
 }
 
@@ -279,6 +284,33 @@ QVariant SidebarModel::data(const QModelIndex &index, int role) const
         }
         return {};
     }
+    case Kind::ItemList:
+        if (role == Qt::DisplayRole)
+            return tr("Items");
+        if (role == Qt::ToolTipRole)
+            return tr("Drag an item onto a dashboard to show it there");
+        return {};
+    case Kind::DashboardList:
+        if (role == Qt::DisplayRole)
+            return tr("Dashboards");
+        if (role == Qt::ToolTipRole)
+            return tr("Drag a dashboard onto a root dashboard to show the task there");
+        return {};
+    case Kind::Dashboard: {
+        const Dashboard *dashboard = d->model.taskDashboard(node->taskId, node->id);
+        if (!dashboard)
+            return {};
+        if (role == Qt::DisplayRole)
+            return dashboard->name;
+        if (role == Qt::DecorationRole)
+            return QIcon(QStringLiteral(":/icons/dashboard.svg"));
+        if (role == Qt::ToolTipRole) {
+            const Task *task = d->model.task(node->taskId);
+            return task && task->defaultDashboardId == dashboard->id ? tr("Task dashboard, opened by default")
+                                                                     : tr("Task dashboard");
+        }
+        return {};
+    }
     case Kind::Item: {
         const Item *item = d->model.item(node->taskId, node->id);
         if (!item)
@@ -302,29 +334,39 @@ Qt::ItemFlags SidebarModel::flags(const QModelIndex &index) const
     if (!node)
         return Qt::NoItemFlags;
     Qt::ItemFlags flags = Qt::ItemIsEnabled | Qt::ItemIsSelectable;
-    if (node->kind == Kind::Task || node->kind == Kind::Item)
-        flags |= Qt::ItemIsDragEnabled;
-    if (node->kind == Kind::Item)
-        flags |= Qt::ItemNeverHasChildren;
+    if (node->kind == Kind::Item || node->kind == Kind::Dashboard)
+        flags |= Qt::ItemIsDragEnabled | Qt::ItemNeverHasChildren;
     return flags;
 }
 
 QStringList SidebarModel::mimeTypes() const { return {QString::fromLatin1(dragMimeType)}; }
 
-// A drag carries one reference: the first task or item among the indexes.
+// A drag carries one reference: the first item or dashboard among the indexes.
+// A dashboard is dropped as a task cell showing that dashboard.
 QMimeData *SidebarModel::mimeData(const QModelIndexList &indexes) const
 {
     for (const QModelIndex &index : indexes) {
         const Node *node = d->node(index);
-        if (!node || (node->kind != Kind::Task && node->kind != Kind::Item))
+        if (!node || (node->kind != Kind::Item && node->kind != Kind::Dashboard))
             continue;
         DragPayload payload;
         payload.ref.task = node->taskId;
         if (node->kind == Kind::Item)
             payload.ref.item = node->id;
+        else
+            payload.ref.dashboard = node->id;
         return dragMimeData(payload);
     }
     return nullptr;
+}
+
+// Repaints a row and every row under it.
+void SidebarModel::emitChanged(const QModelIndex &parent)
+{
+    emit dataChanged(parent, parent);
+    const int rows = rowCount(parent);
+    for (int row = 0; row < rows; ++row)
+        emitChanged(index(row, 0, parent));
 }
 
 } // namespace mirante

@@ -39,7 +39,7 @@ struct Sidebar::Private
         for (int row = 0; row < rows; ++row) {
             const QModelIndex index = model->index(row, 0, parent);
             const SidebarModel::Kind k = kind(index);
-            if (k == SidebarModel::Kind::Item)
+            if (k == SidebarModel::Kind::Item || k == SidebarModel::Kind::Dashboard)
                 continue;
             const QString entityId = id(index);
             const bool expand = k == SidebarModel::Kind::Task ? expandedTasks.contains(entityId)
@@ -148,8 +148,8 @@ Sidebar::Sidebar(const Model &model, const ItemTypeRegistry &types, QWidget *par
     });
     d->restoreExpansion({});
 
-    // Activation is a double click or Enter. It opens tasks and items, and
-    // expands or collapses groups and projects.
+    // Activation is a double click or Enter. It opens tasks, items and
+    // dashboards, and expands or collapses the other rows.
     connect(d->tree, &QTreeView::activated, this, [this](const QModelIndex &index) {
         const QString taskId = index.data(SidebarModel::TaskIdRole).toString();
         switch (d->kind(index)) {
@@ -158,6 +158,9 @@ Sidebar::Sidebar(const Model &model, const ItemTypeRegistry &types, QWidget *par
             break;
         case SidebarModel::Kind::Item:
             emit itemOpened(taskId, d->id(index));
+            break;
+        case SidebarModel::Kind::Dashboard:
+            emit dashboardOpened(taskId, d->id(index));
             break;
         default:
             d->tree->setExpanded(index, !d->tree->isExpanded(index));

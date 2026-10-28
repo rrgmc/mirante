@@ -99,6 +99,28 @@ private slots:
         QCOMPARE(f.bar()->previewIndex(), -1);
     }
 
+    void previewOfAChosenDashboard()
+    {
+        Fixture f;
+        // A chosen dashboard replaces the default one in the same preview tab,
+        // and pinning it pins that dashboard.
+        const QString review = QStringLiteral("ece7e850-6e0f-51ef-ad23-4ee948afdd66");
+        f.window->openTaskPreview(kFixLoginTask);
+        f.window->openTaskPreview(kFixLoginTask, review);
+        QCOMPARE(f.bar()->count(), 3);
+        QCOMPARE(f.bar()->previewIndex(), 2);
+        const LayoutNode *reviewTree = f.model.layout(DashboardRef{kFixLoginTask, review});
+        QVERIFY(reviewTree);
+        QVERIFY(layout::sameShape(f.window->currentLayoutView()->tree(), *reviewTree));
+        f.window->pinTask(kFixLoginTask, review);
+        QCOMPARE(f.bar()->previewIndex(), -1);
+        const LayoutNode &pinned = f.window->currentLayoutView()->tree();
+        QVERIFY(pinned.ref && pinned.ref->isTask());
+        QCOMPARE(pinned.ref->dashboard, review);
+        f.window->openTaskPreview(kFixLoginTask);
+        QCOMPARE(f.bar()->previewIndex(), 3);      // the default dashboard is not pinned yet
+    }
+
     void pinTask()
     {
         Fixture f;

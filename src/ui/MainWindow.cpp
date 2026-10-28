@@ -248,11 +248,12 @@ struct MainWindow::Private
 
     // The root dashboard that pins the task: one whose layout is a single
     // cell of that task. Empty if there is none.
-    QString pinnedDashboardOf(const QString &taskId) const
+    QString pinnedDashboardOf(const QString &taskId, const QString &dashboardId) const
     {
         for (const RootDashboard *dashboard : sortedRootDashboards()) {
             const LayoutNode &tree = dashboard->layout;
-            if (tree.kind == LayoutNode::Kind::Cell && tree.ref && tree.ref->isTask() && tree.ref->task == taskId)
+            if (tree.kind == LayoutNode::Kind::Cell && tree.ref && tree.ref->isTask() && tree.ref->task == taskId
+                && tree.ref->dashboard == dashboardId)
                 return dashboard->id;
         }
         return QString();
@@ -285,14 +286,14 @@ struct MainWindow::Private
 
     // Adds a root dashboard with one cell of the task, placed before every
     // other root dashboard. Returns its id, or an empty string.
-    QString addTaskRootDashboard(const QString &taskId)
+    QString addTaskRootDashboard(const QString &taskId, const QString &dashboardId)
     {
         const Task *task = model->task(taskId);
         if (!task)
             return QString();
         CellRef ref;
         ref.task = task->id;
-        ref.dashboard = defaultDashboardOf(*task);
+        ref.dashboard = dashboardId;
 
         RootDashboard dashboard;
         dashboard.id = QUuid::createUuid().toString(QUuid::WithoutBraces);
@@ -352,8 +353,10 @@ struct MainWindow::Private
 
         // Editing the dashboard in the preview tab pins it (docs/ui.md). The
         // change may come from the preview's own view, so pin after it returns.
-        if (preview && preview->ref.taskId == taskId && currentPage() == preview)
-            QTimer::singleShot(0, q, [window = q, taskId] { window->pinTask(taskId); });
+        if (preview && preview->ref.taskId == taskId && currentPage() == preview) {
+            const QString dashboardId = preview->ref.dashboardId;
+            QTimer::singleShot(0, q, [window = q, taskId, dashboardId] { window->pinTask(taskId, dashboardId); });
+        }
     }
 
     void showSidebar(bool show)
@@ -491,10 +494,12 @@ MainWindow::MainWindow(Model &model, const ItemTypeRegistry &types, QWidget *par
     setCentralWidget(d->splitter);
 
     // The sidebar.
-    connect(d->sidebar, &Sidebar::taskOpened, this, &MainWindow::openTaskPreview);
+    connect(d->sidebar, &Sidebar::taskOpened, this, [this](const QString &taskId) { openTaskPreview(taskId); });
+    connect(d->sidebar, &Sidebar::dashboardOpened, this, &MainWindow::openTaskPreview);
     connect(d->sidebar, &Sidebar::itemOpened, this, &MainWindow::focusItem);
     connect(d->sidebar, &Sidebar::openInNewRootDashboard, this, [this](const QString &taskId) {
-        const QString id = d->addTaskRootDashboard(taskId);
+        const Task *task = d->model->task(taskId);
+        const QString id = task ? d->addTaskRootDashboard(taskId, Private::defaultDashboardOf(*task)) : QString();
         if (!id.isEmpty())
             openRootDashboard(id);
     });
@@ -506,7 +511,7 @@ MainWindow::MainWindow(Model &model, const ItemTypeRegistry &types, QWidget *par
     connect(d->tabBar, &QTabBar::tabCloseRequested, this, [this](int index) { d->removeTab(index); });
     connect(d->tabBar, &RootTabBar::pinRequested, this, [this](int index) {
         if (index >= 0 && index < int(d->pages.size()) && d->pages[std::size_t(index)] == d->preview)
-            pinTask(d->preview->ref.taskId);
+            pinTask(d->preview->ref.taskId, d->preview->ref.dashboardId);
     });
     connect(d->tabBar, &RootTabBar::newDashboardRequested, this, &MainWindow::newRootDashboard);
 
@@ -571,21 +576,21 @@ void MainWindow::setLoadProblems(const std::vector<LoadProblem> &problems)
     d->warningBar->show();
 }
 
-void MainWindow::openTaskPreview(const QString &taskId)
+void MainWindow::openTaskPreview(const QString &taskId, const QString &chosenDashboardId)
 {
     const Task *task = d->model->task(taskId);
     if (!task)
         return;
+    const QString dashboardId = chosenDashboardId.isEmpty() ? Private::defaultDashboardOf(*task) : chosenDashboardId;
+    if (dashboardId.isEmpty() || !d->model->taskDashboard(taskId, dashboardId))
+        return;
 
-    const QString pinned = d->pinnedDashboardOf(taskId);
+    const QString pinned = d->pinnedDashboardOf(taskId, dashboardId);
     if (!pinned.isEmpty()) {
         openRootDashboard(pinned);
         return;
     }
 
-    const QString dashboardId = Private::defaultDashboardOf(*task);
-    if (dashboardId.isEmpty())
-        return;
     const DashboardRef ref{taskId, dashboardId};
     if (d->preview && d->preview->ref == ref) {
         d->setCurrent(d->preview);
@@ -610,13 +615,15 @@ void MainWindow::openTaskPreview(const QString &taskId)
     d->setCurrent(page);
 }
 
-void MainWindow::pinTask(const QString &taskId)
+void MainWindow::pinTask(const QString &taskId, const QString &chosenDashboardId)
 {
-    if (!d->model->task(taskId))
+    const Task *task = d->model->task(taskId);
+    if (!task)
         return;
-    QString id = d->pinnedDashboardOf(taskId);
+    const QString dashboardId = chosenDashboardId.isEmpty() ? Private::defaultDashboardOf(*task) : chosenDashboardId;
+    QString id = d->pinnedDashboardOf(taskId, dashboardId);
     if (id.isEmpty())
-        id = d->addTaskRootDashboard(taskId);
+        id = d->addTaskRootDashboard(taskId, dashboardId);
     d->closePreviewOf(taskId);
     openRootDashboard(id);
 }

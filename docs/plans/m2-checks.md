@@ -14,7 +14,7 @@ Tick each box, or note what is wrong next to it.
 
 ## Sidebar
 
-- [ ] Groups, projects, tasks and items appear in that order. Projects and tasks are sorted by priority, then their manual order.
+- [ ] Groups, projects and tasks appear in that order, and each task has the children "Items" and "Dashboards". Projects and tasks are sorted by priority, then their manual order.
 - [ ] Urgent and High entries have a visible marker. Low entries are dimmed.
 - [ ] "Hide done" is on at start and hides done and archived tasks. "Hide Low" hides Low projects and tasks.
 - [ ] The « button hides the sidebar, and the » button at the start of the tab bar row brings it back.
@@ -47,7 +47,8 @@ Unlock a dashboard with the lock button first.
 - [ ] Every tab menu command works: rename, close, move left, move right, collapse when single.
 - [ ] Dragging a cell header onto the edge of another cell splits there, onto its centre adds a tab, and onto a tab bar inserts a tab. The drop zones are highlighted while dragging.
 - [ ] Dragging an item from the sidebar works on an unlocked dashboard. A locked dashboard refuses it, with no highlight. A task dashboard refuses items of other tasks.
-- [ ] Dragging a task from the sidebar over the cells inside a task cell shows no highlight and the "not allowed" cursor. Over the task cell's header it shows the zones of the whole task cell, and dropping places the task there.
+- [ ] A task row in the sidebar cannot be dragged. Its "Dashboards" children can: dropping one on a root dashboard places the task there with that dashboard.
+- [ ] Dragging a task dashboard over the cells inside a task cell shows no highlight and the "not allowed" cursor. Over the task cell's header it shows the zones of the whole task cell, and dropping places the task there.
 - [ ] After any edit, no split has a single child, and same-direction splits are merged.
 - [ ] Resizing a splitter and switching tabs work while locked, and the sizes are kept after switching root tabs.
 - [ ] Editing a task dashboard inside a root dashboard changes it everywhere it is shown, including its preview.

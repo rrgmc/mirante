@@ -11,21 +11,23 @@ namespace mirante {
 class ItemTypeRegistry;
 class Model;
 
-// The sidebar tree over Model: groups, then projects, then tasks, then items.
-// Groups use their manual order; projects and tasks are sorted with Sorting.
-// Tasks and items can be dragged, as DragMime payloads.
+// The sidebar tree over Model: groups, then projects, then tasks. Each task
+// has two fixed children, "Items" and "Dashboards", which hold the task's
+// items and task dashboards. Groups use their manual order; projects and tasks
+// are sorted with Sorting. Items and dashboards can be dragged, as DragMime
+// payloads; tasks cannot.
 // Implemented in SidebarModel.cpp.
 class SidebarModel : public QAbstractItemModel
 {
     Q_OBJECT
 
 public:
-    enum class Kind { Group, Project, Task, Item };
+    enum class Kind { Group, Project, Task, ItemList, Item, DashboardList, Dashboard };
 
     enum Role {
         KindRole = Qt::UserRole + 1,    // Kind, as int
         IdRole,                         // the entity id
-        TaskIdRole,                     // for tasks and items: the task id
+        TaskIdRole,                     // for a task and everything under it: the task id
         PriorityRole,                   // for projects and tasks: Priority, as int
     };
 
@@ -48,6 +50,8 @@ public:
     QMimeData *mimeData(const QModelIndexList &indexes) const override;
 
 private:
+    void emitChanged(const QModelIndex &parent);
+
     struct Private;
     std::unique_ptr<Private> d;
 };
