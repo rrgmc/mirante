@@ -6,6 +6,10 @@ if its path starts with "../" or contains "/../", or if it names a core
 header, that is, a path that starts with one of the core source folders.
 <mirante/...> includes are the module API and are allowed.
 
+Module tests in src/modules/<id>/tests/ are skipped. They register the module
+into the real ItemTypeRegistry and link mirante_items, so they may include
+core headers.
+
 The build already keeps the core folders off a module's include path. This
 check catches relative paths, which the build cannot block.
 
@@ -34,7 +38,8 @@ def main():
     repo = pathlib.Path(__file__).resolve().parent.parent
     modules = repo / "src" / "modules"
     failures = []
-    files = sorted(p for p in modules.rglob("*") if p.is_file() and p.suffix in SOURCE_SUFFIXES)
+    files = sorted(p for p in modules.rglob("*") if p.is_file() and p.suffix in SOURCE_SUFFIXES
+                   and p.relative_to(modules).parts[1:2] != ("tests",))
     for file in files:
         text = file.read_text(encoding="utf-8", errors="replace")
         for number, line in enumerate(text.splitlines(), start=1):
