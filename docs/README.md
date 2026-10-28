@@ -1,6 +1,6 @@
-# rraidash documentation
+# Mirante documentation
 
-rraidash is a personal desktop dashboard for all of one person's work, built with Qt 6. Start with the [overview](overview.md).
+Mirante is a personal desktop dashboard for all of one person's work, built with Qt 6. Start with the [overview](overview.md).
 
 ## Documents
 

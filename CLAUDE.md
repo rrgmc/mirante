@@ -1,4 +1,4 @@
-# rraidash
+# Mirante
 
 A personal "all work" desktop dashboard in Qt 6 (C++17, Qt Widgets, CMake) for Windows, macOS and Linux. Start with [docs/README.md](docs/README.md).
 

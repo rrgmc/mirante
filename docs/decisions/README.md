@@ -19,6 +19,7 @@ Each file records one design decision: what was decided, what else was considere
 | [0011](0011-root-cells-reference-task-dashboards.md) | Root dashboard cells refer to task dashboards | Accepted |
 | [0012](0012-html-prototype-first.md) | HTML prototype and Qt spike before features | Accepted |
 | [0013](0013-compiled-in-modules.md) | Item types in compiled-in modules, chosen at build time | Accepted |
+| [0014](0014-name-mirante.md) | Name the app Mirante | Accepted |
 
 ## Template
 

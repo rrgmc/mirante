@@ -29,7 +29,7 @@
     { id: 'p-backend', groupId: 'g-work', name: 'backend', priority: 1, order: 0, gitlabProject: 'acme/backend', jiraProjectKey: 'ACME' },
     { id: 'p-frontend', groupId: 'g-work', name: 'frontend', priority: 2, order: 0, gitlabProject: 'acme/frontend', jiraProjectKey: 'ACME' },
     { id: 'p-infra', groupId: 'g-work', name: 'infra', priority: 3, order: 0, gitlabProject: 'acme/infra', jiraProjectKey: 'OPS' },
-    { id: 'p-rraidash', groupId: 'g-personal', name: 'rraidash', priority: 2, order: 0, gitlabProject: 'rr/rraidash' },
+    { id: 'p-mirante', groupId: 'g-personal', name: 'Mirante', priority: 2, order: 0, gitlabProject: 'rr/mirante' },
     { id: 'p-home', groupId: 'g-personal', name: 'home', priority: 3, order: 0 },
   ];
 
@@ -115,21 +115,21 @@
       dash('d-tf', 'Main', { type: 'cell', ref: null }),
     ]),
 
-    // rraidash
-    task('t-rr-default', 'p-rraidash', 'Default', 2, 'active', 0, [
-      { id: 'rr-folder', type: 'folder', name: 'rraidash folder', config: { folder: 'rraidash' } },
+    // Mirante
+    task('t-rr-default', 'p-mirante', 'Default', 2, 'active', 0, [
+      { id: 'rr-folder', type: 'folder', name: 'Mirante folder', config: { folder: 'mirante' } },
       { id: 'rr-notes', type: 'notes', name: 'Ideas', config: { text: '- Calendar item type?\n- Pomodoro timer in the tray' } },
     ], [
       dash('d-rr-default', 'Overview', H([1, 1], I('rr-folder'), I('rr-notes'))),
     ]),
-    task('t-m1', 'p-rraidash', 'M1 HTML prototype', 0, 'active', 0, [
+    task('t-m1', 'p-mirante', 'M1 HTML prototype', 0, 'active', 0, [
       { id: 'm1-claude', type: 'claude.session.local', name: 'Claude (local)', config: { sessionId: 'a41d09', device: 'desk-pc' } },
-      { id: 'm1-docs', type: 'web.page', name: 'ui.md', config: { url: 'https://gitlab.com/rr/rraidash/-/blob/master/docs/ui.md' } },
+      { id: 'm1-docs', type: 'web.page', name: 'ui.md', config: { url: 'https://gitlab.com/rr/mirante/-/blob/master/docs/ui.md' } },
       { id: 'm1-notes', type: 'notes', name: 'Notes', config: { text: '' } },
     ], [
       dash('d-m1', 'Main', H([1, 1], I('m1-claude'), T(['Docs', I('m1-docs')], ['Notes', I('m1-notes')]))),
     ]),
-    task('t-m2', 'p-rraidash', 'M2 Qt spike', 2, 'active', 1, [
+    task('t-m2', 'p-mirante', 'M2 Qt spike', 2, 'active', 1, [
       { id: 'm2-notes', type: 'notes', name: 'Notes', config: { text: '' } },
     ], [
       dash('d-m2', 'Main', I('m2-notes')),

@@ -2,7 +2,7 @@
 
 ## Vision
 
-rraidash is a personal desktop dashboard for all of one person's work. It collects everything a piece of work needs in one place: Claude sessions, GitLab merge requests and pipelines, Jira issues, web pages, notes and project folders.
+Mirante is a personal desktop dashboard for all of one person's work. It collects everything a piece of work needs in one place: Claude sessions, GitLab merge requests and pipelines, Jira issues, web pages, notes and project folders.
 
 Work is organised in four levels:
 
@@ -44,7 +44,7 @@ The order of work is in the [roadmap](roadmap.md).
 - **No central server.** Sync uses a folder that Syncthing, OneDrive or Dropbox keeps in step. See [sync](sync.md).
 - **No unofficial Claude APIs.** Claude Remote Control and cloud sessions are only opened as web pages. See [decision 0008](decisions/0008-claude-sessions.md).
 - **No floating windows inside the main window.** The main window only uses splits and tabs. Panels can still be detached into separate windows.
-- **No team features.** rraidash is for one person. Jira priority, for example, is ignored on purpose.
+- **No team features.** Mirante is for one person. Jira priority, for example, is ignored on purpose.
 
 ## Documents
 
