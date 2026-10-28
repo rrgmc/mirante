@@ -29,7 +29,7 @@ Tick each box, or note what is wrong next to it.
 - [ ] A double click on a task dashboard that already has a pinned tab switches to that tab.
 - [ ] The `+` button opens a new, empty, unlocked root dashboard.
 - [ ] Closing a root tab, with its close button, a middle click or the tab bar's context menu, hides it. `Ctrl+K` or the dashboard list opens it again.
-- [ ] The dashboard list button, after the lock, lists every root dashboard, marks closed ones, opens them, and deletes one only after a confirmation.
+- [ ] The lock sits at the far right of the tab bar row. The dashboard list button, after `+`, lists every root dashboard, marks closed ones, opens them, and deletes one only after a confirmation.
 - [ ] Right-clicking the tab bar shows "New dashboard", "Close tab" over a tab, and "All dashboards…".
 - [ ] "Open in new root dashboard" in a task's context menu opens a new tab with that task.
 
@@ -38,7 +38,8 @@ Tick each box, or note what is wrong next to it.
 - [ ] Each cell has a tinted header with an icon and the item name, and a body that names the item type and item. Task cell headers have a stronger tint.
 - [ ] The `timetrack.entry` item (task "Add rate limiting") says it needs the `timetrack` module.
 - [ ] The empty cell in the archived task "Old Terraform cleanup" says "Empty".
-- [ ] In "Morning" and "Release", task cells show the task's dashboard, with a header that has the task title, a lock button and "Open alone".
+- [ ] In "Morning" and "Release", task cells show the task's dashboard, read-only, with a header that has the task title and an "Edit task dashboard" button, and no lock.
+- [ ] A double click on a task cell, its button, or "Edit task dashboard" in its right-click menu (locked or not) opens that task dashboard on its own, where its lock allows editing.
 - [ ] An item placed directly in a root dashboard shows its project and task, dimmed, after its name, such as "Review requested backend / Overview".
 - [ ] Task cells have no dashboard picker. Their header reads "Task / Dashboard", such as "Fix login timeout / Work".
 
@@ -54,7 +55,7 @@ Unlock a dashboard with the lock button first.
 - [ ] Dragging a cell header onto the edge of another cell splits there, onto its centre adds a tab, and onto a tab bar inserts a tab. The drop zones are highlighted while dragging.
 - [ ] Dragging an item from the sidebar works on an unlocked dashboard. A locked dashboard refuses it, with no highlight. A task dashboard refuses items of other tasks.
 - [ ] A task row in the sidebar cannot be dragged. Its "Dashboards" children can: dropping one on a root dashboard places the task there with that dashboard.
-- [ ] Dragging a task dashboard over the cells inside a task cell shows no highlight and the "not allowed" cursor. Over the task cell's header it shows the zones of the whole task cell, and dropping places the task there.
+- [ ] Nothing can be dropped into a task cell's own dashboard. With the root dashboard unlocked, a drop over a task cell shows the zones of the whole task cell and acts on the root dashboard.
 - [ ] After any edit, no split has a single child, and same-direction splits are merged.
 - [ ] Resizing a splitter and switching tabs work while locked, and the sizes are kept after switching root tabs.
 - [ ] Editing a task dashboard inside a root dashboard changes it everywhere it is shown, including its preview.

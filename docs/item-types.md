@@ -181,6 +181,14 @@ Local sessions exist on one device only. On other devices the panel shows the de
 - **Configuration:** none.
 - **Shows:** a Markdown editor with a preview. The text is stored in the task file, so it syncs.
 
+### Image
+
+`image`, native, module `image`. See [decision 0021](decisions/0021-image-items-as-files.md).
+
+- **Configuration:** `file`, the image's file in the data folder's `files/` folder; `link`, an optional URL; `memo`, optional plain text.
+- **Shows:** the image, scaled to fit the cell, with the memo under it. A click on the image opens the link, if there is one.
+- **Paste:** pasting an image from the clipboard into the item replaces its image. Pasting an image onto a dashboard creates a new Image item there. A pasted image is saved as PNG.
+
 ### Folder / terminal
 
 `folder`, native, module `folder`.

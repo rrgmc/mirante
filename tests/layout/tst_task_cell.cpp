@@ -50,7 +50,6 @@ int cellCount(const LayoutView *view)
     return count;
 }
 
-QToolButton *lockButton(const TaskCell &cell) { return cell.findChild<QToolButton *>(QStringLiteral("lockButton")); }
 QWidget *header(const TaskCell &cell) { return cell.findChild<QWidget *>(QStringLiteral("taskHeader")); }
 
 // Presses the left button on widget and moves it by distance.
@@ -80,7 +79,7 @@ private slots:
     void fallsBackToDefaultDashboard();
     void titleNamesTaskAndDashboard();
     void followsModelChanges();
-    void lockTogglesEditMode();
+    void nestedViewIsReadOnly();
     void rootItemsNameTheirTask();
     void openAlone();
     void removedTask();
@@ -200,29 +199,17 @@ void TestTaskCell::followsModelChanges()
     QCOMPARE(cellCount(cell.view()), 5);
 }
 
-void TestTaskCell::lockTogglesEditMode()
+// A task dashboard is edited on its own, never inside a root dashboard: the
+// task cell has no lock, and its view stays read-only even when the task
+// dashboard is unlocked where it is open on its own.
+void TestTaskCell::nestedViewIsReadOnly()
 {
     TaskCell cell(m_services, {QString(), kMorningRoot}, taskRef(kFixLoginTask, kWorkDashboard));
-    QToolButton *button = lockButton(cell);
-    QVERIFY(button);
-    QVERIFY(!button->isHidden());
-    QVERIFY(!button->isCheckable());     // a checked button's fill would hide the icon
-    QCOMPARE(button->text(), QStringLiteral("Locked"));
+    QVERIFY(!cell.findChild<QToolButton *>(QStringLiteral("lockButton")));
     QVERIFY(!cell.view()->editMode());
-
-    button->click();
-    QVERIFY(m_locks->isUnlocked(kWorkDashboard));
-    QVERIFY(!m_locks->isUnlocked(kMorningRoot));
-    QVERIFY(cell.view()->editMode());
-
-    m_locks->setUnlocked(kWorkDashboard, false);
-    QCOMPARE(button->text(), QStringLiteral("Locked"));
+    m_locks->setUnlocked(kWorkDashboard, true);
     QVERIFY(!cell.view()->editMode());
-
-    // Another dashboard's lock is its own.
-    m_locks->setUnlocked(kReviewDashboard, true);
-    QVERIFY(!cell.view()->editMode());
-    QCOMPARE(button->text(), QStringLiteral("Locked"));
+    QVERIFY(!cell.view()->acceptDrops());
 }
 
 // An item placed directly in a root dashboard names its project and task in
@@ -261,13 +248,27 @@ void TestTaskCell::openAlone()
     }
 
     QStringList opened;
-    m_services.openTaskAlone = [&opened](const QString &taskId) { opened.append(taskId); };
-    TaskCell cell(m_services, {QString(), kMorningRoot}, taskRef(kFixLoginTask));
+    m_services.openTaskAlone = [&opened](const QString &taskId, const QString &dashboardId) {
+        opened.append(taskId + QLatin1Char('/') + dashboardId);
+    };
+    const QString expected = kFixLoginTask + QLatin1Char('/') + kReviewDashboard;
+    TaskCell cell(m_services, {QString(), kMorningRoot}, taskRef(kFixLoginTask, kReviewDashboard));
+
+    // The button opens the cell's own dashboard.
     QToolButton *button = cell.findChild<QToolButton *>(QStringLiteral("openAloneButton"));
     QVERIFY(button);
     QVERIFY(!button->isHidden());
     button->click();
-    QCOMPARE(opened, QStringList{kFixLoginTask});
+    QCOMPARE(opened, QStringList{expected});
+
+    // So does a double click, on the header or on a cell inside.
+    QTest::mouseDClick(header(cell), Qt::LeftButton);
+    QCOMPARE(opened.size(), 2);
+    QTest::mouseDClick(cell.view()->cellAt(cell.view()->visibleCells().empty() ? NodePath{}
+                                                                                 : *cell.view()->pathOf(cell.view()->visibleCells().front())),
+                       Qt::LeftButton);
+    QCOMPARE(opened.size(), 3);
+    QCOMPARE(opened.back(), expected);
 }
 
 void TestTaskCell::removedTask()
@@ -299,18 +300,25 @@ void TestTaskCell::headerMenuAndDrag()
     QSignalSpy menu(&cell, &TaskCell::menuRequested);
     QSignalSpy drag(&cell, &TaskCell::dragStarted);
 
-    // A right click on the header asks for the cell menu.
+    // While the root dashboard is locked, a right click on the header shows
+    // the cell's own short menu, not the root cell menu. (Without an open
+    // function the short menu has nothing to offer, so it does not open here.)
     const QPoint pos(5, 5);
-    QContextMenuEvent event(QContextMenuEvent::Mouse, pos, head->mapToGlobal(pos));
-    QApplication::sendEvent(head, &event);
-    QCOMPARE(menu.count(), 1);
-    QCOMPARE(menu.at(0).at(0).toPoint(), head->mapToGlobal(pos));
+    QContextMenuEvent locked(QContextMenuEvent::Mouse, pos, head->mapToGlobal(pos));
+    QApplication::sendEvent(head, &locked);
+    QCOMPARE(menu.count(), 0);
 
     // A drag starts only in the root dashboard's edit mode, and only past the drag distance.
     dragBy(head, 60);
     QCOMPARE(drag.count(), 0);
     cell.setEditMode(true);
     QCOMPARE(head->cursor().shape(), Qt::OpenHandCursor);
+
+    // In the root dashboard's edit mode it asks for the root cell menu.
+    QContextMenuEvent editing(QContextMenuEvent::Mouse, pos, head->mapToGlobal(pos));
+    QApplication::sendEvent(head, &editing);
+    QCOMPARE(menu.count(), 1);
+    QCOMPARE(menu.at(0).at(0).toPoint(), head->mapToGlobal(pos));
     QVERIFY(!cell.view()->editMode());
     dragBy(head, 1);
     QCOMPARE(drag.count(), 0);

@@ -12,6 +12,7 @@ A module is one folder of item types and the code they share. Modules are compil
 | `web` | `web.page` | none | none |
 | `notes` | `notes` | none | none |
 | `folder` | `folder` | none | none |
+| `image` | `image` | none | none |
 
 All modules are enabled by default. The item types are described in [item types](item-types.md).
 

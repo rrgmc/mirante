@@ -2,15 +2,15 @@
 
 #include "layout/CellStyle.h"
 #include "layout/DashboardCellFactory.h"
-#include "layout/LayoutEditor.h"
 #include "layout/LayoutView.h"
-#include "layout/LockState.h"
 
 #include <QIcon>
 #include <QApplication>
 #include <QHBoxLayout>
 #include <QLabel>
+#include <QMenu>
 #include <QMouseEvent>
+#include <QPointer>
 #include <QToolButton>
 #include <QVBoxLayout>
 
@@ -110,16 +110,14 @@ struct TaskCell::Private
     QVBoxLayout *layout = nullptr;
     TaskHeader *header = nullptr;
     QLabel *title = nullptr;
-    QToolButton *lockButton = nullptr;
     QToolButton *openButton = nullptr;
     QLabel *removedLabel = nullptr;
     LayoutView *view = nullptr;
 
     const Task *task() const { return services.model ? services.model->task(taskId) : nullptr; }
-    bool isUnlocked() const { return services.locks && services.locks->isUnlocked(dashboardId); }
 
     void refresh();
-    void updateLock();
+    void showMenu(const QPoint &globalPos);
     void buildView();
     void dropView();
     void showTree();
@@ -133,7 +131,6 @@ void TaskCell::Private::refresh()
     // A removed task keeps its header, so the cell can still be moved or
     // removed in the root dashboard.
     removedLabel->setVisible(removed);
-    lockButton->setVisible(!removed && services.locks);
     openButton->setVisible(!removed && services.openTaskAlone);
     if (removed) {
         title->setText(TaskCell::tr("Removed task"));
@@ -154,26 +151,28 @@ void TaskCell::Private::refresh()
                                            : TaskCell::tr("%1 / %2").arg(current->title, dashboardName));
     if (rebuild) {
         buildView();
-        updateLock();
     } else {
         showTree();
     }
 }
 
-void TaskCell::Private::updateLock()
+// The menu of a task cell while the root dashboard is locked, and of the cells
+// inside it, which are never edited here.
+void TaskCell::Private::showMenu(const QPoint &globalPos)
 {
-    const bool unlocked = isUnlocked();
-    // The icon shows the state, so the button is not checkable: a checked
-    // button's accent fill would hide the icon. The text is its accessible name.
-    lockButton->setIcon(QIcon(unlocked ? QStringLiteral(":/icons/lock-open.svg") : QStringLiteral(":/icons/lock-closed.svg")));
-    lockButton->setText(unlocked ? TaskCell::tr("Unlocked") : TaskCell::tr("Locked"));
-    lockButton->setToolTip(unlocked ? TaskCell::tr("Lock the task dashboard")
-                                    : TaskCell::tr("Unlock the task dashboard for editing"));
-    if (view)
-        view->setEditMode(unlocked);
+    if (removed || !services.openTaskAlone)
+        return;
+    QMenu menu(q);
+    QAction *edit = menu.addAction(TaskCell::tr("Edit task dashboard"));
+    QPointer<TaskCell> guard(q);
+    if (menu.exec(globalPos) == edit && guard)
+        guard->openAlone();
 }
 
-// Replaces the nested view with one for the chosen dashboard.
+// Replaces the nested view with one for the chosen dashboard. The view is
+// read-only: a task dashboard is edited on its own, not inside a root
+// dashboard, so the view is never in edit mode and is not attached to the
+// editor. Its cells' menus offer to open it for editing instead.
 void TaskCell::Private::buildView()
 {
     dropView();
@@ -184,10 +183,11 @@ void TaskCell::Private::buildView()
     new FactoryHolder(std::move(factory), view);
     if (services.tracker)
         view->setSingleViewTracker(services.tracker);
-    view->setEditMode(isUnlocked());
     showTree();
-    if (services.editor)
-        services.editor->attach(view, dashboard);
+    QObject::connect(view, &LayoutView::cellMenuRequested, q,
+                     [this](const NodePath &, const QPoint &globalPos) { showMenu(globalPos); });
+    QObject::connect(view, &LayoutView::tabMenuRequested, q,
+                     [this](const NodePath &, int, const QPoint &globalPos) { showMenu(globalPos); });
     layout->addWidget(view, 1);
 }
 
@@ -231,9 +231,16 @@ TaskCell::TaskCell(const LayoutServices &services, const DashboardRef &rootDashb
     d->header->setObjectName(QStringLiteral("taskHeader"));
     cellstyle::tintHeader(d->header, 0.22);    // stronger than an item header, since it holds cells
     d->header->onDrag = [this] { emit dragStarted(); };
+    // In the root dashboard's edit mode the header has the root cell menu,
+    // which offers editing the task dashboard too. Otherwise it has the short
+    // menu of the cell.
     d->header->setContextMenuPolicy(Qt::CustomContextMenu);
-    connect(d->header, &QWidget::customContextMenuRequested, this,
-            [this](const QPoint &pos) { emit menuRequested(d->header->mapToGlobal(pos)); });
+    connect(d->header, &QWidget::customContextMenuRequested, this, [this](const QPoint &pos) {
+        if (d->header->editMode)
+            emit menuRequested(d->header->mapToGlobal(pos));
+        else
+            d->showMenu(d->header->mapToGlobal(pos));
+    });
     auto *headerLayout = new QHBoxLayout(d->header);
     headerLayout->setContentsMargins(6, 2, 2, 2);
     headerLayout->setSpacing(4);
@@ -246,16 +253,11 @@ TaskCell::TaskCell(const LayoutServices &services, const DashboardRef &rootDashb
     headerLayout->addWidget(d->title, 1);
 
 
-    d->lockButton = new QToolButton(d->header);
-    d->lockButton->setObjectName(QStringLiteral("lockButton"));
-    d->lockButton->setAutoRaise(true);
-    headerLayout->addWidget(d->lockButton);
-
     d->openButton = new QToolButton(d->header);
     d->openButton->setObjectName(QStringLiteral("openAloneButton"));
     d->openButton->setIcon(QIcon(QStringLiteral(":/icons/open-alone.svg")));
-    d->openButton->setText(tr("Open alone"));
-    d->openButton->setToolTip(tr("Open this task on its own"));
+    d->openButton->setText(tr("Edit task dashboard"));
+    d->openButton->setToolTip(tr("Open this task dashboard on its own to edit it (or double-click the cell)"));
     d->openButton->setAutoRaise(true);
     headerLayout->addWidget(d->openButton);
 
@@ -267,22 +269,7 @@ TaskCell::TaskCell(const LayoutServices &services, const DashboardRef &rootDashb
     d->removedLabel->setEnabled(false);
     d->layout->addWidget(d->removedLabel, 1);
 
-    connect(d->lockButton, &QToolButton::clicked, this, [this] {
-        if (d->services.locks)
-            d->services.locks->setUnlocked(d->dashboardId, !d->isUnlocked());
-        d->updateLock();
-    });
-    connect(d->openButton, &QToolButton::clicked, this, [this] {
-        if (d->services.openTaskAlone)
-            d->services.openTaskAlone(d->taskId);
-    });
-
-    if (services.locks) {
-        connect(services.locks, &LockState::changed, this, [this](const QString &dashboardId, bool) {
-            if (dashboardId == d->dashboardId)
-                d->updateLock();
-        });
-    }
+    connect(d->openButton, &QToolButton::clicked, this, &TaskCell::openAlone);
     if (services.model) {
         connect(services.model, &Model::taskChanged, this, [this](const QString &taskId) {
             if (taskId == d->taskId)
@@ -299,13 +286,30 @@ TaskCell::~TaskCell()
     // The child widgets outlive d, so their signals must not reach it.
     d->header->onDrag = nullptr;
     d->header->disconnect(this);
-    d->lockButton->disconnect(this);
     d->openButton->disconnect(this);
 }
 
 QString TaskCell::taskId() const { return d->taskId; }
 QString TaskCell::dashboardId() const { return d->dashboardId; }
 LayoutView *TaskCell::view() const { return d->view; }
+
+void TaskCell::openAlone()
+{
+    if (!d->removed && d->services.openTaskAlone)
+        d->services.openTaskAlone(d->taskId, d->dashboardId);
+}
+
+// A double click anywhere in the cell opens the task dashboard on its own.
+// The cells inside do not use double clicks, so theirs arrive here.
+void TaskCell::mouseDoubleClickEvent(QMouseEvent *event)
+{
+    if (event->button() == Qt::LeftButton) {
+        openAlone();
+        event->accept();
+        return;
+    }
+    QWidget::mouseDoubleClickEvent(event);
+}
 
 void TaskCell::setEditMode(bool on)
 {

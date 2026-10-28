@@ -3,6 +3,7 @@
 #include "core/Sorting.h"
 #include "items/ItemTypeRegistry.h"
 #include "layout/LayoutView.h"
+#include "layout/TaskCell.h"
 
 #include <mirante/ItemType.h>
 
@@ -257,6 +258,14 @@ void LayoutEditor::Private::showCellMenu(LayoutView *view, const NodePath &path,
         return addCommand(&menu, commands, text,
                           [this, dashboard, path, cellCommand] { q->cellCommand(dashboard, path, cellCommand); });
     };
+    // A task dashboard is edited on its own, not inside the root dashboard.
+    if (QPointer<TaskCell> taskCell = qobject_cast<TaskCell *>(view->cellAt(path))) {
+        addCommand(&menu, commands, LayoutEditor::tr("Edit task dashboard"), [taskCell] {
+            if (taskCell)
+                taskCell->openAlone();
+        });
+        menu.addSeparator();
+    }
     command(LayoutEditor::tr("Split right"), CellCommand::SplitRight);
     command(LayoutEditor::tr("Split down"), CellCommand::SplitDown);
     // A cell that is already a tab gets more tabs with "Add tab". Wrapping it

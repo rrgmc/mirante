@@ -21,6 +21,16 @@
             "id": "422f2d4c-e27c-594c-bf2e-f1a5bfb7cf50",
             "name": "Notes",
             "type": "notes"
+        },
+        {
+            "config": {
+                "file": "d3dee8eb-d209-5caf-8729-a921b096a169.png",
+                "link": "https://example.com/garden",
+                "memo": "Raised beds along the south fence."
+            },
+            "id": "734a1531-d2f6-5ef8-9585-4233708ba49f",
+            "name": "Garden sketch",
+            "type": "image"
         }
     ],
     "order": 0,

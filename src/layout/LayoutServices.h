@@ -23,8 +23,9 @@ struct LayoutServices
     LockState *locks = nullptr;
     SingleViewTracker *tracker = nullptr;
 
-    // Opens a task on its own, from a task cell's "open alone" button.
-    std::function<void(const QString &taskId)> openTaskAlone;
+    // Opens a task dashboard on its own, where it can be edited. Task cells in
+    // root dashboards call it on a double click or from their menu.
+    std::function<void(const QString &taskId, const QString &dashboardId)> openTaskAlone;
 };
 
 } // namespace mirante
