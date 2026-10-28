@@ -200,13 +200,17 @@ struct DropOverlay::Private
     HitPainter *painter = nullptr;
     ViewWatcher watcher;
     std::optional<DragPayload> payload;
+    Acceptor acceptor;
 
     bool onViewEvent(QEvent *event);
 
-    // Updates the hit for pos, and says whether a drop there is possible.
+    // Updates the hit for pos, and says whether a drop there is possible. A
+    // zone where the drop would be refused is not highlighted.
     bool track(const QPoint &pos)
     {
         painter->hit = dropHitAt(view, pos);
+        if (painter->hit && payload && acceptor && !acceptor(painter->hit->target, *payload))
+            painter->hit.reset();
         painter->update();
         return painter->hit.has_value();
     }
@@ -306,6 +310,11 @@ DropOverlay::DropOverlay(LayoutView *view)
 DropOverlay::~DropOverlay()
 {
     d->watcher.handler = nullptr;
+}
+
+void DropOverlay::setAcceptor(Acceptor acceptor)
+{
+    d->acceptor = std::move(acceptor);
 }
 
 } // namespace mirante

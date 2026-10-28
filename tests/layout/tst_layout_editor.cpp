@@ -624,6 +624,38 @@ private slots:
         QVERIFY(!locked.isAccepted());
         QVERIFY(!overlay->isVisible());
     }
+
+    void overlayRefusesWhatTheAcceptorRefuses()
+    {
+        FakeFactory factory;
+        LayoutView view(&factory);
+        view.resize(800, 600);
+        view.setTree(tree(work));
+        view.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&view));
+        auto *overlay = new DropOverlay(&view);
+        QSignalSpy spy(overlay, &DropOverlay::dropped);
+        int asked = 0;
+        overlay->setAcceptor([&asked](const DropTarget &, const DragPayload &) {
+            ++asked;
+            return false;
+        });
+
+        QWidget *cell = view.cellAt({0});
+        const QPoint pos = cell->mapTo(&view, cell->rect().center());
+        std::unique_ptr<QMimeData> mime(dragMimeData(fromSidebar(itemRef(notesItem))));
+
+        QDragEnterEvent enter(pos, Qt::CopyAction, mime.get(), Qt::LeftButton, Qt::NoModifier);
+        QApplication::sendEvent(&view, &enter);
+        QDragMoveEvent move(pos, Qt::CopyAction, mime.get(), Qt::LeftButton, Qt::NoModifier);
+        QApplication::sendEvent(&view, &move);
+        QVERIFY(!move.isAccepted());     // the cursor shows that the drop is not possible
+        QVERIFY(asked > 0);
+
+        QDropEvent drop(QPointF(pos), Qt::CopyAction, mime.get(), Qt::LeftButton, Qt::NoModifier);
+        QApplication::sendEvent(&view, &drop);
+        QCOMPARE(spy.count(), 0);
+    }
 };
 
 QTEST_MAIN(TestLayoutEditor)

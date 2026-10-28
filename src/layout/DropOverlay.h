@@ -5,6 +5,7 @@
 
 #include <QWidget>
 
+#include <functional>
 #include <memory>
 
 namespace mirante {
@@ -28,6 +29,12 @@ class DropOverlay : public QWidget
 public:
     explicit DropOverlay(LayoutView *view);
     ~DropOverlay() override;
+
+    // Says whether a drop would be accepted. The overlay highlights a zone,
+    // and accepts the drag there, only if it returns true. Without one, every
+    // zone is accepted.
+    using Acceptor = std::function<bool(const DropTarget &target, const DragPayload &payload)>;
+    void setAcceptor(Acceptor acceptor);
 
 signals:
     void dropped(const mirante::DropTarget &target, const mirante::DragPayload &payload);
