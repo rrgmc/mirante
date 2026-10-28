@@ -40,8 +40,9 @@ public:
     // and any can be deleted.
     void showDashboardList();
     void focusItem(const QString &taskId, const QString &itemId);
-    // Opens the item on its own in a maximized window, or raises its window.
-    void openItemWindow(const QString &taskId, const QString &itemId);
+    // Opens the item alone in a tab, the preview tab like a task dashboard,
+    // or switches to its tab if it has one.
+    void openItem(const QString &taskId, const QString &itemId);
     void revealInSidebar(const QString &id);
     void showQuickSwitcher();
     void closeCurrentTab();     // the preview tab or the current root tab

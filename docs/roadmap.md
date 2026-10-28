@@ -59,7 +59,7 @@ The base of the Qt app, reading a fixed set of JSON files. Nothing is written ba
 - [ ] A login in group A is not visible in group B.
 - [ ] The same item in two visible cells shows two live views.
 - [ ] The memory policy unloads hidden views beyond the limit.
-- [ ] Panels can be detached and reattached, and window geometry is stored on the device.
+- [ ] Root dashboard tabs can be detached into a window and put back, and window geometry is stored on the device. Nothing else detaches. See [decision 0024](decisions/0024-detach-root-dashboard-tabs.md).
 
 ## M5: Connections and status
 

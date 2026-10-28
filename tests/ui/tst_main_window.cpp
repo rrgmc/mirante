@@ -6,7 +6,6 @@
 #include "items/ItemTypeRegistry.h"
 #include "layout/CellFrame.h"
 #include "layout/LayoutView.h"
-#include "ui/ItemWindow.h"
 #include "ui/MainWindow.h"
 #include "ui/RootDashboardsDialog.h"
 #include "ui/RootTabBar.h"
@@ -373,37 +372,44 @@ private slots:
         QCOMPARE(list->ids(), QStringList{kRelease});
     }
 
-    void itemWindow()
+    // An item opens alone in a tab, like a task dashboard: in the preview tab,
+    // with its type icon and a "Task / Item" title bar, and it can be pinned.
+    void itemTab()
     {
         Fixture f;
-        f.window->openItemWindow(kOverviewTask, kReviewsItem);
-        auto windows = f.window->findChildren<ItemWindow *>();
-        QCOMPARE(windows.size(), 1);
-        QPointer<ItemWindow> window = windows.front();
-        QVERIFY(window->isWindow());
-        QVERIFY(window->isVisible());
-        QCOMPARE(f.bar()->previewIndex(), -1);     // no task dashboard is opened
+        f.window->openItem(kOverviewTask, kReviewsItem);
+        QCOMPARE(f.bar()->count(), 3);
+        QCOMPARE(f.bar()->previewIndex(), 2);
+        QVERIFY(!f.bar()->tabIcon(2).isNull());
+        const Item *item = f.model.item(kOverviewTask, kReviewsItem);
+        QCOMPARE(f.tabText(2), QStringLiteral("%1 / %2").arg(f.model.task(kOverviewTask)->title, item->name));
 
-        // The window holds only the item.
-        const auto frames = window->findChildren<CellFrame *>();
+        // The page shows only the item, read-only, with no lock.
+        LayoutView *view = f.window->currentLayoutView();
+        QCOMPARE(view->tree().kind, LayoutNode::Kind::Cell);
+        QVERIFY(view->tree().ref);
+        QCOMPARE(view->tree().ref->item, kReviewsItem);
+        QVERIFY(!view->editMode());
+        QVERIFY(!view->parentWidget()->findChild<QToolButton *>(QStringLiteral("taskLockButton")));
+        const auto frames = view->findChildren<CellFrame *>();
         QCOMPARE(frames.size(), 1);
-        QVERIFY(frames.front()->ref());
-        QCOMPARE(frames.front()->ref()->item, kReviewsItem);
-        QVERIFY(window->windowTitle().contains(f.model.task(kOverviewTask)->title));
 
-        // Opening it again raises the same window.
-        f.window->openItemWindow(kOverviewTask, kReviewsItem);
-        QCOMPARE(f.window->findChildren<ItemWindow *>().size(), 1);
+        // Opening it again switches to its tab. A task dashboard replaces it in
+        // the preview tab, unless it is pinned.
+        f.window->openRootDashboard(kMorning);
+        f.window->openItem(kOverviewTask, kReviewsItem);
+        QCOMPARE(f.bar()->currentIndex(), 2);
+        auto *pin = f.bar()->findChild<QToolButton *>(QStringLiteral("pinButton"));
+        QVERIFY(pin);
+        pin->click();
+        QCOMPARE(f.bar()->previewIndex(), -1);
+        f.window->openTaskPreview(kFixLoginTask);
+        QCOMPARE(f.bar()->count(), 4);
+        QCOMPARE(f.bar()->previewIndex(), 3);
 
-        // Escape closes it.
-        QTest::keyClick(window.data(), Qt::Key_Escape);
-        QTRY_VERIFY(window.isNull());
-
-        // It also closes when its item is gone.
-        f.window->openItemWindow(kOverviewTask, kReviewsItem);
-        window = f.window->findChildren<ItemWindow *>().front();
+        // The tab closes when its item is gone.
         QVERIFY(store::load(QStringLiteral(MIRANTE_FIXTURES_DIR "/no-such-folder"), f.model).empty());
-        QTRY_VERIFY(window.isNull());
+        QCOMPARE(f.bar()->count(), 0);
     }
 
     void focusItem()

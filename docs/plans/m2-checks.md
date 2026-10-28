@@ -24,7 +24,7 @@ Tick each box, or note what is wrong next to it.
 - [ ] At start, the tabs "Morning" and "Release" are open.
 - [ ] A single click only selects. A double click on a task only expands or collapses it.
 - [ ] A double click on a task dashboard opens it in the preview tab, titled "Task / Dashboard" in italics, with a pin button. A double click on another dashboard replaces it.
-- [ ] A double click on an item opens a maximized window with only that item. `Escape` closes it, and opening the same item again raises the same window.
+- [ ] A double click on an item opens it alone in the preview tab, titled "Task / Item" with its type icon, read-only and without a lock. Opening it again switches to its tab, and its pin button keeps it.
 - [ ] The pin button, or an edit of the previewed dashboard, pins it: the tab stays open, no longer italic, and the next dashboard opens in a new tab. No root dashboard is added.
 - [ ] Task tabs have the dashboard icon and a title bar with their own lock; the lock at the end of the tab bar row hides while a task tab is in front.
 - [ ] When a task tab comes to the front, the sidebar selects its dashboard under its task.

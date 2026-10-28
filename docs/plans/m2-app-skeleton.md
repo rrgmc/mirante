@@ -308,7 +308,7 @@ The conversion is done once with a small script, which is not committed. The fix
 - Groups use manual order. Projects and tasks are sorted with `Sorting`.
 - A delegate paints the priority marker and dims Low entries.
 - Two filter buttons hide Low entries and done or archived tasks. The second is on by default. A button collapses the sidebar.
-- **Clicks:** a single click selects. A double click, or `Enter`, on a task dashboard opens the preview; on an item it opens the item alone in an `ItemWindow`. Groups, projects, tasks and the two lists expand and collapse.
+- **Clicks:** a single click selects. A double click, or `Enter`, on a task dashboard opens the preview; on an item it opens the item alone in a tab, like a task dashboard. Groups, projects, tasks and the two lists expand and collapse.
 - **Context menu in M2:** "Open in new root dashboard" only. The rest arrives with editing in M3.
 - **Not in M2:** the Focus entry and sidebar reordering arrive in M3.
 

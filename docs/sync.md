@@ -59,7 +59,7 @@ Settings that only make sense on one device are stored with `QSettings`, outside
 
 - the data folder path;
 - the local path of each project [folder](data-model.md#folder);
-- detached window geometry;
+- detached root dashboard window geometry;
 - open root tabs and the preview tab;
 - terminal command template, editor command;
 - poll interval, the hidden-view limit;
