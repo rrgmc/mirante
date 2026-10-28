@@ -2,7 +2,9 @@
 
 ## Vision
 
-Mirante is a personal desktop dashboard for all of one person's work. It collects everything a piece of work needs in one place: Claude sessions, GitLab merge requests and pipelines, Jira issues, web pages, notes and project folders.
+Mirante is a personal desktop dashboard for all of one person's work. It collects everything a piece of work needs in one place, as items on dashboards.
+
+Mirante is a dashboard of generic items, not a dashboard for particular services. The core knows groups, projects, tasks, items and layouts. It does not know what an item shows. Each item type comes from a [module](modules.md). The first modules cover Claude sessions, GitLab merge requests and pipelines, Jira issues, web pages, notes and project folders. Other modules can add any other kind of item.
 
 Work is organised in four levels:
 
@@ -14,6 +16,12 @@ Work is organised in four levels:
 Items are arranged on **dashboards**. A dashboard is a layout of splits, tabs and cells that the user can change freely. Each task has its own dashboards. Root dashboards combine several tasks, or single items, from anywhere.
 
 See [the glossary](README.md#glossary) for exact definitions.
+
+### Item types
+
+The aim is that an item can show almost anything the platform can display. An item type's view is any `QWidget`: a native summary, a web page, a chart, a terminal, or a container around a native window. The core places the widget in a cell and never looks inside it. See [the view](item-types.md#the-view).
+
+Generic item types that a user configures without writing code, such as one that loads a QML file, are a possible future addition. None is planned yet.
 
 ## Platforms and stack
 
@@ -31,7 +39,7 @@ The reasons for choosing Qt are in [decision 0001](decisions/0001-qt6-widgets.md
 - Task dashboards and root dashboards with freely nested splits and tabs.
 - Detachable panels in separate operating system windows.
 - Web views with one login profile per group.
-- Native views of GitLab and Jira data, with light actions.
+- The first modules: native views of GitLab and Jira data with light actions, web pages, Claude sessions, notes and project folders.
 - Claude sessions on claude.ai in a web view, and local Claude Code sessions started in a terminal.
 - Sync between devices through a folder that an external tool syncs.
 - System tray, notifications for failed pipelines, keyboard navigation and a global hotkey.

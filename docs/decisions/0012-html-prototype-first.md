@@ -1,6 +1,6 @@
 # 0012. HTML prototype and Qt spike before features
 
-- Status: Accepted
+- Status: Superseded by [0015](0015-app-skeleton-instead-of-spike.md)
 - Date: 2026-10-28
 
 ## Context

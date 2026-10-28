@@ -2,7 +2,7 @@
 
 The milestones are in order. Each one ends in a working state and a commit. A detailed code plan for a milestone is written just before it starts, not earlier.
 
-Each milestone has acceptance criteria. Development and checking happen on Windows. From M2 onwards, every milestone must also build on macOS and Linux. Before M10, that is checked by hand or by a CI build added earlier.
+Each milestone has acceptance criteria. Development and checking happen on Windows. From M2 onwards, every milestone must also build and pass its tests on macOS and Linux, checked by the CI build added in M2.
 
 ## M0: Design documents
 
@@ -22,11 +22,12 @@ A clickable prototype of the navigation, made of one HTML page with mock data. W
 - [x] The Focus view and the `Ctrl+K` switcher work on the mock data.
 - [x] The user has tried it, and [ui.md](ui.md) is updated with the changes agreed.
 
-## M2: Qt spike with fixture data
+## M2: App skeleton and layouts
 
-The real Qt app, reading a fixed set of JSON files. Nothing is written back. There are no web views and no API calls.
+The base of the Qt app, reading a fixed set of JSON files. Nothing is written back. There are no web views and no API calls. See [decision 0015](decisions/0015-app-skeleton-instead-of-spike.md).
 
 - [ ] CMake project with Qt 6.8, qtkeychain and QHotkey. It builds on Windows, macOS and Linux.
+- [ ] A GitHub Actions build for Windows, macOS and Linux runs the tests with all modules on, and a second build has all modules off.
 - [ ] The [module](modules.md) mechanism: `mirante_add_module()`, one option per module, `MIRANTE_MODULES`, the `DEPENDS` check and the generated `enabled_modules.cpp`.
 - [ ] The module interface target `mirante::module_api`. Modules cannot include other core headers.
 - [ ] One folder per module in `src/modules/`, each registering its item types with id, name and icon only.
@@ -100,9 +101,8 @@ The real Qt app, reading a fixed set of JSON files. Nothing is written back. The
 - [ ] `DashBridge` provides the members listed in [web views](web-views.md#built-in-panels).
 - [ ] The Task summary and Group overview panels.
 
-## M10: Packaging and CI
+## M10: Packaging
 
-- [ ] A CI build for Windows, macOS and Linux, running the tests, with all modules on.
-- [ ] A CI build with all modules off, so the core never depends on a module.
+- [ ] CI builds the Windows package and the macOS app bundle.
 - [ ] Windows package with `windeployqt`, macOS app bundle with `macdeployqt`.
 - [ ] A short install and first-run guide in the root `README.md`.

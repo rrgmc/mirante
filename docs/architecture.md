@@ -7,8 +7,8 @@ This document describes the source folders, the main classes and how they work t
 ```
 src/
   main.cpp       registers dash:// before QApplication, registers the enabled modules, wires the folders together
-  core/          data model, loading and saving, device settings
-  layout/        layout trees and the widgets that show them
+  core/          data model, layout trees, loading and saving, device settings
+  layout/        the widgets that show and edit layout trees
   items/         item type interface and registry, module interface, placements
   web/           profiles, web panels, built-in panels
   api/           connections, API client base, status cache, secrets
@@ -46,6 +46,8 @@ No core folder depends on a module. The core reaches modules only through the re
 | `Migrations` | Upgrades files from older `schemaVersion` values |
 | `DeviceSettings` | Typed access to the `QSettings` values listed in [sync](sync.md#device-settings) |
 | `Sorting` | Priority and order sorting, used by the sidebar and Focus |
+| `LayoutTree` | The [layout tree](data-model.md#layout-tree): split, tabs and cell nodes, with JSON conversion, edit operations and normalisation. It lives in `core` because `Dashboard` holds one. |
+| `FuzzyMatch` | Scores text against a query for the quick switcher |
 
 All changes go through `Model` methods. Views never change entities directly. `Store` listens to `Model` signals to write files.
 
@@ -53,7 +55,6 @@ All changes go through `Model` methods. Views never change entities directly. `S
 
 | Class | Responsibility |
 |---|---|
-| `LayoutNode` | The [layout tree](data-model.md#layout-tree): split, tabs and cell nodes, with JSON conversion and normalisation |
 | `LayoutView` | Builds widgets from a tree: `QSplitter` for splits, `QTabWidget` for tabs, `CellFrame` for cells. It updates the widgets in place when the tree changes, without rebuilding everything. |
 | `CellFrame` | Cell header and content. It asks a `PlacementFactory` for the content widget. |
 | `DropOverlay` | Shows the five drop zones while dragging, and returns where the drop lands |
@@ -66,12 +67,12 @@ The same `LayoutView` shows task dashboards and root dashboards. A task cell ins
 
 | Class | Responsibility |
 |---|---|
-| `ItemType` | Interface: id, name, icon, fields, rendering, connection kind, status, actions, `fromUrl`, `createView` |
+| `ItemType` | Interface: id, name, icon, fields, rendering, connection kind, status, actions, `fromUrl`, `createView`, and the view flags `singleView` and `reparentSafe`. See [the view](item-types.md#the-view). |
 | `ItemTypeRegistry` | Holds all types, finds a type by id, and finds the type that recognises a pasted URL |
 | `ModuleRegistrar` | Receives what each module registers: item types, connection kinds, settings, quick add handlers, related-item finders. See [modules](modules.md#what-a-module-registers). |
 | `ItemContext` | What an item's code can reach: settings, connections, status, profile, folders, terminal. See [modules](modules.md#item-context). |
 | `UnknownItemType` | Placeholder for an item whose module is not in this build. See [missing modules](modules.md#missing-modules). |
-| `Placement` | One shown instance of an item: owns its view widget, and tells the `ViewPool` when it becomes visible or hidden |
+| `Placement` | One shown instance of an item: owns its view widget, honours the view flags, and tells the `ViewPool` when it becomes visible or hidden |
 | `ViewPool` | Applies the [memory policy](web-views.md#memory-policy) to web views |
 
 Native views are ordinary widgets. Lists use `QTableView` with a model fed from the `StatusCache`.

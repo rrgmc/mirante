@@ -20,10 +20,22 @@ A module registers each of its types in the `ItemTypeRegistry` with:
 | `status` | Optional: how to fetch status and attention from the [status cache](integrations.md#polling-and-caching) |
 | `actions` | Optional: the light actions it offers |
 | `fromUrl` | Optional: recognises a pasted URL and returns a configuration |
+| `createView` | Creates the item's view for one placement. See [the view](#the-view). |
+| `singleView` | Optional, off by default: the item can have only one view at a time |
+| `reparentSafe` | Optional, on by default: the view can be moved to another cell without being created again |
 
 New types are added by registering a class in a module. No core code changes. See [adding a module](modules.md#adding-a-module).
 
 When a field has a project default, the type uses it when the field is empty. For example, an empty project path in an MR List uses the project's `gitlab.project` setting. See [module settings](data-model.md#project).
+
+## The view
+
+`createView` returns a plain `QWidget`. The item type may put anything inside it, such as Qt widgets, a web view, or a container around a native window made with `QWidget::createWindowContainer`. The core places the widget in a cell, a tab or a detached window, and never looks inside it. See [decision 0016](decisions/0016-generic-items.md).
+
+Two flags tell the core what the view cannot do. Both default to what an ordinary widget can do.
+
+- **`singleView`.** Normally each placement gets its own view, as in [decision 0003](decisions/0003-view-per-placement.md). Some content can exist only once, such as a device camera or a window from a library that allows one instance. When `singleView` is on, only one placement shows the view. The others show "Shown in another cell", with a button to show it there instead.
+- **`reparentSafe`.** When a layout is edited, `LayoutView` keeps each view and moves it to its new parent widget, so a web page keeps its state. Some views, such as containers around native windows, do not survive that move. When `reparentSafe` is off, `LayoutView` creates the view again after an edit instead of moving it. The view loses its state.
 
 ## Light actions
 
