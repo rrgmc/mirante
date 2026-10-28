@@ -13,6 +13,7 @@ struct SortFilter
 {
     bool hideLow = false;       // hide Low projects and tasks
     bool closedTasks = false;   // false: only active tasks; true: only done and archived ones
+    bool hideEmptyProjects = false;  // hide projects with no task in the list; used by the sidebar
 };
 
 bool projectBefore(const Project &a, const Project &b);

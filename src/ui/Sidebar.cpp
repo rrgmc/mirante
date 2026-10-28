@@ -4,6 +4,7 @@
 #include "ui/SidebarModel.h"
 
 #include <QHBoxLayout>
+#include <QIcon>
 #include <QLabel>
 #include <QMenu>
 #include <QSet>
@@ -12,14 +13,23 @@
 #include <QTreeView>
 #include <QVBoxLayout>
 
+#include <functional>
+
 namespace mirante {
+
+namespace {
+
+// The task lists, in the order of their tabs.
+enum TaskList { ProjectsList, ActiveList, DoneList };
+
+} // namespace
 
 struct Sidebar::Private
 {
     SidebarModel *model = nullptr;
     QTreeView *tree = nullptr;
     QToolButton *hideLow = nullptr;
-    QTabBar *stateTabs = nullptr;       // "Active" and "Done"
+    QTabBar *stateTabs = nullptr;       // the task lists: "Projects", "Active" and "Done"
 
     // Expansion survives a reset of the model. Groups and projects start
     // expanded, so the user's collapsed ones are kept; tasks start collapsed.
@@ -51,11 +61,25 @@ struct Sidebar::Private
         }
     }
 
+    // Calls fn for every task row under parent. Tasks sit under projects, so
+    // the walk stops at them.
+    void forEachTask(const QModelIndex &parent, const std::function<void(const QModelIndex &)> &fn)
+    {
+        for (int row = 0; row < model->rowCount(parent); ++row) {
+            const QModelIndex index = model->index(row, 0, parent);
+            if (kind(index) == SidebarModel::Kind::Task)
+                fn(index);
+            else
+                forEachTask(index, fn);
+        }
+    }
+
     void applyFilter()
     {
         SortFilter filter = model->filter();
         filter.hideLow = hideLow->isChecked();
-        filter.closedTasks = stateTabs->currentIndex() == 1;
+        filter.closedTasks = stateTabs->currentIndex() == DoneList;
+        filter.hideEmptyProjects = stateTabs->currentIndex() == ActiveList;
         model->setFilter(filter);
     }
 };
@@ -78,9 +102,28 @@ Sidebar::Sidebar(const Model &model, const ItemTypeRegistry &types, QWidget *par
     collapse->setAutoRaise(true);
     connect(collapse, &QToolButton::clicked, this, &Sidebar::collapseRequested);
 
+    // Expand or collapse every task at once. Groups and projects are left as
+    // they are; they open and close by hand only.
+    auto *expandTasks = new QToolButton(this);
+    expandTasks->setObjectName(QStringLiteral("expandAllTasks"));
+    expandTasks->setIcon(QIcon(QStringLiteral(":/icons/expand-all.svg")));
+    expandTasks->setText(tr("Expand all tasks"));
+    expandTasks->setToolTip(tr("Expand all tasks"));
+    expandTasks->setAutoRaise(true);
+    connect(expandTasks, &QToolButton::clicked, this, &Sidebar::expandAllTasks);
+    auto *collapseTasks = new QToolButton(this);
+    collapseTasks->setObjectName(QStringLiteral("collapseAllTasks"));
+    collapseTasks->setIcon(QIcon(QStringLiteral(":/icons/collapse-all.svg")));
+    collapseTasks->setText(tr("Collapse all tasks"));
+    collapseTasks->setToolTip(tr("Collapse all tasks"));
+    collapseTasks->setAutoRaise(true);
+    connect(collapseTasks, &QToolButton::clicked, this, &Sidebar::collapseAllTasks);
+
     auto *header = new QHBoxLayout;
     header->setContentsMargins(8, 4, 4, 4);
     header->addWidget(title, 1);
+    header->addWidget(expandTasks);
+    header->addWidget(collapseTasks);
     header->addWidget(collapse);
 
     // The tree.
@@ -109,17 +152,21 @@ Sidebar::Sidebar(const Model &model, const ItemTypeRegistry &types, QWidget *par
     d->hideLow->setChecked(d->model->filter().hideLow);
     d->hideLow->setAutoRaise(true);
 
-    // Two task lists over the same groups and projects: active tasks, and
-    // done and archived ones.
+    // Three task lists over the same groups: active tasks under every project,
+    // active tasks only under projects that have some, and done and archived
+    // tasks.
     d->stateTabs = new QTabBar(this);
     d->stateTabs->setObjectName(QStringLiteral("taskStateTabs"));
     d->stateTabs->setShape(QTabBar::RoundedSouth);
     d->stateTabs->setDrawBase(false);
     d->stateTabs->setExpanding(false);
+    d->stateTabs->addTab(tr("Projects"));
     d->stateTabs->addTab(tr("Active"));
     d->stateTabs->addTab(tr("Done"));
-    d->stateTabs->setTabToolTip(1, tr("Done and archived tasks"));
-    d->stateTabs->setCurrentIndex(d->model->filter().closedTasks ? 1 : 0);
+    d->stateTabs->setTabToolTip(ProjectsList, tr("Active tasks, under every project, including projects without any"));
+    d->stateTabs->setTabToolTip(ActiveList, tr("Active tasks, only under projects that have some"));
+    d->stateTabs->setTabToolTip(DoneList, tr("Done and archived tasks"));
+    d->stateTabs->setCurrentIndex(ProjectsList);
 
     connect(d->hideLow, &QToolButton::toggled, this, [this] { d->applyFilter(); });
     connect(d->stateTabs, &QTabBar::currentChanged, this, [this] { d->applyFilter(); });
@@ -200,20 +247,38 @@ Sidebar::~Sidebar()
 
 void Sidebar::reveal(const QString &id)
 {
+    // The entry may be in another task list: try the current one, then the others.
     QModelIndex index = d->model->indexOf(id);
-    if (!index.isValid()) {
-        // The entry may be in the other task list, active or done.
-        d->stateTabs->setCurrentIndex(1 - d->stateTabs->currentIndex());
+    const int current = d->stateTabs->currentIndex();
+    for (int list = 0; !index.isValid() && list < d->stateTabs->count(); ++list) {
+        if (list == current)
+            continue;
+        d->stateTabs->setCurrentIndex(list);
         index = d->model->indexOf(id);
-        if (!index.isValid()) {
-            d->stateTabs->setCurrentIndex(1 - d->stateTabs->currentIndex());
-            return;
-        }
+    }
+    if (!index.isValid()) {
+        d->stateTabs->setCurrentIndex(current);
+        return;
     }
     for (QModelIndex parent = index.parent(); parent.isValid(); parent = parent.parent())
         d->tree->expand(parent);
     d->tree->setCurrentIndex(index);
     d->tree->scrollTo(index);
+}
+
+void Sidebar::expandAllTasks()
+{
+    d->forEachTask({}, [this](const QModelIndex &task) {
+        d->tree->expand(task);
+        // The Dashboards and Items lists under it open too.
+        for (int row = 0; row < d->model->rowCount(task); ++row)
+            d->tree->expand(d->model->index(row, 0, task));
+    });
+}
+
+void Sidebar::collapseAllTasks()
+{
+    d->forEachTask({}, [this](const QModelIndex &task) { d->tree->collapse(task); });
 }
 
 } // namespace mirante

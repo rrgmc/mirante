@@ -20,8 +20,14 @@ public:
     Sidebar(const Model &model, const ItemTypeRegistry &types, QWidget *parent = nullptr);
     ~Sidebar() override;
 
-    // Selects and scrolls to a group, project, task or item.
+    // Selects and scrolls to a group, project, task or item, switching to the
+    // task list that holds it.
     void reveal(const QString &id);
+
+    // Expand or collapse every task, with its Dashboards and Items lists.
+    // Groups and projects are left as they are.
+    void expandAllTasks();
+    void collapseAllTasks();
 
 signals:
     // A double click, or Enter, opens an item or a task dashboard. On every

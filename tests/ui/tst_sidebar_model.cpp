@@ -74,6 +74,7 @@ private slots:
     void resetsOnModelReset();
     void repaintsChangedTask();
     void sidebarWidget();
+    void emptyProjects();
 };
 
 void TestSidebarModel::structure()
@@ -306,19 +307,73 @@ void TestSidebarModel::sidebarWidget()
     QCOMPARE(tree->currentIndex(), sidebarModel->indexOf(itemId));
     QVERIFY(tree->isExpanded(sidebarModel->indexOf(fixLoginTimeout)));
 
-    // The "Done" tab lists done and archived tasks.
+    // Three task lists: "Projects", "Active" without empty projects, "Done".
     auto *stateTabs = sidebar.findChild<QTabBar *>(QStringLiteral("taskStateTabs"));
     QVERIFY(stateTabs);
-    QCOMPARE(stateTabs->count(), 2);
+    QCOMPARE(stateTabs->count(), 3);
     QCOMPARE(stateTabs->currentIndex(), 0);
     stateTabs->setCurrentIndex(1);
+    QVERIFY(sidebarModel->filter().hideEmptyProjects);
+    QVERIFY(!sidebarModel->filter().closedTasks);
+    stateTabs->setCurrentIndex(2);
     QVERIFY(sidebarModel->filter().closedTasks);
+    QVERIFY(!sidebarModel->filter().hideEmptyProjects);
     QVERIFY(!sidebarModel->indexOf(fixLoginTimeout).isValid());
 
-    // Revealing an active task switches back to the "Active" tab.
+    // Revealing an active task switches to a list that has it.
     sidebar.reveal(fixLoginTimeout);
     QCOMPARE(stateTabs->currentIndex(), 0);
     QCOMPARE(tree->currentIndex(), sidebarModel->indexOf(fixLoginTimeout));
+
+    // Expand all opens every task with its lists; collapse all closes the
+    // tasks only, and leaves groups and projects open.
+    sidebar.collapseAllTasks();
+    QVERIFY(!tree->isExpanded(sidebarModel->indexOf(fixLoginTimeout)));
+    QVERIFY(tree->isExpanded(sidebarModel->indexOf(backendProject)));
+    sidebar.expandAllTasks();
+    const QModelIndex task = sidebarModel->indexOf(addRateLimiting);
+    QVERIFY(tree->isExpanded(task));
+    QVERIFY(tree->isExpanded(sidebarModel->index(0, 0, task)));
+    QVERIFY(tree->isExpanded(sidebarModel->index(1, 0, task)));
+    sidebar.collapseAllTasks();
+    QVERIFY(!tree->isExpanded(task));
+    QVERIFY(tree->isExpanded(sidebarModel->indexOf(backendProject)));
+    QVERIFY(tree->isExpanded(sidebarModel->indexOf(workGroup)));
+}
+
+// The "Active" list leaves out projects without active tasks; the others keep them.
+void TestSidebarModel::emptyProjects()
+{
+    Group group;
+    group.id = QStringLiteral("g");
+    Project busy;
+    busy.id = QStringLiteral("busy");
+    busy.groupId = group.id;
+    Project idle = busy;
+    idle.id = QStringLiteral("idle");
+    Task active;
+    active.id = QStringLiteral("a");
+    active.projectId = busy.id;
+    Task done = active;
+    done.id = QStringLiteral("d");
+    done.projectId = idle.id;
+    done.state = TaskState::Done;
+
+    Model model;
+    model.reset({group}, {busy, idle}, {active, done}, {});
+    ItemTypeRegistry types;
+    SidebarModel sidebar(model, types);
+
+    QCOMPARE(childIds(sidebar, sidebar.index(0, 0)), (QStringList{busy.id, idle.id}));
+    SortFilter filter;
+    filter.hideEmptyProjects = true;
+    sidebar.setFilter(filter);
+    QCOMPARE(childIds(sidebar, sidebar.index(0, 0)), QStringList{busy.id});
+    filter = SortFilter();
+    filter.closedTasks = true;
+    sidebar.setFilter(filter);
+    QCOMPARE(childIds(sidebar, sidebar.index(0, 0)), (QStringList{busy.id, idle.id}));
+    QVERIFY(sidebar.indexOf(done.id).isValid());
 }
 
 QTEST_MAIN(TestSidebarModel)
