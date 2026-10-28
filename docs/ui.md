@@ -43,9 +43,10 @@ The sidebar can be collapsed.
 
 ## Opening tasks
 
-- **Single click:** opens the task's default dashboard in the **preview tab**. The preview tab shows its title in italics. The next single click on another task replaces it.
-- **Pin:** a double click, editing the dashboard, or the pin button turns the preview tab into a normal tab. A pinned task tab is a root dashboard holding one cell with that task. It goes to the front of the tab bar. It shows two lock buttons: the root dashboard's in the toolbar, and the task dashboard's in the task header.
-- Clicking a task that already has a pinned tab switches to that tab instead of opening a preview.
+- **Single click:** selects the task. It opens nothing.
+- **Double click** (or `Enter`): opens the task's default dashboard in the **preview tab**. The preview tab shows its title in italics. The next task opened this way replaces it. A double click on an item opens its task the same way and focuses the item's cell.
+- **Pin:** editing the dashboard, or the pin button, turns the preview tab into a normal tab. A pinned task tab is a root dashboard holding one cell with that task. It goes to the front of the tab bar. It shows two lock buttons: the root dashboard's in the toolbar, and the task dashboard's in the task header.
+- Opening a task that already has a pinned tab switches to that tab instead of opening a preview.
 - **Dashboard picker:** a task with several dashboards shows a small picker in its header to switch between them.
 
 The open tabs, and which one is the preview, are stored on each device, not synced.
@@ -131,7 +132,7 @@ Focus answers "what should I work on now?", across all projects.
   2. project priority, to break ties;
   3. manual order.
 - A toggle, "Needs attention first", moves tasks with attention badges to the top.
-- A click opens the task in the preview tab, as in the sidebar.
+- A double click opens the task in the preview tab, as in the sidebar.
 
 ## Attention
 
