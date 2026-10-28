@@ -662,7 +662,7 @@ void MainWindow::focusItem(const QString &taskId, const QString &itemId)
     if (!page)
         return;
     if (QWidget *cell = findItemCell(page->view, itemId))
-        cell->setFocus(Qt::OtherFocusReason);
+        d->shortcuts->focusCell(cell);
 }
 
 void MainWindow::revealInSidebar(const QString &id)

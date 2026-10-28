@@ -99,6 +99,9 @@ CellFrame::CellFrame(const std::optional<CellRef> &ref, bool removed, const Item
 {
     d->ref = ref;
 
+    // A cell takes the focus when clicked or tabbed to.
+    setFocusPolicy(Qt::StrongFocus);
+
     auto *layout = new QVBoxLayout(this);
     layout->setContentsMargins(0, 0, 0, 0);
     layout->setSpacing(0);

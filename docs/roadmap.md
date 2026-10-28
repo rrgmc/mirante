@@ -24,21 +24,21 @@ A clickable prototype of the navigation, made of one HTML page with mock data. W
 
 ## M2: App skeleton and layouts
 
-The base of the Qt app, reading a fixed set of JSON files. Nothing is written back. There are no web views and no API calls. See [decision 0015](decisions/0015-app-skeleton-instead-of-spike.md).
+The base of the Qt app, reading a fixed set of JSON files. Nothing is written back. There are no web views and no API calls. See [decision 0015](decisions/0015-app-skeleton-instead-of-spike.md). The open boxes are checked by hand with [the M2 checklist](plans/m2-checks.md).
 
-- [ ] CMake project with Qt 6.8, qtkeychain and QHotkey. It builds on Windows, macOS and Linux.
-- [ ] A GitHub Actions build for Windows, macOS and Linux runs the tests with all modules on, and a second build has all modules off.
-- [ ] The [module](modules.md) mechanism: `mirante_add_module()`, one option per module, `MIRANTE_MODULES`, the `DEPENDS` check and the generated `enabled_modules.cpp`.
-- [ ] The module interface target `mirante::module_api`. Modules cannot include other core headers.
-- [ ] One folder per module in `src/modules/`, each registering its item types with id, name and icon only.
-- [ ] A build with all modules off and a build with all on both succeed.
-- [ ] `core` loads the fixture files into `Model`.
+- [x] CMake project with Qt 6.8, qtkeychain and QHotkey. It builds on Windows, macOS and Linux.
+- [x] A GitHub Actions build for Windows, macOS and Linux runs the tests with all modules on, and a second build has all modules off.
+- [x] The [module](modules.md) mechanism: `mirante_add_module()`, one option per module, `MIRANTE_MODULES`, the `DEPENDS` check and the generated `enabled_modules.cpp`.
+- [x] The module interface target `mirante::module_api`. Modules cannot include other core headers.
+- [x] One folder per module in `src/modules/`, each registering its item types with id, name and icon only.
+- [x] A build with all modules off and a build with all on both succeed.
+- [x] `core` loads the fixture files into `Model`.
 - [ ] The sidebar, root tab bar and preview tab work as in [ui](ui.md).
 - [ ] `LayoutView` shows any layout tree, with placeholder cells that show the item type and name.
 - [ ] Items whose module is not in the build show the missing-module placeholder.
 - [ ] Layout editing works with the context menu and with drag and drop, including normalisation. Changes are kept in memory only.
 - [ ] `Ctrl+K` switcher and the panel focus shortcuts work.
-- [ ] Tests cover JSON conversion, layout tree edits and normalisation, and unchanged write-back of data from missing modules.
+- [x] Tests cover JSON conversion, layout tree edits and normalisation, and unchanged write-back of data from missing modules.
 
 ## M3: Data folder and editing
 

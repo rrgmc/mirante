@@ -316,13 +316,8 @@ struct Shortcuts::Private
 
     void onEvent(QObject *watched, QEvent *event)
     {
-        if (event->type() == QEvent::Polish) {
-            // A cell takes the focus when clicked or tabbed to.
-            if (auto *frame = qobject_cast<CellFrame *>(watched); frame && frame->focusPolicy() == Qt::NoFocus)
-                frame->setFocusPolicy(Qt::StrongFocus);
-        } else if (event->type() == QEvent::Resize && watched == content && layer) {
+        if (event->type() == QEvent::Resize && watched == content && layer)
             layer->setGeometry(content->rect());
-        }
     }
 
     void add(const QKeySequence &keys, std::function<void()> action)
@@ -343,13 +338,8 @@ Shortcuts::Shortcuts(MainWindow *window)
     d->content = window->contentArea();
 
     d->watcher.handler = [this](QObject *watched, QEvent *event) { d->onEvent(watched, event); };
-    qApp->installEventFilter(&d->watcher);
     if (d->content)
         d->content->installEventFilter(&d->watcher);
-    for (CellFrame *frame : window->findChildren<CellFrame *>()) {
-        if (frame->focusPolicy() == Qt::NoFocus)
-            frame->setFocusPolicy(Qt::StrongFocus);
-    }
 
     d->connections.push_back(connect(qApp, &QApplication::focusChanged, this,
                                      [this](QWidget * /*old*/, QWidget *now) { d->onFocusChanged(now); }));
@@ -382,7 +372,6 @@ Shortcuts::~Shortcuts()
     for (const QPointer<QShortcut> &shortcut : d->shortcuts)
         delete shortcut.data();
     d->shortcuts.clear();
-    qApp->removeEventFilter(&d->watcher);
     if (d->content)
         d->content->removeEventFilter(&d->watcher);
     d->watcher.handler = nullptr;
