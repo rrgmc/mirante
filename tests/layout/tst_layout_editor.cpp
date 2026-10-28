@@ -721,6 +721,36 @@ private slots:
         QCOMPARE(spy.count(), 1);   // only the drop made while unlocked
     }
 
+    // Holding a drag over a tab that is not shown opens it, so its content
+    // can take the drop.
+    void dragOverTabOpensIt()
+    {
+        FakeFactory factory;
+        LayoutView view(&factory);
+        view.resize(800, 600);
+        view.setTree(tree(work));
+        view.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&view));
+        view.setEditMode(true);
+        new DropOverlay(&view);
+
+        auto *tabWidget = view.findChild<QTabWidget *>();
+        QVERIFY(tabWidget && tabWidget->count() > 1);
+        tabWidget->setCurrentIndex(0);
+        QTabBar *bar = tabWidget->tabBar();
+        const QPoint pos = bar->mapTo(&view, bar->tabRect(1).center());
+        std::unique_ptr<QMimeData> mime(dragMimeData(fromSidebar(itemRef(notesItem))));
+
+        QDragEnterEvent enter(pos, Qt::CopyAction, mime.get(), Qt::LeftButton, Qt::NoModifier);
+        QApplication::sendEvent(&view, &enter);
+        QDragMoveEvent move(pos, Qt::CopyAction, mime.get(), Qt::LeftButton, Qt::NoModifier);
+        QApplication::sendEvent(&view, &move);
+        QCOMPARE(tabWidget->currentIndex(), 0);
+        QTRY_COMPARE_WITH_TIMEOUT(tabWidget->currentIndex(), 1, DropOverlay::tabOpenDelay * 5);
+        QDragLeaveEvent leave;
+        QApplication::sendEvent(&view, &leave);
+    }
+
     void overlayRefusesWhatTheAcceptorRefuses()
     {
         FakeFactory factory;
