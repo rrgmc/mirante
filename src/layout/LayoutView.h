@@ -56,6 +56,8 @@ signals:
 
     void cellMenuRequested(const mirante::NodePath &path, const QPoint &globalPos);
     void tabMenuRequested(const mirante::NodePath &tabsPath, int index, const QPoint &globalPos);
+    // The + button of a tab group, shown in edit mode, was clicked.
+    void tabAddRequested(const mirante::NodePath &tabsPath);
     void cellDragStarted(const mirante::NodePath &path);
 
 private:

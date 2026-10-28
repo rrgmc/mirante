@@ -355,6 +355,8 @@ void LayoutEditor::Private::showTabMenu(LayoutView *view, const NodePath &tabsPa
             q->tabCommand(dashboard, tabsPath, index, tabCommand);
         });
     };
+    command(LayoutEditor::tr("Add tab"), TabCommand::AddTab);
+    menu.addSeparator();
     QPointer<LayoutView> guard(view);
     addCommand(&menu, commands, LayoutEditor::tr("Rename…"), [this, guard, dashboard, tabsPath, index, title] {
         bool ok = false;
@@ -476,6 +478,13 @@ void LayoutEditor::attach(LayoutView *view, const DashboardRef &dashboard)
                 d->showTabMenu(view, tabsPath, index, globalPos);
             });
     connect(view, &LayoutView::cellDragStarted, this, [this, view](const NodePath &path) { d->startDrag(view, path); });
+    connect(view, &LayoutView::tabAddRequested, this, [this, view](const NodePath &tabsPath) {
+        const auto found = d->views.find(view);
+        const LayoutNode *tree = found != d->views.end() ? d->model.layout(found->second) : nullptr;
+        const LayoutNode *tabs = tree ? layout::nodeAt(*tree, tabsPath) : nullptr;
+        if (tabs && tabs->kind == Kind::Tabs && !tabs->children.empty())
+            tabCommand(found->second, tabsPath, int(tabs->children.size()) - 1, TabCommand::AddTab);
+    });
     connect(view, &LayoutView::treeEdited, this, [this, view](const LayoutNode &tree) {
         const auto found = d->views.find(view);
         if (found != d->views.end())
@@ -558,6 +567,9 @@ void LayoutEditor::tabCommand(const DashboardRef &dashboard, const NodePath &tab
 
     LayoutNode edited;
     switch (command) {
+    case TabCommand::AddTab:
+        edited = layout::insertTab(*tree, tabsPath, index + 1, std::nullopt, tr("New tab")).tree;
+        break;
     case TabCommand::Close:
         edited = layout::removeNode(*tree, childOf(tabsPath, index));
         break;
