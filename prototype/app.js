@@ -1,9 +1,9 @@
-// rraidash M1 prototype. See docs/plans/m1-html-prototype.md.
+// Mirante M1 prototype. See docs/plans/m1-html-prototype.md.
 // The whole page is rendered again from `data` and `dev` after every change.
 
 'use strict';
 
-const STORAGE_KEY = 'rraidash-proto-v1';
+const STORAGE_KEY = 'mirante-proto-v1';
 const PRIORITIES = ['Urgent', 'High', 'Normal', 'Low'];
 const STATES = ['active', 'done', 'archived'];
 
@@ -519,7 +519,7 @@ function renderSidebar() {
 
   return h('aside.sidebar', {},
     h('div.sidebar-head', {},
-      h('span.title', {}, 'rraidash'),
+      h('span.title', {}, 'Mirante'),
       iconBtn('⌕', 'Quick switcher (Ctrl+K)', openSwitcher),
       iconBtn('«', 'Hide sidebar', () => { dev.sidebarCollapsed = true; commit(); })),
     h('div.sidebar-tree', {}, rows),

@@ -1,6 +1,6 @@
 # Sync
 
-rraidash has no server. The same data appears on several devices because it is stored in a folder that an external tool keeps in step, such as Syncthing, OneDrive or Dropbox. See [decision 0004](decisions/0004-file-per-entity-sync.md).
+Mirante has no server. The same data appears on several devices because it is stored in a folder that an external tool keeps in step, such as Syncthing, OneDrive or Dropbox. See [decision 0004](decisions/0004-file-per-entity-sync.md).
 
 ## The data folder
 
@@ -70,6 +70,6 @@ Settings that only make sense on one device are stored with `QSettings`, outside
   - Windows Credential Manager;
   - macOS Keychain;
   - Secret Service (libsecret) on Linux.
-- Each token is stored under service `rraidash` and key `<groupId>/<connectionId>`. The key contains no secret, so it can be derived from synced data.
+- Each token is stored under service `mirante` and key `<groupId>/<connectionId>`. The key contains no secret, so it can be derived from synced data.
 - Tokens are never written to the data folder and never synced. Each device asks for each token once, when an item first needs it. See [decision 0006](decisions/0006-connections-per-group.md).
 - Web login profiles are not synced either. The user logs in once per device and group. See [web views](web-views.md#profiles).

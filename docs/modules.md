@@ -21,7 +21,7 @@ Built-in panels (`dash.panel`) belong to the core, not to a module, because the 
 
 ```
 src/modules/gitlab/
-  CMakeLists.txt         calls rraidash_add_module()
+  CMakeLists.txt         calls mirante_add_module()
   README.md              what the module does, its types and connection kinds
   GitLabModule.cpp       the register function
   GitLabClient.h/.cpp    module code, freely organised
@@ -41,10 +41,10 @@ The prefix tells the core which module an unknown id belongs to, so a placeholde
 
 ## Building
 
-Each module's `CMakeLists.txt` calls one function, defined in `cmake/RraidashModule.cmake`:
+Each module's `CMakeLists.txt` calls one function, defined in `cmake/MiranteModule.cmake`:
 
 ```cmake
-rraidash_add_module(gitlab
+mirante_add_module(gitlab
     SOURCES GitLabModule.cpp GitLabClient.cpp ...
     TESTS   tests/tst_urls.cpp tests/tst_attention.cpp
     DEPENDS          # other module ids, usually none
@@ -53,9 +53,9 @@ rraidash_add_module(gitlab
 
 The function:
 
-1. creates the option `RRAIDASH_MODULE_GITLAB`, with the given default;
+1. creates the option `MIRANTE_MODULE_GITLAB`, with the given default;
 2. if the option is off, does nothing more;
-3. builds a static library `rraidash_module_gitlab`, linked only to the module interface and Qt;
+3. builds a static library `mirante_module_gitlab`, linked only to the module interface and Qt;
 4. adds the module's tests to CTest;
 5. adds the module to the list of enabled modules.
 
@@ -63,8 +63,8 @@ The top-level `CMakeLists.txt` adds every folder in `src/modules/` that has a `C
 
 **Choosing modules:**
 
-- one option at a time: `-DRRAIDASH_MODULE_JIRA=OFF`;
-- an exact list: `-DRRAIDASH_MODULES="gitlab;web;notes"`, which enables those modules and disables all others;
+- one option at a time: `-DMIRANTE_MODULE_JIRA=OFF`;
+- an exact list: `-DMIRANTE_MODULES="gitlab;web;notes"`, which enables those modules and disables all others;
 - a configure preset in `CMakePresets.json`, for builds that are used often.
 
 **Registration.** CMake generates `enabled_modules.cpp` in the build folder. It calls each enabled module's register function, in alphabetical order of module id:
@@ -72,8 +72,8 @@ The top-level `CMakeLists.txt` adds every folder in `src/modules/` that has a `C
 ```cpp
 void registerEnabledModules(ModuleRegistrar &r)
 {
-    rraidash::modules::folder::registerModule(r);
-    rraidash::modules::gitlab::registerModule(r);
+    mirante::modules::folder::registerModule(r);
+    mirante::modules::gitlab::registerModule(r);
     // ...
 }
 ```
@@ -84,7 +84,7 @@ Modules do not register themselves through static objects. The linker drops unre
 
 ## The module interface
 
-A module links to one CMake target, `rraidash::module_api`. It holds the only core headers a module may include. A module that includes any other core header does not compile, because the include path is not available to it.
+A module links to one CMake target, `mirante::module_api`. It holds the only core headers a module may include. A module that includes any other core header does not compile, because the include path is not available to it.
 
 The module interface contains:
 
@@ -189,8 +189,8 @@ Everything is written back exactly as it was loaded. See [sync](sync.md#the-data
 
 ## Adding a module
 
-1. Create `src/modules/<id>/` with a `CMakeLists.txt` that calls `rraidash_add_module()`.
-2. Write `registerModule(ModuleRegistrar &)` in the namespace `rraidash::modules::<id>`.
+1. Create `src/modules/<id>/` with a `CMakeLists.txt` that calls `mirante_add_module()`.
+2. Write `registerModule(ModuleRegistrar &)` in the namespace `mirante::modules::<id>`.
 3. Register the item types and any connection kinds, settings and quick add handlers.
 4. Add tests and a `README.md`.
 5. Add the module's item types to [item types](item-types.md) and the module to the table at the top of this document.

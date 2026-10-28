@@ -27,8 +27,8 @@ A clickable prototype of the navigation, made of one HTML page with mock data. W
 The real Qt app, reading a fixed set of JSON files. Nothing is written back. There are no web views and no API calls.
 
 - [ ] CMake project with Qt 6.8, qtkeychain and QHotkey. It builds on Windows, macOS and Linux.
-- [ ] The [module](modules.md) mechanism: `rraidash_add_module()`, one option per module, `RRAIDASH_MODULES`, the `DEPENDS` check and the generated `enabled_modules.cpp`.
-- [ ] The module interface target `rraidash::module_api`. Modules cannot include other core headers.
+- [ ] The [module](modules.md) mechanism: `mirante_add_module()`, one option per module, `MIRANTE_MODULES`, the `DEPENDS` check and the generated `enabled_modules.cpp`.
+- [ ] The module interface target `mirante::module_api`. Modules cannot include other core headers.
 - [ ] One folder per module in `src/modules/`, each registering its item types with id, name and icon only.
 - [ ] A build with all modules off and a build with all on both succeed.
 - [ ] `core` loads the fixture files into `Model`.

@@ -1,6 +1,6 @@
 # Integrations
 
-This document describes how rraidash talks to GitLab, Jira and Claude, and how it starts terminals. Which connection an item uses is defined in the [data model](data-model.md#connection).
+This document describes how Mirante talks to GitLab, Jira and Claude, and how it starts terminals. Which connection an item uses is defined in the [data model](data-model.md#connection).
 
 The GitLab, Jira and Claude code lives in the `gitlab`, `jira` and `claude` [modules](modules.md). Polling, caching, errors and terminal launch are core services that all modules use.
 

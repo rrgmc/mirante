@@ -170,7 +170,7 @@ The project is chosen by matching the merge request's GitLab project or the issu
 | `Ctrl+PgDown`, `Ctrl+PgUp` | Next or previous root dashboard tab |
 | `Ctrl+Shift+M` | Maximise the focused cell, or restore it |
 | `Ctrl+W` | Close the preview tab or the focused root tab |
-| Global hotkey (configurable) | Bring rraidash to the front |
+| Global hotkey (configurable) | Bring Mirante to the front |
 
 On macOS, `Cmd` replaces `Ctrl`.
 

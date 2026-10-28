@@ -6,7 +6,7 @@ Web content uses Qt WebEngine, which embeds Chromium. This document describes lo
 
 A `QWebEngineProfile` holds cookies, local storage, cache and site permissions. Pages in different profiles cannot see each other's logins.
 
-rraidash creates these profiles:
+Mirante creates these profiles:
 
 | Profile | Storage name | Used for |
 |---|---|---|
@@ -48,7 +48,7 @@ A heavy page such as claude.ai uses a few hundred MB.
 
 ## Known risk: logins in embedded browsers
 
-Some identity providers block sign-in from embedded browsers, and Google is the best known. If claude.ai, GitLab or Jira is used through such a provider, logging in inside rraidash may fail. Workarounds:
+Some identity providers block sign-in from embedded browsers, and Google is the best known. If claude.ai, GitLab or Jira is used through such a provider, logging in inside Mirante may fail. Workarounds:
 
 - log in with email and password, or an email code, instead;
 - open that item in the external browser instead.

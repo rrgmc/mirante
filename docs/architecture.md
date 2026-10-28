@@ -16,7 +16,7 @@ src/
   ui/            main window, sidebar, Focus, switcher, dialogs
   modules/       one folder per module of item types; see modules.md
 cmake/
-  RraidashModule.cmake   rraidash_add_module() and the generated registration
+  MiranteModule.cmake   mirante_add_module() and the generated registration
 resources/
   panels/        HTML, JavaScript and CSS of the built-in panels
 tests/           Qt Test
@@ -28,7 +28,7 @@ Dependencies point downwards only:
 ui ──► layout ──► items ──► web, api ──► core
  └──────────────────────────► platform
 
-modules/* ──► module interface (rraidash::module_api)
+modules/* ──► module interface (mirante::module_api)
 main.cpp  ──► generated enabled_modules.cpp ──► modules/*
 ```
 
@@ -150,7 +150,7 @@ A worker thread is added only if a measured problem needs one.
 - `find_package(Qt6 6.8 REQUIRED COMPONENTS Widgets WebEngineWidgets WebChannel Network)`. `Qt6::Test` is used for tests.
 - qtkeychain and QHotkey come through `FetchContent`, built for Qt 6.
 - **Compilers:** MSVC 2022 64-bit on Windows, because Qt WebEngine does not support MinGW. Clang on macOS. GCC on Linux.
-- **Modules:** each module has an option `RRAIDASH_MODULE_<ID>`, on by default. `RRAIDASH_MODULES` sets the exact list. See [building](modules.md#building).
+- **Modules:** each module has an option `MIRANTE_MODULE_<ID>`, on by default. `MIRANTE_MODULES` sets the exact list. See [building](modules.md#building).
 - **Linux packages:** libsecret development files for qtkeychain, and X11 development files for QHotkey.
 - **Deployment:** `windeployqt` on Windows, an app bundle with `macdeployqt` on macOS. Linux builds are not packaged in the first version.
 
