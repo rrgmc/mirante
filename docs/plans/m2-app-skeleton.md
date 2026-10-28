@@ -35,9 +35,15 @@ resources/
 tests/
   core/          tests for core
   items/         tests for the registry and missing modules
+  layout/        tests for the layout widgets
+  ui/            tests for the sidebar model and the switcher
+tools/
+  build.ps1      builds and tests a preset on Windows from any shell
 ```
 
 Each folder in `src/` is one static library. The executable `mirante` links them all, plus the enabled modules. Dependencies follow [architecture](../architecture.md#source-folders): `ui → layout → items → core`, with `platform` used by `ui` only.
+
+Each library compiles every `.cpp` file in its folder, found with `file(GLOB ... CONFIGURE_DEPENDS)`. Each `tests/<folder>/tst_*.cpp` file becomes one test, linked to the library of that folder. So adding a source or test file needs no change to a shared `CMakeLists.txt`. Modules still list their files, because each module folder belongs to one task. See [decision 0017](../decisions/0017-parallel-tasks-with-fixed-interfaces.md).
 
 ## Part 1: build skeleton and CI
 
@@ -47,7 +53,7 @@ Each folder in `src/` is one static library. The executable `mirante` links them
 - `find_package(Qt6 6.8 REQUIRED COMPONENTS Core Gui Widgets Test)`, then `qt_standard_project_setup()`.
 - Warnings: `/W4 /permissive-` on MSVC, `-Wall -Wextra -Wpedantic` elsewhere. Warnings are errors in CI only, through the option `MIRANTE_WERROR`, so a new compiler version does not break local builds.
 - `Dependencies.cmake` fetches qtkeychain and QHotkey with `FetchContent`, each pinned to a release tag, built static and for Qt 6. `mirante_platform` links both, so CI proves that they build on all three platforms. They are not called until M5 and M8.
-- `enable_testing()`. Every test is a Qt Test executable added with a helper `mirante_add_test(name SOURCES ... LIBS ...)`, which also sets `QT_QPA_PLATFORM=offscreen` in the test environment.
+- `enable_testing()`. Every test is a Qt Test executable added with a helper `mirante_add_test(name SOURCES ... LIBS ...)`, which also sets `QT_QPA_PLATFORM=offscreen` in the test environment. A second helper, `mirante_add_tests(folder LIBS ...)`, calls it for each `tst_*.cpp` file in a test folder.
 
 **Presets.** `CMakePresets.json` uses the Ninja generator and defines:
 
@@ -60,6 +66,8 @@ Each folder in `src/` is one static library. The executable `mirante` links them
 | `ci-no-modules` | `ci` with no modules |
 
 Each preset has a matching build and test preset. On Windows, presets are run from a Developer Command Prompt for MSVC 2022 so Ninja finds the compiler.
+
+**Build script.** `tools/build.ps1 [-Preset dev]` finds Visual Studio 2022 with `vswhere`, enters its developer shell with `Enter-VsDevShell -Arch amd64`, then configures, builds and tests the preset. Agents and plain shells build with it, so nobody needs a Developer Command Prompt open. It finds Qt through `CMAKE_PREFIX_PATH` or the environment variable `MIRANTE_QT_DIR`.
 
 **CI.** `.github/workflows/ci.yml` runs on every push and pull request:
 
@@ -321,19 +329,68 @@ The focused cell follows `QApplication::focusChanged`.
 
 **Done when** every M2 item in the roadmap is checked by hand on Windows, CI is green, and the roadmap boxes are ticked.
 
-## Order of work
+## Tasks for parallel work
 
-Parts 1 and 3 change separate folders. So do parts 4 and 5.
+The parts above say what is built. This section splits them into tasks, each small enough to give to one agent. Several agents work at the same time, each in its own worktree. See [decision 0017](../decisions/0017-parallel-tasks-with-fixed-interfaces.md).
 
-| Step | Work | Worktree branch | Can run beside |
-|---|---|---|---|
-| 1 | Part 1 | `m2-build` | none, everything builds on it |
-| 2 | Part 2 | `m2-modules` | step 3 |
-| 3 | Part 3 | `m2-core` | step 2 |
-| 4 | Part 4 | `m2-layout` | step 5, once step 3 is merged |
-| 5 | Part 5 | `m2-ui` | step 4, once step 3 is merged |
+### Rules
 
-Step 5 needs `LayoutView` to show dashboards. Until step 4 is merged, it uses a plain label in the content area. Each step is merged into `master` when its build and tests pass, locally and in CI.
+- **Interfaces first.** Task T0 writes every header named in this plan, with the declarations given here, and a stub implementation that compiles and does nothing. Later tasks fill in the implementations behind those headers.
+- **Each task owns its files.** A task changes only the files listed for it, and may add new files in the folders it owns. If it needs a change to a header it does not own, it stops and reports the change it needs. The orchestrator makes that change on `master`, and the task merges `master` and carries on.
+- **No shared file lists.** Libraries and test folders find their files by globbing, as described under [source layout](#source-layout). Two tasks that add files never edit the same `CMakeLists.txt`.
+- **Tests without the whole app.** Each task checks its work with its own tests. Widget tasks build their widgets from hand-made trees and a fake `CellFactory`, so they do not wait for `Model` or `MainWindow`.
+
+### Roles
+
+- **The orchestrator** is the main Claude session. It does T0 itself, starts each task whose needs are merged, and merges finished branches into `master` one at a time. Before each merge it merges `master` into the branch, builds with `tools/build.ps1` and runs the tests. It ends with T17.
+- **An agent** gets one task. It works in its own worktree, on the branch named in the table, and builds with `tools/build.ps1 -Preset dev`. It commits on its branch and reports what it did. It does not merge into `master` and does not push.
+- **The user** reviews the T0 headers before the first wave starts, pushes `master` so CI runs, and does the checks by hand in T17.
+
+CI runs only when the user pushes. A CI failure after a push becomes a fix task for the orchestrator.
+
+### Brief for an agent
+
+Each agent gets this brief, with its task id filled in:
+
+> Read `CLAUDE.md`, `docs/README.md` and `docs/plans/m2-app-skeleton.md`, in particular the part and the task row for task Tn. Implement task Tn behind the existing headers. Change only the files the task owns. If you need a change to any other file, stop and report it. Build and test with `tools/build.ps1 -Preset dev`, and also with `-Preset no-modules` if you touched module code. Commit on your branch with focused commits. Do not merge or push. Report what you did, the test results, and anything left open.
+
+### Tasks
+
+| Task | Branch | Work | Owns | Needs |
+|---|---|---|---|---|
+| T0 | `m2-skeleton` | Part 1 except CI. Every library target, the test helpers and `tools/build.ps1`. `mirante::module_api` with its two headers. Every header named in parts 2 to 5, with stubs. `MiranteModule.cmake` with the real signatures, generating an empty registration. `main.cpp` showing an empty `MainWindow`. One smoke test. | everything it creates; after merging, the headers and the `CMakeLists.txt` files belong to the orchestrator | none |
+| T1 | `m2-ci` | The CI workflow and the module-includes check. | `.github/`, `tools/check-module-includes.py` | T0 |
+| T2 | `m2-modules` | The module mechanism of Part 2: `mirante_add_module()`, `mirante_finish_modules()`, the generated registration, `ItemTypeRegistry`, `UnknownItemType`, `tst_registry`. The `web` module as the first stub module. | `cmake/MiranteModule.cmake`, `cmake/enabled_modules.cpp.in`, `src/items/*.cpp`, `src/modules/web/`, `tests/items/` | T0 |
+| T3 | `m2-entities` | The entity structs' `fromJson()` and `toJson()`, and the JSON conversion of `LayoutNode`. `tst_entities`. | `src/core/Entities.cpp`, `src/core/LayoutTreeJson.cpp`, `tests/core/tst_entities.cpp` | T0 |
+| T4 | `m2-layout-edits` | The `LayoutTree` edit operations and `sameShape`. `tst_layout_edits`. | `src/core/LayoutTree.cpp`, `tests/core/tst_layout_edits.cpp` | T0 |
+| T5 | `m2-normalise` | `normalise()` with the six rules and size scaling. `tst_normalise`. | `src/core/LayoutNormalise.cpp`, `tests/core/tst_normalise.cpp` | T0 |
+| T6 | `m2-sorting-fuzzy` | `Sorting` and `FuzzyMatch`. `tst_sorting`, `tst_fuzzy`. | `src/core/Sorting.cpp`, `src/core/FuzzyMatch.cpp`, their tests | T0 |
+| T7 | `m2-fixtures` | The fixture data folder, as described in Part 3. | `resources/fixtures/` | T0 |
+| T8 | `m2-model-store` | `Model` and `Store`. `tst_store_load`, `tst_write_back`. | `src/core/Model.cpp`, `src/core/Store.cpp`, their tests | T3, T5, T7 |
+| T9 | `m2-stub-modules` | The other five stub modules: `claude`, `folder`, `gitlab`, `jira`, `notes`. Each folder is independent, so this task can be split into five. | `src/modules/<id>/` for those five | T2 |
+| T10 | `m2-layout-view` | `LayoutView`, `CellFrame`, `SingleViewTracker`, the frame pool and splitter sizes. Tests on hand-made trees: a resize keeps every frame, a structural change reuses frames, a frame that is not `reparentSafe` is made again. | `src/layout/LayoutView.cpp`, `CellFrame.cpp`, `SingleViewTracker.cpp`, `tests/layout/tst_layout_view.cpp` | T2, T4 |
+| T11 | `m2-sidebar` | `SidebarModel`, `Sidebar` and its delegate and filters. A test with `QAbstractItemModelTester` on the fixtures. | `src/ui/Sidebar*.cpp`, `tests/ui/tst_sidebar_model.cpp` | T6, T8 |
+| T12 | `m2-switcher` | `QuickSwitcher` and its ranking over the model. A test of the candidate list and ranking. | `src/ui/QuickSwitcher.cpp`, `tests/ui/tst_switcher.cpp` | T6, T8 |
+| T13 | `m2-layout-editing` | `LayoutEditor`, the cell and tab menus, the drag MIME type, `DropOverlay` and the drop rules. Tests of the editor's actions against the model. | `src/layout/LayoutEditor.cpp`, `DropOverlay.cpp`, `DragMime.cpp`, `tests/layout/tst_layout_editor.cpp` | T8, T10 |
+| T14 | `m2-task-cell` | `TaskCell`, its dashboard picker and the lock state. | `src/layout/TaskCell.cpp` | T8, T10 |
+| T15 | `m2-main-window` | `MainWindow`, `RootTabBar`, the preview tab, pinning, the `+` button and the warning bar. `main.cpp` loads the fixtures or `--data`. | `src/ui/MainWindow.cpp`, `src/ui/RootTabBar.cpp`, `src/main.cpp` | T8, T10 |
+| T16 | `m2-shortcuts` | `Shortcuts`: focus movement, tab switching, maximise and close. | `src/ui/Shortcuts.cpp` | T15 |
+| T17 | none | Done by the orchestrator: connect anything left, run both presets, write the list of checks by hand for the user, and tick the roadmap boxes once the user has checked them. | any | all |
+
+### Waves
+
+A task starts as soon as everything it needs is merged. In practice the work falls into waves:
+
+| Wave | Tasks | At the same time |
+|---|---|---|
+| 0 | T0, then the user reviews the headers | 1 |
+| 1 | T1, T2, T3, T4, T5, T6, T7 | up to 7 |
+| 2 | T8, T9, T10 | 3, or 7 with T9 split |
+| 3 | T11, T12, T13, T14, T15 | 5 |
+| 4 | T16 | 1 |
+| 5 | T17 | 1 |
+
+T15 places the sidebar through its header from T0, so it does not wait for T11.
 
 ## Checking
 
