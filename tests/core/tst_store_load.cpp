@@ -180,7 +180,7 @@ void TestStoreLoad::replacesModel()
     QVERIFY(model.rootDashboards().empty());
 }
 
-// workspace.json holds the workspace's name. Saving it keeps the file's other keys.
+// workspace.mirante holds the workspace's name. Saving it keeps the file's other keys.
 void TestStoreLoad::workspaceName()
 {
     Model model;
@@ -190,24 +190,24 @@ void TestStoreLoad::workspaceName()
     QTemporaryDir dir;
     QVERIFY(dir.isValid());
     QVERIFY(store::load(dir.path(), model).empty());
-    QVERIFY(model.workspaceName().isEmpty());   // no workspace.json: no name
+    QVERIFY(model.workspaceName().isEmpty());   // no workspace.mirante: no name
 
-    writeFile(dir.path(), QStringLiteral("workspace.json"), R"({ "schemaVersion": 1, "futureField": 7 })");
+    writeFile(dir.path(), QStringLiteral("workspace.mirante"), R"({ "schemaVersion": 1, "futureField": 7 })");
     QString error;
     QVERIFY2(store::saveWorkspaceName(dir.path(), QStringLiteral("Work"), &error), qPrintable(error));
     QVERIFY(store::load(dir.path(), model).empty());
     QCOMPARE(model.workspaceName(), QStringLiteral("Work"));
-    QFile file(dir.filePath(QStringLiteral("workspace.json")));
+    QFile file(dir.filePath(QStringLiteral("workspace.mirante")));
     QVERIFY(file.open(QIODevice::ReadOnly));
     const QJsonObject json = QJsonDocument::fromJson(file.readAll()).object();
     QCOMPARE(json.value(QStringLiteral("futureField")).toInt(), 7);
     QCOMPARE(json.value(QStringLiteral("schemaVersion")).toInt(), 1);
 
-    // A workspace.json of another schemaVersion is reported.
-    writeFile(dir.path(), QStringLiteral("workspace.json"), R"({ "schemaVersion": 2, "name": "X" })");
+    // A workspace.mirante of another schemaVersion is reported.
+    writeFile(dir.path(), QStringLiteral("workspace.mirante"), R"({ "schemaVersion": 2, "name": "X" })");
     const auto problems = store::load(dir.path(), model);
     QCOMPARE(problems.size(), std::size_t(1));
-    QCOMPARE(problems.front().file, QStringLiteral("workspace.json"));
+    QCOMPARE(problems.front().file, QStringLiteral("workspace.mirante"));
 }
 
 QTEST_GUILESS_MAIN(TestStoreLoad)

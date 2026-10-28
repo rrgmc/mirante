@@ -975,7 +975,7 @@ bool MainWindow::renameWorkspace(const QString &name)
         return false;
     QString error;
     if (!store::saveWorkspaceName(d->workspace, name.trimmed(), &error)) {
-        setLoadProblems({LoadProblem{QStringLiteral("workspace.json"), tr("cannot be written: %1").arg(error)}});
+        setLoadProblems({LoadProblem{QStringLiteral("workspace.mirante"), tr("cannot be written: %1").arg(error)}});
         return false;
     }
     d->model->setWorkspaceName(name.trimmed());

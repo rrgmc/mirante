@@ -25,7 +25,7 @@ const QString kGroups = QStringLiteral("groups");
 const QString kProjects = QStringLiteral("projects");
 const QString kTasks = QStringLiteral("tasks");
 const QString kDashboards = QStringLiteral("dashboards");
-const QString kWorkspaceFile = QStringLiteral("workspace.json");
+const QString kWorkspaceFile = QStringLiteral("workspace.mirante");
 const QString kName = QStringLiteral("name");
 
 QString pathOf(const QString &subfolder, const QString &id)
@@ -131,7 +131,7 @@ QSet<QString> idsOf(const std::vector<T> &entities)
     return ids;
 }
 
-// Reads workspace.json, if there is one. A missing file is not a problem.
+// Reads workspace.mirante, if there is one. A missing file is not a problem.
 std::optional<QJsonObject> readWorkspaceFile(const QString &dir, std::vector<LoadProblem> *problems)
 {
     QFile file(dir + QLatin1Char('/') + kWorkspaceFile);

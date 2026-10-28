@@ -32,9 +32,9 @@ std::map<QString, QJsonObject> readFixtures()
         }
     }
     // The workspace's own file, at the top of the folder.
-    QFile workspace(root.filePath(QStringLiteral("workspace.json")));
+    QFile workspace(root.filePath(QStringLiteral("workspace.mirante")));
     if (workspace.open(QIODevice::ReadOnly))
-        files.emplace(QStringLiteral("workspace.json"), QJsonDocument::fromJson(workspace.readAll()).object());
+        files.emplace(QStringLiteral("workspace.mirante"), QJsonDocument::fromJson(workspace.readAll()).object());
     return files;
 }
 

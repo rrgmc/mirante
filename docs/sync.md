@@ -8,7 +8,7 @@ The user chooses the data folder on each device. It does not have to be at the s
 
 ```
 <data folder>/
-  workspace.json              the workspace's name; optional
+  workspace.mirante              the workspace's name; optional
   groups/<uuid>.json
   projects/<uuid>.json
   tasks/<uuid>.json

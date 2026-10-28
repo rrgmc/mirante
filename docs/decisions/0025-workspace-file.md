@@ -1,6 +1,6 @@
 # 0025. A workspace file holds the workspace's name
 
-- Status: Accepted
+- Status: Superseded by 0026
 - Date: 2026-10-28
 
 ## Context
