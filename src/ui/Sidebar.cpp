@@ -87,7 +87,6 @@ Sidebar::Sidebar(const Model &model, const ItemTypeRegistry &types, QWidget *par
     d->tree->setModel(d->model);
     d->tree->setItemDelegate(new SidebarDelegate(d->tree));
     d->tree->setHeaderHidden(true);
-    d->tree->setUniformRowHeights(true);
     d->tree->setFrameShape(QFrame::NoFrame);
     d->tree->setSelectionMode(QAbstractItemView::SingleSelection);
     d->tree->setDragEnabled(true);
