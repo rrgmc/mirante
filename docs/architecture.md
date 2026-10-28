@@ -7,8 +7,8 @@ This document describes the source folders, the main classes and how they work t
 ```
 src/
   main.cpp       registers dash:// before QApplication, registers the enabled modules, wires the folders together
-  core/          data model, loading and saving, device settings
-  layout/        layout trees and the widgets that show them
+  core/          data model, layout trees, loading and saving, device settings
+  layout/        the widgets that show and edit layout trees
   items/         item type interface and registry, module interface, placements
   web/           profiles, web panels, built-in panels
   api/           connections, API client base, status cache, secrets
@@ -46,6 +46,8 @@ No core folder depends on a module. The core reaches modules only through the re
 | `Migrations` | Upgrades files from older `schemaVersion` values |
 | `DeviceSettings` | Typed access to the `QSettings` values listed in [sync](sync.md#device-settings) |
 | `Sorting` | Priority and order sorting, used by the sidebar and Focus |
+| `LayoutTree` | The [layout tree](data-model.md#layout-tree): split, tabs and cell nodes, with JSON conversion, edit operations and normalisation. It lives in `core` because `Dashboard` holds one. |
+| `FuzzyMatch` | Scores text against a query for the quick switcher |
 
 All changes go through `Model` methods. Views never change entities directly. `Store` listens to `Model` signals to write files.
 
@@ -53,7 +55,6 @@ All changes go through `Model` methods. Views never change entities directly. `S
 
 | Class | Responsibility |
 |---|---|
-| `LayoutNode` | The [layout tree](data-model.md#layout-tree): split, tabs and cell nodes, with JSON conversion and normalisation |
 | `LayoutView` | Builds widgets from a tree: `QSplitter` for splits, `QTabWidget` for tabs, `CellFrame` for cells. It updates the widgets in place when the tree changes, without rebuilding everything. |
 | `CellFrame` | Cell header and content. It asks a `PlacementFactory` for the content widget. |
 | `DropOverlay` | Shows the five drop zones while dragging, and returns where the drop lands |
