@@ -41,6 +41,8 @@ public:
     void setSingleViewTracker(SingleViewTracker *tracker);
 
     QWidget *cellAt(const NodePath &path) const;
+    // The widget of any node: a cell, a splitter or a tab widget.
+    QWidget *widgetAt(const NodePath &path) const;
     std::optional<NodePath> pathOf(const QWidget *cell) const;
     std::vector<QWidget *> visibleCells() const;    // skips cells in hidden tabs
 
@@ -58,6 +60,8 @@ signals:
     void tabMenuRequested(const mirante::NodePath &tabsPath, int index, const QPoint &globalPos);
     // The + button of a tab group, shown in edit mode, was clicked.
     void tabAddRequested(const mirante::NodePath &tabsPath);
+    // A drag of a node started in edit mode: a cell by its header, a tab by
+    // its tab, or a whole tab group by the empty part of its tab bar.
     void cellDragStarted(const mirante::NodePath &path);
 
 private:

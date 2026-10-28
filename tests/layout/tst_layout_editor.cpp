@@ -445,6 +445,20 @@ private slots:
         QCOMPARE(node(work, {1}).children.size(), tabs - 1);
     }
 
+    // A whole tab group moves, by its tab bar, to the edge of a cell.
+    void moveATabGroup()
+    {
+        // work is claude | tabs[...]; the tab group goes below claude.
+        const std::size_t tabs = node(work, {1}).children.size();
+        QVERIFY(editor->drop(work, edge({0}, Edge::Bottom), moved(CellRef{}, work, {1})));
+        const LayoutNode &root = tree(work);
+        QCOMPARE(root.kind, Kind::Split);
+        QCOMPARE(root.dir, Qt::Vertical);
+        QCOMPARE(refAt(work, {0}), itemRef(claudeItem));
+        QCOMPARE(node(work, {1}).kind, Kind::Tabs);
+        QCOMPARE(node(work, {1}).children.size(), tabs);
+    }
+
     void moveOntoItselfIsRefused()
     {
         const QJsonObject before = json(work);

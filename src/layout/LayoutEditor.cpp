@@ -360,17 +360,19 @@ void LayoutEditor::Private::startDrag(LayoutView *view, const NodePath &path)
 {
     const auto found = views.find(view);
     const LayoutNode *node = layout::nodeAt(view->tree(), path);
-    if (found == views.end() || !node || node->kind != Kind::Cell)
+    if (found == views.end() || !node)
         return;
 
+    // A cell carries its reference. A tab group or a split carries only where
+    // it comes from, so it moves within its own dashboard.
     DragPayload payload;
-    payload.ref = node->ref.value_or(CellRef{});
+    payload.ref = node->kind == Kind::Cell ? node->ref.value_or(CellRef{}) : CellRef{};
     payload.sourceDashboard = found->second;
     payload.sourcePath = path;
 
     auto *drag = new QDrag(view);
     drag->setMimeData(dragMimeData(payload));
-    if (QWidget *cell = view->cellAt(path); cell && cell->width() > 0) {
+    if (QWidget *cell = view->widgetAt(path); cell && cell->width() > 0) {
         QPixmap pixmap = cell->grab();
         if (pixmap.width() > dragPixmapWidth)
             pixmap = pixmap.scaledToWidth(dragPixmapWidth, Qt::SmoothTransformation);

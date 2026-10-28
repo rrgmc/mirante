@@ -6,13 +6,15 @@
 #include "layout/SingleViewTracker.h"
 #include "layout/TaskCell.h"
 
+#include <QApplication>
 #include <QEvent>
+#include <QMouseEvent>
 #include <QPointer>
 #include <QSplitter>
 #include <QTabBar>
 #include <QTabWidget>
-#include <QToolButton>
 #include <QTimer>
+#include <QToolButton>
 #include <QVBoxLayout>
 
 #include <algorithm>
@@ -29,6 +31,53 @@ constexpr int sizeDelayMs = 300;
 // Keeps a tab group's + button just after its last tab. In document mode the
 // tab bar spans the whole group, so the position comes from the last tab's
 // rectangle. The placer is a child of the bar, so it goes with it.
+// Starts drags from a tab bar in edit mode: a tab drags its content, and the
+// empty part of the bar drags the whole tab group. onDrag gets the tab index,
+// or -1 for the empty part. It is a child of the bar, so it goes with it.
+class TabBarDragWatcher : public QObject
+{
+public:
+    TabBarDragWatcher(QTabBar *bar, std::function<bool()> editMode, std::function<void(int)> onDrag)
+        : QObject(bar)
+        , m_bar(bar)
+        , m_editMode(std::move(editMode))
+        , m_onDrag(std::move(onDrag))
+    {
+        bar->installEventFilter(this);
+    }
+
+protected:
+    bool eventFilter(QObject *watched, QEvent *event) override
+    {
+        if (watched != m_bar)
+            return false;
+        if (event->type() == QEvent::MouseButtonPress) {
+            const auto *mouse = static_cast<QMouseEvent *>(event);
+            m_pressed = mouse->button() == Qt::LeftButton && m_editMode();
+            m_pressPos = mouse->position().toPoint();
+            m_tab = m_bar->tabAt(m_pressPos);
+        } else if (event->type() == QEvent::MouseMove && m_pressed) {
+            const auto *mouse = static_cast<QMouseEvent *>(event);
+            if ((mouse->position().toPoint() - m_pressPos).manhattanLength() >= QApplication::startDragDistance()) {
+                m_pressed = false;
+                m_onDrag(m_tab);
+                return true;
+            }
+        } else if (event->type() == QEvent::MouseButtonRelease) {
+            m_pressed = false;
+        }
+        return false;
+    }
+
+private:
+    QTabBar *m_bar;
+    std::function<bool()> m_editMode;
+    std::function<void(int)> m_onDrag;
+    bool m_pressed = false;
+    QPoint m_pressPos;
+    int m_tab = -1;
+};
+
 class AddTabPlacer : public QObject
 {
 public:
@@ -290,6 +339,17 @@ QWidget *LayoutView::Private::build(const LayoutNode &node, NodePath &path, std:
         add->setAutoRaise(true);
         add->setVisible(editMode);
         new AddTabPlacer(bar, add);
+        new TabBarDragWatcher(
+            bar, [this] { return editMode; },
+            [this, tabWidget](int tab) {
+                const auto found = tabs.find(tabWidget);
+                if (found == tabs.end())
+                    return;
+                NodePath dragged = found->second;
+                if (tab >= 0)
+                    dragged.push_back(tab);
+                emit q->cellDragStarted(dragged);
+            });
         QObject::connect(add, &QToolButton::clicked, q, [this, tabWidget] {
             const auto found = tabs.find(tabWidget);
             if (found != tabs.end())
@@ -542,6 +602,14 @@ QWidget *LayoutView::cellAt(const NodePath &path) const
 {
     const auto found = d->cells.find(path);
     return found == d->cells.end() ? nullptr : found->second;
+}
+
+QWidget *LayoutView::widgetAt(const NodePath &path) const
+{
+    if (QWidget *cell = cellAt(path))
+        return cell;
+    const auto found = d->containers.find(path);
+    return found != d->containers.end() ? found->second : nullptr;
 }
 
 std::optional<NodePath> LayoutView::pathOf(const QWidget *cell) const

@@ -18,8 +18,8 @@
 #include <QSplitter>
 #include <QTabBar>
 #include <QTabWidget>
-#include <QToolButton>
 #include <QTest>
+#include <QToolButton>
 
 #include <set>
 #include <utility>
@@ -149,6 +149,7 @@ private slots:
     void splitterMoveReportsAfterDelay();
     void tabChangeReportsAtOnce();
     void addTabButtonInEditMode();
+    void tabBarDragsInEditMode();
     void cellSignalsCarryPath();
     void editModeReachesFrames();
     void detachAndReattach();
@@ -331,6 +332,45 @@ void TestLayoutView::splitterMoveReportsAfterDelay()
     QCOMPARE(view.cellAt({0}), a);
     QTest::qWait(400);
     QCOMPARE(edited.count(), 1);
+}
+
+// In edit mode, dragging a tab drags that tab's content, and dragging the empty
+// part of the tab bar drags the whole tab group.
+void TestLayoutView::tabBarDragsInEditMode()
+{
+    FakeFactory factory;
+    LayoutView view(&factory);
+    view.resize(800, 600);
+    view.setTree(sampleTree());
+    view.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&view));
+    auto *tabWidget = qobject_cast<QTabWidget *>(view.cellAt({1, 1, 0})->parentWidget()->parentWidget());
+    QVERIFY(tabWidget);
+    QTabBar *bar = tabWidget->tabBar();
+    QSignalSpy started(&view, &LayoutView::cellDragStarted);
+    const auto drag = [bar](const QPoint &from) {
+        QTest::mousePress(bar, Qt::LeftButton, {}, from);
+        QMouseEvent move(QEvent::MouseMove, QPointF(from + QPoint(40, 0)), bar->mapToGlobal(QPointF(from + QPoint(40, 0))),
+                         Qt::NoButton, Qt::LeftButton, Qt::NoModifier);
+        QApplication::sendEvent(bar, &move);
+        QTest::mouseRelease(bar, Qt::LeftButton, {}, from + QPoint(40, 0));
+    };
+    const QPoint onTab = bar->tabRect(1).center();
+    const QPoint empty(bar->tabRect(bar->count() - 1).right() + 30, bar->height() / 2);
+
+    // Locked: no drag.
+    drag(onTab);
+    QCOMPARE(started.count(), 0);
+
+    view.setEditMode(true);
+    drag(onTab);
+    QCOMPARE(started.count(), 1);
+    QCOMPARE(started.at(0).at(0).value<NodePath>(), (NodePath{1, 1, 1}));
+    QVERIFY(bar->width() > empty.x());
+    drag(empty);
+    QCOMPARE(started.count(), 2);
+    QCOMPARE(started.at(1).at(0).value<NodePath>(), (NodePath{1, 1}));
+    QCOMPARE(view.widgetAt({1, 1}), static_cast<QWidget *>(tabWidget));
 }
 
 // A tab group's + button shows only in edit mode, and reports the group's path.

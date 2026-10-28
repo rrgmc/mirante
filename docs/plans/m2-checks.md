@@ -69,6 +69,7 @@ Unlock a dashboard with the lock button first.
 
 - [ ] Every cell menu command works: split right, split down, wrap in tabs, add tab, clear cell, remove cell. There is no "Change item".
 - [ ] Clear cell, Remove cell, and Close on a tab of a tab group ask for confirmation first.
+- [ ] Unlocked, dragging the empty part of a tab bar moves the whole tab group, for example to below another cell; dragging a tab moves that tab's content.
 - [ ] Holding `Ctrl` while dragging an item, a task dashboard or a cell highlights the whole cell under the cursor, and dropping replaces that cell's content. Without `Ctrl` the usual edges, centre and tab bars apply.
 - [ ] Every tab menu command works: add tab, rename, close, move left, move right, remove tab group (only with one tab), collapse when single.
 - [ ] Unlocked, each tab group has a `+` button on the right that adds an empty tab at the end. Locked, it is hidden.
