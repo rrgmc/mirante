@@ -131,6 +131,23 @@ private slots:
         QCOMPARE(int(f.model.rootDashboards().size()), 3);
     }
 
+    void editingPreviewPinsIt()
+    {
+        Fixture f;
+        f.window->openTaskPreview(kFixLoginTask);
+        QCOMPARE(f.bar()->previewIndex(), 2);
+
+        // An edit of the previewed task dashboard pins the preview.
+        const DashboardRef ref{kFixLoginTask, kFixLoginDashboard};
+        const LayoutNode *tree = f.model.layout(ref);
+        QVERIFY(tree);
+        f.model.setLayout(ref, layout::splitCell(*tree, {}, Edge::Right, std::nullopt).tree);
+
+        QTRY_COMPARE(f.bar()->previewIndex(), -1);
+        QCOMPARE(int(f.model.rootDashboards().size()), 3);
+        QCOMPARE(f.tabText(f.bar()->currentIndex()), QStringLiteral("Fix login timeout"));
+    }
+
     void pinButton()
     {
         Fixture f;
