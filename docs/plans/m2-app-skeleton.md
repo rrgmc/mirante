@@ -245,7 +245,10 @@ The conversion is done once with a small script, which is not committed. The fix
 | Test | Covers |
 |---|---|
 | `tst_entities` | `fromJson` and `toJson` for every entity, defaults, unknown fields kept, bad files reported |
-| `tst_layout_tree` | every edit operation, each normalisation rule on its own and combined, size scaling when splits merge, `sameShape` |
+| `tst_layout_edits` | every edit operation and `sameShape` |
+| `tst_normalise` | each normalisation rule on its own and combined, size scaling when splits merge, path tracking |
+| `tst_layout_json` | JSON conversion of layout trees |
+| `tst_model` | lookups, `refExists`, the layout setters |
 | `tst_store_load` | loading the fixtures, the load problem list |
 | `tst_write_back` | `serialise(load(fixtures))` equals the fixture files, compared as parsed JSON. This covers the `timetrack` data of the missing module. |
 | `tst_sorting` | priority, order, Default first, filters |

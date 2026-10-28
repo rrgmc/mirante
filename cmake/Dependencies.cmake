@@ -25,4 +25,8 @@ FetchContent_Declare(qhotkey
     URL https://github.com/Skycoder42/QHotkey/archive/refs/tags/1.5.0.tar.gz
     DOWNLOAD_EXTRACT_TIMESTAMP ON)
 
+# QHotkey 1.5.0 asks for CMake 3.1, which CMake 4 refuses. This raises its
+# policy level to 3.5 while the dependencies are configured.
+set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
 FetchContent_MakeAvailable(qtkeychain qhotkey)
+unset(CMAKE_POLICY_VERSION_MINIMUM)
