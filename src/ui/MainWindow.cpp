@@ -24,6 +24,7 @@
 #include <QCloseEvent>
 #include <QDir>
 #include <QFileDialog>
+#include <QFileInfo>
 #include <QGuiApplication>
 #include <QHBoxLayout>
 #include <QIcon>
@@ -565,6 +566,35 @@ struct MainWindow::Private
             sidebar->setTitle(name);
     }
 
+    // Opens a workspace from the menus. A folder that exists but is not a
+    // workspace can be made one, after asking.
+    void openInteractively(const QString &path)
+    {
+        const QFileInfo info(path);
+        const QString folder = info.isFile() ? info.absolutePath() : path;
+        if (QDir(folder).exists() && !store::isWorkspace(folder)) {
+            const auto answer = QMessageBox::question(
+                q, MainWindow::tr("Open Workspace"),
+                MainWindow::tr("%1 is not a Mirante workspace: it has no %2. Make it a workspace?")
+                    .arg(QDir::toNativeSeparators(folder), store::workspaceFileName()));
+            if (answer == QMessageBox::Yes)
+                promptCreate(folder);
+            return;
+        }
+        q->openWorkspace(folder);
+    }
+
+    // Asks for a name, then makes the folder a workspace and opens it.
+    void promptCreate(const QString &folder)
+    {
+        bool ok = false;
+        const QString name = QInputDialog::getText(q, MainWindow::tr("New Workspace"), MainWindow::tr("Name:"),
+                                                   QLineEdit::Normal, QDir(folder).dirName(), &ok)
+                                 .trimmed();
+        if (ok && !name.isEmpty())
+            q->createWorkspace(folder, name);
+    }
+
     // Asks for a new name for the open workspace.
     void promptRename()
     {
@@ -613,12 +643,26 @@ struct MainWindow::Private
         QMenuBar *bar = q->menuBar();
 
         QMenu *file = bar->addMenu(MainWindow::tr("&File"));
+        QAction *newWorkspace = file->addAction(MainWindow::tr("&New Workspace…"));
+        newWorkspace->setShortcut(QKeySequence::New);
+        QObject::connect(newWorkspace, &QAction::triggered, q, [this] {
+            const QString folder = QFileDialog::getExistingDirectory(
+                q, MainWindow::tr("New Workspace: choose its folder"), workspace);
+            if (folder.isEmpty())
+                return;
+            if (store::isWorkspace(folder))
+                q->openWorkspace(folder);
+            else
+                promptCreate(folder);
+        });
         QAction *open = file->addAction(MainWindow::tr("&Open Workspace…"));
         open->setShortcut(QKeySequence::Open);
         QObject::connect(open, &QAction::triggered, q, [this] {
-            const QString folder = QFileDialog::getExistingDirectory(q, MainWindow::tr("Open Workspace"), workspace);
-            if (!folder.isEmpty())
-                q->openWorkspace(folder);
+            const QString path = QFileDialog::getOpenFileName(
+                q, MainWindow::tr("Open Workspace"), workspace,
+                MainWindow::tr("Mirante workspace (%1)").arg(store::workspaceFileName()));
+            if (!path.isEmpty())
+                openInteractively(path);
         });
         QMenu *recentMenu = file->addMenu(MainWindow::tr("Open &Recent"));
         QObject::connect(recentMenu, &QMenu::aboutToShow, q, [this, recentMenu] {
@@ -626,7 +670,7 @@ struct MainWindow::Private
             const QStringList folders = recent();
             for (const QString &folder : folders) {
                 QAction *action = recentMenu->addAction(QDir::toNativeSeparators(folder));
-                QObject::connect(action, &QAction::triggered, q, [this, folder] { q->openWorkspace(folder); });
+                QObject::connect(action, &QAction::triggered, q, [this, folder] { openInteractively(folder); });
             }
             if (folders.isEmpty())
                 recentMenu->addAction(MainWindow::tr("No recent workspaces"))->setEnabled(false);
@@ -946,11 +990,19 @@ void MainWindow::setLoadProblems(const std::vector<LoadProblem> &problems)
     d->warningBar->show();
 }
 
-void MainWindow::openWorkspace(const QString &folder)
+void MainWindow::openWorkspace(const QString &path)
 {
+    // The path of workspace.mirante stands for its folder.
+    const QFileInfo info(path);
+    const QString folder = info.isFile() ? info.absolutePath() : path;
     if (folder.isEmpty() || !QDir(folder).exists()) {
         d->forget(folder);
         setLoadProblems({LoadProblem{QDir::toNativeSeparators(folder), tr("The workspace folder does not exist.")}});
+        return;
+    }
+    if (!store::isWorkspace(folder)) {
+        setLoadProblems({LoadProblem{QDir::toNativeSeparators(folder),
+                                     tr("not a Mirante workspace: it has no %1").arg(store::workspaceFileName())}});
         return;
     }
     const std::vector<LoadProblem> problems = store::load(folder, *d->model);
@@ -958,6 +1010,18 @@ void MainWindow::openWorkspace(const QString &folder)
     d->remember(d->workspace);
     d->updateTitle();
     setLoadProblems(problems);
+}
+
+bool MainWindow::createWorkspace(const QString &folder, const QString &name)
+{
+    QString error;
+    if (name.trimmed().isEmpty() || !store::createWorkspace(folder, name.trimmed(), &error)) {
+        setLoadProblems({LoadProblem{QDir::toNativeSeparators(folder),
+                                     tr("cannot be made a workspace: %1").arg(error.isEmpty() ? tr("no name") : error)}});
+        return false;
+    }
+    openWorkspace(folder);
+    return true;
 }
 
 void MainWindow::openSampleData()

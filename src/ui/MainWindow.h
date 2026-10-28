@@ -30,10 +30,15 @@ public:
     // Shows the problems in the warning bar, or hides it if there are none.
     void setLoadProblems(const std::vector<LoadProblem> &problems);
 
-    // A workspace is a data folder. Opening one loads it, remembers it on this
-    // device as the last one, and puts it first in the recent list. In M2
-    // nothing is written back to it.
-    void openWorkspace(const QString &folder);
+    // A workspace is a data folder with a workspace.mirante file at its top.
+    // Opening one loads it, remembers it on this device as the last one, and
+    // puts it first in the recent list. path is the folder, or the path of its
+    // workspace.mirante file. A folder without the file is not opened; the
+    // warning bar says why. In M2 nothing but the name is written back.
+    void openWorkspace(const QString &path);
+    // Makes folder a workspace with the given name, by writing its
+    // workspace.mirante, and opens it. Returns false, and shows why, if it fails.
+    bool createWorkspace(const QString &folder, const QString &name);
     // The sample data compiled into the app, used when there is no workspace.
     void openSampleData();
     // The open workspace's folder, or empty for the sample data.

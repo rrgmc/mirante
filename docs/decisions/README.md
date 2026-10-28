@@ -31,7 +31,8 @@ Each file records one design decision: what was decided, what else was considere
 | [0023](0023-item-tabs.md) | Items open alone in a tab | Accepted |
 | [0024](0024-detach-root-dashboard-tabs.md) | Only root dashboard tabs can be detached | Accepted |
 | [0025](0025-workspace-file.md) | A workspace file holds the workspace's name | Superseded by 0026 |
-| [0026](0026-workspace-file-name.md) | The workspace file is `workspace.mirante` | Accepted |
+| [0026](0026-workspace-file-name.md) | The workspace file is `workspace.mirante` | Superseded by 0027 |
+| [0027](0027-workspace-needs-its-file.md) | A workspace is a folder with `workspace.mirante` | Accepted |
 
 ## Template
 

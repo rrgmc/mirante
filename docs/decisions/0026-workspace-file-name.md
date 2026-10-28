@@ -1,6 +1,6 @@
 # 0026. The workspace file is `workspace.mirante`
 
-- Status: Accepted
+- Status: Superseded by [0027](0027-workspace-needs-its-file.md)
 - Date: 2026-10-28
 
 ## Context

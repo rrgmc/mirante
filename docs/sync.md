@@ -4,11 +4,11 @@ Mirante has no server. The same data appears on several devices because it is st
 
 ## The data folder
 
-The user chooses the data folder on each device. It does not have to be at the same path on every device.
+The user chooses the data folder on each device. It does not have to be at the same path on every device. A data folder is a workspace only if it has `workspace.mirante` at its top. See [decision 0027](decisions/0027-workspace-needs-its-file.md).
 
 ```
 <data folder>/
-  workspace.mirante              the workspace's name; optional
+  workspace.mirante           marks the folder as a workspace; holds its name
   groups/<uuid>.json
   projects/<uuid>.json
   tasks/<uuid>.json
