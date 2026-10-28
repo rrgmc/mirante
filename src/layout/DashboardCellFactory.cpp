@@ -1,7 +1,8 @@
-// Stub from task T0. Task T10 implements this file.
 #include "layout/DashboardCellFactory.h"
 
+#include "items/ItemTypeRegistry.h"
 #include "layout/CellFrame.h"
+#include "layout/TaskCell.h"
 
 namespace mirante {
 
@@ -9,6 +10,21 @@ struct DashboardCellFactory::Private
 {
     LayoutServices services;
     DashboardRef dashboard;
+
+    // The item a reference names, or nullptr. A task dashboard holds items of
+    // its own task. A root dashboard names the task in the reference.
+    const Item *item(const CellRef &ref) const
+    {
+        if (!services.model || !ref.isItem())
+            return nullptr;
+        const QString taskId = dashboard.isRoot() ? ref.task : dashboard.taskId;
+        return services.model->item(taskId, ref.item);
+    }
+
+    const ItemType *type(const Item &item) const
+    {
+        return services.types ? &services.types->type(item.type) : nullptr;
+    }
 };
 
 DashboardCellFactory::DashboardCellFactory(const LayoutServices &services, const DashboardRef &dashboard)
@@ -20,9 +36,26 @@ DashboardCellFactory::~DashboardCellFactory() = default;
 
 QWidget *DashboardCellFactory::createCell(const std::optional<CellRef> &ref, bool removed, QWidget *parent)
 {
-    return new CellFrame(ref, removed, nullptr, QString(), parent);
+    if (!ref)
+        return new CellFrame(std::nullopt, false, nullptr, QString(), parent);
+    if (removed)
+        return new CellFrame(ref, true, nullptr, QString(), parent);
+    if (d->dashboard.isRoot() && ref->isTask())
+        return new TaskCell(d->services, d->dashboard, *ref, parent);
+
+    const Item *item = d->item(*ref);
+    if (!item)
+        return new CellFrame(ref, true, nullptr, QString(), parent);
+    return new CellFrame(ref, false, d->type(*item), item->name, parent);
 }
 
-bool DashboardCellFactory::canReparent(const std::optional<CellRef> & /*ref*/) const { return true; }
+bool DashboardCellFactory::canReparent(const std::optional<CellRef> &ref) const
+{
+    if (!ref)
+        return true;
+    const Item *item = d->item(*ref);
+    const ItemType *type = item ? d->type(*item) : nullptr;
+    return type ? type->reparentSafe() : true;
+}
 
 } // namespace mirante
