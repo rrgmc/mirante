@@ -7,6 +7,7 @@
 
 #include <QObject>
 
+#include <functional>
 #include <memory>
 
 namespace mirante {
@@ -41,6 +42,11 @@ public:
     void changeItem(const DashboardRef &dashboard, const NodePath &path, const CellRef &ref);
     void tabCommand(const DashboardRef &dashboard, const NodePath &tabsPath, int index, TabCommand command);
     void renameTab(const DashboardRef &dashboard, const NodePath &tabsPath, int index, const QString &title);
+
+    // Asks the user to confirm a command that removes content. The menus ask
+    // before Clear cell, Remove cell and closing a tab; the public commands
+    // above do not ask. The default shows a message box; tests replace it.
+    void setConfirm(std::function<bool(QWidget *parent, const QString &question)> confirm);
 
     // Applies a drop, following the rules in docs/ui.md#editing-layouts.
     // Returns false if the drop is not allowed, such as an item of another task

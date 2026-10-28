@@ -21,16 +21,21 @@
 
 #include <QAction>
 #include <QApplication>
+#include <QCloseEvent>
 #include <QDir>
 #include <QFileDialog>
+#include <QGuiApplication>
 #include <QHBoxLayout>
 #include <QIcon>
+#include <QInputDialog>
 #include <QKeySequence>
 #include <QLabel>
+#include <QLineEdit>
 #include <QMenu>
 #include <QMenuBar>
 #include <QMessageBox>
 #include <QPointer>
+#include <QScreen>
 #include <QSettings>
 #include <QShortcut>
 #include <QSignalBlocker>
@@ -442,6 +447,24 @@ struct MainWindow::Private
         return dashboards.empty() ? -1 : order;
     }
 
+    // Adds a root dashboard with one cell of the item, placed before every
+    // other root dashboard. Returns its id, or an empty string.
+    QString addItemRootDashboard(const QString &taskId, const QString &itemId)
+    {
+        const Task *task = model->task(taskId);
+        const Item *item = model->item(taskId, itemId);
+        if (!task || !item)
+            return QString();
+        RootDashboard dashboard;
+        dashboard.id = QUuid::createUuid().toString(QUuid::WithoutBraces);
+        const QString name = item->name.isEmpty() ? types->type(item->type).name() : item->name;
+        dashboard.name = MainWindow::tr("%1 / %2").arg(task->title, name);
+        dashboard.order = minOrder() - 1;
+        dashboard.layout.ref = CellRef{itemId, taskId, QString()};
+        model->addRootDashboard(dashboard);
+        return dashboard.id;
+    }
+
     // Adds a root dashboard with one cell of the task, placed before every
     // other root dashboard. Returns its id, or an empty string.
     QString addTaskRootDashboard(const QString &taskId, const QString &dashboardId)
@@ -526,10 +549,36 @@ struct MainWindow::Private
 
     static constexpr int maxRecent = 10;
 
+    // The workspace's name, else its folder's name, else "Sample data".
+    QString workspaceDisplayName() const
+    {
+        if (!model->workspaceName().isEmpty())
+            return model->workspaceName();
+        return workspace.isEmpty() ? MainWindow::tr("Sample data") : QDir(workspace).dirName();
+    }
+
     void updateTitle()
     {
-        const QString name = workspace.isEmpty() ? MainWindow::tr("Sample data") : QDir(workspace).dirName();
+        const QString name = workspaceDisplayName();
         q->setWindowTitle(MainWindow::tr("%1 - %2").arg(name, QStringLiteral(MIRANTE_APP_NAME)));
+        if (sidebar)
+            sidebar->setTitle(name);
+    }
+
+    // Asks for a new name for the open workspace.
+    void promptRename()
+    {
+        if (workspace.isEmpty()) {
+            QMessageBox::information(q, MainWindow::tr("Rename Workspace"),
+                                     MainWindow::tr("The sample data cannot be renamed. Open a workspace folder first."));
+            return;
+        }
+        bool ok = false;
+        const QString name = QInputDialog::getText(q, MainWindow::tr("Rename Workspace"), MainWindow::tr("Name:"),
+                                                   QLineEdit::Normal, workspaceDisplayName(), &ok)
+                                 .trimmed();
+        if (ok && !name.isEmpty())
+            q->renameWorkspace(name);
     }
 
     QStringList recent() const
@@ -587,6 +636,9 @@ struct MainWindow::Private
             QObject::connect(clear, &QAction::triggered, q,
                              [] { QSettings().remove(QStringLiteral("workspace/recent")); });
         });
+        QAction *rename = file->addAction(MainWindow::tr("Re&name Workspace…"));
+        QObject::connect(rename, &QAction::triggered, q, [this] { promptRename(); });
+        QObject::connect(file, &QMenu::aboutToShow, q, [this, rename] { rename->setEnabled(!workspace.isEmpty()); });
         QAction *sample = file->addAction(MainWindow::tr("Open &Sample Data"));
         QObject::connect(sample, &QAction::triggered, q, &MainWindow::openSampleData);
         QAction *reload = file->addAction(MainWindow::tr("Re&load Workspace"));
@@ -774,18 +826,39 @@ MainWindow::MainWindow(Model &model, const ItemTypeRegistry &types, QWidget *par
     d->splitter->setStretchFactor(0, 0);
     d->splitter->setStretchFactor(1, 1);
     d->splitter->setSizes({260, 1020});
+
+    // The window's size and sidebar width from the last session on this
+    // device. The window always opens centred on the screen.
+    const QSettings settings;
+    const QSize size = settings.value(QStringLiteral("window/size")).toSize();
+    if (size.isValid())
+        resize(size);
+    if (const QScreen *screen = QGuiApplication::primaryScreen()) {
+        QRect frame(QPoint(0, 0), this->size());
+        frame.moveCenter(screen->availableGeometry().center());
+        move(frame.topLeft());
+    }
+    if (settings.value(QStringLiteral("window/maximized")).toBool())
+        setWindowState(windowState() | Qt::WindowMaximized);
+    d->splitter->restoreState(settings.value(QStringLiteral("window/splitter")).toByteArray());
     setCentralWidget(d->splitter);
 
     // The sidebar.
     connect(d->sidebar, &Sidebar::dashboardOpened, this, &MainWindow::openTaskPreview);
     connect(d->sidebar, &Sidebar::itemOpened, this, &MainWindow::openItem);
-    connect(d->sidebar, &Sidebar::openInNewRootDashboard, this, [this](const QString &taskId) {
-        const Task *task = d->model->task(taskId);
-        const QString id = task ? d->addTaskRootDashboard(taskId, Private::defaultDashboardOf(*task)) : QString();
+    connect(d->sidebar, &Sidebar::openInNewRootDashboard, this, [this](const QString &taskId, const QString &dashboardId) {
+        const QString id = d->addTaskRootDashboard(taskId, dashboardId);
+        if (!id.isEmpty())
+            openRootDashboard(id);
+    });
+    connect(d->sidebar, &Sidebar::openItemInNewRootDashboard, this, [this](const QString &taskId, const QString &itemId) {
+        const QString id = d->addItemRootDashboard(taskId, itemId);
         if (!id.isEmpty())
             openRootDashboard(id);
     });
     connect(d->sidebar, &Sidebar::collapseRequested, this, [this] { d->showSidebar(false); });
+    connect(d->sidebar, &Sidebar::titleDoubleClicked, this, [this] { d->promptRename(); });
+    connect(&model, &Model::workspaceNameChanged, this, [this] { d->updateTitle(); });
     connect(d->showSidebarButton, &QToolButton::clicked, this, [this] { d->showSidebar(true); });
 
     // The tab bar.
@@ -848,6 +921,16 @@ MainWindow::~MainWindow()
     d->stack = nullptr;
 }
 
+void MainWindow::closeEvent(QCloseEvent *event)
+{
+    // The size of the normal, not maximized, window is kept.
+    QSettings settings;
+    settings.setValue(QStringLiteral("window/size"), normalGeometry().size());
+    settings.setValue(QStringLiteral("window/maximized"), isMaximized());
+    settings.setValue(QStringLiteral("window/splitter"), d->splitter->saveState());
+    QMainWindow::closeEvent(event);
+}
+
 void MainWindow::setLoadProblems(const std::vector<LoadProblem> &problems)
 {
     if (problems.empty()) {
@@ -884,6 +967,19 @@ void MainWindow::openSampleData()
     d->remember(QString());
     d->updateTitle();
     setLoadProblems(problems);
+}
+
+bool MainWindow::renameWorkspace(const QString &name)
+{
+    if (d->workspace.isEmpty() || name.trimmed().isEmpty())
+        return false;
+    QString error;
+    if (!store::saveWorkspaceName(d->workspace, name.trimmed(), &error)) {
+        setLoadProblems({LoadProblem{QStringLiteral("workspace.json"), tr("cannot be written: %1").arg(error)}});
+        return false;
+    }
+    d->model->setWorkspaceName(name.trimmed());
+    return true;
 }
 
 QString MainWindow::workspace() const { return d->workspace; }

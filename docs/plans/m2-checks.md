@@ -17,11 +17,18 @@ Tick each box, or note what is wrong next to it.
 - [ ] File > Open Workspace… opens a data folder; the window title names it. Open Recent lists it, most recent first, and Clear Recent empties the list.
 - [ ] Restarting the app opens the last workspace. Open Sample Data goes back to the built-in data. Reload Workspace (`F5`) loads the folder again.
 - [ ] A recent workspace whose folder is gone shows a warning and leaves the list.
+- [ ] The sidebar header shows the workspace's name. File > Rename Workspace… or a double click on the name renames it; the name is kept in the folder's `workspace.json` and comes back after reopening. The sample data cannot be renamed.
 - [ ] View has Sidebar, Expand All Tasks, Collapse All Tasks, Go To… (`Ctrl+K`), All Dashboards… and New Dashboard, and each works.
 - [ ] Help > About Mirante shows Mirante 0.1, Rangel Reale with the email address, the project's address and the license.
 
+## Window
+
+- [ ] The window and `mirante.exe` show the Mirante icon.
+- [ ] After resizing the window and the sidebar and restarting, the window opens centred at the new size, with the same sidebar width, and maximized if it was.
+
 ## Sidebar
 
+- [ ] Project rows have a tinted background. "Open in new root dashboard" is on the context menu of task dashboards and items, not tasks.
 - [ ] Groups, projects and tasks appear in that order, and each task has the children "Dashboards" and "Items", in that order. The selected row stays in full colour when the sidebar loses the focus. Projects and tasks are sorted by priority, then their manual order.
 - [ ] Urgent and High entries have a visible marker. Low entries are dimmed.
 - [ ] The sidebar has three tabs at the bottom: "Projects" (chosen at start: active tasks under every project), "Active" (the same without projects that have no active task) and "Done" (done and archived tasks). "Hide Low" works in all three.
@@ -61,6 +68,7 @@ Unlock a dashboard with the lock button first.
 - [ ] Unlocked, every cell of the dashboard has a dashed border in the highlight colour. In a root dashboard, each task cell has one around the whole cell.
 
 - [ ] Every cell menu command works: split right, split down, wrap in tabs, add tab, clear cell, remove cell. There is no "Change item".
+- [ ] Clear cell, Remove cell, and Close on a tab of a tab group ask for confirmation first.
 - [ ] Holding `Ctrl` while dragging an item, a task dashboard or a cell highlights the whole cell under the cursor, and dropping replaces that cell's content. Without `Ctrl` the usual edges, centre and tab bars apply.
 - [ ] Every tab menu command works: add tab, rename, close, move left, move right, remove tab group (only with one tab), collapse when single.
 - [ ] Unlocked, each tab group has a `+` button on the right that adds an empty tab at the end. Locked, it is hidden.

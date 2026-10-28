@@ -67,6 +67,16 @@ SidebarDelegate::SidebarDelegate(QObject *parent)
 
 void SidebarDelegate::paint(QPainter *painter, const QStyleOptionViewItem &option, const QModelIndex &index) const
 {
+    // Projects get a light tint of the highlight colour, so they stand out
+    // between groups and tasks.
+    if (SidebarModel::Kind(index.data(SidebarModel::KindRole).toInt()) == SidebarModel::Kind::Project) {
+        const QColor base = option.palette.color(QPalette::Base);
+        const QColor tint = option.palette.color(QPalette::Highlight);
+        const qreal amount = 0.12;
+        painter->fillRect(option.rect, QColor::fromRgbF(float(base.redF() + (tint.redF() - base.redF()) * amount),
+                                                        float(base.greenF() + (tint.greenF() - base.greenF()) * amount),
+                                                        float(base.blueF() + (tint.blueF() - base.blueF()) * amount)));
+    }
     if (!isDimmed(index)) {
         QStyledItemDelegate::paint(painter, option, index);
         return;

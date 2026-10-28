@@ -40,6 +40,9 @@ public:
     QString workspace() const;
     // The recent workspaces, most recent first.
     QStringList recentWorkspaces() const;
+    // Renames the open workspace, in its workspace.json. The sample data
+    // cannot be renamed. Returns false, and shows why, if it fails.
+    bool renameWorkspace(const QString &name);
 
     void showAbout();
 
@@ -64,6 +67,11 @@ public:
     LayoutView *currentLayoutView() const;
     QWidget *contentArea() const;     // the area a maximised cell fills
     Shortcuts *shortcuts() const;
+
+protected:
+    // Saves the window's size, whether it is maximized, and the sidebar width
+    // on this device. The window always opens centred.
+    void closeEvent(QCloseEvent *event) override;
 
 private:
     struct Private;

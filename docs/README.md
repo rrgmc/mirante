@@ -67,4 +67,4 @@ Mirante is a personal desktop dashboard for all of one person's work, built with
 
 **Data folder.** The folder holding the synced JSON files.
 
-**Workspace.** The data folder as the app's menus call it: File > Open Workspace opens one, and the app remembers the recent ones on each device.
+**Workspace.** The data folder as the app's menus call it: File > Open Workspace opens one, and the app remembers the recent ones on each device. A workspace has a name, kept in its `workspace.json` and shown above the sidebar tree.

@@ -12,6 +12,7 @@
 #include <QInputDialog>
 #include <QLineEdit>
 #include <QMenu>
+#include <QMessageBox>
 #include <QPixmap>
 #include <QPointer>
 #include <QTimer>
@@ -74,6 +75,10 @@ struct LayoutEditor::Private
     const ItemTypeRegistry &types;
     std::map<LayoutView *, DashboardRef> views;
     std::map<LayoutView *, QPointer<DropOverlay>> overlays;
+
+    std::function<bool(QWidget *, const QString &)> confirm = [](QWidget *parent, const QString &question) {
+        return QMessageBox::question(parent, LayoutEditor::tr("Remove"), question) == QMessageBox::Yes;
+    };
 
     // A drop on a cell dragged from a view is applied after the drag ends,
     // because the drag runs inside the event handler of the dragged cell.
@@ -277,9 +282,20 @@ void LayoutEditor::Private::showCellMenu(LayoutView *view, const NodePath &path,
         command(LayoutEditor::tr("Wrap in tabs"), CellCommand::WrapInTabs);
     command(LayoutEditor::tr("Add tab"), CellCommand::AddTab);
     menu.addSeparator();
-    command(LayoutEditor::tr("Clear cell"), CellCommand::ClearCell)
+    // These two remove content, so they ask first.
+    QPointer<LayoutView> guard(view);
+    const auto confirmed = [&](const QString &text, CellCommand cellCommand, const QString &question) {
+        return addCommand(&menu, commands, text, [this, guard, dashboard, path, cellCommand, question] {
+            if (guard && confirm(guard, question))
+                q->cellCommand(dashboard, path, cellCommand);
+        });
+    };
+    confirmed(LayoutEditor::tr("Clear cell"), CellCommand::ClearCell,
+              LayoutEditor::tr("Clear this cell? It stays in the layout, empty."))
         ->setEnabled(node->kind == Kind::Cell && node->ref.has_value());
-    command(LayoutEditor::tr("Remove cell"), CellCommand::RemoveCell)->setEnabled(!path.empty());
+    confirmed(LayoutEditor::tr("Remove cell"), CellCommand::RemoveCell,
+              LayoutEditor::tr("Remove this cell from the dashboard?"))
+        ->setEnabled(!path.empty());
 
     QAction *chosen = menu.exec(globalPos);
     // The command may rebuild the view, and with it the cell whose event
@@ -320,7 +336,12 @@ void LayoutEditor::Private::showTabMenu(LayoutView *view, const NodePath &tabsPa
         if (ok && !renamed.isEmpty())
             q->renameTab(dashboard, tabsPath, index, renamed);
     });
-    command(LayoutEditor::tr("Close"), TabCommand::Close);
+    addCommand(&menu, commands, LayoutEditor::tr("Close"), [this, guard, dashboard, tabsPath, index, title] {
+        const QString question = LayoutEditor::tr("Close the tab \"%1\" and remove its content from the dashboard?")
+                                     .arg(title.isEmpty() ? LayoutEditor::tr("untitled") : title);
+        if (guard && confirm(guard, question))
+            q->tabCommand(dashboard, tabsPath, index, TabCommand::Close);
+    });
     command(LayoutEditor::tr("Move left"), TabCommand::MoveLeft)->setEnabled(index > 0);
     command(LayoutEditor::tr("Move right"), TabCommand::MoveRight)->setEnabled(index + 1 < int(tabs->children.size()));
     menu.addSeparator();
@@ -622,6 +643,11 @@ LayoutEditor::Private::planDrop(const DashboardRef &dashboard, const DropTarget 
         return std::nullopt;
     plan.tree = result->tree;
     return plan;
+}
+
+void LayoutEditor::setConfirm(std::function<bool(QWidget *parent, const QString &question)> confirm)
+{
+    d->confirm = std::move(confirm);
 }
 
 } // namespace mirante
