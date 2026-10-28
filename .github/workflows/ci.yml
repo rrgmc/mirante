@@ -30,7 +30,7 @@ jobs:
         with:
           path: ${{ runner.temp }}/qt
           # Change the last part when setup-qt installs other archives.
-          key: qt-${{ runner.os }}-${{ env.QT_VERSION }}-qtbase-qtsvg
+          key: qt-${{ runner.os }}-${{ env.QT_VERSION }}-qtbase-qtsvg-icu
 
       - name: Install Linux packages
         if: runner.os == 'Linux'
@@ -74,7 +74,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ runner.temp }}/qt
-          key: qt-${{ runner.os }}-${{ env.QT_VERSION }}-qtbase-qtsvg
+          key: qt-${{ runner.os }}-${{ env.QT_VERSION }}-qtbase-qtsvg-icu
 
       - name: Install Linux packages
         run: |
