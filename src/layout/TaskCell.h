@@ -32,6 +32,14 @@ public:
     QString dashboardId() const;    // the chosen task dashboard
     LayoutView *view() const;       // the nested view
 
+    // The root dashboard's edit mode, which makes the header a drag handle.
+    // The nested view's edit mode follows the task dashboard's own lock.
+    void setEditMode(bool on);
+
+signals:
+    void menuRequested(const QPoint &globalPos);
+    void dragStarted();
+
 private:
     struct Private;
     std::unique_ptr<Private> d;

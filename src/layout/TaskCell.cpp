@@ -5,17 +5,66 @@
 #include "layout/LayoutView.h"
 #include "layout/LockState.h"
 
+#include <QApplication>
 #include <QComboBox>
 #include <QHBoxLayout>
 #include <QLabel>
+#include <QMouseEvent>
 #include <QSignalBlocker>
 #include <QTimer>
 #include <QToolButton>
 #include <QVBoxLayout>
 
+#include <functional>
+
 namespace mirante {
 
 namespace {
+
+// The header of a task cell. In the root dashboard's edit mode, a drag past
+// the drag distance calls onDrag once per press, as in CellFrame.
+class TaskHeader : public QWidget
+{
+public:
+    using QWidget::QWidget;
+
+    std::function<void()> onDrag;
+    bool editMode = false;
+
+protected:
+    void mousePressEvent(QMouseEvent *event) override
+    {
+        if (event->button() == Qt::LeftButton) {
+            m_pressPos = event->position().toPoint();
+            m_pressed = true;
+            m_dragged = false;
+        }
+        QWidget::mousePressEvent(event);
+    }
+
+    void mouseMoveEvent(QMouseEvent *event) override
+    {
+        if (editMode && m_pressed && !m_dragged && (event->buttons() & Qt::LeftButton)
+            && (event->position().toPoint() - m_pressPos).manhattanLength() >= QApplication::startDragDistance()) {
+            m_dragged = true;
+            if (onDrag)
+                onDrag();
+        }
+        QWidget::mouseMoveEvent(event);
+    }
+
+    void mouseReleaseEvent(QMouseEvent *event) override
+    {
+        if (event->button() == Qt::LeftButton)
+            m_pressed = false;
+        QWidget::mouseReleaseEvent(event);
+    }
+
+private:
+    QPoint m_pressPos;
+    bool m_pressed = false;
+    bool m_dragged = false;
+};
 
 // Keeps a view's factory alive exactly as long as the view, so the view can be
 // deleted later without the factory going first.
@@ -60,7 +109,7 @@ struct TaskCell::Private
     bool removed = false;
 
     QVBoxLayout *layout = nullptr;
-    QWidget *header = nullptr;
+    TaskHeader *header = nullptr;
     QLabel *title = nullptr;
     QComboBox *picker = nullptr;
     QToolButton *lockButton = nullptr;
@@ -87,9 +136,14 @@ void TaskCell::Private::refresh()
 {
     const Task *current = task();
     removed = current == nullptr;
-    header->setVisible(!removed);
+    // A removed task keeps its header, so the cell can still be moved or
+    // removed in the root dashboard.
     removedLabel->setVisible(removed);
+    lockButton->setVisible(!removed && services.locks);
+    openButton->setVisible(!removed && services.openTaskAlone);
     if (removed) {
+        title->setText(TaskCell::tr("Removed task"));
+        picker->hide();
         dropView();
         return;
     }
@@ -227,7 +281,12 @@ TaskCell::TaskCell(const LayoutServices &services, const DashboardRef &rootDashb
     d->layout->setContentsMargins(0, 0, 0, 0);
     d->layout->setSpacing(0);
 
-    d->header = new QWidget(this);
+    d->header = new TaskHeader(this);
+    d->header->setObjectName(QStringLiteral("taskHeader"));
+    d->header->onDrag = [this] { emit dragStarted(); };
+    d->header->setContextMenuPolicy(Qt::CustomContextMenu);
+    connect(d->header, &QWidget::customContextMenuRequested, this,
+            [this](const QPoint &pos) { emit menuRequested(d->header->mapToGlobal(pos)); });
     auto *headerLayout = new QHBoxLayout(d->header);
     headerLayout->setContentsMargins(6, 2, 2, 2);
     headerLayout->setSpacing(4);
@@ -249,7 +308,6 @@ TaskCell::TaskCell(const LayoutServices &services, const DashboardRef &rootDashb
     d->lockButton->setObjectName(QStringLiteral("lockButton"));
     d->lockButton->setCheckable(true);
     d->lockButton->setAutoRaise(true);
-    d->lockButton->setVisible(services.locks != nullptr);
     headerLayout->addWidget(d->lockButton);
 
     d->openButton = new QToolButton(d->header);
@@ -257,7 +315,6 @@ TaskCell::TaskCell(const LayoutServices &services, const DashboardRef &rootDashb
     d->openButton->setText(tr("Open alone"));
     d->openButton->setToolTip(tr("Open this task on its own"));
     d->openButton->setAutoRaise(true);
-    d->openButton->setVisible(bool(services.openTaskAlone));
     headerLayout->addWidget(d->openButton);
 
     d->layout->addWidget(d->header);
@@ -300,6 +357,8 @@ TaskCell::TaskCell(const LayoutServices &services, const DashboardRef &rootDashb
 TaskCell::~TaskCell()
 {
     // The child widgets outlive d, so their signals must not reach it.
+    d->header->onDrag = nullptr;
+    d->header->disconnect(this);
     d->picker->disconnect(this);
     d->lockButton->disconnect(this);
     d->openButton->disconnect(this);
@@ -308,5 +367,14 @@ TaskCell::~TaskCell()
 QString TaskCell::taskId() const { return d->taskId; }
 QString TaskCell::dashboardId() const { return d->dashboardId; }
 LayoutView *TaskCell::view() const { return d->view; }
+
+void TaskCell::setEditMode(bool on)
+{
+    d->header->editMode = on;
+    if (on)
+        d->header->setCursor(Qt::OpenHandCursor);
+    else
+        d->header->unsetCursor();
+}
 
 } // namespace mirante

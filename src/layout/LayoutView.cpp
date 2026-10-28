@@ -4,6 +4,7 @@
 #include "layout/CellFrame.h"
 #include "layout/CellFrameSingleView.h"
 #include "layout/SingleViewTracker.h"
+#include "layout/TaskCell.h"
 
 #include <QEvent>
 #include <QPointer>
@@ -255,6 +256,17 @@ void LayoutView::Private::setUpNewCell(QWidget *cell)
                 emit q->cellDragStarted(*path);
         });
     }
+    if (auto *taskCell = qobject_cast<TaskCell *>(cell)) {
+        taskCell->setEditMode(editMode);
+        QObject::connect(taskCell, &TaskCell::menuRequested, q, [this, taskCell](const QPoint &globalPos) {
+            if (const auto path = q->pathOf(taskCell))
+                emit q->cellMenuRequested(*path, globalPos);
+        });
+        QObject::connect(taskCell, &TaskCell::dragStarted, q, [this, taskCell] {
+            if (const auto path = q->pathOf(taskCell))
+                emit q->cellDragStarted(*path);
+        });
+    }
     if (auto *singleView = CellFrameSingleView::of(cell))
         singleView->setTracker(tracker);
 }
@@ -448,6 +460,8 @@ void LayoutView::setEditMode(bool on)
     for (const auto &[path, cell] : d->cells) {
         if (auto *frame = qobject_cast<CellFrame *>(cell))
             frame->setEditMode(on);
+        else if (auto *taskCell = qobject_cast<TaskCell *>(cell))
+            taskCell->setEditMode(on);
     }
 }
 

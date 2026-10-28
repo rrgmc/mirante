@@ -1,6 +1,6 @@
 // Tests LockState, and TaskCell on the fixtures: the nested view, the
-// dashboard picker, the lock button, the "open alone" button, and storing the
-// chosen dashboard in the root dashboard.
+// dashboard picker, the lock button, the "open alone" button, storing the
+// chosen dashboard in the root dashboard, and the header's menu and drag.
 #include "core/Model.h"
 #include "core/Store.h"
 #include "items/ItemTypeRegistry.h"
@@ -9,9 +9,12 @@
 #include "layout/LockState.h"
 #include "layout/TaskCell.h"
 
+#include <QApplication>
 #include <QComboBox>
+#include <QContextMenuEvent>
 #include <QJsonDocument>
 #include <QLabel>
+#include <QMouseEvent>
 #include <QSignalSpy>
 #include <QTest>
 #include <QToolButton>
@@ -47,6 +50,19 @@ int cellCount(const LayoutView *view)
 
 QComboBox *picker(const TaskCell &cell) { return cell.findChild<QComboBox *>(QStringLiteral("dashboardPicker")); }
 QToolButton *lockButton(const TaskCell &cell) { return cell.findChild<QToolButton *>(QStringLiteral("lockButton")); }
+QWidget *header(const TaskCell &cell) { return cell.findChild<QWidget *>(QStringLiteral("taskHeader")); }
+
+// Presses the left button on widget and moves it by distance.
+void dragBy(QWidget *widget, int distance)
+{
+    const QPoint start(10, 5);
+    const QPoint end = start + QPoint(distance, 0);
+    QTest::mousePress(widget, Qt::LeftButton, {}, start);
+    QMouseEvent move(QEvent::MouseMove, QPointF(end), widget->mapToGlobal(QPointF(end)), Qt::NoButton,
+                     Qt::LeftButton, Qt::NoModifier);
+    QApplication::sendEvent(widget, &move);
+    QTest::mouseRelease(widget, Qt::LeftButton, {}, end);
+}
 
 } // namespace
 
@@ -68,6 +84,8 @@ private slots:
     void choosingDashboardWithoutRoot();
     void openAlone();
     void removedTask();
+    void headerMenuAndDrag();
+    void rootViewForwardsTaskCells();
 
 private:
     Model *m_model = nullptr;
@@ -276,6 +294,7 @@ void TestTaskCell::removedTask()
     auto *label = cell.findChild<QLabel *>(QStringLiteral("removedLabel"));
     QVERIFY(label);
     QVERIFY(!label->isHidden());
+    QVERIFY(!header(cell)->isHidden());
 
     TaskCell present(m_services, {QString(), kMorningRoot}, taskRef(kFixLoginTask));
     QVERIFY(present.findChild<QLabel *>(QStringLiteral("removedLabel"))->isHidden());
@@ -284,6 +303,71 @@ void TestTaskCell::removedTask()
     m_model->reset({}, {}, {}, {});
     QVERIFY(!present.view());
     QVERIFY(!present.findChild<QLabel *>(QStringLiteral("removedLabel"))->isHidden());
+}
+
+void TestTaskCell::headerMenuAndDrag()
+{
+    TaskCell cell(m_services, {QString(), kMorningRoot}, taskRef(kFixLoginTask));
+    cell.resize(600, 400);
+    cell.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&cell));
+    QWidget *head = header(cell);
+    QVERIFY(head);
+    QSignalSpy menu(&cell, &TaskCell::menuRequested);
+    QSignalSpy drag(&cell, &TaskCell::dragStarted);
+
+    // A right click on the header asks for the cell menu.
+    const QPoint pos(5, 5);
+    QContextMenuEvent event(QContextMenuEvent::Mouse, pos, head->mapToGlobal(pos));
+    QApplication::sendEvent(head, &event);
+    QCOMPARE(menu.count(), 1);
+    QCOMPARE(menu.at(0).at(0).toPoint(), head->mapToGlobal(pos));
+
+    // A drag starts only in the root dashboard's edit mode, and only past the drag distance.
+    dragBy(head, 60);
+    QCOMPARE(drag.count(), 0);
+    cell.setEditMode(true);
+    QCOMPARE(head->cursor().shape(), Qt::OpenHandCursor);
+    QVERIFY(!cell.view()->editMode());
+    dragBy(head, 1);
+    QCOMPARE(drag.count(), 0);
+    dragBy(head, 60);
+    QCOMPARE(drag.count(), 1);
+
+    cell.setEditMode(false);
+    QCOMPARE(head->cursor().shape(), Qt::ArrowCursor);
+    dragBy(head, 60);
+    QCOMPARE(drag.count(), 1);
+}
+
+void TestTaskCell::rootViewForwardsTaskCells()
+{
+    const DashboardRef root{QString(), kReleaseRoot};
+    DashboardCellFactory factory(m_services, root);
+    LayoutView rootView(&factory);
+    rootView.setEditMode(true);
+    rootView.setTree(*m_model->layout(root));
+    QSignalSpy menu(&rootView, &LayoutView::cellMenuRequested);
+    QSignalSpy drag(&rootView, &LayoutView::cellDragStarted);
+
+    // Release is (three task cells) over (two item cells). New task cells start in edit mode.
+    auto *cell = qobject_cast<TaskCell *>(rootView.cellAt({0, 2}));
+    QVERIFY(cell);
+    QCOMPARE(cell->taskId(), kFixLoginTask);
+    QCOMPARE(header(*cell)->cursor().shape(), Qt::OpenHandCursor);
+    QVERIFY(!cell->view()->editMode());
+
+    emit cell->menuRequested(QPoint(5, 6));
+    QCOMPARE(menu.count(), 1);
+    QCOMPARE(menu.at(0).at(0).value<NodePath>(), (NodePath{0, 2}));
+    QCOMPARE(menu.at(0).at(1).toPoint(), QPoint(5, 6));
+
+    emit cell->dragStarted();
+    QCOMPARE(drag.count(), 1);
+    QCOMPARE(drag.at(0).at(0).value<NodePath>(), (NodePath{0, 2}));
+
+    rootView.setEditMode(false);
+    QCOMPARE(header(*cell)->cursor().shape(), Qt::ArrowCursor);
 }
 
 QTEST_MAIN(TestTaskCell)
