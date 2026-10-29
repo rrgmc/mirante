@@ -12,6 +12,7 @@
 #include <QMenu>
 #include <QMouseEvent>
 #include <QPointer>
+#include <QTimer>
 #include <QToolButton>
 #include <QVBoxLayout>
 
@@ -120,7 +121,7 @@ struct TaskCell::Private
     const Task *task() const { return services.model ? services.model->task(taskId) : nullptr; }
 
     void refresh();
-    void showMenu(const QPoint &globalPos);
+    void showMenu(const QPoint &globalPos, const NodePath *path = nullptr);
     void buildView();
     void dropView();
     void showTree();
@@ -174,16 +175,63 @@ void TaskCell::Private::refresh()
 }
 
 // The menu of a task cell while the root dashboard is locked, and of the cells
-// inside it, which are never edited here.
-void TaskCell::Private::showMenu(const QPoint &globalPos)
+// inside it, which are never edited here. An item cell inside also offers
+// "Maximise" or "Restore", and "Open Alone", as in LayoutEditor.
+void TaskCell::Private::showMenu(const QPoint &globalPos, const NodePath *path)
 {
-    if (removed || !services.openTaskAlone)
+    if (removed)
         return;
+    QPointer<QWidget> cell;
+    QString itemId;
+    if (path && view) {
+        const LayoutNode *node = layout::nodeAt(view->tree(), *path);
+        if (node && node->kind == LayoutNode::Kind::Cell && node->ref && !node->removed && node->ref->isItem()
+            && services.model && services.model->item(taskId, node->ref->item)) {
+            cell = view->cellAt(*path);
+            itemId = node->ref->item;
+        }
+    }
+
     QMenu menu(q);
-    QAction *edit = menu.addAction(TaskCell::tr("Edit task dashboard"));
+    QAction *maximise = nullptr;
+    QAction *openItem = nullptr;
+    QAction *edit = nullptr;
+    if (cell && services.toggleMaximised) {
+        const bool maximised = services.isMaximised && services.isMaximised(cell);
+        maximise = menu.addAction(maximised ? TaskCell::tr("Restore") : TaskCell::tr("Maximise"));
+    }
+    if (!itemId.isEmpty() && services.openItemAlone)
+        openItem = menu.addAction(TaskCell::tr("Open Alone"));
+    if (services.openTaskAlone) {
+        if (!menu.isEmpty())
+            menu.addSeparator();
+        edit = menu.addAction(TaskCell::tr("Edit task dashboard"));
+    }
+    if (menu.isEmpty())
+        return;
+
+    // The command may move or rebuild the cell whose event handler is still
+    // running, so it runs once that handler has returned.
     QPointer<TaskCell> guard(q);
-    if (menu.exec(globalPos) == edit && guard)
-        guard->openAlone();
+    QAction *chosen = menu.exec(globalPos);
+    if (!chosen || !guard)
+        return;
+    std::function<void()> run;
+    if (chosen == maximise) {
+        run = [toggle = services.toggleMaximised, cell] {
+            if (cell)
+                toggle(cell);
+        };
+    } else if (chosen == openItem) {
+        run = [openAlone = services.openItemAlone, task = taskId, itemId] { openAlone(task, itemId); };
+    } else if (chosen == edit) {
+        run = [guard] {
+            if (guard)
+                guard->openAlone();
+        };
+    }
+    if (run)
+        QTimer::singleShot(0, q, run);
 }
 
 // Replaces the nested view with one for the chosen dashboard. The view is
@@ -202,7 +250,7 @@ void TaskCell::Private::buildView()
         view->setSingleViewTracker(services.tracker);
     showTree();
     QObject::connect(view, &LayoutView::cellMenuRequested, q,
-                     [this](const NodePath &, const QPoint &globalPos) { showMenu(globalPos); });
+                     [this](const NodePath &path, const QPoint &globalPos) { showMenu(globalPos, &path); });
     QObject::connect(view, &LayoutView::tabMenuRequested, q,
                      [this](const NodePath &, int, const QPoint &globalPos) { showMenu(globalPos); });
     layout->addWidget(view, 1);

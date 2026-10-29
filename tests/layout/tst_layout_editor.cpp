@@ -87,6 +87,60 @@ DropTarget replace(const NodePath &path)
     return target;
 }
 
+// Opens the cell menu of the node at path and closes it again, choosing the
+// entry with the text choose if there is one. Returns the menu's entries, or
+// nothing if no menu opened.
+QStringList cellMenu(LayoutView &view, const NodePath &path, const QString &choose = QString())
+{
+    QStringList texts;
+    // A timer of this call, so one left over from a call that opened no menu
+    // goes with it.
+    QTimer timer;
+    timer.setSingleShot(true);
+    QObject::connect(&timer, &QTimer::timeout, [&texts, choose] {
+        auto *menu = qobject_cast<QMenu *>(QApplication::activePopupWidget());
+        if (!menu)
+            return;
+        QAction *chosen = nullptr;
+        for (QAction *action : menu->actions()) {
+            if (action->isSeparator())
+                continue;
+            texts << action->text();
+            if (action->text() == choose)
+                chosen = action;
+        }
+        if (chosen) {
+            menu->setActiveAction(chosen);
+            QTest::keyClick(menu, Qt::Key_Return);
+        } else {
+            menu->close();
+        }
+    });
+    timer.start(0);
+    emit view.cellMenuRequested(path, view.mapToGlobal(QPoint(10, 10)));
+    return texts;
+}
+
+// LayoutServices with the callbacks of the bigger view, which record their calls.
+struct BiggerView
+{
+    LayoutServices services;
+    QList<QWidget *> toggled;
+    QWidget *maximised = nullptr;
+    QStringList opened;     // "task/item"
+
+    BiggerView()
+    {
+        services.toggleMaximised = [this](QWidget *cell) { toggled << cell; };
+        services.isMaximised = [this](const QWidget *cell) { return cell && cell == maximised; };
+        services.openItemAlone = [this](const QString &taskId, const QString &itemId) {
+            opened << taskId + QLatin1Char('/') + itemId;
+        };
+    }
+    BiggerView(const BiggerView &) = delete;
+    BiggerView &operator=(const BiggerView &) = delete;
+};
+
 DragPayload fromSidebar(const CellRef &ref) { return DragPayload{ref, std::nullopt, std::nullopt}; }
 
 DragPayload moved(const CellRef &ref, const DashboardRef &source, const NodePath &path)
@@ -359,6 +413,133 @@ private slots:
         QVERIFY2(single.contains(QStringLiteral("Ungroup")), qPrintable(single.join(u',')));
         QVERIFY(single.contains(QStringLiteral("Delete tab")));
         QVERIFY(!single.contains(QStringLiteral("Collapse when single")));
+        editor->detach(&view);
+    }
+
+    // An item cell's menu offers "Maximise" and "Open Alone" whether the
+    // dashboard is locked or not, since neither edits the layout.
+    void itemCellMenuOffersTheBiggerView()
+    {
+        BiggerView bigger;
+        editor->setServices(&bigger.services);
+        FakeFactory factory;
+        LayoutView view(&factory);
+        view.resize(800, 600);
+        view.setTree(tree(work));
+        editor->attach(&view, work);
+        view.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&view));
+
+        // Locked: only these two.
+        QCOMPARE(cellMenu(view, {0}), (QStringList{QStringLiteral("Maximise"), QStringLiteral("Open Alone")}));
+
+        // Unlocked: these two first, then the editing commands.
+        view.setEditMode(true);
+        const QStringList unlocked = cellMenu(view, {0});
+        QVERIFY2(unlocked.size() > 2, qPrintable(unlocked.join(u',')));
+        QCOMPARE(unlocked.mid(0, 2), (QStringList{QStringLiteral("Maximise"), QStringLiteral("Open Alone")}));
+        QVERIFY(unlocked.contains(QStringLiteral("Split right")));
+
+        // The maximised cell offers "Restore" instead.
+        bigger.maximised = view.cellAt({0});
+        QCOMPARE(cellMenu(view, {0}).value(0), QStringLiteral("Restore"));
+        view.setEditMode(false);
+        QCOMPARE(cellMenu(view, {0}).value(0), QStringLiteral("Restore"));
+        editor->detach(&view);
+    }
+
+    void itemCellMenuCallsTheBiggerView()
+    {
+        BiggerView bigger;
+        editor->setServices(&bigger.services);
+        FakeFactory factory;
+        LayoutView view(&factory);
+        view.resize(800, 600);
+        view.setTree(tree(work));
+        editor->attach(&view, work);
+        view.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&view));
+
+        // In a task dashboard the task is the dashboard's.
+        cellMenu(view, {0}, QStringLiteral("Maximise"));
+        QTRY_COMPARE(bigger.toggled, (QList<QWidget *>{view.cellAt({0})}));
+        cellMenu(view, {0}, QStringLiteral("Open Alone"));
+        QTRY_COMPARE(bigger.opened, (QStringList{loginTask + QLatin1Char('/') + claudeItem}));
+        editor->detach(&view);
+
+        // In a root dashboard it is the one in the cell's reference. The task
+        // cell itself gets neither entry.
+        bigger.toggled.clear();
+        bigger.opened.clear();
+        FakeFactory rootFactory;
+        rootFactory.services.model = model.get();
+        rootFactory.services.types = types.get();
+        rootFactory.rootDashboard = morning;
+        LayoutView rootView(&rootFactory);
+        rootView.resize(800, 600);
+        rootView.setTree(tree(morning));
+        editor->attach(&rootView, morning);
+        rootView.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&rootView));
+        const CellRef ref = *refAt(morning, {1, 0});
+        QVERIFY(ref.isItem() && !ref.task.isEmpty());
+
+        cellMenu(rootView, {1, 0}, QStringLiteral("Open Alone"));
+        QTRY_COMPARE(bigger.opened, (QStringList{ref.task + QLatin1Char('/') + ref.item}));
+        rootView.setEditMode(true);
+        cellMenu(rootView, {1, 0}, QStringLiteral("Maximise"));
+        QTRY_COMPARE(bigger.toggled, (QList<QWidget *>{rootView.cellAt({1, 0})}));
+
+        const QStringList taskCellMenu = cellMenu(rootView, {0});
+        QVERIFY2(taskCellMenu.contains(QStringLiteral("Edit task dashboard")), qPrintable(taskCellMenu.join(u',')));
+        QVERIFY(!taskCellMenu.contains(QStringLiteral("Maximise")));
+        QVERIFY(!taskCellMenu.contains(QStringLiteral("Open Alone")));
+        rootView.setEditMode(false);
+        QVERIFY(cellMenu(rootView, {0}).isEmpty());
+        editor->detach(&rootView);
+    }
+
+    // Empty cells, and editors without the callbacks, offer neither entry.
+    void biggerViewIsNotOfferedWithoutAnItemOrCallbacks()
+    {
+        editor->cellCommand(work, {0}, CellCommand::SplitRight);     // {1} is empty
+        QVERIFY(!refAt(work, {1}));
+
+        BiggerView bigger;
+        editor->setServices(&bigger.services);
+        FakeFactory factory;
+        LayoutView view(&factory);
+        view.resize(800, 600);
+        view.setTree(tree(work));
+        editor->attach(&view, work);
+        view.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&view));
+
+        QVERIFY(cellMenu(view, {1}).isEmpty());     // locked: no menu
+        view.setEditMode(true);
+        const QStringList empty = cellMenu(view, {1});
+        QVERIFY2(empty.contains(QStringLiteral("Split right")), qPrintable(empty.join(u',')));
+        QVERIFY(!empty.contains(QStringLiteral("Maximise")));
+        QVERIFY(!empty.contains(QStringLiteral("Open Alone")));
+
+        // Each entry needs its own callback.
+        bigger.services.openItemAlone = nullptr;
+        QStringList item = cellMenu(view, {0});
+        QVERIFY(item.contains(QStringLiteral("Maximise")));
+        QVERIFY(!item.contains(QStringLiteral("Open Alone")));
+
+        bigger.services.toggleMaximised = nullptr;
+        item = cellMenu(view, {0});
+        QVERIFY2(item.contains(QStringLiteral("Split right")), qPrintable(item.join(u',')));
+        QVERIFY(!item.contains(QStringLiteral("Maximise")));
+        view.setEditMode(false);
+        QVERIFY(cellMenu(view, {0}).isEmpty());
+
+        // Without services, too.
+        editor->setServices(nullptr);
+        QVERIFY(cellMenu(view, {0}).isEmpty());
+        view.setEditMode(true);
+        QVERIFY(!cellMenu(view, {0}).contains(QStringLiteral("Maximise")));
         editor->detach(&view);
     }
 

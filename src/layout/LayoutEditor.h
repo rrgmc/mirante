@@ -14,6 +14,7 @@ namespace mirante {
 
 class ItemTypeRegistry;
 class LayoutView;
+struct LayoutServices;
 
 // Turns menu commands and drops into layout tree edits, and stores the result
 // through Model, which normalises. See the M2 plan, part 4.
@@ -47,6 +48,12 @@ public:
     // before Clear cell, Remove cell and closing a tab; the public commands
     // above do not ask. The default shows a message box; tests replace it.
     void setConfirm(std::function<bool(QWidget *parent, const QString &question)> confirm);
+
+    // The services whose callbacks the item cell menu calls: "Maximise" or
+    // "Restore", and "Open Alone". An entry is hidden while its callback is
+    // null, and both are hidden without services. The services must outlive
+    // the editor. See the M4 plan, part 6.
+    void setServices(const LayoutServices *services);
 
     // Applies a drop, following the rules in docs/ui.md#editing-layouts.
     // Returns false if the drop is not allowed, such as an item of another task

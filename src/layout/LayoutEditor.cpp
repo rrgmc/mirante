@@ -2,6 +2,7 @@
 
 #include "core/Sorting.h"
 #include "items/ItemTypeRegistry.h"
+#include "layout/LayoutServices.h"
 #include "layout/LayoutView.h"
 #include "layout/TaskCell.h"
 
@@ -75,6 +76,7 @@ struct LayoutEditor::Private
     const ItemTypeRegistry &types;
     std::map<LayoutView *, DashboardRef> views;
     std::map<LayoutView *, QPointer<DropOverlay>> overlays;
+    const LayoutServices *services = nullptr;
 
     std::function<bool(QWidget *, const QString &)> confirm = [](QWidget *parent, const QString &question) {
         return QMessageBox::question(parent, LayoutEditor::tr("Remove"), question) == QMessageBox::Yes;
@@ -140,7 +142,10 @@ struct LayoutEditor::Private
 
     // Views
     void forget(LayoutView *view);
+    void execMenu(QMenu &menu, const Commands &commands, const QPoint &globalPos);
     void showCellMenu(LayoutView *view, const NodePath &path, const QPoint &globalPos);
+    void addViewCommands(QMenu &menu, Commands &commands, LayoutView *view, const DashboardRef &dashboard,
+                         const NodePath &path, const LayoutNode &node) const;
     void showTabMenu(LayoutView *view, const NodePath &tabsPath, int index, const QPoint &globalPos);
     void startDrag(LayoutView *view, const NodePath &path);
     void onDropped(LayoutView *view, const DropTarget &target, const DragPayload &payload);
@@ -275,10 +280,55 @@ void LayoutEditor::Private::forget(LayoutView *view)
     overlays.erase(view);
 }
 
+// Shows a menu and runs the chosen command. The command may rebuild the view,
+// and with it the cell whose event handler is still running, so it runs once
+// that handler has returned.
+void LayoutEditor::Private::execMenu(QMenu &menu, const Commands &commands, const QPoint &globalPos)
+{
+    QAction *chosen = menu.exec(globalPos);
+    const auto run = commands.find(chosen);
+    if (run != commands.end())
+        QTimer::singleShot(0, q, run->second);
+}
+
+// The commands of an item cell that only change how it is shown, so they are
+// offered on locked dashboards too: "Maximise" or "Restore", and "Open Alone".
+// Item pages, which already show an item alone, are not attached to the
+// editor, so they never get here.
+void LayoutEditor::Private::addViewCommands(QMenu &menu, Commands &commands, LayoutView *view,
+                                            const DashboardRef &dashboard, const NodePath &path,
+                                            const LayoutNode &node) const
+{
+    if (!services || node.kind != Kind::Cell || !node.ref || node.removed || !node.ref->isItem())
+        return;
+    const QString itemId = node.ref->item;
+    QString taskId = dashboard.isRoot() ? node.ref->task : dashboard.taskId;
+    if (taskId.isEmpty()) {
+        if (const Task *task = model.taskOfItem(itemId))
+            taskId = task->id;
+    }
+    if (!model.item(taskId, itemId))
+        return;
+
+    if (const auto toggle = services->toggleMaximised) {
+        const QPointer<QWidget> cell = view->cellAt(path);
+        const bool maximised = cell && services->isMaximised && services->isMaximised(cell);
+        addCommand(&menu, commands, maximised ? LayoutEditor::tr("Restore") : LayoutEditor::tr("Maximise"),
+                   [toggle, cell] {
+                       if (cell)
+                           toggle(cell);
+                   });
+    }
+    if (const auto openAlone = services->openItemAlone) {
+        addCommand(&menu, commands, LayoutEditor::tr("Open Alone"),
+                   [openAlone, taskId, itemId] { openAlone(taskId, itemId); });
+    }
+}
+
 void LayoutEditor::Private::showCellMenu(LayoutView *view, const NodePath &path, const QPoint &globalPos)
 {
     const auto found = views.find(view);
-    if (found == views.end() || !view->editMode())
+    if (found == views.end())
         return;
     const DashboardRef dashboard = found->second;
     const LayoutNode *tree = model.layout(dashboard);
@@ -288,6 +338,15 @@ void LayoutEditor::Private::showCellMenu(LayoutView *view, const NodePath &path,
 
     QMenu menu(view);
     Commands commands;
+    addViewCommands(menu, commands, view, dashboard, path, *node);
+    // A locked dashboard offers only the commands that do not edit it.
+    if (!view->editMode()) {
+        if (!commands.empty())
+            execMenu(menu, commands, globalPos);
+        return;
+    }
+    if (!commands.empty())
+        menu.addSeparator();
     const auto command = [&](const QString &text, CellCommand cellCommand) {
         return addCommand(&menu, commands, text,
                           [this, dashboard, path, cellCommand] { q->cellCommand(dashboard, path, cellCommand); });
@@ -323,12 +382,7 @@ void LayoutEditor::Private::showCellMenu(LayoutView *view, const NodePath &path,
               LayoutEditor::tr("Remove this cell from the dashboard?"))
         ->setEnabled(!path.empty());
 
-    QAction *chosen = menu.exec(globalPos);
-    // The command may rebuild the view, and with it the cell whose event
-    // handler is still running, so it runs once that handler has returned.
-    const auto run = commands.find(chosen);
-    if (run != commands.end())
-        QTimer::singleShot(0, q, run->second);
+    execMenu(menu, commands, globalPos);
 }
 
 void LayoutEditor::Private::showTabMenu(LayoutView *view, const NodePath &tabsPath, int index,
@@ -376,10 +430,7 @@ void LayoutEditor::Private::showTabMenu(LayoutView *view, const NodePath &tabsPa
         command(LayoutEditor::tr("Ungroup"), TabCommand::Ungroup);
     }
 
-    QAction *chosen = menu.exec(globalPos);
-    const auto run = commands.find(chosen);
-    if (run != commands.end())
-        QTimer::singleShot(0, q, run->second);
+    execMenu(menu, commands, globalPos);
 }
 
 void LayoutEditor::Private::startDrag(LayoutView *view, const NodePath &path)
@@ -677,5 +728,7 @@ void LayoutEditor::setConfirm(std::function<bool(QWidget *parent, const QString 
 {
     d->confirm = std::move(confirm);
 }
+
+void LayoutEditor::setServices(const LayoutServices *services) { d->services = services; }
 
 } // namespace mirante

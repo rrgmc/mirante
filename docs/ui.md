@@ -120,7 +120,16 @@ Each cell has a small header containing:
 - the item name, in normal weight;
 - in a root dashboard, where an item can come from any task, a grey **place pill** with its project and task after the name, such as "backend › Overview";
 - status badges;
-- buttons: refresh, open in browser, and a menu.
+- buttons: refresh, open in browser, a menu, and maximise.
+
+### A bigger view of an item
+
+Some work, such as signing in to a site, is easier on a large page than in a small cell. An item cell offers two bigger views. Both work on locked dashboards, and in task dashboards shown inside root dashboards, because neither changes a layout. Empty and "Removed" cells, and task cells, offer neither. See the [M4 plan](plans/m4-web-views.md#part-6-a-bigger-view-of-an-item).
+
+- **Maximise.** The button after the menu button in the cell header, the cell menu entry "Maximise", or `Ctrl+Shift+M` for the focused cell, shows the cell over the whole dashboard area and gives it the focus. The button's tooltip names the shortcut. The same cell moves, so a web page keeps its state, including a login in progress. The button, the menu entry "Restore" or the shortcut again puts the cell back in its place. Maximising another cell puts the first one back. Changing the root tab or closing the tab also puts it back.
+- **Open Alone.** The cell menu entry "Open Alone" opens the item alone in the preview tab, as a double click on the item in the sidebar does. See [decision 0023](decisions/0023-item-tabs.md). The tab has a view of its own, in the same profile, so a login made there reaches the cell when its page reloads. An item tab already shows its item alone, so it does not offer "Open Alone".
+
+On a locked dashboard the cell menu of an item cell holds only these two entries. On an unlocked one they come first, before the [editing commands](#editing-layouts).
 
 ### Layout presets
 
@@ -142,7 +151,7 @@ Layouts are locked by default, to prevent accidental changes while working. The 
 
 When editing is on:
 
-- **The cell context menu** offers:
+- **The cell context menu** offers, after "Maximise" and "Open Alone" for an item cell (see [a bigger view](#a-bigger-view-of-an-item)):
   - split right;
   - split down;
   - wrap in tabs;
@@ -225,7 +234,7 @@ The project is chosen by matching the merge request's GitLab project or the issu
 | `Ctrl+Tab`, `Ctrl+Shift+Tab` | Next or previous tab in the focused tab group |
 | `Ctrl+PgDown`, `Ctrl+PgUp` | Next or previous root dashboard tab |
 | `F11` (macOS: `Ctrl+Cmd+F`) | Full screen on or off, as in web browsers. The platform's standard key, `QKeySequence::FullScreen`. |
-| `Ctrl+Shift+M` | Maximise the focused cell, or restore it |
+| `Ctrl+Shift+M` | Maximise the focused cell, or restore the maximised one. See [a bigger view](#a-bigger-view-of-an-item). |
 | `Ctrl+W` | Close the preview tab or the focused root tab |
 | `Ctrl+V` | With an image on the clipboard: paste it into the focused cell's image item, or as a new image item on an unlocked task dashboard. See [image](item-types.md#image). A text field keeps its own paste. |
 | Global hotkey (configurable) | Bring Mirante to the front |

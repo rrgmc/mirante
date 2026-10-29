@@ -251,6 +251,58 @@ private slots:
         QCOMPARE(f.shortcuts()->focusedCell(), issue);
     }
 
+    // The cell menu and the maximise button maximise their own cell, which
+    // need not have the focus.
+    void maximiseGivenCell()
+    {
+        Fixture f;
+        SHOW_ACTIVE(f);
+        f.window->openTaskPreview(kFixLoginTask);
+        LayoutView *view = f.window->currentLayoutView();
+        CellFrame *session = f.cell(kSession);
+        CellFrame *issue = f.cell(kIssue);
+        QVERIFY(session && issue);
+        QWidget *sessionHome = session->parentWidget();
+        QWidget *issueHome = issue->parentWidget();
+        f.shortcuts()->focusCell(session);
+        QVERIFY(!f.shortcuts()->isMaximised(issue));
+
+        // Maximising focuses the cell.
+        f.shortcuts()->toggleMaximised(issue);
+        QCOMPARE(issue->parentWidget()->objectName(), QStringLiteral("maximiseLayer"));
+        QVERIFY(f.shortcuts()->isMaximised(issue));
+        QVERIFY(!f.shortcuts()->isMaximised(session));
+        QCOMPARE(f.shortcuts()->focusedCell(), issue);
+
+        // Maximising another cell restores the first.
+        f.shortcuts()->toggleMaximised(session);
+        QCOMPARE(issue->parentWidget(), issueHome);
+        QVERIFY(view->pathOf(issue));
+        QCOMPARE(session->parentWidget()->objectName(), QStringLiteral("maximiseLayer"));
+        QVERIFY(f.shortcuts()->isMaximised(session));
+        QVERIFY(!f.shortcuts()->isMaximised(issue));
+        QCOMPARE(f.shortcuts()->focusedCell(), session);
+
+        // The same cell again restores it.
+        f.shortcuts()->toggleMaximised(session);
+        QCOMPARE(session->parentWidget(), sessionHome);
+        QVERIFY(!f.shortcuts()->isMaximised(session));
+        QCOMPARE(f.shortcuts()->focusedCell(), session);
+
+        // The shortcut restores a cell maximised this way, even when the focus
+        // left it.
+        f.shortcuts()->toggleMaximised(issue);
+        f.bar()->setFocus(Qt::OtherFocusReason);
+        QTRY_VERIFY(!f.shortcuts()->focusedCell());
+        f.key(Qt::Key_M, Qt::ControlModifier | Qt::ShiftModifier);
+        QCOMPARE(issue->parentWidget(), issueHome);
+        QVERIFY(!f.shortcuts()->isMaximised(issue));
+
+        // Nothing happens for no cell.
+        f.shortcuts()->toggleMaximised(nullptr);
+        QVERIFY(!f.shortcuts()->isMaximised(nullptr));
+    }
+
     void rootTabChangeRestores()
     {
         Fixture f;
