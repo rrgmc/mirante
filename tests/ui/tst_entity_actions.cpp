@@ -272,7 +272,7 @@ void TestEntityActions::newProject()
     QCOMPARE(project->name, QStringLiteral("api"));
     QCOMPARE(project->groupId, workGroup);
     QCOMPARE(project->priority, Priority::Normal);
-    QCOMPARE(project->order, 1);    // after frontend, the only Normal project of Work
+    QCOMPARE(project->order, 3);    // last in Work, after backend, frontend and infra
     QCOMPARE(project->folders.size(), size_t(1));
     QCOMPARE(settings->folderPath(QStringLiteral("web")), QStringLiteral("D:/web"));
 
@@ -294,7 +294,7 @@ void TestEntityActions::newTask()
     QCOMPARE(task->projectId, backendProject);
     QCOMPARE(task->state, TaskState::Active);
     QCOMPARE(task->priority, Priority::Normal);
-    QCOMPARE(task->order, 2);       // after Overview (0) and Upgrade Go (1)
+    QCOMPARE(task->order, 5);       // last in backend, after its five tasks (0 to 4)
     QCOMPARE(task->dashboards.size(), size_t(1));
     QCOMPARE(task->defaultDashboardId, task->dashboards.front().id);
 }
@@ -510,10 +510,11 @@ void TestEntityActions::lastDashboard()
 
 void TestEntityActions::priorityAndState()
 {
-    // A new priority puts the entity last at its new level.
+    // A new priority changes the marker only; the task keeps its place.
+    const int order = model.task(backendOverview)->order;
     actions->setPriority(backendOverview, Priority::Urgent);
     QCOMPARE(model.task(backendOverview)->priority, Priority::Urgent);
-    QCOMPARE(model.task(backendOverview)->order, 1);    // after Fix login timeout (0)
+    QCOMPARE(model.task(backendOverview)->order, order);
 
     actions->setPriority(frontendProject, Priority::Low);
     QCOMPARE(model.project(frontendProject)->priority, Priority::Low);
@@ -532,13 +533,16 @@ void TestEntityActions::moves()
     QCOMPARE(model.group(personalGroup)->order, 0);
     QCOMPARE(model.group(workGroup)->order, 1);
 
-    actions->moveTask(backendOverview, Priority::Urgent, 0);
-    QCOMPARE(model.task(backendOverview)->priority, Priority::Urgent);
+    // A move changes the order only, never the priority.
+    const Priority taskPriority = model.task(backendOverview)->priority;
+    actions->moveTask(backendOverview, 0);
+    QCOMPARE(model.task(backendOverview)->priority, taskPriority);
     QCOMPARE(model.task(backendOverview)->order, 0);
     QCOMPARE(model.task(fixLoginTimeout)->order, 1);
 
-    actions->moveProject(frontendProject, Priority::High, 0);
-    QCOMPARE(model.project(frontendProject)->priority, Priority::High);
+    const Priority projectPriority = model.project(frontendProject)->priority;
+    actions->moveProject(frontendProject, 0);
+    QCOMPARE(model.project(frontendProject)->priority, projectPriority);
     QCOMPARE(model.project(frontendProject)->order, 0);
     QCOMPARE(model.project(backendProject)->order, 1);
 }

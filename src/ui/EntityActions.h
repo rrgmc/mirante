@@ -70,8 +70,8 @@ public:
 
     // Moves from sidebar drops; see SidebarModel::moveRequested.
     void moveGroup(const QString &id, int index);
-    void moveProject(const QString &id, Priority priority, int index);
-    void moveTask(const QString &id, Priority priority, int index);
+    void moveProject(const QString &id, int index);
+    void moveTask(const QString &id, int index);
 
     // Adds the commands for a sidebar row to menu: new, edit, rename, set
     // priority, set state, delete, and on dashboards "Set as default". Fits

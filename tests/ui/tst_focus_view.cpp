@@ -27,17 +27,17 @@ const QString rotateTls = QStringLiteral("16d3c8ff-5fa8-5cf0-8090-c62592d1bd96")
 const QString taxDocuments = QStringLiteral("7306337b-4dae-561d-8b8a-3582fd2321f8");      // High, home Low
 const QString backendOverview = QStringLiteral("c34def7a-af34-507f-a44d-770bb60dbe95");   // Normal, backend High
 const QString darkMode = QStringLiteral("bd986bec-58f5-57cb-899d-6174cdaa0af7");          // Normal, frontend Normal, order 0
-const QString frontendOverview = QStringLiteral("43197d59-2724-5d22-9d34-30c9d35601a0");  // Normal, frontend Normal, order 0
-const QString miranteOverview = QStringLiteral("ad58a3eb-2f53-5aa4-85e9-a69e7d65e190");   // Normal, Mirante Normal, order 0
-const QString accessibility = QStringLiteral("2038cae6-f1d0-5380-a038-ecc1602c4c5a");     // Normal, frontend Normal, order 1
-const QString infraOverview = QStringLiteral("6c78a1cf-df72-550c-b5b7-0c41a424450e");     // Normal, infra Low
-const QString homeOverview = QStringLiteral("d71f3227-79a2-55e9-a0d8-429b99432282");      // Normal, home Low
+const QString frontendOverview = QStringLiteral("43197d59-2724-5d22-9d34-30c9d35601a0");  // Normal, frontend Normal, order 1
+const QString miranteOverview = QStringLiteral("ad58a3eb-2f53-5aa4-85e9-a69e7d65e190");   // Normal, Mirante Normal, order 2
+const QString accessibility = QStringLiteral("2038cae6-f1d0-5380-a038-ecc1602c4c5a");     // Normal, frontend Normal, order 2
+const QString infraOverview = QStringLiteral("6c78a1cf-df72-550c-b5b7-0c41a424450e");     // Normal, infra Low, order 2
+const QString homeOverview = QStringLiteral("d71f3227-79a2-55e9-a0d8-429b99432282");      // Normal, home Low, order 1
 const QString flakyTest = QStringLiteral("02fc9a52-653c-562f-a3a2-6d5a4ca98623");         // Low, backend High
 const QString gardenPlan = QStringLiteral("52816988-0a77-589b-8910-13d9b4bf126c");        // Low, home Low
 
 const QStringList allTasks = {fixLoginTimeout, m2Skeleton, addRateLimiting, rotateTls, taxDocuments,
-                              backendOverview, darkMode, frontendOverview, miranteOverview, accessibility,
-                              infraOverview, homeOverview, flakyTest, gardenPlan};
+                              backendOverview, darkMode, frontendOverview, accessibility, miranteOverview,
+                              homeOverview, infraOverview, flakyTest, gardenPlan};
 const QStringList workTasks = {fixLoginTimeout, addRateLimiting, rotateTls, backendOverview, darkMode,
                                frontendOverview, accessibility, infraOverview, flakyTest};
 const QStringList personalTasks = {m2Skeleton, taxDocuments, miranteOverview, homeOverview, gardenPlan};
