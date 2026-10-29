@@ -235,22 +235,44 @@ private slots:
     }
 
     // A module's ModuleSettings reads through the reader, which may be set
-    // after registering, and asks for the module's own id only.
+    // after registering, and asks for the module's own id only, in the
+    // profile it is given.
     void moduleSettingsReadThroughTheReader()
     {
         mirante::ItemTypeRegistry registry;
         registry.registerModule(QStringLiteral("alpha"), &registerScreens);
         QVERIFY(registry.moduleSettings(QStringLiteral("alpha")) == registeredSettings);
-        QVERIFY(registeredSettings->values(QStringLiteral("general")).isEmpty());
+        QVERIFY(registeredSettings->values(QStringLiteral("work"), QStringLiteral("general")).isEmpty());
 
         QStringList asked;
-        registry.setSettingsReader([&asked](const QString &moduleId, const QString &screenId) {
-            asked << moduleId + QLatin1Char('/') + screenId;
-            return QJsonObject{{QStringLiteral("key"), screenId}};
-        });
-        QCOMPARE(registeredSettings->values(QStringLiteral("general")).value(QStringLiteral("key")).toString(),
+        registry.setSettingsReader(
+            [&asked](const QString &profileId, const QString &moduleId, const QString &screenId) {
+                asked << profileId + QLatin1Char('/') + moduleId + QLatin1Char('/') + screenId;
+                return QJsonObject{{QStringLiteral("key"), screenId}};
+            });
+        QCOMPARE(registeredSettings->values(QStringLiteral("work"), QStringLiteral("general"))
+                     .value(QStringLiteral("key"))
+                     .toString(),
                  QStringLiteral("general"));
-        QCOMPARE(asked, QStringList{QStringLiteral("alpha/general")});
+        QCOMPARE(asked, QStringList{QStringLiteral("work/alpha/general")});
+    }
+
+    // A type uses a profile when it makes web views, uses connections, or its
+    // module has settings screens.
+    void usesProfile()
+    {
+        mirante::ItemTypeRegistry registry;
+        registry.registerModule(QStringLiteral("alpha"), &registerAlpha);
+        registry.registerModule(QStringLiteral("kinds"), &registerKinds);
+        registry.registerModule(QStringLiteral("gamma"), [](mirante::ModuleRegistrar &registrar) {
+            registerScreens(registrar);
+            registrar.addItemType(std::make_unique<FakeType>(QStringLiteral("gamma.thing"), QStringLiteral("Thing")));
+        });
+        QVERIFY(!registry.usesProfile(QStringLiteral("alpha.zeta")));
+        QVERIFY(registry.usesProfile(QStringLiteral("kinds.mr")));
+        QVERIFY(!registry.usesProfile(QStringLiteral("kinds.none")));
+        QVERIFY(registry.usesProfile(QStringLiteral("gamma.thing")));
+        QVERIFY(!registry.usesProfile(QStringLiteral("missing.type")));
     }
 };
 

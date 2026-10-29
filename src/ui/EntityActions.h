@@ -21,7 +21,7 @@ class ItemTypeRegistry;
 class Model;
 class ProfileManager;
 class Store;
-class WebProfilesDialog;
+class ProfilesDialog;
 
 // Every command that creates, edits, moves or deletes a group, project, task,
 // item or task dashboard. The sidebar menus, the menu bar and drops in the
@@ -44,19 +44,20 @@ public:
     // Reads the keyboard modifiers when a menu command runs. The default is
     // QGuiApplication::queryKeyboardModifiers(); tests set their own.
     void setModifiers(std::function<Qt::KeyboardModifiers()> modifiers);
-    // The web profiles. Deleting a web profile then deletes its logins on
+    // The profiles' web logins. Deleting a profile then deletes its logins on
     // this device too. Null, the default, leaves them alone. The manager must
     // outlive this object.
-    void setProfiles(ProfileManager *profiles);
-    // Runs the web profiles dialog. The default calls exec(); tests work the
-    // dialog and return instead. The confirmation set with setConfirm() is used.
-    void setEditProfiles(std::function<void(WebProfilesDialog &dialog)> edit);
+    void setProfileManager(ProfileManager *manager);
+    // Runs the profiles dialog. The default calls exec(); tests work the
+    // dialog and return instead. The confirmation set with setConfirm() is
+    // used, and the connections dialog runs through setExec().
+    void setEditProfiles(std::function<void(ProfilesDialog &dialog)> edit);
 
-    // Opens the web profiles dialog, File > Web Profiles…. See docs/ui.md#web-profiles.
-    void editWebProfiles();
+    // Opens the profiles dialog, File > Profiles…. See docs/ui.md#profiles.
+    void editProfiles();
 
     // Opens the dialog of a module's settings screen, from the Modules menu,
-    // and stores the result in the model. Nothing happens for an unknown
+    // and stores the values edited for each profile in the model. Nothing happens for an unknown
     // screen. See docs/ui.md#modules.
     void editModuleSettings(const QString &moduleId, const QString &screenId);
 

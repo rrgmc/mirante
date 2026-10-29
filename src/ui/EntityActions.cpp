@@ -5,20 +5,21 @@
 #include "core/Edits.h"
 #include "core/GroupColours.h"
 #include "core/Model.h"
+#include "core/Profiles.h"
 #include "core/Store.h"
-#include "core/WebProfiles.h"
 #include "items/ItemTypeRegistry.h"
 #include "items/UrlMatches.h"
 #include "layout/Presets.h"
+#include "ui/ConnectionsDialog.h"
 #include "ui/DashboardDialog.h"
 #include "ui/GroupDialog.h"
 #include "ui/ImagePaste.h"
 #include "ui/ImagePasteDialog.h"
 #include "ui/ItemDialog.h"
 #include "ui/ModuleSettingsDialog.h"
+#include "ui/ProfilesDialog.h"
 #include "ui/ProjectDialog.h"
 #include "ui/TaskDialog.h"
-#include "ui/WebProfilesDialog.h"
 #include "web/ProfileManager.h"
 
 #include <QActionGroup>
@@ -108,7 +109,7 @@ struct EntityActions::Private
     std::function<bool(const QString &)> confirm;
     std::function<Qt::KeyboardModifiers()> modifiers;
     ProfileManager *profiles = nullptr;
-    std::function<void(WebProfilesDialog &)> editProfiles;
+    std::function<void(ProfilesDialog &)> editProfiles;
     std::function<QImage()> clipboardImage;
     ImagePaste imagePaste{model, store, types};
 
@@ -148,22 +149,18 @@ struct EntityActions::Private
         return context;
     }
 
-    // Offers the workspace's web profiles in a group dialog.
-    void offerProfiles(GroupDialog &dialog) const
-    {
-        dialog.setConnectionKinds(types.connectionKinds());
-        dialog.setWebProfiles(webprofiles::all(model));
-    }
+    // Offers the workspace's profiles in a group dialog.
+    void offerProfiles(GroupDialog &dialog) const { dialog.setProfiles(profiles::all(model)); }
 
-    // Offers the workspace's web profiles in an item dialog, naming the
-    // profile of the task's group.
+    // Offers the workspace's profiles in an item dialog, naming the profile
+    // of the task's group.
     void offerProfiles(ItemDialog &dialog, const QString &taskId) const
     {
         const Task *task = model.task(taskId);
         const Project *project = task ? model.project(task->projectId) : nullptr;
         const Group *group = project ? model.group(project->groupId) : nullptr;
-        const QString groupProfile = group ? webprofiles::groupDefault(model, *group) : kDefaultWebProfile;
-        dialog.setWebProfiles(webprofiles::all(model), webprofiles::nameOf(model, groupProfile));
+        const QString groupProfile = group ? profiles::groupDefault(model, *group) : kDefaultProfile;
+        dialog.setProfiles(profiles::all(model), groupProfile, profiles::nameOf(model, groupProfile));
     }
 
     // Runs the project dialog and applies its value and folder paths.
@@ -211,27 +208,29 @@ void EntityActions::setClipboardImage(std::function<QImage()> clipboardImage)
     d->clipboardImage = std::move(clipboardImage);
 }
 
-void EntityActions::setProfiles(ProfileManager *profiles) { d->profiles = profiles; }
+void EntityActions::setProfileManager(ProfileManager *manager) { d->profiles = manager; }
 
-void EntityActions::setEditProfiles(std::function<void(WebProfilesDialog &)> edit)
+void EntityActions::setEditProfiles(std::function<void(ProfilesDialog &)> edit)
 {
     d->editProfiles = std::move(edit);
 }
 
-// Web profiles.
+// Profiles.
 
-void EntityActions::editWebProfiles()
+void EntityActions::editProfiles()
 {
-    WebProfilesDialog dialog(d->model, d->dialogParent);
+    ProfilesDialog dialog(d->model, d->dialogParent);
     dialog.setConfirm(d->confirm);
-    connect(&dialog, &WebProfilesDialog::profileDeleted, this, [this](const QString &id) {
+    dialog.setConnectionKinds(d->types.connectionKinds());
+    dialog.setEditConnections([this](ConnectionsDialog &connections) { return d->exec(connections); });
+    connect(&dialog, &ProfilesDialog::profileDeleted, this, [this](const QString &id) {
         // Its logins on this device go too. The placements that used it make
         // new views at once, but delete the old ones later. The profile goes
         // after those pages, or Qt warns.
         if (ProfileManager *profiles = d->profiles)
             QTimer::singleShot(0, profiles, [profiles, id] { profiles->removeProfile(id); });
     });
-    connect(&dialog, &WebProfilesDialog::profileClearRequested, this, [this](const QString &id) {
+    connect(&dialog, &ProfilesDialog::profileClearRequested, this, [this](const QString &id) {
         if (ProfileManager *profiles = d->profiles)
             profiles->clearProfile(id);
     });
@@ -246,10 +245,16 @@ void EntityActions::editModuleSettings(const QString &moduleId, const QString &s
     const SettingsScreen *screen = d->types.settingsScreen(moduleId, screenId);
     if (!screen)
         return;
-    ModuleSettingsDialog dialog(d->types.moduleName(moduleId), *screen, d->model.moduleSettings(moduleId, screenId),
+    Model *model = &d->model;
+    ModuleSettingsDialog dialog(d->types.moduleName(moduleId), *screen, profiles::all(*model),
+                                [model, moduleId, screenId](const QString &profileId) {
+                                    return model->moduleSettings(profileId, moduleId, screenId);
+                                },
                                 d->dialogParent);
-    if (d->exec(dialog))
-        d->model.setModuleSettings(moduleId, screenId, dialog.values());
+    if (!d->exec(dialog))
+        return;
+    for (const auto &[profileId, values] : dialog.values())
+        d->model.setModuleSettings(profileId, moduleId, screenId, values);
 }
 
 // Creating.
@@ -301,27 +306,46 @@ QString EntityActions::newItem(const QString &taskId, const QString &url)
     item.id = edits::newId();
     ItemDialog dialog(item, true, d->types, d->editorContext(taskId), d->dialogParent);
     d->offerProfiles(dialog, taskId);
-    const Task *task = d->model.task(taskId);
-    const Project *project = task ? d->model.project(task->projectId) : nullptr;
-    if (const Group *group = project ? d->model.group(project->groupId) : nullptr)
-        dialog.setConnections(group->connections);
+    // A link is read with the connections of the profile a new item of the
+    // task uses: its group's.
+    const QString groupProfile = profiles::effectiveFor(d->model, taskId, QString());
+    std::vector<Connection> offered;
+    if (const Profile *profile = d->model.profile(groupProfile))
+        offered = profile->connections;
+    dialog.setConnections(offered);
     dialog.setUrl(url);
     if (!d->exec(dialog))
         return {};
-    task = d->model.task(taskId);
+    const Task *task = d->model.task(taskId);
     if (!task)
         return {};
     Item value = dialog.value();
-    // The server of the link decides the connection, if the group has one
-    // for it. The item names it only if it would otherwise use another.
-    const QString linked = dialog.urlConnectionId();
-    if (!linked.isEmpty()) {
-        Item unnamed = value;
-        unnamed.connectionId.clear();
-        const Connection *resolved =
-            connections::resolve(d->model, taskId, unnamed, d->types.type(value.type).connectionKinds());
-        if (!resolved || resolved->id != linked)
-            value.connectionId = linked;
+    // The server of the link decides the connection, if the item's profile
+    // has one for it. The item names it only if it would otherwise use
+    // another. If the user chose another profile, its connection of the same
+    // kind and base URL is used, if it has one.
+    const QString linkedId = dialog.urlConnectionId();
+    const auto linked = std::find_if(offered.begin(), offered.end(),
+                                     [&linkedId](const Connection &c) { return c.id == linkedId; });
+    if (!linkedId.isEmpty() && linked != offered.end()) {
+        QString chosen;
+        if (const Profile *profile = d->model.profile(profiles::effectiveFor(d->model, taskId, value.profile))) {
+            for (const Connection &connection : profile->connections) {
+                if (connection.id == linked->id
+                    || (connection.kind == linked->kind && connection.baseUrl == linked->baseUrl)) {
+                    chosen = connection.id;
+                    break;
+                }
+            }
+        }
+        if (!chosen.isEmpty()) {
+            Item unnamed = value;
+            unnamed.connectionId.clear();
+            const Connection *resolved =
+                connections::resolve(d->model, taskId, unnamed, d->types.type(value.type).connectionKinds());
+            if (!resolved || resolved->id != chosen)
+                value.connectionId = chosen;
+        }
     }
     d->model.setTask(edits::addItem(*task, value));
     return item.id;

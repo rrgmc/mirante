@@ -54,30 +54,37 @@ struct Connection
     QJsonObject toJson() const;
 };
 
-// A web login profile of the workspace, listed in workspace.mirante. The
-// Default profile is not listed; it always exists, with id kDefaultWebProfile.
-// See docs/web-views.md#profiles.
-struct WebProfile
+// A profile of the workspace, listed in workspace.mirante: web logins (kept
+// on each device), connections (tokens in the keychain) and module settings.
+// The Default profile always exists, with id kDefaultProfile; its name is not
+// stored. See docs/data-model.md#profile and decision 0050.
+struct Profile
 {
     QString id;
-    QString name;
+    QString name;                                // empty for Default
+    std::vector<Connection> connections;
+    QMap<QString, QString> defaultConnections;   // connection kind to connection id
+    // The values of the modules' settings screens: an object of module ids,
+    // each an object of screen ids, each the values of that screen.
+    QJsonObject moduleSettings;
     QJsonObject extra;
 
-    static std::optional<WebProfile> fromJson(const QJsonObject &json, QString *error = nullptr);
+    // Whether the profile holds anything besides its id and name.
+    bool hasData() const;
+
+    static std::optional<Profile> fromJson(const QJsonObject &json, QString *error = nullptr);
     QJsonObject toJson() const;
 };
 
-// The id of the Default web profile.
-inline const QString kDefaultWebProfile = QStringLiteral("default");
+// The id of the Default profile.
+inline const QString kDefaultProfile = QStringLiteral("default");
 
 struct Group
 {
     QString id;
     QString name;
     int order = 0;
-    std::vector<Connection> connections;
-    QMap<QString, QString> defaultConnections;   // connection kind to connection id
-    QString webProfile;                          // id of the default web profile; empty for Default
+    QString profile;                             // id of the default profile; empty for Default
     QString colour;                              // "#rrggbb"; empty or invalid uses a palette colour
     QJsonObject extra;
 
@@ -111,7 +118,7 @@ struct Item
     QString name;
     QJsonObject config;         // fields of the item type; opaque to the core
     QString connectionId;       // empty if not set
-    QString webProfile;         // id of a web profile overriding the group's; empty if not set
+    QString profile;            // id of a profile overriding the group's; empty if not set
     QJsonObject extra;
 
     static std::optional<Item> fromJson(const QJsonObject &json, QString *error = nullptr);
@@ -161,7 +168,7 @@ struct Task
 
 bool operator==(const Folder &a, const Folder &b);
 bool operator==(const Connection &a, const Connection &b);
-bool operator==(const WebProfile &a, const WebProfile &b);
+bool operator==(const Profile &a, const Profile &b);
 bool operator==(const Group &a, const Group &b);
 bool operator==(const Project &a, const Project &b);
 bool operator==(const Item &a, const Item &b);
@@ -171,7 +178,7 @@ bool operator==(const Task &a, const Task &b);
 
 inline bool operator!=(const Folder &a, const Folder &b) { return !(a == b); }
 inline bool operator!=(const Connection &a, const Connection &b) { return !(a == b); }
-inline bool operator!=(const WebProfile &a, const WebProfile &b) { return !(a == b); }
+inline bool operator!=(const Profile &a, const Profile &b) { return !(a == b); }
 inline bool operator!=(const Group &a, const Group &b) { return !(a == b); }
 inline bool operator!=(const Project &a, const Project &b) { return !(a == b); }
 inline bool operator!=(const Item &a, const Item &b) { return !(a == b); }

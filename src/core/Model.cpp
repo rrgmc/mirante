@@ -9,14 +9,24 @@
 
 namespace mirante {
 
+namespace {
+
+Profile defaultProfile()
+{
+    Profile profile;
+    profile.id = kDefaultProfile;
+    return profile;
+}
+
+} // namespace
+
 // std::map keeps the address of each value stable while other entries are
 // added or removed. Items and dashboards live in their task's vectors, which
 // only change when the task is replaced.
 struct Model::Private
 {
     QString workspaceName;
-    std::vector<WebProfile> webProfiles;
-    QJsonObject moduleSettings;   // module id to screen id to values
+    std::vector<Profile> profiles = {defaultProfile()};
     std::map<QString, Group> groups;
     std::map<QString, Project> projects;
     std::map<QString, Task> tasks;
@@ -445,54 +455,75 @@ void Model::setWorkspaceName(const QString &name)
     emit workspaceNameChanged();
 }
 
-const std::vector<WebProfile> &Model::webProfiles() const { return d->webProfiles; }
+const std::vector<Profile> &Model::profiles() const { return d->profiles; }
 
-const WebProfile *Model::webProfile(const QString &id) const
+const Profile *Model::profile(const QString &id) const
 {
-    for (const WebProfile &profile : d->webProfiles) {
+    for (const Profile &profile : d->profiles) {
         if (profile.id == id)
             return &profile;
     }
     return nullptr;
 }
 
-void Model::setWebProfiles(const std::vector<WebProfile> &profiles)
+void Model::setProfiles(std::vector<Profile> profiles)
 {
-    if (profiles == d->webProfiles)
+    // Default first, and only once.
+    Profile standard = defaultProfile();
+    std::vector<Profile> ordered;
+    for (Profile &profile : profiles) {
+        if (profile.id == kDefaultProfile) {
+            standard = std::move(profile);
+            standard.name.clear();
+        } else {
+            ordered.push_back(std::move(profile));
+        }
+    }
+    ordered.insert(ordered.begin(), std::move(standard));
+    if (ordered == d->profiles)
         return;
-    d->webProfiles = profiles;
-    emit webProfilesChanged();
+    d->profiles = std::move(ordered);
+    emit profilesChanged();
 }
 
-QJsonObject Model::moduleSettings() const { return d->moduleSettings; }
-
-QJsonObject Model::moduleSettings(const QString &moduleId, const QString &screenId) const
+void Model::setProfile(const Profile &profile)
 {
-    return d->moduleSettings.value(moduleId).toObject().value(screenId).toObject();
+    std::vector<Profile> profiles = d->profiles;
+    const auto it = std::find_if(profiles.begin(), profiles.end(),
+                                 [&profile](const Profile &p) { return p.id == profile.id; });
+    if (it != profiles.end())
+        *it = profile;
+    else
+        profiles.push_back(profile);
+    setProfiles(std::move(profiles));
 }
 
-void Model::setModuleSettings(const QJsonObject &settings)
+QJsonObject Model::moduleSettings(const QString &profileId, const QString &moduleId, const QString &screenId) const
 {
-    if (settings == d->moduleSettings)
+    const Profile *found = profile(profileId);
+    if (!found)
+        return {};
+    return found->moduleSettings.value(moduleId).toObject().value(screenId).toObject();
+}
+
+void Model::setModuleSettings(const QString &profileId, const QString &moduleId, const QString &screenId,
+                              const QJsonObject &values)
+{
+    const Profile *found = profile(profileId);
+    if (!found)
         return;
-    d->moduleSettings = settings;
-    emit moduleSettingsChanged();
-}
-
-void Model::setModuleSettings(const QString &moduleId, const QString &screenId, const QJsonObject &values)
-{
-    QJsonObject settings = d->moduleSettings;
+    Profile changed = *found;
     // A module entry that is not an object cannot hold screens; it is replaced.
-    QJsonObject module = settings.value(moduleId).toObject();
+    QJsonObject module = changed.moduleSettings.value(moduleId).toObject();
     if (values.isEmpty())
         module.remove(screenId);
     else
         module.insert(screenId, values);
     if (module.isEmpty())
-        settings.remove(moduleId);
+        changed.moduleSettings.remove(moduleId);
     else
-        settings.insert(moduleId, module);
-    setModuleSettings(settings);
+        changed.moduleSettings.insert(moduleId, module);
+    setProfile(changed);
 }
 
 } // namespace mirante

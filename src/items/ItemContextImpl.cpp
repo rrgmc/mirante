@@ -3,7 +3,7 @@
 #include "core/Connections.h"
 #include "core/DeviceSettings.h"
 #include "core/Model.h"
-#include "core/WebProfiles.h"
+#include "core/Profiles.h"
 #include "items/UnknownItemType.h"
 #include "web/ProfileManager.h"
 #include "web/WebPanel.h"
@@ -75,6 +75,15 @@ QJsonValue ItemContextImpl::projectSetting(const QString &key) const
     return project->moduleSettings.value(moduleOfType(item->type)).toObject().value(key);
 }
 
+QJsonObject ItemContextImpl::moduleSettings(const QString &screenId) const
+{
+    const Item *item = m_services.model ? m_services.model->item(m_taskId, m_itemId) : nullptr;
+    if (!item)
+        return {};
+    const QString profile = profiles::effective(*m_services.model, m_taskId, m_itemId);
+    return m_services.model->moduleSettings(profile, moduleOfType(item->type), screenId);
+}
+
 std::optional<ConnectionDetails> ItemContextImpl::connection(const QStringList &kinds) const
 {
     const Item *item = m_services.model ? m_services.model->item(m_taskId, m_itemId) : nullptr;
@@ -121,7 +130,7 @@ QWebEngineProfile *ItemContextImpl::profile()
     const Group *group = project ? model.group(project->groupId) : nullptr;
     if (!item || !group)
         return nullptr;
-    return m_services.profiles->profile(webprofiles::effective(model, *item, group));
+    return m_services.profiles->profile(profiles::effective(model, *item, group));
 }
 
 QWidget *ItemContextImpl::createMessageView(const QString &text, QWidget *parent)

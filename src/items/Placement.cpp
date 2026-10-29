@@ -1,7 +1,7 @@
 #include "items/Placement.h"
 
 #include "core/Model.h"
-#include "core/WebProfiles.h"
+#include "core/Profiles.h"
 #include "items/ItemContextImpl.h"
 #include "items/ItemTypeRegistry.h"
 #include "items/ViewPool.h"
@@ -74,7 +74,8 @@ struct Placement::Private
     bool made = false;
     QString madeType;
     QJsonObject madeConfig;
-    QString madeProfile;                // the web profile id; empty for a type that is not web
+    QString madeProfile;                // the profile id of a web view; empty for a type that is not web
+    QJsonObject madeProfileData;        // the profile's connections and settings, for a type that uses them
     QLabel *typePlaceholder = nullptr;  // the placeholder of a type without a view, if shown
     bool gone = false;                  // the item or its task no longer exists
     QString waitingFor;                 // the profile being cleared, while the view waits for it
@@ -92,14 +93,30 @@ struct Placement::Private
 
     const Item *item() const { return services.model ? services.model->item(taskId, itemId) : nullptr; }
 
-    // The web profile a view of the item would use now. Empty for a type
+    // The profile a web view of the item would use now. Empty for a type
     // whose views are not web views, so a change of profile leaves it alone.
     QString profileOf(const Item &found) const
     {
         if (!services.types || !services.types->contains(found.type)
             || services.types->type(found.type).rendering() != Rendering::Web)
             return {};
-        return webprofiles::effective(*services.model, taskId, itemId);
+        return mirante::profiles::effective(*services.model, taskId, itemId);
+    }
+
+    // The connections and module settings of the profile the item uses, for
+    // a type that uses a profile. A change of them makes the view again,
+    // since the view may have read them. Empty for other types.
+    QJsonObject profileDataOf(const Item &found) const
+    {
+        if (!services.types || !services.types->usesProfile(found.type))
+            return {};
+        const Profile *profile =
+            services.model->profile(mirante::profiles::effective(*services.model, taskId, itemId));
+        if (!profile)
+            return {};
+        QJsonObject data = profile->toJson();
+        data.remove(QStringLiteral("name"));
+        return data;
     }
 
     void retire(QWidget *widget)
@@ -179,6 +196,7 @@ struct Placement::Private
         madeType = found->type;
         madeConfig = found->config;
         madeProfile = profileOf(*found);
+        madeProfileData = profileDataOf(*found);
 
         const ItemType *type = services.types ? &services.types->type(found->type) : nullptr;
         QWidget *created = type ? type->createView(context, q) : nullptr;
@@ -253,8 +271,9 @@ struct Placement::Private
     }
 
     // The model changed. The view is made again when the item's type,
-    // configuration or web profile changed, and dropped when the item is gone. A hidden
-    // placement makes its new view when it is shown.
+    // configuration or profile changed, or the connections and settings of
+    // that profile, and dropped when the item is gone. A hidden placement
+    // makes its new view when it is shown.
     void onModelChanged()
     {
         const Item *found = item();
@@ -271,7 +290,8 @@ struct Placement::Private
             dropView(nullptr);
         } else if (!made) {
             return;
-        } else if (found->type != madeType || found->config != madeConfig || profileOf(*found) != madeProfile) {
+        } else if (found->type != madeType || found->config != madeConfig || profileOf(*found) != madeProfile
+                   || profileDataOf(*found) != madeProfileData) {
             dropView(nullptr);
         } else {
             // A new name changes only the placeholder's text.
@@ -307,15 +327,15 @@ Placement::Placement(const PlacementServices &services, const QString &taskId, c
                 d->onModelChanged();
         });
         connect(model, &Model::modelReset, this, [this] { d->onModelChanged(); });
-        // The web profile also depends on the group, the project's group and
-        // the workspace's list of profiles.
+        // The profile also depends on the group, the project's group and the
+        // workspace's list of profiles.
         const auto profileMayChange = [this] {
-            if (d->made && !d->madeProfile.isEmpty())
+            if (d->made && (!d->madeProfile.isEmpty() || !d->madeProfileData.isEmpty()))
                 d->onModelChanged();
         };
         connect(model, &Model::groupChanged, this, profileMayChange);
         connect(model, &Model::projectChanged, this, profileMayChange);
-        connect(model, &Model::webProfilesChanged, this, profileMayChange);
+        connect(model, &Model::profilesChanged, this, profileMayChange);
     }
     if (ProfileManager *profiles = services.profiles) {
         connect(profiles, &ProfileManager::profileClearing, this,

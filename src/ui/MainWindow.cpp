@@ -1238,8 +1238,8 @@ struct MainWindow::Private
         file->addSeparator();
         QAction *newGroup = file->addAction(MainWindow::tr("New &Group…"));
         QObject::connect(newGroup, &QAction::triggered, q, [this] { revealNew(actions->newGroup()); });
-        QAction *webProfiles = file->addAction(MainWindow::tr("&Web Profiles…"));
-        QObject::connect(webProfiles, &QAction::triggered, q, [this] { actions->editWebProfiles(); });
+        QAction *profilesAction = file->addAction(MainWindow::tr("&Profiles…"));
+        QObject::connect(profilesAction, &QAction::triggered, q, [this] { actions->editProfiles(); });
         file->addSeparator();
         QAction *quit = file->addAction(MainWindow::tr("&Quit"));
         quit->setShortcut(QKeySequence::Quit);
@@ -1516,7 +1516,7 @@ MainWindow::MainWindow(Model &model, const ItemTypeRegistry &types, Store &store
         d->actions->editItem(taskId, itemId);
     };
     d->editor->setServices(&d->services);
-    d->actions->setProfiles(profiles);
+    d->actions->setProfileManager(profiles);
 
     setWindowTitle(QStringLiteral(MIRANTE_APP_NAME));
     resize(1280, 800);

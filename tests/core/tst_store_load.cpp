@@ -38,7 +38,8 @@ private slots:
     void emptyFolder();
     void replacesModel();
     void workspaceName();
-    void webProfiles();
+    void profiles();
+    void oldWebProfiles();
     void moduleSettings();
 };
 
@@ -183,82 +184,125 @@ void TestStoreLoad::replacesModel()
     QVERIFY(model.rootDashboards().empty());
 }
 
-// workspace.mirante lists the web profiles. Entries that cannot be used, a
-// repeated id and the id of Default are skipped.
-void TestStoreLoad::webProfiles()
+// workspace.mirante lists the profiles. Entries that cannot be used and a
+// repeated id are skipped. Default's entry holds its data, without a name.
+void TestStoreLoad::profiles()
 {
     Model model;
     QVERIFY(store::load(QStringLiteral(MIRANTE_FIXTURES_DIR), model).empty());
-    QCOMPARE(model.webProfiles().size(), std::size_t(1));
-    QCOMPARE(model.webProfiles().front().name, QStringLiteral("Work"));
+    QCOMPARE(model.profiles().size(), std::size_t(2));
+    QCOMPARE(model.profiles()[0].id, kDefaultProfile);
+    QCOMPARE(model.profiles()[0].connections.size(), std::size_t(1));
+    QCOMPARE(model.profiles()[1].name, QStringLiteral("Work"));
+    QCOMPARE(model.profiles()[1].connections.size(), std::size_t(5));
 
     QTemporaryDir dir;
     QVERIFY(dir.isValid());
     writeFile(dir.path(), QStringLiteral("workspace.mirante"), R"({ "schemaVersion": 1, "name": "W",
-        "webProfiles": [ { "id": "b", "name": "Bank" }, { "name": "No id" }, 3,
-                         { "id": "default", "name": "Not the Default" }, { "id": "a", "name": "Admin", "color": 1 },
-                         { "id": "b", "name": "Repeat" } ] })");
+        "profiles": [ { "id": "b", "name": "Bank" }, { "name": "No id" }, 3,
+                      { "id": "default", "name": "Not the Default", "lock": true },
+                      { "id": "a", "name": "Admin", "color": 1 }, { "id": "b", "name": "Repeat" } ] })");
     QVERIFY(store::load(dir.path(), model).empty());
-    QCOMPARE(model.webProfiles().size(), std::size_t(2));
-    QCOMPARE(model.webProfiles()[0].id, QStringLiteral("b"));
-    QCOMPARE(model.webProfiles()[0].name, QStringLiteral("Bank"));
-    QCOMPARE(model.webProfiles()[1].id, QStringLiteral("a"));
-    QCOMPARE(model.webProfiles()[1].extra.value(QStringLiteral("color")).toInt(), 1);
+    QCOMPARE(model.profiles().size(), std::size_t(3));
+    QCOMPARE(model.profiles()[0].id, kDefaultProfile);
+    QVERIFY(model.profiles()[0].name.isEmpty());
+    QVERIFY(model.profiles()[0].extra.value(QStringLiteral("lock")).toBool());
+    QCOMPARE(model.profiles()[1].id, QStringLiteral("b"));
+    QCOMPARE(model.profiles()[1].name, QStringLiteral("Bank"));
+    QCOMPARE(model.profiles()[2].id, QStringLiteral("a"));
+    QCOMPARE(model.profiles()[2].extra.value(QStringLiteral("color")).toInt(), 1);
 
-    // The file holds them in their order, with their unknown keys.
+    // The file holds them in their order, with their unknown keys, and
+    // Default without a name.
     const std::optional<QJsonObject> json = store::fileFor(model, QStringLiteral("workspace.mirante"));
     QVERIFY(json);
-    const QJsonArray profiles = json->value(QStringLiteral("webProfiles")).toArray();
-    QCOMPARE(profiles.size(), 2);
-    QCOMPARE(profiles.at(1).toObject().value(QStringLiteral("color")).toInt(), 1);
+    const QJsonArray profiles = json->value(QStringLiteral("profiles")).toArray();
+    QCOMPARE(profiles.size(), 3);
+    QCOMPARE(profiles.at(0).toObject(), QJsonObject({{QStringLiteral("id"), QStringLiteral("default")},
+                                                     {QStringLiteral("lock"), true}}));
+    QCOMPARE(profiles.at(2).toObject().value(QStringLiteral("color")).toInt(), 1);
 
-    // Without a name or profiles there is nothing to write.
+    // Default without data is not listed. Without a name or profiles there
+    // is nothing to write.
     model.setWorkspaceName(QString());
-    model.setWebProfiles({});
+    model.setProfiles({});
     QVERIFY(!store::fileFor(model, QStringLiteral("workspace.mirante")));
 }
 
-// workspace.mirante holds the module settings by module and screen. Modules
-// and keys this build does not know are kept.
+// Before decision 0050 the list was "webProfiles". It is read when there is
+// no "profiles", and written as "profiles".
+void TestStoreLoad::oldWebProfiles()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    writeFile(dir.path(), QStringLiteral("workspace.mirante"), R"({ "schemaVersion": 1, "name": "W",
+        "webProfiles": [ { "id": "b", "name": "Bank" }, { "id": "default", "name": "Skipped" } ] })");
+    Model model;
+    QVERIFY(store::load(dir.path(), model).empty());
+    QCOMPARE(model.profiles().size(), std::size_t(2));
+    QCOMPARE(model.profiles()[1].name, QStringLiteral("Bank"));
+    const std::optional<QJsonObject> json = store::fileFor(model, QStringLiteral("workspace.mirante"));
+    QVERIFY(json);
+    QVERIFY(!json->contains(QStringLiteral("webProfiles")));
+    QCOMPARE(json->value(QStringLiteral("profiles")).toArray().size(), 1);
+
+    // A file with both, from an older version that kept the new key, uses
+    // "profiles".
+    writeFile(dir.path(), QStringLiteral("workspace.mirante"), R"({ "schemaVersion": 1, "name": "W",
+        "profiles": [ { "id": "n", "name": "New" } ], "webProfiles": [ { "id": "o", "name": "Old" } ] })");
+    QVERIFY(store::load(dir.path(), model).empty());
+    QVERIFY(model.profile(QStringLiteral("n")));
+    QVERIFY(!model.profile(QStringLiteral("o")));
+}
+
+// Each profile holds module settings by module and screen. Modules and keys
+// this build does not know are kept. Settings at the top of the file, from
+// before decision 0050, move to Default.
 void TestStoreLoad::moduleSettings()
 {
     QTemporaryDir dir;
     QVERIFY(dir.isValid());
     writeFile(dir.path(), QStringLiteral("workspace.mirante"), R"({ "schemaVersion": 1, "name": "W",
-        "moduleSettings": {
+        "profiles": [ { "id": "w", "name": "Work", "moduleSettings": {
             "gitlab": { "general": { "projects": [ "acme/backend" ], "future": 1 }, "later": { "x": true } },
-            "missing": { "general": { "y": "z" } } } })");
+            "missing": { "general": { "y": "z" } } } } ] })");
     Model model;
     QVERIFY(store::load(dir.path(), model).empty());
-    QCOMPARE(model.moduleSettings(QStringLiteral("gitlab"), QStringLiteral("general"))
+    const QString work = QStringLiteral("w");
+    QCOMPARE(model.moduleSettings(work, QStringLiteral("gitlab"), QStringLiteral("general"))
                  .value(QStringLiteral("projects"))
                  .toArray(),
              QJsonArray{QStringLiteral("acme/backend")});
-    QCOMPARE(model.moduleSettings(QStringLiteral("missing"), QStringLiteral("general"))
+    QCOMPARE(model.moduleSettings(work, QStringLiteral("missing"), QStringLiteral("general"))
                  .value(QStringLiteral("y"))
                  .toString(),
              QStringLiteral("z"));
-    QVERIFY(model.moduleSettings(QStringLiteral("gitlab"), QStringLiteral("none")).isEmpty());
-    QVERIFY(model.moduleSettings(QStringLiteral("none"), QStringLiteral("general")).isEmpty());
+    QVERIFY(model.moduleSettings(work, QStringLiteral("gitlab"), QStringLiteral("none")).isEmpty());
+    QVERIFY(model.moduleSettings(work, QStringLiteral("none"), QStringLiteral("general")).isEmpty());
+    QVERIFY(model.moduleSettings(kDefaultProfile, QStringLiteral("gitlab"), QStringLiteral("general")).isEmpty());
 
     // Written back unchanged.
     const std::optional<QJsonObject> json = store::fileFor(model, QStringLiteral("workspace.mirante"));
     QVERIFY(json);
-    QCOMPARE(json->value(QStringLiteral("moduleSettings")).toObject(), model.moduleSettings());
-    QCOMPARE(model.moduleSettings()
-                 .value(QStringLiteral("gitlab"))
-                 .toObject()
-                 .value(QStringLiteral("general"))
-                 .toObject()
-                 .value(QStringLiteral("future"))
-                 .toInt(),
-             1);
+    QCOMPARE(json->value(QStringLiteral("profiles")).toArray().at(0).toObject().value(QStringLiteral("moduleSettings")),
+             QJsonValue(model.profile(work)->moduleSettings));
+    QVERIFY(!json->contains(QStringLiteral("moduleSettings")));
 
-    // Without a name, profiles or settings there is nothing to write.
-    model.setWorkspaceName(QString());
-    QVERIFY(store::fileFor(model, QStringLiteral("workspace.mirante")));
-    model.setModuleSettings(QJsonObject());
-    QVERIFY(!store::fileFor(model, QStringLiteral("workspace.mirante")));
+    // The old place, at the top of the file.
+    writeFile(dir.path(), QStringLiteral("workspace.mirante"), R"({ "schemaVersion": 1, "name": "W",
+        "profiles": [ { "id": "w", "name": "Work" } ],
+        "moduleSettings": { "gitlab": { "general": { "projects": [ "acme/web" ] } } } })");
+    QVERIFY(store::load(dir.path(), model).empty());
+    QCOMPARE(model.moduleSettings(kDefaultProfile, QStringLiteral("gitlab"), QStringLiteral("general"))
+                 .value(QStringLiteral("projects"))
+                 .toArray(),
+             QJsonArray{QStringLiteral("acme/web")});
+    QVERIFY(model.moduleSettings(work, QStringLiteral("gitlab"), QStringLiteral("general")).isEmpty());
+    const std::optional<QJsonObject> moved = store::fileFor(model, QStringLiteral("workspace.mirante"));
+    QVERIFY(moved);
+    QVERIFY(!moved->contains(QStringLiteral("moduleSettings")));
+    QCOMPARE(moved->value(QStringLiteral("profiles")).toArray().at(0).toObject().value(QStringLiteral("id")),
+             QJsonValue(QStringLiteral("default")));
 }
 
 // workspace.mirante holds the workspace's name. Saving it keeps the file's other keys.

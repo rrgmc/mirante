@@ -1,6 +1,6 @@
 # 0049. Item types read a pasted link, and the item dialog offers the types that take it
 
-- Status: Accepted
+- Status: Accepted; the connections are the profile's by [0050](0050-profiles-hold-logins-connections-and-settings.md)
 - Date: 2026-10-29
 
 ## Context

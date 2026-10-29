@@ -21,8 +21,8 @@ struct UrlMatch
     QString name;
 
     // The base URL of the server the address belongs to, such as
-    // "https://gitlab.example.org". The core gives the item the group's
-    // connection with that base URL, if there is one. Empty for a type that
+    // "https://gitlab.example.org". The core gives the item the connection of
+    // its profile with that base URL, if there is one. Empty for a type that
     // uses no connection.
     QUrl baseUrl;
 

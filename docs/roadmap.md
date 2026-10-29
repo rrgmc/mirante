@@ -68,7 +68,7 @@ See [the M4 plan](plans/m4-web-views.md).
 ## M5: Connections and status
 
 - [ ] Modules register connection kinds and project settings. The connection and project dialogs are built from their fields.
-- [ ] Connections can be added to groups, with defaults and project overrides.
+- [ ] Connections can be added to profiles, with defaults and project overrides. See [decision 0050](decisions/0050-profiles-hold-logins-connections-and-settings.md).
 - [ ] `SecretStore` stores tokens in the keychain on all three platforms.
 - [ ] `ItemContext` gives modules connections with `authorize()` and `secret()`.
 - [ ] The `gitlab` and `jira` modules' clients cover the endpoints in [integrations](integrations.md), for both Jira Cloud and Data Center.

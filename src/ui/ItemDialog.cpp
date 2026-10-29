@@ -16,6 +16,7 @@
 #include <QListWidget>
 #include <QPainter>
 #include <QPushButton>
+#include <QSignalBlocker>
 #include <QStackedWidget>
 #include <QStyledItemDelegate>
 #include <QVBoxLayout>
@@ -77,7 +78,9 @@ struct ItemDialog::Private
     QLabel *typeName = nullptr;
     QLineEdit *name = nullptr;
     QFormLayout *form = nullptr;
-    QComboBox *webProfile = nullptr;    // shown for types whose views are web views
+    QComboBox *profile = nullptr;       // shown for types that use a profile
+    QString groupProfile;               // the profile of the item's group
+    QStringList profileIds;             // the profiles offered, without an unknown one
     QVBoxLayout *editorBox = nullptr;
     ItemEditor *editor = nullptr;       // null for an item of a missing module
     QString editorType;                 // the type the editor was made for
@@ -175,17 +178,30 @@ struct ItemDialog::Private
         const ItemType &itemType = types->type(item.type);
         editor = itemType.createEditor(context, q);
         if (!editor)
-            editor = new FieldForm(itemType.fields(), context, q);
+            editor = new FieldForm(itemType.fieldsForProfile(effectiveProfile()), context, q);
         editor->setObjectName(QStringLiteral("editor"));
         editor->setConfig(config);
         editorBox->addWidget(editor);
     }
 
-    // The web profile row is shown only for a type whose views are web views.
-    void showWebProfile()
+    // The profile row is shown only for a type that uses a profile.
+    void showProfile() { form->setRowVisible(profile, types->usesProfile(item.type)); }
+
+    // The profile the item would use with the chosen entry: its own, or else
+    // its group's. An unknown profile falls back to the group's.
+    QString effectiveProfile() const
     {
-        const bool web = types->contains(item.type) && types->type(item.type).rendering() == Rendering::Web;
-        form->setRowVisible(webProfile, web);
+        const QString chosen = profile->currentData().toString();
+        return profileIds.contains(chosen) ? chosen : groupProfile;
+    }
+
+    // The fields of a form may depend on the profile, such as the
+    // suggestions of a module's settings, so the form is built again for
+    // another profile, keeping what was entered. A type's own editor stays.
+    void profileChosen()
+    {
+        if (editor && qobject_cast<FieldForm *>(editor) && types->contains(item.type))
+            makeEditor(editor->config());
     }
 
     void showTypeName()
@@ -251,7 +267,7 @@ struct ItemDialog::Private
             urlConnectionId.clear();
         }
         showTypeName();
-        showWebProfile();
+        showProfile();
         showPage(false);
     }
 
@@ -345,10 +361,11 @@ ItemDialog::ItemDialog(const Item &item, bool creating, const ItemTypeRegistry &
     d->name->setObjectName(QStringLiteral("name"));
     form->addRow(tr("Name:"), d->name);
 
-    d->webProfile = new QComboBox(d->itemPage);
-    d->webProfile->setObjectName(QStringLiteral("webProfile"));
-    d->webProfile->setToolTip(tr("The item can read the logins and data of every site in its profile."));
-    form->addRow(tr("Web profile:"), d->webProfile);
+    d->profile = new QComboBox(d->itemPage);
+    d->profile->setObjectName(QStringLiteral("profile"));
+    d->profile->setToolTip(tr("The item uses the logins, connections and module settings of its profile. It can "
+                              "read the logins and data of every site in the profile."));
+    form->addRow(tr("Profile:"), d->profile);
 
     d->editorBox = new QVBoxLayout;
     d->editorBox->setContentsMargins(0, 0, 0, 0);
@@ -398,13 +415,13 @@ ItemDialog::ItemDialog(const Item &item, bool creating, const ItemTypeRegistry &
     layout->addWidget(d->message);
     layout->addWidget(buttons);
 
-    setWebProfiles({}, tr("Default"));
+    setProfiles({}, kDefaultProfile, tr("Default"));
 
     if (creating) {
         // Nothing is edited until a type is chosen.
         d->item.type.clear();
         d->item.config = {};
-        form->setRowVisible(d->webProfile, false);
+        form->setRowVisible(d->profile, false);
         QListWidget *list = d->typeList;
         int row = 0;
         for (int i = 0; i < list->count(); ++i) {
@@ -425,9 +442,10 @@ ItemDialog::ItemDialog(const Item &item, bool creating, const ItemTypeRegistry &
     } else {
         d->makeEditor(item.config);
         d->showTypeName();
-        d->showWebProfile();
+        d->showProfile();
         d->showPage(false);
     }
+    connect(d->profile, &QComboBox::currentIndexChanged, this, [this] { d->profileChosen(); });
 }
 
 ItemDialog::~ItemDialog()
@@ -460,10 +478,10 @@ Item ItemDialog::value() const
     item.name = d->name->text().trimmed();
     if (d->editor)
         item.config = d->editor->config();
-    // Only a web item chooses a profile. Another keeps what it had, such as
-    // an item of a missing module.
-    if (d->form->isRowVisible(d->webProfile))
-        item.webProfile = d->webProfile->currentData().toString();
+    // Only an item whose type uses a profile chooses one. Another keeps what
+    // it had, such as an item of a missing module.
+    if (d->form->isRowVisible(d->profile))
+        item.profile = d->profile->currentData().toString();
     return item;
 }
 
@@ -488,28 +506,38 @@ void ItemDialog::back()
 
 void ItemDialog::setName(const QString &name) { d->name->setText(name); }
 
-void ItemDialog::setWebProfiles(const std::vector<WebProfile> &profiles, const QString &groupProfileName)
+void ItemDialog::setProfiles(const std::vector<Profile> &profiles, const QString &groupProfileId,
+                             const QString &groupProfileName)
 {
-    d->webProfile->clear();
-    d->webProfile->addItem(tr("The group's profile (%1)").arg(groupProfileName), QString());
-    for (const WebProfile &profile : profiles)
-        d->webProfile->addItem(profile.name, profile.id);
+    const QSignalBlocker blocker(d->profile);
+    d->groupProfile = groupProfileId;
+    d->profileIds.clear();
+    d->profile->clear();
+    d->profile->addItem(tr("The group's profile (%1)").arg(groupProfileName), QString());
+    for (const Profile &profile : profiles) {
+        d->profile->addItem(profile.name, profile.id);
+        d->profileIds << profile.id;
+    }
     // A profile that is not listed, because it was deleted or has not arrived
     // yet, is kept until another is chosen.
-    const QString current = d->item.webProfile;
-    if (d->webProfile->findData(current) < 0)
-        d->webProfile->addItem(tr("Unknown profile, uses the group's"), current);
-    d->webProfile->setCurrentIndex(d->webProfile->findData(current));
+    const QString current = d->item.profile;
+    if (d->profile->findData(current) < 0)
+        d->profile->addItem(tr("Unknown profile, uses the group's"), current);
+    d->profile->setCurrentIndex(d->profile->findData(current));
+    // The form may offer values of the profile.
+    d->profileChosen();
 }
 
-void ItemDialog::setWebProfile(const QString &id)
+void ItemDialog::setProfile(const QString &id)
 {
-    const int index = d->webProfile->findData(id);
+    const int index = d->profile->findData(id);
     if (index >= 0)
-        d->webProfile->setCurrentIndex(index);
+        d->profile->setCurrentIndex(index);
 }
 
-bool ItemDialog::showsWebProfile() const { return d->form->isRowVisible(d->webProfile); }
+bool ItemDialog::showsProfile() const { return d->form->isRowVisible(d->profile); }
+
+QString ItemDialog::effectiveProfile() const { return d->effectiveProfile(); }
 
 ItemEditor *ItemDialog::editor() const { return d->editor; }
 

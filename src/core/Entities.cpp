@@ -256,11 +256,12 @@ std::optional<Group> Group::fromJson(const QJsonObject &json, QString *error)
         return std::nullopt;
     r.string(QStringLiteral("name"), &group.name);
     r.integer(QStringLiteral("order"), &group.order);
-    if (!r.list(QStringLiteral("connections"), &group.connections, error))
-        return std::nullopt;
-    r.stringMap(QStringLiteral("defaultConnections"), &group.defaultConnections);
-    r.string(QStringLiteral("webProfile"), &group.webProfile);
+    // "webProfile" is the name used before decision 0050. "profile" wins.
+    r.string(QStringLiteral("webProfile"), &group.profile);
+    r.string(QStringLiteral("profile"), &group.profile);
     r.string(QStringLiteral("colour"), &group.colour);
+    // "connections" and "defaultConnections" from before decision 0050 stay in
+    // extra; the profile migration moves them to a profile.
     group.extra = r.extra();
     return group;
 }
@@ -271,33 +272,47 @@ QJsonObject Group::toJson() const
         {QStringLiteral("id"), id},
         {QStringLiteral("name"), name},
         {QStringLiteral("order"), order},
-        {QStringLiteral("connections"), listToJson(connections)},
-        {QStringLiteral("defaultConnections"), mapToJson(defaultConnections)},
     };
-    if (!webProfile.isEmpty())
-        json.insert(QStringLiteral("webProfile"), webProfile);
+    if (!profile.isEmpty())
+        json.insert(QStringLiteral("profile"), profile);
     if (!colour.isEmpty())
         json.insert(QStringLiteral("colour"), colour);
     return withExtra(json, extra);
 }
 
-std::optional<WebProfile> WebProfile::fromJson(const QJsonObject &json, QString *error)
+bool Profile::hasData() const
+{
+    return !connections.empty() || !defaultConnections.isEmpty() || !moduleSettings.isEmpty() || !extra.isEmpty();
+}
+
+std::optional<Profile> Profile::fromJson(const QJsonObject &json, QString *error)
 {
     Reader r(json);
-    WebProfile profile;
+    Profile profile;
     if (!r.required(QStringLiteral("id"), &profile.id, error))
         return std::nullopt;
     r.string(QStringLiteral("name"), &profile.name);
+    if (!r.list(QStringLiteral("connections"), &profile.connections, error))
+        return std::nullopt;
+    r.stringMap(QStringLiteral("defaultConnections"), &profile.defaultConnections);
+    r.object(QStringLiteral("moduleSettings"), &profile.moduleSettings);
     profile.extra = r.extra();
     return profile;
 }
 
-QJsonObject WebProfile::toJson() const
+QJsonObject Profile::toJson() const
 {
-    return withExtra({
+    QJsonObject json{
         {QStringLiteral("id"), id},
         {QStringLiteral("name"), name},
-    }, extra);
+    };
+    if (!connections.empty())
+        json.insert(QStringLiteral("connections"), listToJson(connections));
+    if (!defaultConnections.isEmpty())
+        json.insert(QStringLiteral("defaultConnections"), mapToJson(defaultConnections));
+    if (!moduleSettings.isEmpty())
+        json.insert(QStringLiteral("moduleSettings"), moduleSettings);
+    return withExtra(json, extra);
 }
 
 std::optional<Project> Project::fromJson(const QJsonObject &json, QString *error)
@@ -346,7 +361,9 @@ std::optional<Item> Item::fromJson(const QJsonObject &json, QString *error)
     r.string(QStringLiteral("name"), &item.name);
     r.object(QStringLiteral("config"), &item.config);
     r.string(QStringLiteral("connectionId"), &item.connectionId);
-    r.string(QStringLiteral("webProfile"), &item.webProfile);
+    // "webProfile" is the name used before decision 0050. "profile" wins.
+    r.string(QStringLiteral("webProfile"), &item.profile);
+    r.string(QStringLiteral("profile"), &item.profile);
     item.extra = r.extra();
     return item;
 }
@@ -361,8 +378,8 @@ QJsonObject Item::toJson() const
     };
     if (!connectionId.isEmpty())
         json.insert(QStringLiteral("connectionId"), connectionId);
-    if (!webProfile.isEmpty())
-        json.insert(QStringLiteral("webProfile"), webProfile);
+    if (!profile.isEmpty())
+        json.insert(QStringLiteral("profile"), profile);
     return withExtra(json, extra);
 }
 
@@ -454,7 +471,7 @@ QJsonObject Task::toJson() const
 // toJson() writes every field and extra, so equal JSON means equal values.
 bool operator==(const Folder &a, const Folder &b) { return a.toJson() == b.toJson(); }
 bool operator==(const Connection &a, const Connection &b) { return a.toJson() == b.toJson(); }
-bool operator==(const WebProfile &a, const WebProfile &b) { return a.toJson() == b.toJson(); }
+bool operator==(const Profile &a, const Profile &b) { return a.toJson() == b.toJson(); }
 bool operator==(const Group &a, const Group &b) { return a.toJson() == b.toJson(); }
 bool operator==(const Project &a, const Project &b) { return a.toJson() == b.toJson(); }
 bool operator==(const Item &a, const Item &b) { return a.toJson() == b.toJson(); }

@@ -31,6 +31,7 @@ public:
     QString itemName() const override;
     QJsonObject config() const override;
     QJsonValue projectSetting(const QString &key) const override;
+    QJsonObject moduleSettings(const QString &screenId) const override;
     std::optional<ConnectionDetails> connection(const QStringList &kinds) const override;
     QString folderPath(const QString &folderId) const override;
     QWidget *createWebView(const QUrl &url, QWidget *parent) override;

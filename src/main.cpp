@@ -72,12 +72,13 @@ int main(int argc, char *argv[])
     mirante::registerEnabledModules(types);
 
     mirante::Model model;
-    // Modules read their settings screens' values from the open workspace.
-    types.setSettingsReader([&model](const QString &moduleId, const QString &screenId) {
-        return model.moduleSettings(moduleId, screenId);
+    // Modules read their settings screens' values from the open workspace's
+    // profiles.
+    types.setSettingsReader([&model](const QString &profileId, const QString &moduleId, const QString &screenId) {
+        return model.moduleSettings(profileId, moduleId, screenId);
     });
     mirante::Store store(model);
-    // The web profiles outlive the window, and with it every page that uses
+    // The profiles' web logins outlive the window, and with it every page that uses
     // them. The pool's limit is read once, at start.
     mirante::ProfileManager profiles(QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation)
                                      + QStringLiteral("/profiles"));
