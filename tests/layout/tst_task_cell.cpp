@@ -242,7 +242,7 @@ void TestTaskCell::rootItemsNameTheirTask()
     std::unique_ptr<QWidget> rootCell(rootFactory.createCell(itemRef, false, nullptr));
     auto *context = rootCell->findChild<QLabel *>(QStringLiteral("cellContext"));
     QVERIFY(context);
-    QCOMPARE(context->text(), QStringLiteral("%1 / %2").arg(project->name, task->title));
+    QCOMPARE(context->text(), QStringLiteral("%1 › %2").arg(project->name, task->title));
 
     DashboardCellFactory taskFactory(m_services, {task->id, task->defaultDashboardId});
     std::unique_ptr<QWidget> taskCell(taskFactory.createCell(CellRef{itemRef->item, QString(), QString()}, false, nullptr));

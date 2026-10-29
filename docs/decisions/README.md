@@ -38,6 +38,7 @@ Each file records one design decision: what was decided, what else was considere
 | [0030](0030-deleting-image-files.md) | Image files are deleted only when this device drops the last reference | Accepted |
 | [0031](0031-conflict-copies-by-id-prefix.md) | Conflict copies are recognised by the id at the start of their name | Accepted |
 | [0032](0032-paste-images-into-root-dashboards.md) | Pasting an image into a root dashboard asks for its task | Accepted |
+| [0033](0033-cell-header-pills.md) | Cell headers show the type and the place as pills | Accepted |
 
 ## Template
 

@@ -23,14 +23,14 @@ struct DashboardCellFactory::Private
         return services.model->item(taskId, ref.item);
     }
 
-    // "Project / Task" for an item reference in a root dashboard.
+    // "Project › Task" for an item reference in a root dashboard.
     QString origin(const CellRef &ref) const
     {
         const Task *task = services.model ? services.model->task(ref.task) : nullptr;
         if (!task)
             return QString();
         const Project *project = services.model->project(task->projectId);
-        return project ? QCoreApplication::translate("DashboardCellFactory", "%1 / %2").arg(project->name, task->title) : task->title;
+        return project ? QCoreApplication::translate("DashboardCellFactory", "%1 › %2").arg(project->name, task->title) : task->title;
     }
 
     const ItemType *type(const Item &item) const

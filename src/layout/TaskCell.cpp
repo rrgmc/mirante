@@ -2,6 +2,7 @@
 
 #include "layout/CellStyle.h"
 #include "layout/DashboardCellFactory.h"
+#include "layout/HeaderPill.h"
 #include "layout/LayoutView.h"
 
 #include <QIcon>
@@ -109,8 +110,9 @@ struct TaskCell::Private
 
     QVBoxLayout *layout = nullptr;
     TaskHeader *header = nullptr;
-    QLabel *title = nullptr;
-    QLabel *context = nullptr;
+    HeaderRow *row = nullptr;
+    HeaderPill *title = nullptr;
+    HeaderPill *context = nullptr;
     QToolButton *openButton = nullptr;
     QLabel *removedLabel = nullptr;
     LayoutView *view = nullptr;
@@ -135,7 +137,10 @@ void TaskCell::Private::refresh()
     openButton->setVisible(!removed && services.openTaskAlone);
     if (removed) {
         title->setText(TaskCell::tr("Removed task"));
+        title->setToolTip(QString());
         context->clear();
+        context->setToolTip(QString());
+        row->refresh();
         dropView();
         return;
     }
@@ -155,6 +160,9 @@ void TaskCell::Private::refresh()
     // task's project after the title, as item cells name where they come from.
     const Project *project = services.model->project(current->projectId);
     context->setText(project ? project->name : QString());
+    context->setToolTip(context->text());
+    title->setToolTip(title->text());
+    row->refresh();
     if (rebuild) {
         buildView();
     } else {
@@ -251,22 +259,23 @@ TaskCell::TaskCell(const LayoutServices &services, const DashboardRef &rootDashb
     headerLayout->setContentsMargins(6, 2, 2, 2);
     headerLayout->setSpacing(4);
 
-    d->title = new QLabel(d->header);
+    d->title = new HeaderPill;
     d->title->setObjectName(QStringLiteral("taskTitle"));
     QFont font = d->title->font();
     font.setBold(true);
     d->title->setFont(font);
-    d->title->setMinimumWidth(1);
-    headerLayout->addWidget(d->title);
 
-    // It takes the free space and is the first to be cut when the header is narrow.
-    d->context = new QLabel(d->header);
+    // The task's project, in the grey pill that item cells use for where an
+    // item comes from. It gives way first when the header is narrow.
+    d->context = new HeaderPill;
     d->context->setObjectName(QStringLiteral("taskContext"));
-    d->context->setTextFormat(Qt::PlainText);
+    d->context->setFill(HeaderPill::Fill::Neutral);
     d->context->setForegroundRole(QPalette::PlaceholderText);
-    d->context->setMinimumWidth(1);
-    d->context->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
-    headerLayout->addWidget(d->context, 1);
+
+    d->row = new HeaderRow(d->header);
+    d->row->setParts({d->title, d->context});
+    d->row->setShrinkOrder({d->context, d->title});
+    headerLayout->addWidget(d->row, 1);
 
     d->openButton = new QToolButton(d->header);
     d->openButton->setObjectName(QStringLiteral("openAloneButton"));
