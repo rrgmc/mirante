@@ -241,6 +241,7 @@ QString EntityActions::newDashboard(const QString &taskId)
     dashboard = dialog.value();
     dashboard.layout = presets::build(std::max(dialog.presetIndex(), 0), itemIds, itemNames);
     d->model.setTask(edits::addDashboard(*task, dashboard));
+    emit dashboardCreated(taskId, dashboard.id);
     return dashboard.id;
 }
 
