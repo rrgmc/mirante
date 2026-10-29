@@ -1,5 +1,7 @@
 #include "core/Sorting.h"
 
+#include "core/Model.h"
+
 #include <algorithm>
 #include <utility>
 
@@ -77,7 +79,26 @@ std::vector<const Task *> sortedTasks(std::vector<const Task *> tasks, const Sor
                          taskBefore);
 }
 
-// Stub written by T0 of the M3 plan. T6 implements it.
-std::vector<const Task *> focusOrder(std::vector<const Task *>, const Model &) { return {}; }
+// Task priority, then the priority of the task's project, then taskBefore().
+// A task without a known project sorts after the others of its priority.
+std::vector<const Task *> focusOrder(std::vector<const Task *> tasks, const Model &model)
+{
+    tasks.erase(std::remove_if(tasks.begin(), tasks.end(),
+                               [](const Task *task) { return task == nullptr || task->state != TaskState::Active; }),
+                tasks.end());
+    // A rank past Low stands for "no project".
+    const auto projectRank = [&](const Task &task) {
+        const Project *project = model.project(task.projectId);
+        return project != nullptr ? int(project->priority) : int(Priority::Low) + 1;
+    };
+    std::sort(tasks.begin(), tasks.end(), [&](const Task *a, const Task *b) {
+        if (a->priority != b->priority)
+            return a->priority < b->priority;
+        if (const int ra = projectRank(*a), rb = projectRank(*b); ra != rb)
+            return ra < rb;
+        return taskBefore(*a, *b);
+    });
+    return tasks;
+}
 
 } // namespace mirante
