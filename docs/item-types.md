@@ -22,7 +22,7 @@ A module registers each of its types in the `ItemTypeRegistry` with:
 | `connectionKinds` | The kinds of [connection](data-model.md#connection) it can use, in order of preference, such as `jira.cloud` then `jira.dc`. Empty if it needs none. |
 | `status` | Optional: how to fetch status and attention from the [status cache](integrations.md#polling-and-caching) |
 | `actions` | Optional: the light actions it offers |
-| `fromUrl` | Optional: recognises a pasted URL and returns a configuration |
+| `fromUrl` | Optional: recognises a pasted web address and returns a configuration, a suggested name and the base URL of its server. See [items from a link](#items-from-a-link). |
 | `createView` | Creates the item's view for one placement. See [the view](#the-view). |
 | `singleView` | Optional, off by default: the item can have only one view at a time |
 | `reparentSafe` | Optional, on by default: the view can be moved to another cell without being created again |
@@ -32,6 +32,24 @@ A new item starts with a grid of the registered types, where the user picks one,
 New types are added by registering a class in a module. No core code changes. See [adding a module](modules.md#adding-a-module).
 
 When a field has a project default, the type uses it when the field is empty. For example, an empty project path in an MR List uses the project's `gitlab.project` setting. See [module settings](data-model.md#project).
+
+## Items from a link
+
+A pasted web address can make an item. The new item dialog asks every type's `fromUrl` about it, and offers the types that take it: types of modules first, then Web page. Choosing one fills its configuration and name. If the address is on the server of one of the group's connections, the item uses that connection. See [decision 0049](decisions/0049-items-from-a-pasted-link.md), [the item dialog](ui.md#item-dialog) and [modules](modules.md#items-from-a-link).
+
+| Address | Types that take it | Configuration filled | Name |
+|---|---|---|---|
+| `<base>/<project>/-/merge_requests/<iid>` | GitLab MR (summary), GitLab MR (page), GitLab CI Pipeline | `project`, `iid`; the pipeline also `branchSource` = `mergeRequest` | `group/project!42`; the pipeline `group/project!42 CI` |
+| `<base>/<project>/-/issues/<iid>` | GitLab Issue (summary), GitLab Issue (page) | `project`, `iid` | `group/project#7` |
+| `<base>/<project>/-/merge_requests`, `<base>/<project>/-/issues` | GitLab MR List, GitLab Issue List | `scope` = `project`, `project`, `preset` = `allOpen` | `group/project MRs`, `group/project issues` |
+| `<base>/<project>/-/pipelines[/<id>][?ref=<branch>]` | GitLab CI Pipeline | `project`, `branchSource` = `fixed`, `branch` from `ref`. The pipeline's id is not kept, because the type follows a branch. | `group/project <branch> CI` |
+| `<base>/browse/<key>`, `.../issues/<key>`, or `?selectedIssue=<key>` | Jira Issue (summary), Jira Issue (page) | `key` | the key |
+| a Jira address with `?jql=<query>` | Jira List | `preset` = `jql`, `jql` | "Jira search" |
+| `https://claude.ai/...` | Claude session (web) | `url` | "Claude session" |
+| any `http` or `https` address | Web page | `url` | the host, without `www.` |
+
+- **GitLab servers.** `<base>` is the base URL of one of the group's `gitlab` connections, so a server installed at a path is read correctly. Without a matching connection, `gitlab.com` and any other server are still read, because the `/-/` in the path is GitLab's own; the base is then the server without a path.
+- **Jira servers.** `<base>` is the base URL of one of the group's `jira.cloud` or `jira.dc` connections, or any `atlassian.net` site. Any other server is read only from `/browse/<key>`, with Jira taken to be installed at the path before it. Keys are read in upper case.
 
 ## The view
 
