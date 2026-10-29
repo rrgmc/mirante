@@ -42,6 +42,10 @@ struct LayoutServices
     std::function<void(QWidget *cell)> toggleMaximised;
     std::function<bool(const QWidget *cell)> isMaximised;
     std::function<void(const QString &taskId, const QString &itemId)> openItemAlone;
+
+    // Opens the item dialog. The cell menu offers it while the dashboard is
+    // being edited.
+    std::function<void(const QString &taskId, const QString &itemId)> editItem;
 };
 
 } // namespace mirante

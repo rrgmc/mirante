@@ -1,8 +1,10 @@
 #include "layout/DropOverlay.h"
 
+#include "layout/DragMime.h"
 #include "layout/DropOverlayTarget.h"
 #include "layout/LayoutView.h"
 
+#include <QApplication>
 #include <QDragEnterEvent>
 #include <QDragMoveEvent>
 #include <QDropEvent>
@@ -169,6 +171,32 @@ protected:
     }
 };
 
+// Forwards the drag events of widgets inside the view, such as web pages, which
+// take drags themselves. Installed on the application, since the widgets come
+// and go. The handler decides which events are its own.
+class ChildWatcher : public QObject
+{
+public:
+    std::function<bool(QWidget *, QEvent *)> handler;
+
+protected:
+    bool eventFilter(QObject *watched, QEvent *event) override
+    {
+        switch (event->type()) {
+        case QEvent::DragEnter:
+        case QEvent::DragMove:
+        case QEvent::DragLeave:
+        case QEvent::Drop:
+            if (auto *widget = qobject_cast<QWidget *>(watched); widget && handler && handler(widget, event))
+                return true;
+            break;
+        default:
+            break;
+        }
+        return QObject::eventFilter(watched, event);
+    }
+};
+
 // Paints the highlight. The overlay itself has no paintEvent of its own.
 class HitPainter : public QWidget
 {
@@ -211,6 +239,7 @@ struct DropOverlay::Private
     LayoutView *view = nullptr;
     HitPainter *painter = nullptr;
     ViewWatcher watcher;
+    ChildWatcher childWatcher;
     std::optional<DragPayload> payload;
     Acceptor acceptor;
 
@@ -243,7 +272,10 @@ struct DropOverlay::Private
             hoveredBar->setCurrentIndex(hoveredTab);
     }
 
-    bool onViewEvent(QEvent *event);
+    // offset maps the event's position to the view: it is the position of
+    // the widget that received the event.
+    bool onViewEvent(QEvent *event, const QPoint &offset = QPoint());
+    bool onChildEvent(QWidget *child, QEvent *event);
 
     // Updates the hit for pos, and says whether a drop there is possible. A
     // zone where the drop would be refused is not highlighted. Ctrl makes the
@@ -278,7 +310,32 @@ struct DropOverlay::Private
     }
 };
 
-bool DropOverlay::Private::onViewEvent(QEvent *event)
+// A widget inside the view that takes drags itself, such as a web page, would
+// keep a drag of a cell or an item from the view, which then sees it only in
+// the gaps around the page. Such drags are handled as if the view had them.
+// Other drags, such as files dropped on a page, reach the widget as usual.
+bool DropOverlay::Private::onChildEvent(QWidget *child, QEvent *event)
+{
+    if (child == view || !view->isAncestorOf(child))
+        return false;
+    // A nested view, such as a task cell's, handles its own widgets.
+    for (QWidget *widget = child->parentWidget(); widget; widget = widget->parentWidget()) {
+        if (auto *nested = qobject_cast<LayoutView *>(widget)) {
+            if (nested != view)
+                return false;
+            break;
+        }
+    }
+    if (event->type() == QEvent::DragEnter) {
+        if (!dragPayload(static_cast<QDropEvent *>(event)->mimeData()))
+            return false;
+    } else if (!payload) {
+        return false;
+    }
+    return onViewEvent(event, child->mapTo(view, QPoint()));
+}
+
+bool DropOverlay::Private::onViewEvent(QEvent *event, const QPoint &offset)
 {
     switch (event->type()) {
     case QEvent::Resize:
@@ -303,7 +360,7 @@ bool DropOverlay::Private::onViewEvent(QEvent *event)
         fit();
         q->raise();
         q->show();
-        track(drag->position().toPoint(), drag->modifiers());
+        track(drag->position().toPoint() + offset, drag->modifiers());
         // Accepting even outside a cell keeps the move events coming.
         drag->acceptProposedAction();
         return true;
@@ -311,7 +368,7 @@ bool DropOverlay::Private::onViewEvent(QEvent *event)
 
     case QEvent::DragMove: {
         auto *drag = static_cast<QDragMoveEvent *>(event);
-        if (payload && track(drag->position().toPoint(), drag->modifiers()))
+        if (payload && track(drag->position().toPoint() + offset, drag->modifiers()))
             drag->acceptProposedAction();
         else
             drag->ignore();
@@ -325,7 +382,7 @@ bool DropOverlay::Private::onViewEvent(QEvent *event)
     case QEvent::Drop: {
         auto *drop = static_cast<QDropEvent *>(event);
         const std::optional<DragPayload> dropped = payload;
-        const bool hit = dropped && track(drop->position().toPoint(), drop->modifiers());
+        const bool hit = dropped && track(drop->position().toPoint() + offset, drop->modifiers());
         const std::optional<DropHit> target = painter->hit;
         finish();
         if (!hit || !target) {
@@ -363,11 +420,15 @@ DropOverlay::DropOverlay(LayoutView *view)
     d->watcher.handler = [this](QEvent *event) { return d->onViewEvent(event); };
     view->setAcceptDrops(true);
     view->installEventFilter(&d->watcher);
+    d->childWatcher.handler = [this](QWidget *child, QEvent *event) { return d->onChildEvent(child, event); };
+    qApp->installEventFilter(&d->childWatcher);
 }
 
 DropOverlay::~DropOverlay()
 {
     d->watcher.handler = nullptr;
+    d->childWatcher.handler = nullptr;
+    qApp->removeEventFilter(&d->childWatcher);
     d->tabTimer->stop();
     d->tabTimer->disconnect(this);
 }

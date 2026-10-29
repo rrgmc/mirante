@@ -19,6 +19,7 @@
 #include "layout/SingleViewTracker.h"
 #include "layout/TaskCell.h"
 #include "ui/ConflictBar.h"
+#include "ui/DashboardDialog.h"
 #include "ui/DashboardPage.h"
 #include "ui/DetachedWindow.h"
 #include "ui/EntityActions.h"
@@ -276,6 +277,10 @@ struct MainWindow::Private
     {
         auto *page = new DashboardPage(services, DashboardRef{taskId, QString()}, stack, itemId);
         page->view->setSingleViewTracker(tracker);
+        QObject::connect(page->view, &LayoutView::cellMenuRequested, q,
+                         [this, view = page->view, taskId, itemId](const NodePath &, const QPoint &globalPos) {
+                             editor->showItemMenu(view, taskId, itemId, globalPos);
+                         });
         LayoutNode cell;
         cell.ref = CellRef{itemId, QString(), QString()};
         page->view->setTree(cell);
@@ -448,6 +453,22 @@ struct MainWindow::Private
 
     // "Detach into Window" on a root dashboard tab: the tab leaves the tab bar
     // and its page moves into a new window.
+    // Renames the root dashboard of a tab. The tab title follows the model.
+    void renameRoot(int index)
+    {
+        if (index < 0 || index >= int(pages.size()) || !pages[std::size_t(index)]->isRoot())
+            return;
+        const RootDashboard *dashboard = model->rootDashboard(pages[std::size_t(index)]->ref.dashboardId);
+        if (!dashboard)
+            return;
+        DashboardDialog dialog(*dashboard, false, q);
+        if (dialog.exec() != QDialog::Accepted)
+            return;
+        RootDashboard changed = *dashboard;
+        changed.name = dialog.value().name;
+        model->setRootDashboard(changed);
+    }
+
     void detach(int index)
     {
         if (index < 0 || index >= int(pages.size()) || !pages[std::size_t(index)]->isRoot())
@@ -1377,6 +1398,9 @@ MainWindow::MainWindow(Model &model, const ItemTypeRegistry &types, Store &store
             activateWindow();
         }
     };
+    d->services.editItem = [this](const QString &taskId, const QString &itemId) {
+        d->actions->editItem(taskId, itemId);
+    };
     d->editor->setServices(&d->services);
     d->actions->setProfiles(profiles);
 
@@ -1450,6 +1474,7 @@ MainWindow::MainWindow(Model &model, const ItemTypeRegistry &types, Store &store
     connect(d->tabBar, &RootTabBar::newDashboardRequested, this, &MainWindow::newRootDashboard);
     connect(d->tabBar, &RootTabBar::dashboardListRequested, this, &MainWindow::showDashboardList);
     connect(d->tabBar, &RootTabBar::detachRequested, this, [this](int index) { d->detach(index); });
+    connect(d->tabBar, &RootTabBar::renameRequested, this, [this](int index) { d->renameRoot(index); });
     connect(d->listButton, &QToolButton::clicked, this, &MainWindow::showDashboardList);
 
     // Locks.

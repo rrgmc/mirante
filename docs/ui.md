@@ -34,7 +34,8 @@ The sidebar can be collapsed.
 - Projects and tasks appear in manual order. [Priority](data-model.md#priority) does not change their place; only Focus sorts by it. See [decision 0034](decisions/0034-manual-order-in-the-sidebar.md).
 - A coloured marker shows the priority level. Projects have a small rounded square and tasks a circle, so the two levels are easy to tell apart. Low items are dimmed.
 - Each task has two fixed children: **Dashboards**, with its task dashboards, then **Items**, with the task's items. They are there for every task, even when empty.
-- The selected row keeps its full highlight colour when the sidebar does not have the focus, so the dashboard on screen stays easy to see.
+- The selected row is a rounded shape in the highlight colour, inset from the sidebar's edges and as wide as the sidebar. It keeps its full colour when the sidebar does not have the focus, so the dashboard on screen stays easy to see.
+- Groups are section headings: small, bold and grey.
 - Four tabs at the bottom choose the task list. **Projects** lists active tasks under every project, including projects without any. **Active** lists the same tasks, but leaves out projects without active tasks. **Done** lists done and archived tasks under every project. **Trash** lists what is in the [trash](#trash). The first three lists leave out projects and tasks in the trash. A filter button right of the workspace title opens a menu with a checkbox for each priority. Unchecking one hides the projects and tasks of that priority in the Projects, Active and Done lists. The button looks pressed while it hides something. All priorities are shown at start.
 - A `+` button in the sidebar header opens a menu: New Group…, New Project… in the group of the selected row, and New Task… in the project of the selected row. The last two are disabled when the selection has no group or project.
 - Two buttons in the sidebar header expand or collapse every task at once, with its Dashboards and Items. Groups and projects are left as they are; they open and close by hand only.
@@ -43,7 +44,7 @@ The sidebar can be collapsed.
   - Dragging a group, project or task among its siblings changes its place. It never changes a priority. Nothing is dragged in the Trash list.
   - A task itself is not dragged onto dashboards. Drag one of its items, to show that item, or one of its dashboards, to show the task with that dashboard in a root dashboard. See [placing tasks](#placing-tasks-and-items).
 - The context menu holds new, edit, rename, set priority, set state and delete, and on a task dashboard "Set as default". On a task dashboard or an item it also holds "Open in new root dashboard", which makes a root dashboard showing just that dashboard or item.
-- Project rows have a light tinted background, so they stand out between groups and tasks.
+- Project rows have a light tinted background, a rounded shape like the selection, so they stand out between groups and tasks.
 - While the mouse is over a dashboard cell, the sidebar row of what the cell shows gets a soft tint: the item's row for an item cell, also one inside a task cell, and the task's row for a task cell. The tint goes when the mouse leaves the cell. The tree does not expand or scroll for it. If a collapsed row hides that row, the nearest row that can be seen takes the tint instead: the task of an item whose task or Items row is closed, or the project or group if that is closed. The tint follows as rows open and close.
 - "Delete project…" and "Delete task…" move the project or task to the [trash](#trash), without a question, since it can be undone. Holding `Shift` while choosing them deletes for good, after a confirmation. Every other delete, such as of a group, an item or a task dashboard, asks for confirmation first and cannot be undone.
 
@@ -95,6 +96,7 @@ Standard controls, such as buttons, menus, lists and dialogs, keep the platform'
 - **Close buttons on tabs** are on the right. They show on the current tab and on the tab under the mouse only.
 - **Cell borders** are a thin, light line with rounded corners.
 - **The warning bar** has a tinted background and no frame.
+- **The sidebar** has a light grey background, a little darker than the window, with rounded row shapes, as in macOS sidebars. See [sidebar tree](#sidebar-tree).
 
 ## Menus
 
@@ -125,7 +127,7 @@ A root dashboard is a tab in the main tab bar. It has a name and a [layout tree]
 - The `+` button creates an empty root dashboard, with editing on.
 - Closing a root dashboard's tab, with its close button, a middle click or the tab bar's context menu, does not delete it. It can be opened again with the [quick switcher](#keyboard) or the dashboard list.
 - The **dashboard list**, opened with the button after the lock in the tab bar row or with "All dashboards…" in the tab bar's context menu, lists every root dashboard and marks closed ones. It opens a dashboard again, and it is the only place where a root dashboard is deleted, after a confirmation.
-- Right-clicking the tab bar shows "New dashboard", "Close tab" over a tab, "Detach into Window" over a root dashboard tab, and "All dashboards…".
+- Right-clicking the tab bar shows "New dashboard", "Close tab" over a tab, "Rename dashboard…" and "Detach into Window" over a root dashboard tab, and "All dashboards…". "Rename dashboard…" opens the dashboard dialog with the name to edit.
 
 ### Placing tasks and items
 
@@ -151,8 +153,11 @@ Some work, such as signing in to a site, is easier on a large page than in a sma
 
 - **Maximise.** The button after the menu button in the cell header, the cell menu entry "Maximise", or `Ctrl+Shift+M` for the focused cell, shows the cell over the whole dashboard area and gives it the focus. The button's tooltip names the shortcut. The same cell moves, so a web page keeps its state, including a login in progress. The button, the menu entry "Restore" or the shortcut again puts the cell back in its place. Maximising another cell puts the first one back. Changing the root tab or closing the tab also puts it back.
 - **Open Alone.** The cell menu entry "Open Alone" opens the item alone in the preview tab, as a double click on the item in the sidebar does. See [decision 0023](decisions/0023-item-tabs.md). The tab has a view of its own, in the same web profile, so a login made there reaches the cell when its page reloads. An item tab already shows its item alone, so it does not offer "Open Alone".
+- **Changing the item from its cell.** The menu of an item cell also offers two entries that change the item, not the layout, so they work on a locked dashboard and in an item tab too:
+  - "Edit Item…" opens the item dialog.
+  - "Use Current Address" is there for a cell that shows a web page, when the item's type has an address field. It saves the address the page shows now in that field, such as the Address of a Web page item. It is disabled when the two are already the same, and its tooltip shows the address.
 
-On a locked dashboard the cell menu of an item cell holds only these two entries. On an unlocked one they come first, before the [editing commands](#editing-layouts).
+On a locked dashboard the cell menu of an item cell holds only these entries. On an unlocked one they come first, before the [editing commands](#editing-layouts).
 
 ### Layout presets
 
@@ -187,7 +192,7 @@ When editing is on:
   - "Delete tab" removes the tab and its content from the layout.
   - "Ungroup" appears only when the group has one tab. It removes the tab group: the tab's content takes the group's place.
 - **A `+` button** at the right of each tab group adds an empty tab at the end.
-- **Drag and drop:** drag a cell by its header, a tab by its tab, a whole tab group by the empty part of its tab bar, or an item from the sidebar. Cell headers and tab bars show an open hand while the dashboard is unlocked. Holding a drag over a tab that is not shown opens it, so a cell can be dropped beside its content. A tab group or a split moves within its own dashboard. A semi-transparent overlay shows five drop zones on the cell under the cursor:
+- **Drag and drop:** drag a cell by its header, a tab by its tab, a whole tab group by the empty part of its tab bar, or an item from the sidebar. Cell headers and tab bars show an open hand while the dashboard is unlocked. Holding a drag over a tab that is not shown opens it, so a cell can be dropped beside its content. A tab group or a split moves within its own dashboard. The zones work over web pages too: a web page does not take a drag of a cell or an item, but it still takes other drags, such as files. A semi-transparent overlay shows five drop zones on the cell under the cursor:
   - the left, right, top or bottom edge splits the cell on that side;
   - the centre adds the dropped content as a tab, turning the cell into a tab group if needed. On an empty cell, or a "Removed" one whose task or item was deleted, the centre fills the cell instead.
 - Dropping on a tab bar inserts a new tab at that position.
