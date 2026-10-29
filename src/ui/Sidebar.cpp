@@ -25,7 +25,7 @@ namespace mirante {
 namespace {
 
 // The task lists, in the order of their tabs.
-enum TaskList { ProjectsList, ActiveList, DoneList };
+enum TaskList { ProjectsList, ActiveList, DoneList, TrashList };
 
 // Reports double clicks on the title label.
 class TitleClicks : public QObject
@@ -60,10 +60,12 @@ struct Sidebar::Private
     QToolButton *priorityFilter = nullptr;          // its menu shows or hides each priority
     std::vector<std::pair<Priority, QAction *>> shownPriorities;
     QLabel *title = nullptr;
-    QTabBar *stateTabs = nullptr;       // the task lists: "Projects", "Active" and "Done"
+    QTabBar *stateTabs = nullptr;       // the task lists: "Projects", "Active", "Done" and "Trash"
+    QPushButton *emptyTrash = nullptr;  // shown while the Trash list is current
     QPushButton *focus = nullptr;       // the Focus entry above the tree
     QHBoxLayout *header = nullptr;
     MenuFiller menuFiller;
+    MenuFiller trashMenuFiller;
 
     // Expansion survives a reset of the model. Groups and projects start
     // expanded, so the user's collapsed ones are kept; tasks start collapsed.
@@ -120,7 +122,12 @@ struct Sidebar::Private
         priorityFilter->setChecked(!filter.hiddenPriorities.empty());
         filter.closedTasks = stateTabs->currentIndex() == DoneList;
         filter.hideEmptyProjects = stateTabs->currentIndex() == ActiveList;
+        filter.trash = stateTabs->currentIndex() == TrashList;
         model->setFilter(filter);
+        // Reordering is only for the other lists; the model refuses drops in the trash.
+        tree->setDragEnabled(!filter.trash);
+        emptyTrash->setVisible(filter.trash);
+        emptyTrash->setEnabled(model->rowCount() > 0);
     }
 };
 
@@ -225,9 +232,9 @@ Sidebar::Sidebar(const Model &model, const ItemTypeRegistry &types, QWidget *par
     d->tree->setExpandsOnDoubleClick(false);    // a double click on a task pins it
     d->tree->setContextMenuPolicy(Qt::CustomContextMenu);
 
-    // Footer: three task lists over the same groups: active tasks under every project,
-    // active tasks only under projects that have some, and done and archived
-    // tasks.
+    // Footer: four task lists over the same groups: active tasks under every
+    // project, active tasks only under projects that have some, done and
+    // archived tasks, and what is in the trash.
     d->stateTabs = new QTabBar(this);
     d->stateTabs->setObjectName(QStringLiteral("taskStateTabs"));
     d->stateTabs->setShape(QTabBar::RoundedSouth);
@@ -236,10 +243,18 @@ Sidebar::Sidebar(const Model &model, const ItemTypeRegistry &types, QWidget *par
     d->stateTabs->addTab(tr("Projects"));
     d->stateTabs->addTab(tr("Active"));
     d->stateTabs->addTab(tr("Done"));
+    d->stateTabs->addTab(tr("Trash"));
     d->stateTabs->setTabToolTip(ProjectsList, tr("Active tasks, under every project, including projects without any"));
     d->stateTabs->setTabToolTip(ActiveList, tr("Active tasks, only under projects that have some"));
     d->stateTabs->setTabToolTip(DoneList, tr("Done and archived tasks"));
+    d->stateTabs->setTabToolTip(TrashList, tr("Deleted projects and tasks, which can be restored"));
     d->stateTabs->setCurrentIndex(ProjectsList);
+
+    d->emptyTrash = new QPushButton(tr("Empty Trash…"), this);
+    d->emptyTrash->setObjectName(QStringLiteral("emptyTrash"));
+    d->emptyTrash->setToolTip(tr("Delete everything in the trash permanently"));
+    d->emptyTrash->setVisible(false);
+    connect(d->emptyTrash, &QPushButton::clicked, this, &Sidebar::emptyTrashRequested);
 
     connect(d->stateTabs, &QTabBar::currentChanged, this, [this] { d->applyFilter(); });
 
@@ -247,6 +262,7 @@ Sidebar::Sidebar(const Model &model, const ItemTypeRegistry &types, QWidget *par
     footer->setContentsMargins(4, 0, 4, 4);
     footer->addWidget(d->stateTabs);
     footer->addStretch(1);
+    footer->addWidget(d->emptyTrash);
 
     auto *layout = new QVBoxLayout(this);
     layout->setContentsMargins(0, 0, 0, 0);
@@ -272,6 +288,7 @@ Sidebar::Sidebar(const Model &model, const ItemTypeRegistry &types, QWidget *par
     connect(d->model, &QAbstractItemModel::modelAboutToBeReset, this,
             [this] { d->currentId = d->id(d->tree->currentIndex()); });
     connect(d->model, &QAbstractItemModel::modelReset, this, [this] {
+        d->emptyTrash->setEnabled(d->model->rowCount() > 0);
         d->restoreExpansion({});
         const QModelIndex current = d->model->indexOf(d->currentId);
         if (current.isValid())
@@ -280,10 +297,12 @@ Sidebar::Sidebar(const Model &model, const ItemTypeRegistry &types, QWidget *par
     d->restoreExpansion({});
 
     // Activation is a double click or Enter. It opens items and dashboards,
-    // and expands or collapses every other row, tasks included.
+    // and expands or collapses every other row, tasks included. Nothing in the
+    // trash opens.
     connect(d->tree, &QTreeView::activated, this, [this](const QModelIndex &index) {
         const QString taskId = index.data(SidebarModel::TaskIdRole).toString();
-        switch (d->kind(index)) {
+        const SidebarModel::Kind kind = showsTrash() ? SidebarModel::Kind::Group : d->kind(index);
+        switch (kind) {
         case SidebarModel::Kind::Item:
             emit itemOpened(taskId, d->id(index));
             break;
@@ -304,11 +323,15 @@ Sidebar::Sidebar(const Model &model, const ItemTypeRegistry &types, QWidget *par
         const QString taskId = index.data(SidebarModel::TaskIdRole).toString();
         const QString id = d->id(index);
         QMenu menu(this);
-        // The entity commands first, then the sidebar's own.
-        if (d->menuFiller)
+        if (showsTrash()) {
+            if (d->trashMenuFiller)
+                d->trashMenuFiller(&menu, kind, id, taskId);
+        } else if (d->menuFiller) {
+            // The entity commands first, then the sidebar's own.
             d->menuFiller(&menu, kind, id, taskId);
+        }
         // Task dashboards and items can each be put in a new root dashboard.
-        if (kind == SidebarModel::Kind::Dashboard || kind == SidebarModel::Kind::Item) {
+        if (!showsTrash() && (kind == SidebarModel::Kind::Dashboard || kind == SidebarModel::Kind::Item)) {
             if (!menu.isEmpty())
                 menu.addSeparator();
             menu.addAction(tr("Open in new root dashboard"), this, [this, kind, taskId, id] {
@@ -328,6 +351,7 @@ Sidebar::~Sidebar()
 {
     // The children outlive d, so their signals must not reach it.
     d->stateTabs->disconnect(this);
+    d->emptyTrash->disconnect(this);
     for (const auto &[priority, action] : d->shownPriorities)
         action->disconnect(this);
     d->tree->disconnect(this);
@@ -383,5 +407,9 @@ void Sidebar::addHeaderWidget(QWidget *widget)
 }
 
 void Sidebar::setMenuFiller(MenuFiller filler) { d->menuFiller = std::move(filler); }
+
+void Sidebar::setTrashMenuFiller(MenuFiller filler) { d->trashMenuFiller = std::move(filler); }
+
+bool Sidebar::showsTrash() const { return d->stateTabs->currentIndex() == TrashList; }
 
 } // namespace mirante

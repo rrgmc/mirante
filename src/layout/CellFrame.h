@@ -39,6 +39,10 @@ public:
     void setCellFocused(bool focused);
     bool isCellFocused() const;
 
+    // Replaces the text in the body, such as "Removed", with another one,
+    // such as "In trash".
+    void setMessage(const QString &text);
+
 signals:
     void menuRequested(const QPoint &globalPos);
     void dragStarted();     // the header was dragged in edit mode

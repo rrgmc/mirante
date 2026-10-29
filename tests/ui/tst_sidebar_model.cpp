@@ -104,6 +104,8 @@ private slots:
     void repaintsChangedTask();
     void sidebarWidget();
     void emptyProjects();
+    void trashList();
+    void trashTab();
 };
 
 void TestSidebarModel::structure()
@@ -490,10 +492,12 @@ void TestSidebarModel::sidebarWidget()
     QCOMPARE(tree->currentIndex(), sidebarModel->indexOf(itemId));
     QVERIFY(tree->isExpanded(sidebarModel->indexOf(fixLoginTimeout)));
 
-    // Three task lists: "Projects", "Active" without empty projects, "Done".
+    // Four task lists: "Projects", "Active" without empty projects, "Done"
+    // and "Trash".
     auto *stateTabs = sidebar.findChild<QTabBar *>(QStringLiteral("taskStateTabs"));
     QVERIFY(stateTabs);
-    QCOMPARE(stateTabs->count(), 3);
+    QCOMPARE(stateTabs->count(), 4);
+    QCOMPARE(stateTabs->tabText(3), QStringLiteral("Trash"));
     QCOMPARE(stateTabs->currentIndex(), 0);
     stateTabs->setCurrentIndex(1);
     QVERIFY(sidebarModel->filter().hideEmptyProjects);
@@ -557,6 +561,142 @@ void TestSidebarModel::emptyProjects()
     sidebar.setFilter(filter);
     QCOMPARE(childIds(sidebar, sidebar.index(0, 0)), (QStringList{busy.id, idle.id}));
     QVERIFY(sidebar.indexOf(done.id).isValid());
+}
+
+
+namespace {
+
+// Two groups. In g1, project "kept" holds an active task "a" and a task "t" in
+// the trash; project "gone" is in the trash with an active task "b" and a done
+// task "c". Group g2 has nothing in the trash.
+struct TrashFixture
+{
+    Model model;
+    ItemTypeRegistry types;
+
+    TrashFixture()
+    {
+        Group g1;
+        g1.id = QStringLiteral("g1");
+        Group g2 = g1;
+        g2.id = QStringLiteral("g2");
+        g2.order = 1;
+        Project kept;
+        kept.id = QStringLiteral("kept");
+        kept.groupId = g1.id;
+        Project gone = kept;
+        gone.id = QStringLiteral("gone");
+        gone.order = 1;
+        gone.trashedAt = QStringLiteral("2026-10-29T10:00:00Z");
+        Project other = kept;
+        other.id = QStringLiteral("other");
+        other.groupId = g2.id;
+        Task a;
+        a.id = QStringLiteral("a");
+        a.projectId = kept.id;
+        Task t = a;
+        t.id = QStringLiteral("t");
+        t.order = 1;
+        t.trashedAt = QStringLiteral("2026-10-29T10:00:00Z");
+        Task b = a;
+        b.id = QStringLiteral("b");
+        b.projectId = gone.id;
+        Task c = b;
+        c.id = QStringLiteral("c");
+        c.order = 1;
+        c.state = TaskState::Done;
+        Task o = a;
+        o.id = QStringLiteral("o");
+        o.projectId = other.id;
+        model.reset({g1, g2}, {kept, gone, other}, {a, t, b, c, o}, {});
+    }
+};
+
+} // namespace
+
+// The Trash list shows projects in the trash with all their tasks, and other
+// projects only with their tasks in the trash. The other lists hide both.
+void TestSidebarModel::trashList()
+{
+    TrashFixture f;
+    SidebarModel sidebar(f.model, f.types);
+    QAbstractItemModelTester tester(&sidebar, QAbstractItemModelTester::FailureReportingMode::Fatal);
+
+    // The Projects list.
+    QCOMPARE(childIds(sidebar, {}), (QStringList{QStringLiteral("g1"), QStringLiteral("g2")}));
+    QCOMPARE(childIds(sidebar, sidebar.indexOf(QStringLiteral("g1"))), QStringList{QStringLiteral("kept")});
+    QCOMPARE(childIds(sidebar, sidebar.indexOf(QStringLiteral("kept"))), QStringList{QStringLiteral("a")});
+    QVERIFY(!sidebar.indexOf(QStringLiteral("b")).isValid());
+
+    // The Done list leaves out the done task of the project in the trash.
+    SortFilter filter;
+    filter.closedTasks = true;
+    sidebar.setFilter(filter);
+    QVERIFY(!sidebar.indexOf(QStringLiteral("gone")).isValid());
+    QVERIFY(!sidebar.indexOf(QStringLiteral("c")).isValid());
+
+    // The Trash list: g2 has nothing there, so it is left out.
+    filter = SortFilter();
+    filter.trash = true;
+    sidebar.setFilter(filter);
+    QCOMPARE(childIds(sidebar, {}), QStringList{QStringLiteral("g1")});
+    QCOMPARE(childIds(sidebar, sidebar.indexOf(QStringLiteral("g1"))),
+             (QStringList{QStringLiteral("kept"), QStringLiteral("gone")}));
+    QCOMPARE(childIds(sidebar, sidebar.indexOf(QStringLiteral("kept"))), QStringList{QStringLiteral("t")});
+    QCOMPARE(childIds(sidebar, sidebar.indexOf(QStringLiteral("gone"))),
+             (QStringList{QStringLiteral("b"), QStringLiteral("c")}));
+
+    // Nothing in the trash is dragged, and nothing takes a drop.
+    QVERIFY(!(sidebar.flags(sidebar.indexOf(QStringLiteral("t"))) & Qt::ItemIsDragEnabled));
+    QVERIFY(!(sidebar.flags(sidebar.indexOf(QStringLiteral("gone"))) & Qt::ItemIsDropEnabled));
+    QVERIFY(!(sidebar.flags({}) & Qt::ItemIsDropEnabled));
+
+    // Restoring follows the model: the project leaves the trash with its tasks.
+    Project gone = *f.model.project(QStringLiteral("gone"));
+    gone.trashedAt.clear();
+    f.model.setProject(gone);
+    QCOMPARE(childIds(sidebar, sidebar.indexOf(QStringLiteral("g1"))), QStringList{QStringLiteral("kept")});
+    filter = SortFilter();
+    sidebar.setFilter(filter);
+    QCOMPARE(childIds(sidebar, sidebar.indexOf(QStringLiteral("gone"))), QStringList{QStringLiteral("b")});
+}
+
+// The Trash tab sets the filter, offers "Empty Trash…", and uses its own menu.
+void TestSidebarModel::trashTab()
+{
+    TrashFixture f;
+    Sidebar sidebar(f.model, f.types);
+    auto *stateTabs = sidebar.findChild<QTabBar *>(QStringLiteral("taskStateTabs"));
+    auto *emptyTrash = sidebar.findChild<QPushButton *>(QStringLiteral("emptyTrash"));
+    auto *tree = sidebar.findChild<QTreeView *>();
+    QVERIFY(stateTabs && emptyTrash && tree);
+    QVERIFY(emptyTrash->isHidden());
+    QVERIFY(tree->dragEnabled());
+    QVERIFY(!sidebar.showsTrash());
+
+    stateTabs->setCurrentIndex(3);
+    QVERIFY(sidebar.showsTrash());
+    QVERIFY(sidebar.model()->filter().trash);
+    QVERIFY(!emptyTrash->isHidden());
+    QVERIFY(emptyTrash->isEnabled());
+    QVERIFY(!tree->dragEnabled());
+    QSignalSpy requested(&sidebar, &Sidebar::emptyTrashRequested);
+    emptyTrash->click();
+    QCOMPARE(requested.count(), 1);
+
+    // An empty trash disables the button.
+    Task task = *f.model.task(QStringLiteral("t"));
+    task.trashedAt.clear();
+    f.model.setTask(task);
+    Project gone = *f.model.project(QStringLiteral("gone"));
+    gone.trashedAt.clear();
+    f.model.setProject(gone);
+    QCOMPARE(sidebar.model()->rowCount(), 0);
+    QVERIFY(!emptyTrash->isEnabled());
+
+    stateTabs->setCurrentIndex(0);
+    QVERIFY(emptyTrash->isHidden());
+    QVERIFY(tree->dragEnabled());
 }
 
 QTEST_MAIN(TestSidebarModel)

@@ -229,6 +229,12 @@ void CellFrame::setCellFocused(bool focused)
 
 bool CellFrame::isCellFocused() const { return d->focused; }
 
+void CellFrame::setMessage(const QString &text)
+{
+    if (auto *label = qobject_cast<QLabel *>(d->body->widget(0)))
+        label->setText(text);
+}
+
 // CellFrameSingleView
 
 CellFrameSingleView::CellFrameSingleView(QWidget *frame, const QString &itemId, std::function<void(bool)> showHere)

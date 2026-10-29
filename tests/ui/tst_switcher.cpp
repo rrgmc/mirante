@@ -77,6 +77,29 @@ private slots:
         QCOMPARE(m_entries.size(), std::size_t(70));
     }
 
+    // Nothing in the trash is offered.
+    void leavesOutTrash()
+    {
+        Model model;
+        QVERIFY(store::load(QStringLiteral(MIRANTE_FIXTURES_DIR), model).empty());
+        Task task = *model.task(kFixLoginTask);
+        task.trashedAt = QStringLiteral("2026-10-29T10:00:00Z");
+        model.setTask(task);
+        std::vector<SwitcherEntry> entries = QuickSwitcher::candidates(model);
+        QVERIFY(!find(entries, Kind::Task, kFixLoginTask));
+        QVERIFY(!find(entries, Kind::Item, kAcme412Item));
+
+        task.trashedAt.clear();
+        model.setTask(task);
+        Project project = *model.project(task.projectId);
+        project.trashedAt = QStringLiteral("2026-10-29T10:00:00Z");
+        model.setProject(project);
+        entries = QuickSwitcher::candidates(model);
+        QVERIFY(!find(entries, Kind::Project, project.id));
+        QVERIFY(!find(entries, Kind::Task, kFixLoginTask));
+        QVERIFY(find(entries, Kind::Group, kWorkGroup));
+    }
+
     void candidateDetails()
     {
         const std::optional<SwitcherEntry> group = find(m_entries, Kind::Group, kWorkGroup);

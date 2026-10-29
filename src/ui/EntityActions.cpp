@@ -14,7 +14,9 @@
 
 #include <QActionGroup>
 #include <QBuffer>
+#include <QDateTime>
 #include <QDialog>
+#include <QGuiApplication>
 #include <QImage>
 #include <QMenu>
 #include <QMessageBox>
@@ -92,6 +94,11 @@ struct EntityActions::Private
     QWidget *dialogParent = nullptr;
     std::function<bool(QDialog &)> exec;
     std::function<bool(const QString &)> confirm;
+    std::function<Qt::KeyboardModifiers()> modifiers;
+
+    bool shiftHeld() const { return modifiers && (modifiers() & Qt::ShiftModifier); }
+
+    static QString now() { return QDateTime::currentDateTimeUtc().toString(Qt::ISODate); }
 
     Private(Model &model, Store &store, const ItemTypeRegistry &types, DeviceSettings &settings,
             QWidget *dialogParent)
@@ -147,6 +154,7 @@ EntityActions::EntityActions(Model &model, Store &store, const ItemTypeRegistry 
     d->confirm = [this](const QString &question) {
         return QMessageBox::question(d->dialogParent, tr("Delete"), question) == QMessageBox::Yes;
     };
+    d->modifiers = [] { return QGuiApplication::queryKeyboardModifiers(); };
 }
 
 EntityActions::~EntityActions() = default;
@@ -154,6 +162,11 @@ EntityActions::~EntityActions() = default;
 void EntityActions::setExec(std::function<bool(QDialog &)> exec) { d->exec = std::move(exec); }
 
 void EntityActions::setConfirm(std::function<bool(const QString &)> confirm) { d->confirm = std::move(confirm); }
+
+void EntityActions::setModifiers(std::function<Qt::KeyboardModifiers()> modifiers)
+{
+    d->modifiers = std::move(modifiers);
+}
 
 // Creating.
 
@@ -300,6 +313,115 @@ void EntityActions::renameDashboard(const QString &taskId, const QString &dashbo
             entry.name = name;
     }
     d->model.setTask(changed);
+}
+
+// The trash.
+
+void EntityActions::trashProject(const QString &id)
+{
+    const Project *project = d->model.project(id);
+    if (!project || project->isTrashed())
+        return;
+    Project changed = *project;
+    changed.trashedAt = Private::now();
+    d->model.setProject(changed);
+}
+
+void EntityActions::trashTask(const QString &id)
+{
+    const Task *task = d->model.task(id);
+    if (!task || task->isTrashed())
+        return;
+    Task changed = *task;
+    changed.trashedAt = Private::now();
+    d->model.setTask(changed);
+}
+
+void EntityActions::restoreProject(const QString &id)
+{
+    const Project *project = d->model.project(id);
+    if (!project || !project->isTrashed())
+        return;
+    Project changed = *project;
+    changed.trashedAt.clear();
+    d->model.setProject(changed);
+}
+
+// The project first, so the task never shows under a project in the trash.
+void EntityActions::restoreTask(const QString &id)
+{
+    const Task *task = d->model.task(id);
+    if (!task)
+        return;
+    restoreProject(task->projectId);
+    task = d->model.task(id);
+    if (!task || !task->isTrashed())
+        return;
+    Task changed = *task;
+    changed.trashedAt.clear();
+    d->model.setTask(changed);
+}
+
+int EntityActions::trashedProjectCount() const
+{
+    int count = 0;
+    for (const Group *group : d->model.groups()) {
+        for (const Project *project : d->model.projectsOfGroup(group->id))
+            count += project->isTrashed() ? 1 : 0;
+    }
+    return count;
+}
+
+int EntityActions::trashedTaskCount() const
+{
+    int count = 0;
+    for (const Group *group : d->model.groups()) {
+        for (const Project *project : d->model.projectsOfGroup(group->id)) {
+            for (const Task *task : d->model.tasksOfProject(project->id))
+                count += d->model.taskInTrash(*task) ? 1 : 0;
+        }
+    }
+    return count;
+}
+
+void EntityActions::emptyTrash()
+{
+    const int projectCount = trashedProjectCount();
+    const int taskCount = trashedTaskCount();
+    if (projectCount == 0 && taskCount == 0)
+        return;
+    const QString projectsText = countText(projectCount, tr("1 project"), tr("%1 projects"));
+    const QString tasksText = countText(taskCount, tr("1 task"), tr("%1 tasks"));
+    QString what;
+    if (projectCount == 0)
+        what = tasksText;
+    else if (taskCount == 0)
+        what = projectsText;
+    else
+        what = tr("%1 and %2").arg(projectsText, tasksText);
+    if (!d->confirm(tr("Permanently delete %1 in the trash?").arg(what)))
+        return;
+
+    // The ids first, since each removal changes the model. A project takes
+    // its tasks with it.
+    QStringList projectIds;
+    QStringList taskIds;
+    for (const Group *group : d->model.groups()) {
+        for (const Project *project : d->model.projectsOfGroup(group->id)) {
+            if (project->isTrashed()) {
+                projectIds.append(project->id);
+                continue;
+            }
+            for (const Task *task : d->model.tasksOfProject(project->id)) {
+                if (task->isTrashed())
+                    taskIds.append(task->id);
+            }
+        }
+    }
+    for (const QString &id : taskIds)
+        d->model.removeTask(id);
+    for (const QString &id : projectIds)
+        d->model.removeProject(id);
 }
 
 // Deleting.
@@ -493,7 +615,13 @@ void EntityActions::fillMenu(QMenu *menu, SidebarModel::Kind kind, const QString
         menu->addAction(tr("Edit project…"), this, [this, id] { editProject(id); });
         addPriorityMenu(menu, this, id, project->priority);
         menu->addSeparator();
-        menu->addAction(tr("Delete project…"), this, [this, id] { removeProject(id); });
+        // Shift held when the command runs deletes for good, after a confirmation.
+        menu->addAction(tr("Delete project…"), this, [this, id] {
+            if (d->shiftHeld())
+                removeProject(id);
+            else
+                trashProject(id);
+        });
         break;
     }
     case SidebarModel::Kind::Task: {
@@ -507,7 +635,12 @@ void EntityActions::fillMenu(QMenu *menu, SidebarModel::Kind kind, const QString
         addPriorityMenu(menu, this, id, task->priority);
         addStateMenu(menu, this, id, task->state);
         menu->addSeparator();
-        menu->addAction(tr("Delete task…"), this, [this, id] { removeTask(id); });
+        menu->addAction(tr("Delete task…"), this, [this, id] {
+            if (d->shiftHeld())
+                removeTask(id);
+            else
+                trashTask(id);
+        });
         break;
     }
     case SidebarModel::Kind::ItemList:
@@ -541,6 +674,22 @@ void EntityActions::fillMenu(QMenu *menu, SidebarModel::Kind kind, const QString
         remove->setEnabled(task->dashboards.size() > 1);
         break;
     }
+    }
+}
+
+void EntityActions::fillTrashMenu(QMenu *menu, SidebarModel::Kind kind, const QString &id,
+                                  const QString & /*taskId*/)
+{
+    if (!menu)
+        return;
+    if (kind == SidebarModel::Kind::Project && d->model.project(id)) {
+        menu->addAction(tr("Restore"), this, [this, id] { restoreProject(id); });
+        menu->addSeparator();
+        menu->addAction(tr("Delete permanently…"), this, [this, id] { removeProject(id); });
+    } else if (kind == SidebarModel::Kind::Task && d->model.task(id)) {
+        menu->addAction(tr("Restore"), this, [this, id] { restoreTask(id); });
+        menu->addSeparator();
+        menu->addAction(tr("Delete permanently…"), this, [this, id] { removeTask(id); });
     }
 }
 

@@ -39,6 +39,7 @@ Each file records one design decision: what was decided, what else was considere
 | [0031](0031-conflict-copies-by-id-prefix.md) | Conflict copies are recognised by the id at the start of their name | Accepted |
 | [0032](0032-paste-images-into-root-dashboards.md) | Pasting an image into a root dashboard asks for its task | Accepted |
 | [0034](0034-manual-order-in-the-sidebar.md) | The sidebar keeps the manual order; priority is a marker | Accepted |
+| [0036](0036-trash-for-tasks-and-projects.md) | Deleted tasks and projects go to a trash | Accepted |
 
 ## Template
 
