@@ -3,6 +3,8 @@
 #include "ui/SidebarDelegate.h"
 #include "ui/SidebarModel.h"
 
+#include <QDragMoveEvent>
+#include <QDropEvent>
 #include <QEvent>
 #include <QHBoxLayout>
 #include <QIcon>
@@ -12,6 +14,7 @@
 #include <QSet>
 #include <QTabBar>
 #include <QToolButton>
+#include <QToolTip>
 #include <QTreeView>
 #include <QVBoxLayout>
 
@@ -47,6 +50,67 @@ protected:
 
 private:
     std::function<void()> m_onDoubleClick;
+};
+
+// The tree. While a project or task is dragged across a priority boundary, a
+// tooltip says which level it will take, since the drop changes its priority.
+class SidebarTree : public QTreeView
+{
+public:
+    using QTreeView::QTreeView;
+
+protected:
+    void dragMoveEvent(QDragMoveEvent *event) override
+    {
+        QTreeView::dragMoveEvent(event);
+        const QString hint = event->isAccepted() ? dropHint(event) : QString();
+        if (hint.isEmpty())
+            QToolTip::hideText();
+        else
+            QToolTip::showText(viewport()->mapToGlobal(event->position().toPoint() + QPoint(16, 16)), hint,
+                               viewport());
+    }
+
+    void dragLeaveEvent(QDragLeaveEvent *event) override
+    {
+        QToolTip::hideText();
+        QTreeView::dragLeaveEvent(event);
+    }
+
+    void dropEvent(QDropEvent *event) override
+    {
+        QToolTip::hideText();
+        QTreeView::dropEvent(event);
+    }
+
+private:
+    // The row and parent of the drop, as QAbstractItemView works them out from
+    // the drop indicator.
+    QString dropHint(const QDropEvent *event) const
+    {
+        const auto *sidebarModel = qobject_cast<const SidebarModel *>(model());
+        if (!sidebarModel)
+            return {};
+        const QModelIndex index = indexAt(event->position().toPoint());
+        int row = -1;
+        QModelIndex parent = index;
+        switch (dropIndicatorPosition()) {
+        case AboveItem:
+            row = index.row();
+            parent = index.parent();
+            break;
+        case BelowItem:
+            row = index.row() + 1;
+            parent = index.parent();
+            break;
+        case OnItem:
+            break;
+        case OnViewport:
+            parent = rootIndex();
+            break;
+        }
+        return sidebarModel->dropHint(event->mimeData(), row, parent);
+    }
 };
 
 } // namespace
@@ -171,7 +235,7 @@ Sidebar::Sidebar(const Model &model, const ItemTypeRegistry &types, QWidget *par
     connect(d->focus, &QPushButton::clicked, this, &Sidebar::focusRequested);
 
     // The tree.
-    d->tree = new QTreeView(this);
+    d->tree = new SidebarTree(this);
     d->tree->setModel(d->model);
     d->tree->setItemDelegate(new SidebarDelegate(d->tree));
     d->tree->setHeaderHidden(true);

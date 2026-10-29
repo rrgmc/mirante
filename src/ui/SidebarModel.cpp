@@ -528,6 +528,21 @@ bool SidebarModel::dropMimeData(const QMimeData *data, Qt::DropAction action, in
     return true;
 }
 
+QString SidebarModel::dropHint(const QMimeData *data, int row, const QModelIndex &parent) const
+{
+    const std::optional<Move> move = d->move(data, row, parent);
+    if (!move || move->kind == Kind::Group)
+        return {};
+    const Project *project = move->kind == Kind::Project ? d->model.project(move->id) : nullptr;
+    const Task *task = move->kind == Kind::Task ? d->model.task(move->id) : nullptr;
+    if (!project && !task)
+        return {};
+    const Priority current = project ? project->priority : task->priority;
+    if (int(current) == move->priority)
+        return {};
+    return tr("Becomes %1").arg(priorityName(Priority(move->priority)));
+}
+
 // A drag carries one entry: the first draggable one among the indexes. An
 // item or a dashboard is a DragMime reference, which dashboards accept; a
 // dashboard is dropped as a task cell showing that dashboard. A group, project

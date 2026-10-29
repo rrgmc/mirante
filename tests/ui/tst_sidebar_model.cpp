@@ -362,6 +362,17 @@ void TestSidebarModel::drops()
     // A drop changes nothing itself.
     QCOMPARE(childIds(sidebar, {}), (QStringList{"g1", "g2"}));
     QCOMPARE(childIds(sidebar, project1), (QStringList{"a", "b", "c", "d"}));
+
+    // The hint names the new level only when the priority changes.
+    const auto hint = [&sidebar](const QString &id, int row, const QModelIndex &parent) {
+        std::unique_ptr<QMimeData> data(sidebar.mimeData({sidebar.indexOf(id)}));
+        return sidebar.dropHint(data.get(), row, parent);
+    };
+    QCOMPARE(hint("a", 3, project1), QStringLiteral("Becomes Normal"));
+    QCOMPARE(hint("d", 0, project1), QStringLiteral("Becomes High"));
+    QVERIFY(hint("a", 2, project1).isEmpty());
+    QVERIFY(hint("a", 0, sidebar.indexOf(p2.id)).isEmpty());
+    QVERIFY(hint("g2", 0, {}).isEmpty());
 }
 
 // The tree follows the model's setters and removers.
