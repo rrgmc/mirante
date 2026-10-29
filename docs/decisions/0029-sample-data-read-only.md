@@ -1,6 +1,6 @@
 # 0029. The sample data is read-only
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-10-28
 
 ## Context
