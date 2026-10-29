@@ -18,6 +18,8 @@ namespace mirante {
 //   when it is the current tab. Its text keeps the normal text colour.
 // - A tab's close button is on the right. It shows on the current tab and on
 //   the tab under the mouse only.
+// - Form layouts fill their dialog and sit at its top left, as on Windows and
+//   Linux, instead of keeping fields at their natural width in a centred form.
 class AppStyle : public QProxyStyle
 {
     Q_OBJECT
