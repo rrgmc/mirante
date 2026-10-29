@@ -44,6 +44,11 @@ public:
     // Cell headers show it in a small pill with the icon. Defaults to name().
     virtual QString shortName() const { return name(); }
 
+    // One or two plain sentences that say what an item of the type shows,
+    // such as "A web page, signed in with the item's profile." Help > Modules
+    // shows it under the type's name. Defaults to none. See docs/item-types.md.
+    virtual QString description() const { return {}; }
+
     // True if only one cell may show the item at a time. See docs/item-types.md#the-view.
     virtual bool singleView() const { return false; }
 

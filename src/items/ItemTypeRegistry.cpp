@@ -41,6 +41,7 @@ struct ItemTypeRegistry::Private
     struct Module
     {
         QString name;   // empty when the module gave none
+        QString description;
         std::vector<std::unique_ptr<SettingsScreen>> screens;
         std::unique_ptr<Settings> settings;
     };
@@ -124,6 +125,11 @@ void ItemTypeRegistry::registerModule(const QString &moduleId, RegisterFunction 
 
         void setModuleName(const QString &name) override { m_registry.modules[m_moduleId].name = name; }
 
+        void setModuleDescription(const QString &description) override
+        {
+            m_registry.modules[m_moduleId].description = description;
+        }
+
         void addSettingsScreen(std::unique_ptr<SettingsScreen> screen) override
         {
             m_registry.addScreen(m_moduleId, std::move(screen));
@@ -201,6 +207,22 @@ QString ItemTypeRegistry::moduleName(const QString &moduleId) const
     if (found == d->modules.end() || found->second.name.isEmpty())
         return moduleId;
     return found->second.name;
+}
+
+QString ItemTypeRegistry::moduleDescription(const QString &moduleId) const
+{
+    const auto found = d->modules.find(moduleId);
+    return found == d->modules.end() ? QString() : found->second.description;
+}
+
+std::vector<const ItemType *> ItemTypeRegistry::moduleTypes(const QString &moduleId) const
+{
+    std::vector<const ItemType *> result;
+    for (const ItemType *type : types()) {
+        if (idBelongsToModule(type->id(), moduleId))
+            result.push_back(type);
+    }
+    return result;
 }
 
 std::vector<const SettingsScreen *> ItemTypeRegistry::settingsScreens(const QString &moduleId) const

@@ -14,6 +14,7 @@ A module registers each of its types in the `ItemTypeRegistry` with:
 |---|---|
 | `id` | Stable string stored in task files, such as `gitlab.mr.summary`. It starts with the module id. |
 | `name`, `icon` | Shown in menus and cell headers |
+| `description` | One or two plain sentences that say what an item of the type shows, such as "The web page at an address, signed in with the item's profile." The [Modules window](ui.md#modules-window) shows it under the type's name. Optional in the interface, but every type of the modules in this repository has one, and their tests check it. See [decision 0056](decisions/0056-modules-window.md). |
 | `shortName` | Optional: a short label, one word if possible, such as "MR" or "Jira". Cell headers show it with the icon in the type pill. Defaults to `name`. See [decision 0033](decisions/0033-cell-header-pills.md). |
 | `fields` | The configuration fields: key, label, type, default, whether it is required, and for a choice its values and labels. The core builds the item dialog's form from them and checks the values. See [decision 0028](decisions/0028-item-fields-in-m3.md). |
 | `fieldsForProfile` | Optional: the fields for an item that uses a given [profile](data-model.md#profile), such as a field whose suggestions come from that profile's module settings. The item dialog builds its form from it. Defaults to `fields`. See [decision 0050](decisions/0050-profiles-hold-logins-connections-and-settings.md). |

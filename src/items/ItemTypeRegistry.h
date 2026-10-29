@@ -58,6 +58,11 @@ public:
     QStringList moduleIds() const;
     // The name the module gave itself, else its id.
     QString moduleName(const QString &moduleId) const;
+    // The description the module gave itself, else empty.
+    QString moduleDescription(const QString &moduleId) const;
+    // The module's item types, sorted by name, as types() sorts them. Empty
+    // for an unknown module.
+    std::vector<const ItemType *> moduleTypes(const QString &moduleId) const;
     // The module's settings screens, in the order it added them. Empty for an
     // unknown module.
     std::vector<const SettingsScreen *> settingsScreens(const QString &moduleId) const;
