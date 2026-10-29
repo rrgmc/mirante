@@ -151,13 +151,16 @@ If the same item is shown in two places, each place has its own live view. See [
 
 Focus answers "what should I work on now?", across all projects.
 
-- It lists active tasks from all projects, or from one group, chosen with a filter.
+- The Focus entry in the sidebar opens Focus in a "Focus" tab at the start of the root tab bar. There is at most one Focus tab. It can be closed like any other tab.
+- It lists active tasks from all projects, or from one group, chosen in a combo box. The combo box holds "All groups", then the groups in manual order.
+- Each row shows the task title, then its project and group, dimmed, and the [priority](data-model.md#priority) marker of the sidebar. Low tasks are dimmed.
 - **Sort order:**
   1. task priority;
   2. project priority, to break ties;
   3. manual order.
-- A toggle, "Needs attention first", moves tasks with attention badges to the top.
-- A double click opens the task's default dashboard in the preview tab.
+- The list follows changes to groups, projects and tasks as they happen.
+- A double click or `Enter` opens the task's default dashboard in the preview tab.
+- A toggle, "Needs attention first", moves tasks with attention badges to the top. It arrives with attention in M5.
 
 ## Attention
 
