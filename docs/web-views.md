@@ -65,6 +65,16 @@ Some identity providers block sign-in from embedded browsers, and Google is the 
 
 [Milestone M4](roadmap.md#m4-web-views) tests this early, before more is built on web views.
 
+Results on Windows 11, Qt WebEngine 6.8.3, release build:
+
+| Site | How | Result |
+|---|---|---|
+| claude.ai | Google sign-in, with a passkey on a phone through the Windows passkey dialog and its QR code | Works, and the login and the open chat survive a restart (2026-10-29) |
+| gitlab.com | | Not checked yet |
+| Jira Cloud | | Not checked yet |
+
+The debug build cannot be used for these checks: Qt WebEngine's debug libraries stop the claude.ai login page on an internal check. See [page behaviour](#page-behaviour).
+
 ## Built-in panels
 
 Built-in panels are HTML pages shipped with the app. They show data from the [status cache](integrations.md#polling-and-caching).
