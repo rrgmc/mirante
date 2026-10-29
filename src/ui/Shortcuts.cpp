@@ -43,8 +43,9 @@ protected:
     }
 };
 
-// The layer that holds a maximised cell over the content area. If it goes
-// first, for example while the window closes, it gives the cell back.
+// The layer that holds a maximised cell over its host: the main window's
+// content area, or the page of a detached window. If it goes first, for
+// example while the window closes, it gives the cell back.
 class MaximiseLayer : public QWidget
 {
 public:
@@ -115,7 +116,8 @@ struct Shortcuts::Private
     QPointer<QWidget> focused;              // a CellFrame
     QPointer<QWidget> maximised;            // the maximised cell, in the layer
     QPointer<LayoutView> maximisedView;     // the view it came from
-    QPointer<MaximiseLayer> layer;
+    QPointer<MaximiseLayer> layer;          // a child of host
+    QPointer<QWidget> host;                 // the content area, or a detached page
     std::vector<QMetaObject::Connection> maximisedConnections;
 
     std::vector<QPointer<QShortcut>> shortcuts;
@@ -139,6 +141,43 @@ struct Shortcuts::Private
         focused = cell;
         if (auto *frame = qobject_cast<CellFrame *>(cell))
             frame->setCellFocused(true);
+    }
+
+    bool inMainWindow(const QWidget *cell) const { return cell && cell->window() == window; }
+
+    // What a maximised cell covers. In the main window it is the content area.
+    // In a detached window it is that window's page, so the cell stays in its
+    // own window and the toolbar stays usable.
+    QWidget *hostOf(QWidget *cell) const
+    {
+        if (!cell)
+            return nullptr;
+        QWidget *top = cell->window();
+        if (top == window)
+            return content;
+        for (QWidget *w = cell; w; w = w->parentWidget()) {
+            if (w->parentWidget() == top)
+                return w;
+        }
+        return nullptr;
+    }
+
+    // Makes the layer a child of target, in place of one on another host.
+    void setHost(QWidget *target)
+    {
+        if (layer && host == target)
+            return;
+        if (layer) {
+            layer->onDestroy = nullptr;
+            delete layer.data();
+        }
+        if (host && host != content)
+            host->removeEventFilter(&watcher);
+        host = target;
+        if (host != content)
+            host->installEventFilter(&watcher);
+        layer = new MaximiseLayer(host);
+        layer->onDestroy = [this] { restore(false); };
     }
 
     void onFocusChanged(QWidget *now)
@@ -251,20 +290,18 @@ struct Shortcuts::Private
     void maximise(QWidget *cell)
     {
         LayoutView *view = ancestorOf<LayoutView>(cell);
-        if (!cell || !view || !content)
+        QWidget *target = hostOf(cell);
+        if (!cell || !view || !target)
             return;
         const auto path = view->pathOf(cell);
         if (!path)
             return;
 
         view->detachCell(*path);
-        if (!layer) {
-            layer = new MaximiseLayer(content);
-            layer->onDestroy = [this] { restore(false); };
-        }
+        setHost(target);
         layer->layout()->addWidget(cell);
         cell->show();
-        layer->setGeometry(content->rect());
+        layer->setGeometry(target->rect());
         layer->raise();
         layer->show();
         maximised = cell;
@@ -326,8 +363,8 @@ struct Shortcuts::Private
 
     void onEvent(QObject *watched, QEvent *event)
     {
-        if (event->type() == QEvent::Resize && watched == content && layer)
-            layer->setGeometry(content->rect());
+        if (event->type() == QEvent::Resize && layer && host && watched == host)
+            layer->setGeometry(host->rect());
     }
 
     void add(const QKeySequence &keys, std::function<void()> action)
@@ -354,7 +391,11 @@ Shortcuts::Shortcuts(MainWindow *window)
     d->connections.push_back(connect(qApp, &QApplication::focusChanged, this,
                                      [this](QWidget * /*old*/, QWidget *now) { d->onFocusChanged(now); }));
     if (RootTabBar *bar = window->rootTabBar()) {
-        d->connections.push_back(connect(bar, &QTabBar::currentChanged, this, [this] { d->restore(false); }));
+        // A cell maximised in a detached window stays so.
+        d->connections.push_back(connect(bar, &QTabBar::currentChanged, this, [this] {
+            if (d->maximised && d->inMainWindow(d->maximised))
+                d->restore(false);
+        }));
     }
 
     d->add(QKeySequence(Qt::CTRL | Qt::ALT | Qt::Key_Left), [this] { d->move(Direction::Left); });
@@ -366,11 +407,15 @@ Shortcuts::Shortcuts(MainWindow *window)
     d->add(QKeySequence(Qt::CTRL | Qt::Key_PageDown), [this] { d->switchRootTab(1); });
     d->add(QKeySequence(Qt::CTRL | Qt::Key_PageUp), [this] { d->switchRootTab(-1); });
     d->add(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_M), [this] {
-        // The maximised cell may have lost the focus, for example to the tab bar.
-        d->toggleMaximise(d->maximised ? d->maximised.data() : d->focused.data());
+        // The maximised cell may have lost the focus, for example to the tab
+        // bar. The shortcut acts in the main window only.
+        QWidget *cell = d->inMainWindow(d->maximised) ? d->maximised.data() : d->focused.data();
+        if (d->inMainWindow(cell))
+            d->toggleMaximise(cell);
     });
     d->add(QKeySequence(Qt::CTRL | Qt::Key_W), [this] {
-        d->restore(false);
+        if (d->inMainWindow(d->maximised))
+            d->restore(false);
         d->window->closeCurrentTab();
     });
 }
@@ -387,6 +432,8 @@ Shortcuts::~Shortcuts()
     d->shortcuts.clear();
     if (d->content)
         d->content->removeEventFilter(&d->watcher);
+    if (d->host && d->host != d->content)
+        d->host->removeEventFilter(&d->watcher);
     d->watcher.handler = nullptr;
 
     d->restore(false);
