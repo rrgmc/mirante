@@ -59,6 +59,16 @@ Deleted projects and tasks go to the trash first. See [decision 0036](decisions/
 - Tabs of a task in the trash close, as for a deleted task.
 - A dashboard cell that shows a task in the trash, or an item of one, reads "In trash" instead of its content. It keeps its reference, so a restore brings the content back. A task cell changes at once; an item cell of a root dashboard changes when the dashboard is next built, such as when its tab opens.
 
+## Group dialog
+
+Creating or editing a group opens the group dialog. It has the group's name and two sections. OK is refused while the name is empty.
+
+- **Connections.** A table of the group's [connections](data-model.md#connection), with Add connection and Remove connection. Each row has a kind, a name and a base URL, edited in place. The kinds offered are those that the item types of this build use, from `ItemTypeRegistry::connectionKinds()`. A check box in the Default column makes a connection the group default for its kind, in place of any other; unchecking it leaves the kind without a default. The first connection of a kind becomes its default. Removing the default connection, or changing its kind, clears that default. A new connection gets a new UUID. OK is refused until every connection has a name and a base URL that starts with `https://` or `http://`. See [decision 0038](decisions/0038-read-connections-in-m4.md).
+- A connection of a kind that no item type in this build uses is shown read-only, with a tooltip that says so. It cannot be removed, and it is saved unchanged, with its `fields` and any unknown fields. This keeps connections that another device's modules use.
+- **Sites in the shared profile.** A list of host names, such as `acme.atlassian.net`, with Add site and Remove site. They are stored in the group's `profileOverrides` with the value `"shared"`. A short text explains that these sites share one login across all groups, and that each module still has its own login. See [decision 0040](decisions/0040-profiles-per-group-and-module.md). Hosts are saved in lowercase; a pasted URL gives its host; blank and repeated entries are dropped. Overrides with any other value are kept as they are.
+
+Tokens, the fields of each kind and testing a connection come in M5.
+
 ## Window
 
 The window opens centred on the screen, at the size it had when it was last closed on this device, maximized if it was. The sidebar width is kept too. The app's icon, a temporary one, is a blue square with three dashboard panes.

@@ -1,6 +1,7 @@
 // Tests the group, project, task, item and dashboard dialogs: values read back,
-// refusal of an empty name, the one main folder, and the item editor paths: a
-// form from fields, a type's own editor, and an item of a missing module.
+// refusal of an empty name, the group's connections and shared sites, the one
+// main folder, and the item editor paths: a form from fields, a type's own
+// editor, and an item of a missing module.
 #include "core/DeviceSettings.h"
 #include "core/Model.h"
 #include "core/Store.h"
@@ -19,6 +20,7 @@
 #include <QComboBox>
 #include <QLabel>
 #include <QLineEdit>
+#include <QListWidget>
 #include <QPushButton>
 #include <QSettings>
 #include <QStandardItemModel>
@@ -142,6 +144,9 @@ private slots:
     void cleanup();
 
     void group();
+    void groupConnectionsWithoutKinds();
+    void groupConnections();
+    void groupSharedSites();
     void project();
     void projectFolders();
     void projectMainFolder();
@@ -190,6 +195,152 @@ void TestDialogs::group()
     QCOMPARE(dialog.result(), int(QDialog::Accepted));
     Group expected = original;
     expected.name = QStringLiteral("Office");
+    QCOMPARE(dialog.value(), expected);
+}
+
+void TestDialogs::groupConnectionsWithoutKinds()
+{
+    // No kinds are offered, so every connection is shown read-only and kept.
+    const Group original = *model.group(workGroup);
+    GroupDialog dialog(original);
+    auto *table = dialog.findChild<QTableWidget *>(QStringLiteral("connections"));
+    QCOMPARE(table->rowCount(), 5);
+    QCOMPARE(table->item(4, 0)->text(), QStringLiteral("timetrack"));
+    QVERIFY(!(table->item(0, 1)->flags() & Qt::ItemIsEditable));
+    QVERIFY(!(table->item(0, 3)->flags() & Qt::ItemIsEnabled));
+    QCOMPARE(table->item(0, 3)->checkState(), Qt::Checked);   // the gitlab default
+    QCOMPARE(table->item(1, 3)->checkState(), Qt::Unchecked);
+    QVERIFY(!dialog.findChild<QPushButton *>(QStringLiteral("addConnection"))->isEnabled());
+    auto *remove = dialog.findChild<QPushButton *>(QStringLiteral("removeConnection"));
+    table->setCurrentCell(1, 1);
+    QVERIFY(!remove->isEnabled());
+    remove->click();
+
+    // Their fields and extra survive, and OK is not refused for them.
+    dialog.accept();
+    QCOMPARE(dialog.result(), int(QDialog::Accepted));
+    QCOMPARE(dialog.value(), original);
+}
+
+void TestDialogs::groupConnections()
+{
+    const Group original = *model.group(workGroup);
+    const QString gitlab = QStringLiteral("gitlab");
+    const QString cloud = QStringLiteral("jira.cloud");
+    const QString dc = QStringLiteral("jira.dc");
+    GroupDialog dialog(original);
+    dialog.setConnectionKinds({gitlab, cloud, dc});
+    QCOMPARE(dialog.value(), original);
+
+    // Rows: gitlab.com, Acme self-hosted, Jira Cloud, Jira DC, time tracking.
+    auto *table = dialog.findChild<QTableWidget *>(QStringLiteral("connections"));
+    const auto kindBox = [table](int row) { return qobject_cast<QComboBox *>(table->cellWidget(row, 0)); };
+    const auto check = [table](int row) { return table->item(row, 3); };
+    QVERIFY(kindBox(0));
+    QCOMPARE(kindBox(0)->count(), 3);
+    QCOMPARE(kindBox(0)->currentText(), gitlab);
+    QVERIFY(!kindBox(4));   // time tracking: no type uses it
+    QVERIFY(!(table->item(4, 1)->flags() & Qt::ItemIsEditable));
+    QVERIFY(table->item(1, 1)->flags() & Qt::ItemIsEditable);
+
+    // Edit in place.
+    table->item(1, 1)->setText(QStringLiteral(" Acme GitLab "));
+    table->item(1, 2)->setText(QStringLiteral("https://git.acme.example"));
+    Group expected = original;
+    expected.connections[1].name = QStringLiteral("Acme GitLab");
+    expected.connections[1].baseUrl = QStringLiteral("https://git.acme.example");
+    QCOMPARE(dialog.value(), expected);
+
+    // One default per kind. Unchecking leaves the kind without one.
+    check(1)->setCheckState(Qt::Checked);
+    QCOMPARE(dialog.value().defaultConnections.value(gitlab), original.connections[1].id);
+    QCOMPARE(check(0)->checkState(), Qt::Unchecked);
+    check(1)->setCheckState(Qt::Unchecked);
+    QVERIFY(!dialog.value().defaultConnections.contains(gitlab));
+    check(1)->setCheckState(Qt::Checked);
+
+    // Removing the default clears it. A read-only connection is not removed.
+    auto *remove = dialog.findChild<QPushButton *>(QStringLiteral("removeConnection"));
+    table->setCurrentCell(4, 1);
+    QVERIFY(!remove->isEnabled());
+    table->setCurrentCell(1, 1);
+    QVERIFY(remove->isEnabled());
+    remove->click();
+    QCOMPARE(table->rowCount(), 4);
+    QVERIFY(!dialog.value().defaultConnections.contains(gitlab));
+
+    // Changing the kind of a default clears it. The new kind keeps its own.
+    kindBox(1)->setCurrentText(dc);
+    QCOMPARE(dialog.value().connections[1].kind, dc);
+    QVERIFY(!dialog.value().defaultConnections.contains(cloud));
+    QCOMPARE(dialog.value().defaultConnections.value(dc), original.connections[3].id);
+
+    // A new connection gets an id, the first kind, and becomes the default of
+    // a kind without one.
+    dialog.findChild<QPushButton *>(QStringLiteral("addConnection"))->click();
+    QCOMPARE(table->rowCount(), 5);
+    const Connection added = dialog.value().connections.back();
+    QVERIFY(!added.id.isEmpty());
+    QCOMPARE(added.kind, gitlab);
+    QCOMPARE(dialog.value().defaultConnections.value(gitlab), added.id);
+
+    // It needs a name and a web base URL.
+    dialog.setName(QStringLiteral("Work"));
+    dialog.accept();
+    QCOMPARE(dialog.result(), int(QDialog::Rejected));
+    table->item(4, 1)->setText(QStringLiteral("GitLab (new)"));
+    table->item(4, 2)->setText(QStringLiteral("gitlab.example"));
+    dialog.accept();
+    QCOMPARE(dialog.result(), int(QDialog::Rejected));
+    table->item(4, 2)->setText(QStringLiteral("https://gitlab.example"));
+    dialog.accept();
+    QCOMPARE(dialog.result(), int(QDialog::Accepted));
+
+    expected = original;
+    expected.connections.erase(expected.connections.begin() + 1);
+    expected.connections[1].kind = dc;
+    Connection newConnection;
+    newConnection.id = added.id;
+    newConnection.kind = gitlab;
+    newConnection.name = QStringLiteral("GitLab (new)");
+    newConnection.baseUrl = QStringLiteral("https://gitlab.example");
+    expected.connections.push_back(newConnection);
+    expected.defaultConnections.remove(cloud);
+    expected.defaultConnections.insert(gitlab, added.id);
+    QCOMPARE(dialog.value(), expected);   // time tracking and its default unchanged
+}
+
+void TestDialogs::groupSharedSites()
+{
+    Group original = *model.group(workGroup);
+    original.profileOverrides.insert(QStringLiteral("own.example"), QStringLiteral("group"));
+    GroupDialog dialog(original);
+    QCOMPARE(dialog.value(), original);
+
+    auto *list = dialog.findChild<QListWidget *>(QStringLiteral("sharedSites"));
+    QCOMPARE(list->count(), 2);   // the override that is not "shared" is not listed
+    QCOMPARE(list->item(0)->text(), QStringLiteral("figma.com"));
+    QCOMPARE(list->item(1)->text(), QStringLiteral("www.w3.org"));
+
+    // Remove one, add two: a host in capitals and a pasted URL. A blank one
+    // and a repeat are dropped.
+    list->setCurrentRow(0);
+    dialog.findChild<QPushButton *>(QStringLiteral("removeSite"))->click();
+    auto *add = dialog.findChild<QPushButton *>(QStringLiteral("addSite"));
+    add->click();
+    list->item(list->count() - 1)->setText(QStringLiteral(" Acme.Atlassian.net "));
+    add->click();
+    list->item(list->count() - 1)->setText(QStringLiteral("https://gitlab.com/acme/api/-/merge_requests"));
+    add->click();
+    add->click();
+    list->item(list->count() - 1)->setText(QStringLiteral("www.w3.org"));
+
+    // The other override is kept as it is.
+    Group expected = original;
+    expected.profileOverrides.remove(QStringLiteral("figma.com"));
+    expected.profileOverrides.insert(QStringLiteral("acme.atlassian.net"), QStringLiteral("shared"));
+    expected.profileOverrides.insert(QStringLiteral("gitlab.com"), QStringLiteral("shared"));
+    QCOMPARE(dialog.value().profileOverrides, expected.profileOverrides);
     QCOMPARE(dialog.value(), expected);
 }
 

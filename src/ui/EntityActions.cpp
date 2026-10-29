@@ -176,6 +176,7 @@ QString EntityActions::newGroup()
     group.id = edits::newId();
     group.order = orderAfterLast(d->model.groups());
     GroupDialog dialog(group, d->dialogParent);
+    dialog.setConnectionKinds(d->types.connectionKinds());
     if (!d->exec(dialog))
         return {};
     d->model.setGroup(dialog.value());
@@ -255,6 +256,7 @@ void EntityActions::editGroup(const QString &id)
     if (!group)
         return;
     GroupDialog dialog(*group, d->dialogParent);
+    dialog.setConnectionKinds(d->types.connectionKinds());
     if (d->exec(dialog))
         d->model.setGroup(dialog.value());
 }
