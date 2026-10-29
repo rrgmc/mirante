@@ -12,6 +12,7 @@
 #include "layout/CellHoverTracker.h"
 #include "layout/CellStyle.h"
 #include "layout/DashboardCellFactory.h"
+#include "layout/HeaderPill.h"
 #include "layout/LayoutEditor.h"
 #include "layout/LayoutServices.h"
 #include "layout/LayoutView.h"
@@ -214,14 +215,35 @@ struct MainWindow::Private
         return project.isEmpty() ? pageTitle(page) : MainWindow::tr("%1 / %2").arg(project, pageTitle(page));
     }
 
-    // The header of a task dashboard or item page: "Task / Dashboard", then
-    // the project, dimmed.
+    // The header of a task dashboard or item page, in pills: the task, then
+    // the dashboard with its icon or the item with its type's icon and
+    // colour, then the project in a grey pill.
     void updatePageHeader(DashboardPage *page) const
     {
         if (!page->title)
             return;
-        page->title->setText(pageTitle(page));
+        const Task *task = model->task(page->ref.taskId);
+        page->title->setText(task ? task->title : QString());
+        QString part;
+        if (page->itemId.isEmpty()) {
+            const Dashboard *dashboard = model->taskDashboard(page->ref.taskId, page->ref.dashboardId);
+            part = dashboard ? dashboard->name : QString();
+            page->part->setFill(HeaderPill::Fill::Neutral);
+            page->part->setIcon(QIcon(QStringLiteral(":/icons/dashboard.svg")));
+        } else if (const Item *item = model->item(page->ref.taskId, page->itemId)) {
+            const ItemType &type = types->type(item->type);
+            part = item->name.isEmpty() ? type.name() : item->name;
+            if (types->contains(item->type))
+                page->part->setFill(HeaderPill::Fill::Module, item->type.section(QLatin1Char('.'), 0, 0));
+            else
+                page->part->setFill(HeaderPill::Fill::Neutral);
+            page->part->setIcon(type.icon());
+        }
+        page->part->setText(part);
+        page->part->setToolTip(part);
+        page->title->setToolTip(page->title->text());
         page->context->setText(pageProject(page));
+        page->headerRow->refresh();
     }
 
     // Task dashboard tabs carry the dashboard icon and item tabs the item's

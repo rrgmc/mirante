@@ -113,6 +113,7 @@ struct TaskCell::Private
     TaskHeader *header = nullptr;
     HeaderRow *row = nullptr;
     HeaderPill *title = nullptr;
+    HeaderPill *dashboardPill = nullptr;
     HeaderPill *context = nullptr;
     QToolButton *openButton = nullptr;
     QLabel *removedLabel = nullptr;
@@ -142,6 +143,8 @@ void TaskCell::Private::refresh()
     if (removed) {
         title->setText(trashed ? current->title : TaskCell::tr("Removed task"));
         title->setToolTip(QString());
+        dashboardPill->clear();
+        dashboardPill->setToolTip(QString());
         context->clear();
         context->setToolTip(QString());
         row->refresh();
@@ -152,14 +155,16 @@ void TaskCell::Private::refresh()
     const QString chosen = chooseDashboard(*current, dashboardId);
     const bool rebuild = !view || chosen != dashboardId;
     dashboardId = chosen;
-    // The cell shows one task dashboard, so its title names the task and it.
+    // The cell shows one task dashboard, so its header names the task, then
+    // the dashboard in a pill of its own.
     QString dashboardName;
     for (const Dashboard &dashboard : current->dashboards) {
         if (dashboard.id == dashboardId)
             dashboardName = dashboard.name;
     }
-    title->setText(dashboardName.isEmpty() ? current->title
-                                           : TaskCell::tr("%1 / %2").arg(current->title, dashboardName));
+    title->setText(current->title);
+    dashboardPill->setText(dashboardName);
+    dashboardPill->setToolTip(dashboardName);
     // Tasks from any project share a root dashboard, so the header names the
     // task's project after the title, as item cells name where they come from.
     const Project *project = services.model->project(current->projectId);
@@ -316,16 +321,23 @@ TaskCell::TaskCell(const LayoutServices &services, const DashboardRef &rootDashb
     font.setBold(true);
     d->title->setFont(font);
 
+    // The dashboard, with the dashboard icon.
+    d->dashboardPill = new HeaderPill;
+    d->dashboardPill->setObjectName(QStringLiteral("taskDashboard"));
+    d->dashboardPill->setFill(HeaderPill::Fill::Neutral);
+    d->dashboardPill->setIcon(QIcon(QStringLiteral(":/icons/dashboard.svg")));
+
     // The task's project, in the grey pill that item cells use for where an
-    // item comes from. It gives way first when the header is narrow.
+    // item comes from. It gives way first when the header is narrow, then the
+    // dashboard.
     d->context = new HeaderPill;
     d->context->setObjectName(QStringLiteral("taskContext"));
     d->context->setFill(HeaderPill::Fill::Neutral);
     d->context->setForegroundRole(QPalette::PlaceholderText);
 
     d->row = new HeaderRow(d->header);
-    d->row->setParts({d->title, d->context});
-    d->row->setShrinkOrder({d->context, d->title});
+    d->row->setParts({d->title, d->dashboardPill, d->context});
+    d->row->setShrinkOrder({d->context, d->dashboardPill, d->title});
     headerLayout->addWidget(d->row, 1);
 
     d->openButton = new QToolButton(d->header);
