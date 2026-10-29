@@ -32,6 +32,10 @@ public:
 
     virtual QIcon icon() const = 0;
 
+    // A short label for the type, one word if possible, such as "MR" or "Jira".
+    // Cell headers show it in a small pill with the icon. Defaults to name().
+    virtual QString shortName() const { return name(); }
+
     // True if only one cell may show the item at a time. See docs/item-types.md#the-view.
     virtual bool singleView() const { return false; }
 

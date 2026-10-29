@@ -3,6 +3,7 @@
 #include "items/UnknownItemType.h"
 #include "layout/CellFrameSingleView.h"
 #include "layout/CellStyle.h"
+#include "layout/HeaderPill.h"
 #include "layout/SingleViewTracker.h"
 
 #include <mirante/ItemType.h>
@@ -88,7 +89,8 @@ struct CellFrame::Private
     bool focused = false;
 
     CellHeader *header = nullptr;
-    QLabel *context = nullptr;
+    HeaderRow *row = nullptr;
+    HeaderPill *context = nullptr;
     QStackedWidget *body = nullptr;
     QWidget *elsewhere = nullptr;       // the "Shown in another cell" page
     CellFrameSingleView *singleView = nullptr;
@@ -108,7 +110,7 @@ CellFrame::CellFrame(const std::optional<CellRef> &ref, bool removed, const Item
     layout->setContentsMargins(0, 0, 0, 0);
     layout->setSpacing(0);
 
-    // Header: type icon, item name, menu button.
+    // Header: type pill, item name, place pill, menu button.
     d->header = new CellHeader(this);
     cellstyle::tintHeader(d->header, 0.12);
     d->header->onDrag = [this] { emit dragStarted(); };
@@ -116,27 +118,38 @@ CellFrame::CellFrame(const std::optional<CellRef> &ref, bool removed, const Item
     headerLayout->setContentsMargins(6, 1, 2, 1);
     headerLayout->setSpacing(4);
 
-    auto *icon = new QLabel(d->header);
-    const int iconSize = style()->pixelMetric(QStyle::PM_SmallIconSize, nullptr, this);
-    icon->setFixedSize(iconSize, iconSize);
-    if (type)
-        icon->setPixmap(type->icon().pixmap(iconSize, iconSize));
-    headerLayout->addWidget(icon);
+    // A pill with the type's icon and short name, the item name, and for an
+    // item from another task a grey pill with its project and task. The place
+    // gives way first, then the name, then the type's label. See
+    // docs/decisions/0033-cell-header-pills.md.
+    auto *typePill = new HeaderPill;
+    typePill->setObjectName(QStringLiteral("cellType"));
+    if (const auto *unknown = dynamic_cast<const UnknownItemType *>(type)) {
+        typePill->setFill(HeaderPill::Fill::Neutral);
+        typePill->setText(unknown->moduleId());
+    } else if (type) {
+        typePill->setFill(HeaderPill::Fill::Module, type->id().section(QLatin1Char('.'), 0, 0));
+        typePill->setText(type->shortName());
+    }
+    if (type) {
+        typePill->setIcon(type->icon());
+        typePill->setToolTip(type->name());
+    }
 
-    auto *name = new QLabel(itemName, d->header);
-    name->setTextFormat(Qt::PlainText);
-    name->setMinimumWidth(1);
-    headerLayout->addWidget(name);
+    auto *name = new HeaderPill;
+    name->setObjectName(QStringLiteral("cellName"));
+    name->setText(itemName);
+    name->setToolTip(itemName);
 
-    // Where the item comes from, after its name. It takes the free space and
-    // is the first to be cut when the header is narrow.
-    d->context = new QLabel(d->header);
+    d->context = new HeaderPill;
     d->context->setObjectName(QStringLiteral("cellContext"));
-    d->context->setTextFormat(Qt::PlainText);
+    d->context->setFill(HeaderPill::Fill::Neutral);
     d->context->setForegroundRole(QPalette::PlaceholderText);
-    d->context->setMinimumWidth(1);
-    d->context->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
-    headerLayout->addWidget(d->context, 1);
+
+    d->row = new HeaderRow(d->header);
+    d->row->setParts({typePill, name, d->context});
+    d->row->setShrinkOrder({d->context, name, typePill});
+    headerLayout->addWidget(d->row, 1);
 
     auto *menuButton = new QToolButton(d->header);
     menuButton->setAutoRaise(true);
@@ -205,6 +218,7 @@ void CellFrame::setContext(const QString &text)
 {
     d->context->setText(text);
     d->context->setToolTip(text);
+    d->row->refresh();
 }
 
 void CellFrame::setEditMode(bool on)

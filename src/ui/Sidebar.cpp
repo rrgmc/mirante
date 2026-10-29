@@ -419,4 +419,20 @@ void Sidebar::setTrashMenuFiller(MenuFiller filler) { d->trashMenuFiller = std::
 
 bool Sidebar::showsTrash() const { return d->stateTabs->currentIndex() == TrashList; }
 
+// The delegate paints the tint. See SidebarDelegate::isHoverTinted().
+void Sidebar::setHoverHighlight(const QString &id)
+{
+    auto *delegate = qobject_cast<SidebarDelegate *>(d->tree->itemDelegate());
+    if (!delegate || delegate->hoverId() == id)
+        return;
+    delegate->setHoverId(id);
+    d->tree->viewport()->update();
+}
+
+QString Sidebar::hoverHighlight() const
+{
+    const auto *delegate = qobject_cast<const SidebarDelegate *>(d->tree->itemDelegate());
+    return delegate ? delegate->hoverId() : QString();
+}
+
 } // namespace mirante

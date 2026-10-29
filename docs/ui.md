@@ -44,6 +44,7 @@ The sidebar can be collapsed.
   - A task itself is not dragged onto dashboards. Drag one of its items, to show that item, or one of its dashboards, to show the task with that dashboard in a root dashboard. See [placing tasks](#placing-tasks-and-items).
 - The context menu holds new, edit, rename, set priority, set state and delete, and on a task dashboard "Set as default". On a task dashboard or an item it also holds "Open in new root dashboard", which makes a root dashboard showing just that dashboard or item.
 - Project rows have a light tinted background, so they stand out between groups and tasks.
+- While the mouse is over a dashboard cell, the sidebar row of what the cell shows gets a soft tint: the item's row for an item cell, also one inside a task cell, and the task's row for a task cell. The tint goes when the mouse leaves the cell. The tree does not expand or scroll for it, so an item under a collapsed task shows no tint.
 - "Delete project…" and "Delete task…" move the project or task to the [trash](#trash), without a question, since it can be undone. Holding `Shift` while choosing them deletes for good, after a confirmation. Every other delete, such as of a group, an item or a task dashboard, asks for confirmation first and cannot be undone.
 
 ### Trash
@@ -87,7 +88,7 @@ The open tabs are stored on each device for each workspace, not synced: the root
 A root dashboard is a tab in the main tab bar. It has a name and a [layout tree](data-model.md#layout-tree).
 
 - A cell can hold a task, showing one of the task's dashboards, or a single item from any task.
-- A task dashboard inside a root dashboard shows a thin header with the task and dashboard names, its project in dimmed text after them, such as "Rotate TLS certificates / Main infra", and a button to open it alone. It has no picker: to show another dashboard of the task, drop that dashboard from the sidebar.
+- A task dashboard inside a root dashboard shows a thin header with the task and dashboard names in bold, such as "Rotate TLS certificates / Main", its project in a grey pill after them, such as "infra", and a button to open it alone. The grey pill is the same one that item cells use for where an item comes from. It has no picker: to show another dashboard of the task, drop that dashboard from the sidebar.
 - The `+` button creates an empty root dashboard, with editing on.
 - Closing a root dashboard's tab, with its close button, a middle click or the tab bar's context menu, does not delete it. It can be opened again with the [quick switcher](#keyboard) or the dashboard list.
 - The **dashboard list**, opened with the button after the lock in the tab bar row or with "All dashboards…" in the tab bar's context menu, lists every root dashboard and marks closed ones. It opens a dashboard again, and it is the only place where a root dashboard is deleted, after a confirmation.
@@ -105,8 +106,9 @@ A task dashboard has the same layout engine as a root dashboard. Its cells hold 
 
 Each cell has a small header containing:
 
-- the item name and an icon for its type;
-- in a root dashboard, where an item can come from any task, its project and task in dimmed text after the name, such as "backend / Overview";
+- a **type pill**: a small rounded label with the type's icon and short name, such as "MR", "Issue", "Jira", "Claude", "Folder", "Image", "Notes" or "Web". Its colour depends on the module, so items of one module look alike. A type whose module is not in the build gets a grey pill with the module id;
+- the item name, in normal weight;
+- in a root dashboard, where an item can come from any task, a grey **place pill** with its project and task after the name, such as "backend › Overview";
 - status badges;
 - buttons: refresh, open in browser, and a menu.
 

@@ -7,6 +7,7 @@
 #include "core/Sorting.h"
 #include "items/ItemTypeRegistry.h"
 #include "layout/CellFrame.h"
+#include "layout/CellHoverTracker.h"
 #include "layout/CellStyle.h"
 #include "layout/DashboardCellFactory.h"
 #include "layout/LayoutEditor.h"
@@ -1219,6 +1220,7 @@ MainWindow::MainWindow(Model &model, const ItemTypeRegistry &types, Store &store
     d->services.editor = d->editor;
     d->services.locks = d->locks;
     d->services.tracker = d->tracker;
+    d->services.hover = new CellHoverTracker(this);
     d->services.openTaskAlone = [this](const QString &taskId, const QString &dashboardId) {
         openTaskPreview(taskId, dashboardId);
     };
@@ -1267,6 +1269,8 @@ MainWindow::MainWindow(Model &model, const ItemTypeRegistry &types, Store &store
     connect(d->sidebar, &Sidebar::collapseRequested, this, [this] { d->showSidebar(false); });
     connect(d->sidebar, &Sidebar::titleDoubleClicked, this, [this] { d->promptRename(); });
     connect(d->sidebar, &Sidebar::focusRequested, this, &MainWindow::openFocus);
+    // The sidebar tints the row of what the hovered dashboard cell shows.
+    connect(d->services.hover, &CellHoverTracker::hoveredChanged, d->sidebar, &Sidebar::setHoverHighlight);
     d->sidebar->setMenuFiller([this](QMenu *menu, SidebarModel::Kind kind, const QString &id, const QString &taskId) {
         d->actions->fillMenu(menu, kind, id, taskId);
     });

@@ -24,6 +24,7 @@ public:
     QString id() const override { return m_id; }
     QString name() const override { return m_name; }
     QIcon icon() const override { return m_icon; }
+    QString shortName() const override { return QCoreApplication::translate("notes", "Notes"); }
 
 private:
     QString m_id;

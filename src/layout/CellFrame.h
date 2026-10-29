@@ -11,8 +11,8 @@ namespace mirante {
 
 class ItemType;
 
-// A cell of an item: a header with the type icon, the item name and the menu
-// button, and a body. In M2 the body is a placeholder. See the M2 plan, part 4.
+// A cell of an item: a header with a pill for the type, the item name, a pill
+// for where the item comes from and the menu button, and a body. In M2 the body is a placeholder. See the M2 plan, part 4.
 // Implemented in CellFrame.cpp.
 class CellFrame : public QFrame
 {
@@ -27,8 +27,8 @@ public:
 
     std::optional<CellRef> ref() const;
 
-    // Dimmed text after the item name that says where the item comes from,
-    // such as "backend / Overview". Used for items placed directly in a root
+    // A grey pill after the item name that says where the item comes from,
+    // such as "backend › Overview". Used for items placed directly in a root
     // dashboard. Empty hides it.
     void setContext(const QString &text);
 

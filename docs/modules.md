@@ -96,7 +96,7 @@ The module interface contains the headers below. The "Since" column gives the mi
 | Header | Contents | Since |
 |---|---|---|
 | `Module.h` | `ModuleRegistrar`, the object a module registers its parts with | M2 |
-| `ItemType.h` | The `ItemType` interface. See [item types](item-types.md#the-type-registry). | M2 |
+| `ItemType.h` | The `ItemType` interface. See [item types](item-types.md#the-type-registry). `shortName()`, the short label in cell headers, was added after M3; see [decision 0033](decisions/0033-cell-header-pills.md). | M2 |
 | `Fields.h` | `Field`: a key, a label, a type, a default value, a required flag, and for a choice its values and labels. The types are text, multi-line text, URL, integer, boolean, choice, folder and image. Used for item configuration, and from M5 for connection fields and settings. See [decision 0028](decisions/0028-item-fields-in-m3.md). | M3 |
 | `ItemEditor.h` | `ItemEditor`, the base of an item type's own configuration editor, and `EditorContext`, what an editor can reach: the project's folders and a way to save an image into `files/` | M3 |
 | `ItemContext.h` | `ItemContext`, everything an item's code can reach. See [below](#item-context). | M4 |
@@ -197,7 +197,7 @@ Everything is written back exactly as it was loaded. See [sync](sync.md#the-data
 
 1. Create `src/modules/<id>/` with a `CMakeLists.txt` that calls `mirante_add_module()`.
 2. Write `registerModule(ModuleRegistrar &)` in the namespace `mirante::modules::<id>`.
-3. Register the item types and any connection kinds, settings and quick add handlers.
+3. Register the item types and any connection kinds, settings and quick add handlers. Give each item type a short label with `shortName()`, such as "MR", for its cell headers.
 4. Add tests and a `README.md`.
 5. Add the module's item types to [item types](item-types.md) and the module to the table at the top of this document.
 6. Build once with the module on and once with it off. Both must build and pass the tests.
