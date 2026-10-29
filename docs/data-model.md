@@ -152,6 +152,8 @@ To find the connection for an item, the app takes the first match in this order:
 
 All three must belong to the item's group and have the right kind. See [decision 0006](decisions/0006-connections-per-group.md).
 
+The item's group is the group of the project of the item's task. An item type lists the connection kinds it can use, in order of preference, such as `jira.cloud` and then `jira.dc`. At each step the app tries these kinds in that order. Only then does it move to the next step, so a project override of the second kind wins over a group default of the first. A step that names a connection of another kind, of another group, or one that no longer exists is skipped. If no step matches, the item has no connection. The code is `connections::resolve` in `src/core/Connections.h`.
+
 ## Dashboard
 
 A dashboard has an `id`, a `name` and a `layout`, which is a [layout tree](#layout-tree).
