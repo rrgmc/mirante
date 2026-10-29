@@ -18,8 +18,8 @@ A module registers each of its types in the `ItemTypeRegistry` with:
 | `fields` | The configuration fields: key, label, type, default, whether it is required, and for a choice its values and labels. The core builds the item dialog's form from them and checks the values. See [decision 0028](decisions/0028-item-fields-in-m3.md). |
 | `createEditor` | Optional: an editor of the type's own for the configuration, used instead of the form built from `fields`. It receives the project's folders and a way to save an image into `files/`. |
 | `pastedImageField` | Optional: the key of an image field that a pasted image fills. If set, pasting an image onto a task dashboard creates an item of this type. See [Image](#image). |
-| `rendering` | `native` (a Qt widget) or `web` (a [web view](web-views.md)) |
-| `connectionKind` | The kind of [connection](data-model.md#connection) it needs, if any |
+| `rendering` | `native` (a Qt widget) or `web` (a [web view](web-views.md)). The [memory policy](web-views.md#memory-policy) unloads web views. |
+| `connectionKinds` | The kinds of [connection](data-model.md#connection) it can use, in order of preference, such as `jira.cloud` then `jira.dc`. Empty if it needs none. |
 | `status` | Optional: how to fetch status and attention from the [status cache](integrations.md#polling-and-caching) |
 | `actions` | Optional: the light actions it offers |
 | `fromUrl` | Optional: recognises a pasted URL and returns a configuration |

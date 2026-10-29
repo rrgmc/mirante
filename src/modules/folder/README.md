@@ -8,7 +8,7 @@ One of the project's folders, with its Git state and shortcuts to a terminal and
 |---|---|---|
 | `folder` | Folder / terminal | native |
 
-Since M3 the type declares its configuration fields, so items can be created and edited. Its view arrives in a later milestone.
+Since M3 the type declares its configuration fields, so items can be created and edited. Its view arrives in a later milestone. Until then the cell shows the core's placeholder.
 
 ## Configuration
 
@@ -18,7 +18,7 @@ Since M3 the type declares its configuration fields, so items can be created and
 
 ## Connection kinds
 
-None in M2.
+None.
 
 ## Settings
 

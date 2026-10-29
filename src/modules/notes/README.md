@@ -8,7 +8,7 @@ Markdown notes, stored in the task file, as an item. See [item types](../../../d
 |---|---|---|
 | `notes` | Notes | native |
 
-In M2 the type is a stub with an id, a name and an icon. Its view arrives in a later milestone.
+The type has an id, a name and an icon, and declares that it is native and needs no connection. Its view arrives in a later milestone. Until then the cell shows the core's placeholder.
 
 ## Configuration
 
@@ -16,7 +16,7 @@ None. The type declares no fields, so the item dialog edits only the name. The n
 
 ## Connection kinds
 
-None in M2.
+None.
 
 ## Settings
 

@@ -27,6 +27,8 @@ public:
     QString name() const override { return m_name; }
     QIcon icon() const override { return m_icon; }
     QString shortName() const override { return QCoreApplication::translate("folder", "Folder"); }
+    Rendering rendering() const override { return Rendering::Native; }
+    QStringList connectionKinds() const override { return {}; }
 
     std::vector<Field> fields() const override
     {

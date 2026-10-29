@@ -10,7 +10,7 @@ An image, such as a screenshot or a diagram, with an optional link and an option
 
 The image is a file in the data folder's `files/` folder. The item's configuration holds its file name, the link and the memo.
 
-Since M3 the type declares its configuration fields, so items can be created and edited. Its view arrives in a later milestone.
+Since M3 the type declares its configuration fields, so items can be created and edited. Its view arrives in a later milestone. Until then the cell shows the core's placeholder.
 
 ## Configuration
 
