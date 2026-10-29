@@ -69,6 +69,8 @@ Creating or editing a group opens the group dialog. It has the group's name, its
 
 - **Profile.** A list of the workspace's [profiles](#profiles), Default first, then by name. The items of the group use this profile for their logins and module settings, unless an item chooses its own. Default is stored as no value. A profile that is not in the list, such as one deleted on another device, is shown as "Unknown profile, uses Default" and kept until another is chosen. See [web views](web-views.md#profiles).
 
+- **A new profile for a new group.** When a group is created and other groups already exist, the dialog also offers "Create a new profile for this group", unticked. Ticking it disables the profile list and enables a "Profile name" field. The name starts as the group's name and follows it until it is edited. OK makes the profile, empty, and gives it to the group. A blank name, or one an existing profile already has, ignoring case, is refused with a message. The first group of a workspace is not offered this, since Default is there for it.
+
 Groups have no connections. The server each module talks to is a module setting of a profile; see [decision 0054](decisions/0054-module-settings-replace-connections.md).
 
 ## Profiles

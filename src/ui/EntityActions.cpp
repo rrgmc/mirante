@@ -279,9 +279,25 @@ QString EntityActions::newGroup()
     group.colour = groupcolours::next(d->model);
     GroupDialog dialog(group, d->dialogParent);
     d->offerProfiles(dialog);
+    // A second group often belongs to another account, so it may get a
+    // profile of its own, named after it.
+    if (!d->model.groups().empty()) {
+        QStringList names;
+        for (const Profile &profile : profiles::all(d->model))
+            names << profile.name;
+        dialog.offerNewProfile(names);
+    }
     if (!d->exec(dialog))
         return {};
-    d->model.setGroup(dialog.value());
+    Group created = dialog.value();
+    if (dialog.createsProfile()) {
+        Profile profile;
+        profile.id = edits::newId();
+        profile.name = dialog.newProfileName();
+        d->model.setProfile(profile);
+        created.profile = profile.id;
+    }
+    d->model.setGroup(created);
     return group.id;
 }
 

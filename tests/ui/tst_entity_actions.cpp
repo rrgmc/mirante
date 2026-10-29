@@ -189,6 +189,7 @@ private slots:
     void cleanup();
 
     void newGroup();
+    void newGroupWithItsOwnProfile();
     void newProject();
     void newTask();
     void newItem();
@@ -265,6 +266,7 @@ void TestEntityActions::newGroup()
         QVERIFY(group);
         group->setName(QStringLiteral("Office"));
     };
+    const std::size_t profilesBefore = model.profiles().size();
     const QString id = actions->newGroup();
     QVERIFY(!id.isEmpty());
     const Group *group = model.group(id);
@@ -276,6 +278,42 @@ void TestEntityActions::newGroup()
     QVERIFY(group->colour != groupcolours::of(*model.group(QStringLiteral("6d1b9bb9-f4c3-5677-a4e1-683ba618d4c7"))));
     QVERIFY(group->colour != QStringLiteral("#22c55e"));
     QCOMPARE(group->colour, groupcolours::palette().at(0));
+    // Other groups exist, so a new profile was offered, unticked: none made.
+    QVERIFY(group->profile.isEmpty());
+    QCOMPARE(model.profiles().size(), profilesBefore);
+}
+
+// "Create a new profile for this group" makes a profile named as asked and
+// gives it to the group. A name in use is refused.
+void TestEntityActions::newGroupWithItsOwnProfile()
+{
+    QString suggested;
+    fill = [&suggested](QDialog &dialog) {
+        auto *group = qobject_cast<GroupDialog *>(&dialog);
+        QVERIFY(group);
+        group->setName(QStringLiteral("Office"));
+        suggested = group->newProfileName();
+        group->setCreatesProfile(true);
+    };
+    const std::size_t before = model.profiles().size();
+    const QString id = actions->newGroup();
+    QVERIFY(!id.isEmpty());
+    QCOMPARE(model.profiles().size(), before + 1);
+    const Group *group = model.group(id);
+    QVERIFY(group && !group->profile.isEmpty());
+    const Profile *profile = model.profile(group->profile);
+    QVERIFY(profile);
+    QCOMPARE(profile->name, QStringLiteral("Office"));
+
+    // A name already used is refused, so OK does nothing.
+    fill = [](QDialog &dialog) {
+        auto *group = qobject_cast<GroupDialog *>(&dialog);
+        group->setName(QStringLiteral("Lab"));
+        group->setCreatesProfile(true);
+        group->setNewProfileName(QStringLiteral("office"));
+    };
+    QVERIFY(actions->newGroup().isEmpty());
+    QCOMPARE(model.profiles().size(), before + 1);
 }
 
 void TestEntityActions::newProject()
