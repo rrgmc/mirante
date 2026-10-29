@@ -12,6 +12,8 @@
 #include "layout/Presets.h"
 #include "ui/DashboardDialog.h"
 #include "ui/GroupDialog.h"
+#include "ui/ImagePaste.h"
+#include "ui/ImagePasteDialog.h"
 #include "ui/ItemDialog.h"
 #include "ui/ModuleSettingsDialog.h"
 #include "ui/ProjectDialog.h"
@@ -107,6 +109,8 @@ struct EntityActions::Private
     std::function<Qt::KeyboardModifiers()> modifiers;
     ProfileManager *profiles = nullptr;
     std::function<void(WebProfilesDialog &)> editProfiles;
+    std::function<QImage()> clipboardImage;
+    ImagePaste imagePaste{model, store, types};
 
     bool shiftHeld() const { return modifiers && (modifiers() & Qt::ShiftModifier); }
 
@@ -185,6 +189,10 @@ EntityActions::EntityActions(Model &model, Store &store, const ItemTypeRegistry 
         return QMessageBox::question(d->dialogParent, tr("Delete"), question) == QMessageBox::Yes;
     };
     d->modifiers = [] { return QGuiApplication::queryKeyboardModifiers(); };
+    d->clipboardImage = [] {
+        const QClipboard *clipboard = QGuiApplication::clipboard();
+        return clipboard ? clipboard->image() : QImage();
+    };
 }
 
 EntityActions::~EntityActions() = default;
@@ -196,6 +204,11 @@ void EntityActions::setConfirm(std::function<bool(const QString &)> confirm) { d
 void EntityActions::setModifiers(std::function<Qt::KeyboardModifiers()> modifiers)
 {
     d->modifiers = std::move(modifiers);
+}
+
+void EntityActions::setClipboardImage(std::function<QImage()> clipboardImage)
+{
+    d->clipboardImage = std::move(clipboardImage);
 }
 
 void EntityActions::setProfiles(ProfileManager *profiles) { d->profiles = profiles; }
@@ -361,6 +374,28 @@ QString EntityActions::newDashboard(const QString &taskId)
     d->model.setTask(edits::addDashboard(*task, dashboard));
     emit dashboardCreated(taskId, dashboard.id);
     return dashboard.id;
+}
+
+QString EntityActions::pasteImage(const QString &taskId)
+{
+    const QImage image = d->clipboardImage();
+    if (image.isNull())
+        return {};
+    // A paste that cannot happen says why before any dialog opens.
+    ImagePaste::Result result = d->imagePaste.checkTask(taskId);
+    if (result == ImagePaste::Result::CreatedItem) {
+        const QImage cropped = ImagePasteDialog::ask(image, d->dialogParent, d->exec);
+        if (cropped.isNull())
+            return {};
+        QString itemId;
+        result = d->imagePaste.addToTask(cropped, taskId, &itemId);
+        if (result == ImagePaste::Result::CreatedItem)
+            return itemId;
+    }
+    const QString text = ImagePaste::message(result);
+    if (!text.isEmpty())
+        emit message(text);
+    return {};
 }
 
 // Editing.
@@ -709,6 +744,12 @@ void addStateMenu(QMenu *menu, EntityActions *actions, const QString &taskId, Ta
 
 } // namespace
 
+void EntityActions::addPasteImage(QMenu *menu, const QString &taskId)
+{
+    QAction *paste = menu->addAction(tr("Paste Image…"), this, [this, taskId] { pasteImage(taskId); });
+    paste->setEnabled(!d->clipboardImage().isNull());
+}
+
 void EntityActions::fillMenu(QMenu *menu, SidebarModel::Kind kind, const QString &id, const QString &taskId)
 {
     if (!menu)
@@ -749,6 +790,7 @@ void EntityActions::fillMenu(QMenu *menu, SidebarModel::Kind kind, const QString
             return;
         menu->addAction(tr("New item…"), this, [this, id] { newItem(id); });
         menu->addAction(tr("Paste URL…"), this, [this, id] { pasteUrl(id); })->setEnabled(!clipboardUrl().isEmpty());
+        addPasteImage(menu, id);
         menu->addAction(tr("New dashboard…"), this, [this, id] { newDashboard(id); });
         menu->addSeparator();
         menu->addAction(tr("Edit task…"), this, [this, id] { editTask(id); });
@@ -769,6 +811,7 @@ void EntityActions::fillMenu(QMenu *menu, SidebarModel::Kind kind, const QString
         menu->addAction(tr("New item…"), this, [this, taskId] { newItem(taskId); });
         menu->addAction(tr("Paste URL…"), this, [this, taskId] { pasteUrl(taskId); })
             ->setEnabled(!clipboardUrl().isEmpty());
+        addPasteImage(menu, taskId);
         break;
     case SidebarModel::Kind::DashboardList:
         if (!model.task(taskId))

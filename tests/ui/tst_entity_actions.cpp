@@ -11,6 +11,8 @@
 #include "ui/DashboardDialog.h"
 #include "ui/EntityActions.h"
 #include "ui/GroupDialog.h"
+#include "ui/ImagePaste.h"
+#include "ui/ImagePasteDialog.h"
 #include "ui/ItemDialog.h"
 #include "ui/ProjectDialog.h"
 #include "ui/TaskDialog.h"
@@ -20,6 +22,8 @@
 
 #include <QAction>
 #include <QDateTime>
+#include <QImage>
+#include <QSignalSpy>
 #include <QMenu>
 #include <QSettings>
 #include <QTemporaryDir>
@@ -176,6 +180,8 @@ class TestEntityActions : public QObject
     bool answer = true;
     // The keyboard modifiers a menu command sees.
     Qt::KeyboardModifiers modifiers = Qt::NoModifier;
+    // The image on the clipboard, null for none.
+    QImage clipboard;
 
 private slots:
     void initTestCase();
@@ -201,6 +207,7 @@ private slots:
     void shiftDeletesPermanently();
     void emptyTrash();
     void trashMenus();
+    void pasteImageMenu();
 };
 
 void TestEntityActions::initTestCase()
@@ -239,6 +246,8 @@ void TestEntityActions::init()
     });
     modifiers = Qt::NoModifier;
     actions->setModifiers([this] { return modifiers; });
+    clipboard = QImage();
+    actions->setClipboardImage([this] { return clipboard; });
 }
 
 void TestEntityActions::cleanup()
@@ -579,7 +588,7 @@ void TestEntityActions::menus()
 
     QMenu task;
     actions->fillMenu(&task, SidebarModel::Kind::Task, fixLoginTimeout, fixLoginTimeout);
-    QCOMPARE(texts(task), (QStringList{QStringLiteral("New item…"), QStringLiteral("Paste URL…"),
+    QCOMPARE(texts(task), (QStringList{QStringLiteral("New item…"), QStringLiteral("Paste URL…"), QStringLiteral("Paste Image…"),
                                        QStringLiteral("New dashboard…"),
                                        QStringLiteral("Edit task…"), QStringLiteral("Priority"),
                                        QStringLiteral("State"), QStringLiteral("Delete task…")}));
@@ -593,7 +602,7 @@ void TestEntityActions::menus()
 
     QMenu itemList;
     actions->fillMenu(&itemList, SidebarModel::Kind::ItemList, QString(), fixLoginTimeout);
-    QCOMPARE(texts(itemList), (QStringList{QStringLiteral("New item…"), QStringLiteral("Paste URL…")}));
+    QCOMPARE(texts(itemList), (QStringList{QStringLiteral("New item…"), QStringLiteral("Paste URL…"), QStringLiteral("Paste Image…")}));
 
     QMenu dashboardList;
     actions->fillMenu(&dashboardList, SidebarModel::Kind::DashboardList, QString(), fixLoginTimeout);
@@ -763,6 +772,42 @@ void TestEntityActions::trashMenus()
     QMenu group;
     actions->fillTrashMenu(&group, SidebarModel::Kind::Group, workGroup, QString());
     QVERIFY(group.actions().isEmpty());
+}
+
+// "Paste Image…" on a task and its Items row is enabled only while the
+// clipboard holds an image. A paste that cannot happen, here without an
+// image type, says why in a message and opens no dialog. The paste itself,
+// and the read-only sample data, are tested in tst_main_window.
+void TestEntityActions::pasteImageMenu()
+{
+    const auto pasteAction = [this](SidebarModel::Kind kind, const QString &id, QMenu &menu) {
+        actions->fillMenu(&menu, kind, id, fixLoginTimeout);
+        return actionNamed(menu, QStringLiteral("Paste Image…"));
+    };
+    QMenu taskMenu;
+    QMenu itemListMenu;
+    QAction *onTask = pasteAction(SidebarModel::Kind::Task, fixLoginTimeout, taskMenu);
+    QAction *onItems = pasteAction(SidebarModel::Kind::ItemList, QString(), itemListMenu);
+    QVERIFY(onTask && onItems);
+    QVERIFY(!onTask->isEnabled());
+    QVERIFY(!onItems->isEnabled());
+
+    clipboard = QImage(4, 3, QImage::Format_ARGB32);
+    clipboard.fill(Qt::red);
+    QMenu taskMenu2;
+    QMenu itemListMenu2;
+    onTask = pasteAction(SidebarModel::Kind::Task, fixLoginTimeout, taskMenu2);
+    onItems = pasteAction(SidebarModel::Kind::ItemList, QString(), itemListMenu2);
+    QVERIFY(onTask->isEnabled());
+    QVERIFY(onItems->isEnabled());
+
+    QSignalSpy messages(actions.get(), &EntityActions::message);
+    const Task before = *model.task(fixLoginTimeout);
+    onItems->trigger();
+    QCOMPARE(execCount, 0);
+    QCOMPARE(messages.size(), 1);
+    QCOMPARE(messages.at(0).at(0).toString(), ImagePaste::message(ImagePaste::Result::NoImageType));
+    QVERIFY(*model.task(fixLoginTimeout) == before);
 }
 
 QTEST_MAIN(TestEntityActions)

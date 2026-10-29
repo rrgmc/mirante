@@ -43,7 +43,7 @@ The sidebar can be collapsed.
 - **Drag and drop:**
   - Dragging a group, project or task among its siblings changes its place. It never changes a priority. Nothing is dragged in the Trash list.
   - A task itself is not dragged onto dashboards. Drag one of its items, to show that item, or one of its dashboards, to show the task with that dashboard in a root dashboard. See [placing tasks](#placing-tasks-and-items).
-- The context menu holds new, edit, rename, set priority, set state and delete, and on a task dashboard "Set as default". On a task dashboard or an item it also holds "Open in new root dashboard", which makes a root dashboard showing just that dashboard or item.
+- The context menu holds new, edit, rename, set priority, set state and delete, and on a task dashboard "Set as default". On a task and its Items row it also holds "Paste Image…", after "New item…". See [pasting images](#pasting-images). On a task dashboard or an item it also holds "Open in new root dashboard", which makes a root dashboard showing just that dashboard or item.
 - Project rows have a light tint of their group's colour, a rounded shape like the selection. They stand out between groups and tasks, and show their group while its heading is scrolled away. Task rows have no tint. See [decision 0046](decisions/0046-group-colours.md).
 - While the mouse is over a dashboard cell, the sidebar row of what the cell shows gets a soft tint: the item's row for an item cell, also one inside a task cell, and the task's row for a task cell. The tint goes when the mouse leaves the cell. The tree does not expand or scroll for it. If a collapsed row hides that row, the nearest row that can be seen takes the tint instead: the task of an item whose task or Items row is closed, or the project or group if that is closed. The tint follows as rows open and close.
 - "Delete project…" and "Delete task…" move the project or task to the [trash](#trash), without a question, since it can be undone. Holding `Shift` while choosing them deletes for good, after a confirmation. Every other delete, such as of a group, an item or a task dashboard, asks for confirmation first and cannot be undone.
@@ -56,7 +56,7 @@ Deleted projects and tasks go to the trash first. See [decision 0036](decisions/
 - The context menu of a project or task offers **Restore** and **Delete permanently…**. Delete permanently asks for confirmation first. Restoring a task whose project is in the trash restores the project too, with all its tasks.
 - While the Trash tab is shown, an **Empty Trash…** button at the bottom deletes everything in the trash for good, after one confirmation that names the counts, such as "Permanently delete 1 project and 6 tasks in the trash?". The button is disabled when the trash is empty.
 - A double click in the Trash list only expands or collapses a row. Nothing there opens.
-- A project in the trash takes its tasks with it. They are left out of the other sidebar lists, [Focus](#focus-view), the [quick switcher](#keyboard), and the project and task pickers, such as the task dialog's project list and the task picker for a pasted image.
+- A project in the trash takes its tasks with it. They are left out of the other sidebar lists, [Focus](#focus-view), the [quick switcher](#keyboard), and the project and task pickers, such as the task dialog's project list.
 - Tabs of a task in the trash close, as for a deleted task.
 - A dashboard cell that shows a task in the trash, or an item of one, reads "In trash" instead of its content. It keeps its reference, so a restore brings the content back. A task cell changes at once; an item cell of a root dashboard changes when the dashboard is next built, such as when its tab opens.
 
@@ -122,6 +122,8 @@ Standard controls, such as buttons, menus, lists and dialogs, keep the platform'
 - **Close buttons on tabs** are on the right. They show on the current tab and on the tab under the mouse only.
 - **Cell borders** are a thin, light line with rounded corners.
 - **The warning bar** has a tinted background and no frame.
+- **Dialogs on macOS** are attached to the main window or the detached window they belong to, as child windows. They stay directly above that window and come forward with it, so no other app's window can come between them. A dialog opened from another dialog follows its parent dialog. On Windows and Linux nothing changes. Sheets, which slide down from the title bar, were tried first, but Qt decides whether a dialog is a sheet before an app-wide hook can see that it is modal. The code is in `src/platform/AttachedDialogs.cpp` and `AttachedDialogsMac.mm`.
+- **Forms** in dialogs fill the dialog's width and start at its top left on every platform. On macOS, Qt would otherwise keep each field at its natural width and centre the form, which cuts long values, such as addresses, short.
 - **The sidebar** has a light grey background, a little darker than the window, with rounded row shapes, as in macOS sidebars. See [sidebar tree](#sidebar-tree).
 - **Header tints.** Cell headers and title bars have a light tint, mixed into the window colour, so text stays readable in light and dark palettes. The title bars of task dashboard and item tabs, and task cell headers, have a 22% tint of the task's [group colour](data-model.md#group). Item cell headers have a lighter 12% tint of the group colour of the item's task, in every dashboard, so an item placed on a root dashboard shows its group too. Empty and removed cells keep the highlight colour. See [decision 0046](decisions/0046-group-colours.md) and [decision 0047](decisions/0047-item-headers-in-group-colours.md).
 
@@ -230,7 +232,13 @@ After each edit, the tree is [normalised](data-model.md#normalisation).
 
 ## Pasting images
 
-Every image paste opens the paste dialog first. This covers `Ctrl+V` on a task dashboard, on a root dashboard and in an item tab, and the "Paste" button of an image field in the item dialog. What the paste then does is described under [image](item-types.md#image). See [decision 0045](decisions/0045-preview-and-crop-pasted-images.md).
+A pasted image becomes an item of a task. It is never added straight to a dashboard. See [decision 0051](decisions/0051-paste-images-from-the-items-menu.md).
+
+- **Paste Image…**, in the context menu of a task's Items row or of the task row, adds the clipboard's image to that task as a new Image item. It is enabled only while the clipboard holds an image. No dashboard changes: the item shows in the sidebar, and the user drags it onto a dashboard if wanted.
+- `Ctrl+V` replaces the image of the Image item in the focused cell, or in the current item tab. It adds nothing. Anywhere else on a dashboard, the status bar says "To add an image, use Paste Image… in a task's Items menu."
+- The "Paste" button of an image field in the item dialog fills that field.
+
+Each of these opens the paste dialog first. What the paste then does is described under [image](item-types.md#image). See [decision 0045](decisions/0045-preview-and-crop-pasted-images.md).
 
 - The dialog, "Paste Image", shows the image scaled to fit. A small image keeps its own size. Under it, a line gives the image's size in pixels, such as "1920 × 1080 pixels".
 - **Cropping.** Dragging on the image draws a crop rectangle. The image outside it is dimmed. The line under the image then gives both sizes, such as "Crop: 800 × 600 of 1920 × 1080 pixels".
@@ -240,8 +248,7 @@ Every image paste opens the paste dialog first. This covers `Ctrl+V` on a task d
   - **Whole Image** removes the crop. It is enabled only while there is a crop.
 - The crop is in the image's own pixels. The pasted image is cut at full resolution, not at the size of the preview.
 - **Paste**, or `Enter`, pastes the cropped image, or the whole image without a crop. **Cancel**, or `Escape`, pastes nothing.
-- The dialog opens only when the paste can happen. On a locked dashboard, in the read-only sample data, in a build without an image type, or on a root dashboard without any active task, the status bar gives the reason at once and no dialog opens.
-- On a root dashboard, the question about the task ([decision 0032](decisions/0032-paste-images-into-root-dashboards.md)) comes after the paste dialog. The user first sees the image, then chooses where it goes. Cancel in either dialog pastes nothing.
+- The dialog opens only when the paste can happen. In the read-only sample data, in a build without an image type, or for `Ctrl+V` without a focused Image item, the status bar gives the reason at once and no dialog opens.
 - The preview has a light rounded backdrop, drawn with the text colour mostly transparent, as the [flat controls](#look). The crop border and handles use the palette's highlight colour. Both suit light and dark palettes.
 
 ## Detached windows
@@ -316,7 +323,7 @@ The project is chosen by matching the merge request's GitLab project or the issu
 | `F11` (macOS: `Ctrl+Cmd+F`) | Full screen on or off, as in web browsers. The platform's standard key, `QKeySequence::FullScreen`. |
 | `Ctrl+Shift+M` | Maximise the focused cell, or restore the maximised one. See [a bigger view](#a-bigger-view-of-an-item). |
 | `Ctrl+W` | Close the preview tab or the focused root tab |
-| `Ctrl+V` | With an image on the clipboard: paste it into the focused cell's image item, or as a new image item on an unlocked dashboard, after the [paste dialog](#pasting-images). See [image](item-types.md#image). A text field keeps its own paste. |
+| `Ctrl+V` | With an image on the clipboard: replace the image of the Image item in the focused cell or the current item tab, after the [paste dialog](#pasting-images). It never adds an item to a dashboard; a new image item comes from "Paste Image…" in a task's Items menu. See [image](item-types.md#image). A text field keeps its own paste. |
 | Global hotkey (configurable) | Bring Mirante to the front |
 
 On macOS, `Cmd` replaces `Ctrl`.
