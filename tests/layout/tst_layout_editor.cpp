@@ -355,6 +355,18 @@ private slots:
         QCOMPARE(refAt(work, {0}), itemRef(issuePageItem));
     }
 
+    // A cell whose task was deleted shows "Removed". The stored layout still
+    // refers to the task until it next changes, but a drop fills the cell.
+    void taskOnTheCentreOfARemovedCellFillsIt()
+    {
+        QCOMPARE(refAt(morning, {0})->task, loginTask);
+        model->removeTask(loginTask);
+        QVERIFY(node(morning, {0}).ref);     // not normalised yet
+        QVERIFY(editor->drop(morning, centre({0}), fromSidebar(taskRef(flakyTask))));
+        QCOMPARE(node(morning, {0}).kind, Kind::Cell);
+        QCOMPARE(refAt(morning, {0}), taskRef(flakyTask, model->task(flakyTask)->defaultDashboardId));
+    }
+
     void itemOnAnEdgeSplits()
     {
         QVERIFY(editor->drop(work, edge({0}, Edge::Left), fromSidebar(itemRef(issuePageItem))));

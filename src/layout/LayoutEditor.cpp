@@ -91,6 +91,32 @@ struct LayoutEditor::Private
     {
     }
 
+    // Marks the cells whose task, dashboard or item is gone as removed, as
+    // normalisation would, but keeps the tree's shape, so drop paths stay
+    // valid. A stored layout keeps such references until it next changes, and
+    // a drop on a removed cell must fill it like an empty one.
+    void markRemoved(const DashboardRef &dashboard, LayoutNode &node) const
+    {
+        if (node.kind == Kind::Cell) {
+            if (node.ref && !node.removed && !refShown(dashboard, *node.ref)) {
+                node.ref.reset();
+                node.removed = true;
+            }
+            return;
+        }
+        for (LayoutNode &child : node.children)
+            markRemoved(dashboard, child);
+    }
+
+    // Whether a cell of the dashboard can show ref: in a task dashboard, an
+    // item of that task only, as Model::setTaskDashboardLayout requires.
+    bool refShown(const DashboardRef &dashboard, const CellRef &ref) const
+    {
+        if (!dashboard.isRoot() && ref.isItem())
+            return (ref.task.isEmpty() || ref.task == dashboard.taskId) && model.item(dashboard.taskId, ref.item);
+        return model.refExists(ref);
+    }
+
     // References
     bool accepts(const DashboardRef &dashboard, const CellRef &ref, std::optional<CellRef> *stored) const;
     QString titleFor(const DashboardRef &dashboard, const LayoutNode *node) const;
@@ -599,9 +625,12 @@ std::optional<LayoutEditor::Private::DropPlan>
 LayoutEditor::Private::planDrop(const DashboardRef &dashboard, const DropTarget &target,
                                 const DragPayload &payload) const
 {
-    const LayoutNode *tree = model.layout(dashboard);
-    if (!tree)
+    const LayoutNode *current = model.layout(dashboard);
+    if (!current)
         return std::nullopt;
+    LayoutNode marked = *current;
+    markRemoved(dashboard, marked);
+    const LayoutNode *tree = &marked;
 
     const bool isMove = payload.sourceDashboard && payload.sourcePath;
     if (isMove && *payload.sourceDashboard == dashboard) {
