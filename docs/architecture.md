@@ -60,8 +60,9 @@ All changes go through `Model` methods. Views never change entities directly. `S
 
 | Class | Responsibility |
 |---|---|
-| `LayoutView` | Builds widgets from a tree: `QSplitter` for splits, `QTabWidget` for tabs, `CellFrame` for cells. It updates the widgets in place when the tree changes, without rebuilding everything. |
-| `CellFrame` | Cell header and content. It asks a `PlacementFactory` for the content widget. |
+| `LayoutView` | Builds widgets from a tree: `QSplitter` for splits, `QTabWidget` for tabs, `CellFrame` for cells. It updates the widgets in place when the tree changes, without rebuilding everything. After the whole view moves to another window, `remakeUnsafeCells()` makes again the cells whose type is not `reparentSafe`. |
+| `CellFrame` | Cell header and body. The header holds the type pill, the item name, a widget of the view such as a web toolbar, the menu button and the maximise button. The body is a placeholder until `DashboardCellFactory` gives it a `Placement`. |
+| `DashboardCellFactory` | Makes the cells of real dashboards. An item cell gets a `Placement` as its body when `LayoutServices::placements` is set, and a maximise button when `LayoutServices::toggleMaximised` is set. |
 | `DropOverlay` | Shows the five drop zones while dragging, and returns where the drop lands |
 | `LayoutEditor` | Turns context menu commands and drops into tree edits, then normalises |
 | `Presets` | Builds the starting trees listed in [ui](ui.md#layout-presets) |
@@ -77,8 +78,9 @@ The same `LayoutView` shows task dashboards and root dashboards. A task cell ins
 | `ModuleRegistrar` | Receives what each module registers: item types, connection kinds, settings, quick add handlers, related-item finders. See [modules](modules.md#what-a-module-registers). |
 | `ItemContext` | What an item's code can reach: settings, connections, status, profile, folders, terminal. See [modules](modules.md#item-context). |
 | `UnknownItemType` | Placeholder for an item whose module is not in this build. See [missing modules](modules.md#missing-modules). |
-| `Placement` | One shown instance of an item: owns its view widget, honours the view flags, and tells the `ViewPool` when it becomes visible or hidden |
-| `ViewPool` | Applies the [memory policy](web-views.md#memory-policy) to web views |
+| `Placement` | One shown instance of an item, and the body of its cell. It makes the view with the type's `createView` when it is first shown, and owns it. It makes the view again when the item's type or configuration changes, and drops it when the item goes. A web view is added to the `ViewPool`, and the placement tells the pool when it is shown or hidden. It reports the view's header widget, such as a web toolbar, with `headerWidgetChanged`. |
+| `ItemContextImpl` | The `ItemContext` of one placement. It reads the item, its project and its connection from the `Model` on each call, folders from `DeviceSettings`, and profiles from the `ProfileManager`. `createWebView` makes a `WebPanel` and reports its toolbar to the placement. Without a `ProfileManager`, as in tests, it returns a message instead of a page. |
+| `ViewPool` | Applies the [memory policy](web-views.md#memory-policy) to web views. When more hidden views are loaded than the limit, it asks the placements hidden longest to unload. |
 
 Native views are ordinary widgets. Lists use `QTableView` with a model fed from the `StatusCache`.
 
@@ -145,7 +147,8 @@ Code that differs per platform lives only here, behind these classes.
 ## Ownership and lifetime
 
 - `main.cpp` creates the long-lived services in this order: `DeviceSettings`, the registries (filled by `registerEnabledModules()`), `Model`, `Store`, `SecretStore`, `StatusCache`, `ProfileManager`, `MainWindow`. It destroys them in reverse order. `DeviceSettings` is created after the application and organisation names are set, because they choose where `QSettings` keeps its values. The `Store` flushes its pending writes when the application is about to quit.
-- Each `Placement` owns its view widget.
+- Each `Placement` owns its view widget and its `ItemContextImpl`. The context outlives the view: the placement deletes its views before its context. A view that is replaced is deleted later, not at once, because the change may come from the view's own code, for example through `updateConfig`.
+- A web view's toolbar is owned by its `WebPanel`, even while the cell header shows it. The `CellFrame` only shows it, and lets it go when the placement reports a new header widget.
 - `ProfileManager` owns the profiles and is destroyed after all web views.
 
 ## Threading

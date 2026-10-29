@@ -34,13 +34,17 @@ A placement is one place where an item is shown: a cell in a dashboard, or an it
 
 - Each visible placement has its own web view. If the same item is visible in two places, there are two independent views of it. They share the profile, so they share the login, but each has its own scroll position, history and unsent input. See [decision 0003](decisions/0003-view-per-placement.md).
 - A view is created when its placement first becomes visible. A hidden tab does not load its pages until it is opened.
+- In a dashboard, the `Placement` is the body of the item's cell. A web view's toolbar goes in the cell header, between the item name and the menu button.
+- When the item's type or configuration changes, the placement makes its view again. A hidden placement does this when it is next shown. A change of name changes only the header.
+- When the item or its task is removed, the placement drops its view and shows "Removed".
 
 ## Memory policy
 
 A heavy page such as claude.ai uses a few hundred MB.
 
 - A view whose placement becomes hidden stays loaded, so switching back is instant.
-- When more than a configured number of hidden views exist (8 by default), the views hidden longest are unloaded. Their placements show a "Reload" placeholder until they become visible again, and then load automatically.
+- When more than a configured number of hidden views exist (8 by default), the views hidden longest are unloaded. Their placements show a "Reload" placeholder until they become visible again, and then load automatically. The limit is the `webViews/hiddenLimit` value of the device settings.
+- Only types whose `rendering()` is `Web` count. Each placement of such a type joins the `ViewPool` when it makes its view, and reports to the pool when it is shown or hidden. An unloaded placement leaves the pool until it loads again, and a deleted one leaves it at once.
 - Native items, such as summaries and lists, are cheap and are never unloaded.
 
 ## Page behaviour

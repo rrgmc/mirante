@@ -1,5 +1,6 @@
 #include "layout/CellFrame.h"
 
+#include "items/ItemContextImpl.h"
 #include "items/UnknownItemType.h"
 #include "layout/CellFrameSingleView.h"
 #include "layout/CellStyle.h"
@@ -11,8 +12,10 @@
 #include <QApplication>
 #include <QEvent>
 #include <QHBoxLayout>
+#include <QKeySequence>
 #include <QLabel>
 #include <QMouseEvent>
+#include <QPointer>
 #include <QPushButton>
 #include <QStackedWidget>
 #include <QStyle>
@@ -70,15 +73,8 @@ private:
     bool m_dragged = false;
 };
 
-QLabel *centredLabel(const QString &text, QWidget *parent)
-{
-    auto *label = new QLabel(text, parent);
-    label->setAlignment(Qt::AlignCenter);
-    label->setWordWrap(true);
-    label->setTextFormat(Qt::PlainText);
-    label->setForegroundRole(QPalette::PlaceholderText);
-    return label;
-}
+// The same grey label as the placements' placeholders.
+QLabel *centredLabel(const QString &text, QWidget *parent) { return createMessageLabel(text, parent); }
 
 } // namespace
 
@@ -89,7 +85,12 @@ struct CellFrame::Private
     bool focused = false;
 
     CellHeader *header = nullptr;
+    QHBoxLayout *headerLayout = nullptr;
     HeaderRow *row = nullptr;
+    QPointer<QWidget> headerWidget;     // shown between the row and the menu button; not owned
+    QToolButton *maximiseButton = nullptr;
+    bool canMaximise = false;           // a live item cell, not an empty or removed one
+    QPointer<QWidget> customBody;       // set by setBody()
     HeaderPill *context = nullptr;
     QStackedWidget *body = nullptr;
     QWidget *elsewhere = nullptr;       // the "Shown in another cell" page
@@ -115,6 +116,7 @@ CellFrame::CellFrame(const std::optional<CellRef> &ref, bool removed, const Item
     cellstyle::tintHeader(d->header, 0.12);
     d->header->onDrag = [this] { emit dragStarted(); };
     auto *headerLayout = new QHBoxLayout(d->header);
+    d->headerLayout = headerLayout;
     headerLayout->setContentsMargins(6, 1, 2, 1);
     headerLayout->setSpacing(4);
 
@@ -159,6 +161,17 @@ CellFrame::CellFrame(const std::optional<CellRef> &ref, bool removed, const Item
             [this, menuButton] { emit menuRequested(menuButton->mapToGlobal(QPoint(0, menuButton->height()))); });
     headerLayout->addWidget(menuButton);
 
+    // The maximise button, after the menu button. It is hidden until the
+    // factory shows it.
+    d->canMaximise = ref && ref->isItem() && !removed;
+    d->maximiseButton = new QToolButton(d->header);
+    d->maximiseButton->setObjectName(QStringLiteral("maximiseButton"));
+    d->maximiseButton->setAutoRaise(true);
+    d->maximiseButton->setVisible(false);
+    connect(d->maximiseButton, &QToolButton::clicked, this, &CellFrame::maximiseRequested);
+    headerLayout->addWidget(d->maximiseButton);
+    setMaximised(false);
+
     layout->addWidget(d->header);
 
     // Body: a placeholder in M2.
@@ -172,11 +185,8 @@ CellFrame::CellFrame(const std::optional<CellRef> &ref, bool removed, const Item
         text = tr("Removed");
     } else if (!ref) {
         text = tr("Empty");
-    } else if (const auto *unknown = dynamic_cast<const UnknownItemType *>(type)) {
-        text = tr("This item needs the %1 module, which this build does not include.").arg(unknown->moduleId());
     } else if (ref->isItem()) {
-        text = tr("Type: %1").arg(type ? type->name() : tr("unknown")) + QLatin1Char('\n')
-             + tr("Name: %1").arg(itemName) + QLatin1Char('\n') + tr("Id: %1").arg(ref->item);
+        text = itemPlaceholderText(type, itemName, ref->item);
     } else {
         text = tr("Task: %1").arg(ref->task);
     }
@@ -210,6 +220,10 @@ CellFrame::~CellFrame()
 {
     if (d->singleView)
         d->singleView->release();
+    // The body goes while d exists, because a placement in it may still
+    // change the header widget.
+    delete d->body;
+    d->body = nullptr;
 }
 
 std::optional<CellRef> CellFrame::ref() const { return d->ref; }
@@ -324,19 +338,53 @@ void CellFrameSingleView::update()
     m_showHere(false);
 }
 
-// Stubs from M4 T0. T7 implements them.
 void CellFrame::setBody(QWidget *body)
 {
-    if (body)
-        body->setParent(this);
+    if (!body || body == d->customBody || !d->body)
+        return;
+    // The body is page 0 of the stack. The "Shown in another cell" page, if
+    // any, stays page 1, and the current page stays current.
+    QWidget *old = d->body->widget(0);
+    const int current = d->body->currentIndex();
+    d->body->insertWidget(0, body);
+    if (old) {
+        d->body->removeWidget(old);
+        delete old;
+    }
+    d->body->setCurrentIndex(current < 0 ? 0 : current);
+    d->customBody = body;
 }
 
-QWidget *CellFrame::body() const { return nullptr; }
+QWidget *CellFrame::body() const { return d->customBody; }
 
-void CellFrame::setHeaderWidget(QWidget *) {}
+void CellFrame::setHeaderWidget(QWidget *widget)
+{
+    if (widget == d->headerWidget)
+        return;
+    if (QWidget *old = d->headerWidget) {
+        // The widget belongs to someone else, so it leaves the header but is
+        // not deleted.
+        d->headerLayout->removeWidget(old);
+        old->hide();
+        if (old->parentWidget() == d->header)
+            old->setParent(nullptr);
+    }
+    d->headerWidget = widget;
+    if (widget) {
+        // After the header row, before the menu button.
+        d->headerLayout->insertWidget(1, widget, 1);
+        widget->show();
+    }
+}
 
-void CellFrame::setMaximiseButtonVisible(bool) {}
+void CellFrame::setMaximiseButtonVisible(bool visible) { d->maximiseButton->setVisible(visible && d->canMaximise); }
 
-void CellFrame::setMaximised(bool) {}
+void CellFrame::setMaximised(bool maximised)
+{
+    const QString shortcut = QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_M).toString(QKeySequence::NativeText);
+    d->maximiseButton->setIcon(
+        QIcon(maximised ? QStringLiteral(":/icons/restore.svg") : QStringLiteral(":/icons/maximise.svg")));
+    d->maximiseButton->setToolTip(maximised ? tr("Restore (%1)").arg(shortcut) : tr("Maximise (%1)").arg(shortcut));
+}
 
 } // namespace mirante
