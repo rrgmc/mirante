@@ -14,7 +14,9 @@ A module registers each of its types in the `ItemTypeRegistry` with:
 |---|---|
 | `id` | Stable string stored in task files, such as `gitlab.mr.summary`. It starts with the module id. |
 | `name`, `icon` | Shown in menus and cell headers |
-| `fields` | The configuration fields, with type, default and validation |
+| `fields` | The configuration fields: key, label, type, default, whether it is required, and for a choice its values and labels. The core builds the item dialog's form from them and checks the values. See [decision 0028](decisions/0028-item-fields-in-m3.md). |
+| `createEditor` | Optional: an editor of the type's own for the configuration, used instead of the form built from `fields`. It receives the project's folders and a way to save an image into `files/`. |
+| `pastedImageField` | Optional: the key of an image field that a pasted image fills. If set, pasting an image onto a task dashboard creates an item of this type. See [Image](#image). |
 | `rendering` | `native` (a Qt widget) or `web` (a [web view](web-views.md)) |
 | `connectionKind` | The kind of [connection](data-model.md#connection) it needs, if any |
 | `status` | Optional: how to fetch status and attention from the [status cache](integrations.md#polling-and-caching) |
@@ -23,6 +25,8 @@ A module registers each of its types in the `ItemTypeRegistry` with:
 | `createView` | Creates the item's view for one placement. See [the view](#the-view). |
 | `singleView` | Optional, off by default: the item can have only one view at a time |
 | `reparentSafe` | Optional, on by default: the view can be moved to another cell without being created again |
+
+The item dialog keeps the configuration keys that its form or editor does not show. An item whose module is missing has neither fields nor an editor; its dialog edits the name only and keeps the configuration unchanged.
 
 New types are added by registering a class in a module. No core code changes. See [adding a module](modules.md#adding-a-module).
 
