@@ -1,16 +1,18 @@
 // The web module: any web page as an item. See README.md.
+#include <mirante/Fields.h>
 #include <mirante/ItemType.h>
 #include <mirante/Module.h>
 
 #include <QCoreApplication>
 
 #include <memory>
+#include <vector>
 
 namespace mirante::modules::web {
 
 namespace {
 
-// Placeholder type for M2: only an id, a name and an icon. Views arrive in M4.
+// A type with an id, a name, an icon and its configuration fields. The view arrives in M4.
 class StubItemType : public ItemType
 {
 public:
@@ -24,6 +26,17 @@ public:
     QString id() const override { return m_id; }
     QString name() const override { return m_name; }
     QIcon icon() const override { return m_icon; }
+
+    std::vector<Field> fields() const override
+    {
+        Field url;
+        url.key = QStringLiteral("url");
+        url.label = QCoreApplication::translate("web", "Address");
+        url.type = Field::Type::Url;
+        url.required = true;
+        url.placeholder = QStringLiteral("https://");
+        return {url};
+    }
 
 private:
     QString m_id;

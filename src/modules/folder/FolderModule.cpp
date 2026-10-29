@@ -1,16 +1,18 @@
 // The folder module: a project folder as an item. See README.md.
+#include <mirante/Fields.h>
 #include <mirante/ItemType.h>
 #include <mirante/Module.h>
 
 #include <QCoreApplication>
 
 #include <memory>
+#include <vector>
 
 namespace mirante::modules::folder {
 
 namespace {
 
-// Placeholder type for M2: only an id, a name and an icon. Views arrive later.
+// A type with an id, a name, an icon and its configuration fields. The view arrives later.
 class StubItemType : public ItemType
 {
 public:
@@ -24,6 +26,16 @@ public:
     QString id() const override { return m_id; }
     QString name() const override { return m_name; }
     QIcon icon() const override { return m_icon; }
+
+    std::vector<Field> fields() const override
+    {
+        Field folder;
+        folder.key = QStringLiteral("folder");
+        folder.label = QCoreApplication::translate("folder", "Folder");
+        folder.type = Field::Type::Folder;
+        folder.required = true;
+        return {folder};
+    }
 
 private:
     QString m_id;
