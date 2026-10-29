@@ -1,5 +1,7 @@
 #include "ui/AppStyle.h"
 
+#include "ui/RootTabBar.h"
+
 #include <QAbstractButton>
 #include <QCursor>
 #include <QEvent>
@@ -144,10 +146,13 @@ void AppStyle::drawPrimitive(PrimitiveElement element, const QStyleOption *optio
         if (!(option->state & State_Enabled))
             return;
         // Shown on the current tab, on the tab under the mouse, and while the
-        // mouse is over the button itself.
-        bool shown = option->state & (State_Selected | State_MouseOver);
+        // mouse is over the button itself. A bar whose selection is hidden,
+        // because a tab of the other bar is current, has no current tab.
+        const auto *owner = widget ? qobject_cast<const QTabBar *>(widget->parentWidget()) : nullptr;
+        const bool selected = (option->state & State_Selected) && !(owner && !tabbar::selectionShown(*owner));
+        bool shown = selected || (option->state & State_MouseOver);
         if (!shown && widget) {
-            if (const auto *bar = qobject_cast<const QTabBar *>(widget->parentWidget())) {
+            if (const QTabBar *bar = owner) {
                 const int index = tabOfButton(bar, widget);
                 shown = index >= 0 && bar->underMouse()
                     && bar->tabRect(index).contains(bar->mapFromGlobal(QCursor::pos()));

@@ -1,6 +1,6 @@
 # 0023. Items open alone in a tab
 
-- Status: Accepted
+- Status: Accepted; place of the preview superseded by 0048
 - Date: 2026-10-28
 
 ## Context
