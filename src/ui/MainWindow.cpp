@@ -1178,15 +1178,14 @@ struct MainWindow::Private
         QAction *aboutQt = help->addAction(MainWindow::tr("About &Qt"));
         aboutQt->setMenuRole(QAction::AboutQtRole);
         QObject::connect(aboutQt, &QAction::triggered, q, [] { QApplication::aboutQt(); });
-#ifndef NDEBUG
-        // Debug builds keep the log messages for a window. See main.cpp.
+        // Debug builds, and release builds started with --log, keep the log
+        // messages for a window. See main.cpp.
         if (LogBuffer::installedBuffer()) {
             help->addSeparator();
             QAction *log = help->addAction(MainWindow::tr("Show &Log"));
             log->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_L));
             QObject::connect(log, &QAction::triggered, q, [this] { showLog(); });
         }
-#endif
     }
 
     // Opens the log window, or brings it to the front. It has no parent, so it
