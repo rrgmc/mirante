@@ -449,7 +449,7 @@ private slots:
         editor->detach(&view);
     }
 
-    // "Edit Item…" is offered only while the dashboard is edited. Without a
+    // "Edit Item…" is offered whether the dashboard is locked or not. Without a
     // web page in the cell there is no "Use Current Address".
     void itemCellMenuEditsTheItem()
     {
@@ -467,11 +467,13 @@ private slots:
         view.show();
         QVERIFY(QTest::qWaitForWindowExposed(&view));
 
-        QVERIFY(!cellMenu(view, {0}).contains(QStringLiteral("Edit Item…")));
+        // Locked and unlocked alike, since it changes the item, not the layout.
+        QCOMPARE(cellMenu(view, {0}).value(0), QStringLiteral("Edit Item…"));
         view.setEditMode(true);
         const QStringList unlocked = cellMenu(view, {0});
         QCOMPARE(unlocked.value(0), QStringLiteral("Edit Item…"));
         QVERIFY(!unlocked.contains(QStringLiteral("Use Current Address")));
+        view.setEditMode(false);
         cellMenu(view, {0}, QStringLiteral("Edit Item…"));
         QTRY_COMPARE(edited, (QStringList{loginTask + QLatin1Char('/') + claudeItem}));
         editor->detach(&view);

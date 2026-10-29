@@ -138,8 +138,11 @@ Some work, such as signing in to a site, is easier on a large page than in a sma
 
 - **Maximise.** The button after the menu button in the cell header, the cell menu entry "Maximise", or `Ctrl+Shift+M` for the focused cell, shows the cell over the whole dashboard area and gives it the focus. The button's tooltip names the shortcut. The same cell moves, so a web page keeps its state, including a login in progress. The button, the menu entry "Restore" or the shortcut again puts the cell back in its place. Maximising another cell puts the first one back. Changing the root tab or closing the tab also puts it back.
 - **Open Alone.** The cell menu entry "Open Alone" opens the item alone in the preview tab, as a double click on the item in the sidebar does. See [decision 0023](decisions/0023-item-tabs.md). The tab has a view of its own, in the same profile, so a login made there reaches the cell when its page reloads. An item tab already shows its item alone, so it does not offer "Open Alone".
+- **Changing the item from its cell.** The menu of an item cell also offers two entries that change the item, not the layout, so they work on a locked dashboard and in an item tab too:
+  - "Edit Item…" opens the item dialog.
+  - "Use Current Address" is there for a cell that shows a web page, when the item's type has an address field. It saves the address the page shows now in that field, such as the Address of a Web page item. It is disabled when the two are already the same, and its tooltip shows the address.
 
-On a locked dashboard the cell menu of an item cell holds only these two entries. On an unlocked one they come first, before the [editing commands](#editing-layouts).
+On a locked dashboard the cell menu of an item cell holds only these entries. On an unlocked one they come first, before the [editing commands](#editing-layouts).
 
 ### Layout presets
 
@@ -162,8 +165,6 @@ Layouts are locked by default, to prevent accidental changes while working. The 
 When editing is on:
 
 - **The cell context menu** offers, after "Maximise" and "Open Alone" for an item cell (see [a bigger view](#a-bigger-view-of-an-item)):
-  - "Edit Item…", for an item cell, which opens the item dialog;
-  - "Use Current Address", for an item cell that shows a web page, when the item's type has an address field. It saves the address the page shows now in that field, such as the Address of a Web page item. It is disabled when the two are already the same, and its tooltip shows the address;
   - split right;
   - split down;
   - wrap in tabs;

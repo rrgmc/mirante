@@ -50,10 +50,15 @@ public:
     void setConfirm(std::function<bool(QWidget *parent, const QString &question)> confirm);
 
     // The services whose callbacks the item cell menu calls: "Maximise" or
-    // "Restore", and "Open Alone". An entry is hidden while its callback is
-    // null, and both are hidden without services. The services must outlive
+    // "Restore", "Open Alone" and "Edit Item…". An entry is hidden while its
+    // callback is null, and all are hidden without services. The services must outlive
     // the editor. See the M4 plan, part 6.
     void setServices(const LayoutServices *services);
+
+    // The menu of an item page, which shows one item alone and is not
+    // attached: "Edit Item…" and "Use Current Address", which change the item
+    // and not a layout.
+    void showItemMenu(LayoutView *view, const QString &taskId, const QString &itemId, const QPoint &globalPos);
 
     // Applies a drop, following the rules in docs/ui.md#editing-layouts.
     // Returns false if the drop is not allowed, such as an item of another task

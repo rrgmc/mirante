@@ -151,8 +151,8 @@ struct LayoutEditor::Private
     void setItemField(const QString &taskId, const QString &itemId, const QString &key, const QString &value);
     void addViewCommands(QMenu &menu, Commands &commands, LayoutView *view, const DashboardRef &dashboard,
                          const NodePath &path, const LayoutNode &node) const;
-    void addItemCommands(QMenu &menu, Commands &commands, LayoutView *view, const DashboardRef &dashboard,
-                         const NodePath &path, const LayoutNode &node);
+    void addItemCommands(QMenu &menu, Commands &commands, const QWidget *cell, const QString &taskId,
+                         const QString &itemId);
     void showTabMenu(LayoutView *view, const NodePath &tabsPath, int index, const QPoint &globalPos);
     void startDrag(LayoutView *view, const NodePath &path);
     void onDropped(LayoutView *view, const DropTarget &target, const DragPayload &payload);
@@ -298,10 +298,6 @@ void LayoutEditor::Private::execMenu(QMenu &menu, const Commands &commands, cons
         QTimer::singleShot(0, q, run->second);
 }
 
-// The commands of an item cell that only change how it is shown, so they are
-// offered on locked dashboards too: "Maximise" or "Restore", and "Open Alone".
-// Item pages, which already show an item alone, are not attached to the
-// editor, so they never get here.
 // The task and item that a cell shows, if it shows one that exists.
 std::optional<std::pair<QString, QString>> LayoutEditor::Private::itemOfCell(const DashboardRef &dashboard,
                                                                            const LayoutNode &node) const
@@ -333,6 +329,10 @@ void LayoutEditor::Private::setItemField(const QString &taskId, const QString &i
     model.setTask(changed);
 }
 
+// The commands of an item cell that only change how it is shown, so they are
+// offered on locked dashboards too: "Maximise" or "Restore", and "Open Alone".
+// Item pages, which already show an item alone, are not attached to the
+// editor, so they never get here.
 void LayoutEditor::Private::addViewCommands(QMenu &menu, Commands &commands, LayoutView *view,
                                             const DashboardRef &dashboard, const NodePath &path,
                                             const LayoutNode &node) const
@@ -358,24 +358,17 @@ void LayoutEditor::Private::addViewCommands(QMenu &menu, Commands &commands, Lay
     }
 }
 
-// While the dashboard is edited: the item dialog, and, for an item whose type
-// has an address field and whose cell shows a web page, a command that saves
-// the page's current address in that field.
-void LayoutEditor::Private::addItemCommands(QMenu &menu, Commands &commands, LayoutView *view,
-                                            const DashboardRef &dashboard, const NodePath &path,
-                                            const LayoutNode &node)
+// The commands that change the item, not the layout, so they are offered on
+// locked dashboards and item pages too: the item dialog, and, for an item
+// whose type has an address field and whose cell shows a web page, a command
+// that saves the page's current address in that field.
+void LayoutEditor::Private::addItemCommands(QMenu &menu, Commands &commands, const QWidget *cell,
+                                            const QString &taskId, const QString &itemId)
 {
-    const auto shown = itemOfCell(dashboard, node);
-    if (!services || !shown)
+    if (!services)
         return;
-    const QString taskId = shown->first;
-    const QString itemId = shown->second;
-    bool added = false;
-
-    if (const auto edit = services->editItem) {
+    if (const auto edit = services->editItem)
         addCommand(&menu, commands, LayoutEditor::tr("Edit Item…"), [edit, taskId, itemId] { edit(taskId, itemId); });
-        added = true;
-    }
 
     // The first address field of the item's type.
     const Item *item = model.item(taskId, itemId);
@@ -388,19 +381,16 @@ void LayoutEditor::Private::addItemCommands(QMenu &menu, Commands &commands, Lay
             }
         }
     }
-    const QWidget *cell = view->cellAt(path);
     const auto *page = cell ? cell->findChild<QWebEngineView *>() : nullptr;
     const QUrl current = page ? page->url() : QUrl();
-    if (!key.isEmpty() && (current.scheme() == QStringLiteral("http") || current.scheme() == QStringLiteral("https"))) {
+    if (item && !key.isEmpty()
+        && (current.scheme() == QStringLiteral("http") || current.scheme() == QStringLiteral("https"))) {
         const QString address = current.toString();
         QAction *use = addCommand(&menu, commands, LayoutEditor::tr("Use Current Address"),
                                   [this, taskId, itemId, key, address] { setItemField(taskId, itemId, key, address); });
         use->setToolTip(address);
         use->setEnabled(item->config.value(key).toString() != address);
-        added = true;
     }
-    if (added)
-        menu.addSeparator();
 }
 
 void LayoutEditor::Private::showCellMenu(LayoutView *view, const NodePath &path, const QPoint &globalPos)
@@ -417,7 +407,12 @@ void LayoutEditor::Private::showCellMenu(LayoutView *view, const NodePath &path,
     QMenu menu(view);
     Commands commands;
     addViewCommands(menu, commands, view, dashboard, path, *node);
-    // A locked dashboard offers only the commands that do not edit it.
+    if (const auto shown = itemOfCell(dashboard, *node)) {
+        if (!commands.empty())
+            menu.addSeparator();
+        addItemCommands(menu, commands, view->cellAt(path), shown->first, shown->second);
+    }
+    // A locked dashboard offers only the commands that do not edit its layout.
     if (!view->editMode()) {
         if (!commands.empty())
             execMenu(menu, commands, globalPos);
@@ -429,7 +424,6 @@ void LayoutEditor::Private::showCellMenu(LayoutView *view, const NodePath &path,
         return addCommand(&menu, commands, text,
                           [this, dashboard, path, cellCommand] { q->cellCommand(dashboard, path, cellCommand); });
     };
-    addItemCommands(menu, commands, view, dashboard, path, *node);
     // A task dashboard is edited on its own, not inside the root dashboard.
     if (QPointer<TaskCell> taskCell = qobject_cast<TaskCell *>(view->cellAt(path))) {
         addCommand(&menu, commands, LayoutEditor::tr("Edit task dashboard"), [taskCell] {
@@ -634,6 +628,18 @@ void LayoutEditor::attach(LayoutView *view, const DashboardRef &dashboard)
     connect(overlay, &DropOverlay::dropped, this, [this, view](const DropTarget &target, const DragPayload &payload) {
         d->onDropped(view, target, payload);
     });
+}
+
+void LayoutEditor::showItemMenu(LayoutView *view, const QString &taskId, const QString &itemId,
+                                const QPoint &globalPos)
+{
+    if (!d->model.item(taskId, itemId))
+        return;
+    QMenu menu(view);
+    Commands commands;
+    d->addItemCommands(menu, commands, view->cellAt({}), taskId, itemId);
+    if (!commands.empty())
+        d->execMenu(menu, commands, globalPos);
 }
 
 void LayoutEditor::detach(LayoutView *view)

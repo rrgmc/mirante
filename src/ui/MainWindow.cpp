@@ -277,6 +277,10 @@ struct MainWindow::Private
     {
         auto *page = new DashboardPage(services, DashboardRef{taskId, QString()}, stack, itemId);
         page->view->setSingleViewTracker(tracker);
+        QObject::connect(page->view, &LayoutView::cellMenuRequested, q,
+                         [this, view = page->view, taskId, itemId](const NodePath &, const QPoint &globalPos) {
+                             editor->showItemMenu(view, taskId, itemId, globalPos);
+                         });
         LayoutNode cell;
         cell.ref = CellRef{itemId, QString(), QString()};
         page->view->setTree(cell);
