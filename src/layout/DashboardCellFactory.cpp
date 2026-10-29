@@ -1,6 +1,7 @@
 #include "layout/DashboardCellFactory.h"
 
 #include "items/ItemTypeRegistry.h"
+#include "items/Placement.h"
 #include "layout/CellHoverTracker.h"
 #include "layout/CellFrame.h"
 #include "layout/TaskCell.h"
@@ -78,6 +79,19 @@ QWidget *DashboardCellFactory::createCell(const std::optional<CellRef> &ref, boo
         frame->setContext(d->origin(*ref));
     if (d->services.hover)
         d->services.hover->watch(frame, ref->item);
+
+    // The item's view, made when the cell is first shown.
+    if (d->services.placements) {
+        const QString taskId = d->dashboard.isRoot() ? ref->task : d->dashboard.taskId;
+        auto *placement = new Placement(*d->services.placements, taskId, ref->item, frame);
+        QObject::connect(placement, &Placement::headerWidgetChanged, frame, &CellFrame::setHeaderWidget);
+        frame->setBody(placement);
+    }
+    // The callback is a copy, so it stays valid if the factory goes first.
+    if (const auto toggle = d->services.toggleMaximised) {
+        frame->setMaximiseButtonVisible(true);
+        QObject::connect(frame, &CellFrame::maximiseRequested, frame, [toggle, frame] { toggle(frame); });
+    }
     return frame;
 }
 

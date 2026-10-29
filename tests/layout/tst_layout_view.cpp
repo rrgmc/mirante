@@ -1,15 +1,22 @@
 // Tests LayoutView on hand-made trees with a fake CellFactory: building, the
 // cell pool on updates, size and tab reports, detaching, single view, and the
-// CellFrame placeholders.
+// CellFrame placeholders, body, header widget and maximise button, remaking
+// cells that cannot move, and the placements of DashboardCellFactory.
+#include "core/Model.h"
+#include "items/ItemTypeRegistry.h"
+#include "items/Placement.h"
 #include "items/UnknownItemType.h"
 #include "layout/CellFactory.h"
 #include "layout/CellFrame.h"
+#include "layout/DashboardCellFactory.h"
+#include "layout/LayoutServices.h"
 #include "layout/LayoutView.h"
 #include "layout/SingleViewTracker.h"
 
 #include <mirante/ItemType.h>
 
 #include <QApplication>
+#include <QKeySequence>
 #include <QLabel>
 #include <QMouseEvent>
 #include <QPointer>
@@ -133,6 +140,32 @@ QPushButton *showHereButton(const QWidget *frame)
     return nullptr;
 }
 
+// A type whose view is a label named "itemView", for the factory's placements.
+class ViewType : public ItemType
+{
+public:
+    QString id() const override { return QStringLiteral("view.type"); }
+    QString name() const override { return QStringLiteral("View type"); }
+    QIcon icon() const override { return QIcon(); }
+    QWidget *createView(ItemContext &, QWidget *parent) const override
+    {
+        auto *label = new QLabel(QStringLiteral("the view"), parent);
+        label->setObjectName(QStringLiteral("itemView"));
+        return label;
+    }
+};
+
+void registerViewType(ModuleRegistrar &registrar) { registrar.addItemType(std::make_unique<ViewType>()); }
+
+QToolButton *toolButton(const QWidget *frame, const QString &toolTipStart)
+{
+    for (QToolButton *button : frame->findChildren<QToolButton *>()) {
+        if (button->toolTip().startsWith(toolTipStart))
+            return button;
+    }
+    return nullptr;
+}
+
 } // namespace
 
 class TestLayoutView : public QObject
@@ -155,6 +188,11 @@ private slots:
     void detachAndReattach();
     void singleView();
     void frameTexts();
+    void remakeUnsafeCells();
+    void frameBody();
+    void frameHeaderWidget();
+    void maximiseButton();
+    void factoryMakesPlacements();
 };
 
 void TestLayoutView::buildsWidgets()
@@ -597,6 +635,220 @@ void TestLayoutView::frameTexts()
     item.setCellFocused(true);
     QVERIFY(item.isCellFocused());
     QVERIFY(item.styleSheet().contains(item.palette().color(QPalette::Highlight).name()));
+}
+
+void TestLayoutView::remakeUnsafeCells()
+{
+    FakeFactory factory;
+    factory.notReparentable.insert(QStringLiteral("a"));
+    factory.notReparentable.insert(QStringLiteral("d"));
+    LayoutView view(&factory);
+    view.setTree(sampleTree());
+    QPointer<QWidget> a = view.cellAt({0});
+    QPointer<QWidget> d = view.cellAt({1, 1, 1});
+    QWidget *b = view.cellAt({1, 0});
+    QWidget *c = view.cellAt({1, 1, 0});
+    const int created = factory.created;
+
+    view.remakeUnsafeCells();
+    QCOMPARE(factory.created, created + 2);
+    QVERIFY(a.isNull());
+    QVERIFY(d.isNull());
+
+    // The new cells are in the same places; the others did not change.
+    QWidget *newA = view.cellAt({0});
+    QWidget *newD = view.cellAt({1, 1, 1});
+    QVERIFY(newA && newD);
+    QCOMPARE(newA->objectName(), QStringLiteral("a"));
+    QCOMPARE(newD->objectName(), QStringLiteral("d"));
+    auto *outer = qobject_cast<QSplitter *>(newA->parentWidget());
+    QVERIFY(outer);
+    QCOMPARE(outer->widget(0), newA);
+    auto *tabWidget = qobject_cast<QTabWidget *>(view.widgetAt({1, 1}));
+    QVERIFY(tabWidget);
+    QCOMPARE(tabWidget->widget(1), newD);
+    QCOMPARE(tabWidget->tabText(1), QStringLiteral("Tab 2"));
+    QCOMPARE(tabWidget->currentIndex(), 0);
+    QCOMPARE(view.cellAt({1, 0}), b);
+    QCOMPARE(view.cellAt({1, 1, 0}), c);
+    QCOMPARE(view.pathOf(newD), std::optional<NodePath>(NodePath{1, 1, 1}));
+
+    // A single cell at the root is made again too.
+    FakeFactory single;
+    single.notReparentable.insert(QStringLiteral("a"));
+    LayoutView alone(&single);
+    alone.setTree(cell(QStringLiteral("a")));
+    QPointer<QWidget> root = alone.cellAt({});
+    alone.remakeUnsafeCells();
+    QVERIFY(root.isNull());
+    QVERIFY(alone.cellAt({}));
+    QCOMPARE(alone.cellAt({})->parentWidget(), &alone);
+}
+
+void TestLayoutView::frameBody()
+{
+    TestType type(false);
+    CellFrame frame(itemRef(QStringLiteral("i1")), false, &type, QStringLiteral("Item"));
+    QVERIFY(!frame.body());
+    QVERIFY(bodyContains(&frame, QStringLiteral("Id: i1")));
+
+    auto *body = new QLabel(QStringLiteral("the body"));
+    frame.setBody(body);
+    QCOMPARE(frame.body(), body);
+    QVERIFY(frame.isAncestorOf(body));
+    QVERIFY(!bodyContains(&frame, QStringLiteral("Id: i1")));
+
+    frame.resize(300, 200);
+    frame.show();
+    QVERIFY(body->isVisible());
+}
+
+void TestLayoutView::frameHeaderWidget()
+{
+    TestType type(false);
+    CellFrame frame(itemRef(QStringLiteral("i1")), false, &type, QStringLiteral("Item"));
+    frame.setMaximiseButtonVisible(true);
+    frame.resize(500, 200);
+    frame.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&frame));
+
+    auto toolbar = std::make_unique<QLabel>(QStringLiteral("toolbar"));
+    frame.setHeaderWidget(toolbar.get());
+    QVERIFY(frame.isAncestorOf(toolbar.get()));
+    QVERIFY(toolbar->isVisible());
+
+    // Between the name and the menu button, which comes before the maximise button.
+    QWidget *name = frame.findChild<QWidget *>(QStringLiteral("cellName"));
+    QToolButton *menu = toolButton(&frame, QStringLiteral("Cell menu"));
+    QToolButton *maximise = frame.findChild<QToolButton *>(QStringLiteral("maximiseButton"));
+    QVERIFY(name && menu && maximise);
+    QTRY_VERIFY(toolbar->width() > 0);
+    const auto x = [&frame](const QWidget *widget) { return widget->mapTo(&frame, QPoint(0, 0)).x(); };
+    QVERIFY(x(name) < x(toolbar.get()));
+    QVERIFY(x(toolbar.get()) < x(menu));
+    QVERIFY(x(menu) < x(maximise));
+
+    // Removing it leaves it to its owner.
+    frame.setHeaderWidget(nullptr);
+    QVERIFY(!frame.isAncestorOf(toolbar.get()));
+    QVERIFY(!toolbar->isVisible());
+
+    // Deleted by its owner while in the header, it simply goes.
+    auto *other = new QLabel(QStringLiteral("other"));
+    frame.setHeaderWidget(other);
+    delete other;
+    frame.setHeaderWidget(toolbar.get());
+    QVERIFY(frame.isAncestorOf(toolbar.get()));
+    frame.setHeaderWidget(nullptr);
+}
+
+void TestLayoutView::maximiseButton()
+{
+    TestType type(false);
+    CellFrame frame(itemRef(QStringLiteral("i1")), false, &type, QStringLiteral("Item"));
+    auto *button = frame.findChild<QToolButton *>(QStringLiteral("maximiseButton"));
+    QVERIFY(button);
+    QVERIFY(!button->isVisibleTo(&frame));
+
+    frame.setMaximiseButtonVisible(true);
+    QVERIFY(button->isVisibleTo(&frame));
+    const QString shortcut = QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_M).toString(QKeySequence::NativeText);
+    QVERIFY(button->toolTip().startsWith(QStringLiteral("Maximise")));
+    QVERIFY(button->toolTip().contains(shortcut));
+    QVERIFY(!button->icon().isNull());
+
+    QSignalSpy requested(&frame, &CellFrame::maximiseRequested);
+    button->click();
+    QCOMPARE(requested.count(), 1);
+
+    frame.setMaximised(true);
+    QVERIFY(button->toolTip().startsWith(QStringLiteral("Restore")));
+    QVERIFY(button->toolTip().contains(shortcut));
+    frame.setMaximised(false);
+    QVERIFY(button->toolTip().startsWith(QStringLiteral("Maximise")));
+
+    frame.setMaximiseButtonVisible(false);
+    QVERIFY(!button->isVisibleTo(&frame));
+
+    // Never on empty or removed cells.
+    CellFrame empty(std::nullopt, false, nullptr, QString());
+    empty.setMaximiseButtonVisible(true);
+    QVERIFY(!empty.findChild<QToolButton *>(QStringLiteral("maximiseButton"))->isVisibleTo(&empty));
+    CellFrame removed(itemRef(QStringLiteral("gone")), true, nullptr, QString());
+    removed.setMaximiseButtonVisible(true);
+    QVERIFY(!removed.findChild<QToolButton *>(QStringLiteral("maximiseButton"))->isVisibleTo(&removed));
+}
+
+void TestLayoutView::factoryMakesPlacements()
+{
+    ItemTypeRegistry types;
+    types.registerModule(QStringLiteral("view"), &registerViewType);
+    Model model;
+    Group group;
+    group.id = QStringLiteral("g1");
+    Project project;
+    project.id = QStringLiteral("p1");
+    project.groupId = QStringLiteral("g1");
+    Task task;
+    task.id = QStringLiteral("t1");
+    task.projectId = QStringLiteral("p1");
+    Item item;
+    item.id = QStringLiteral("i1");
+    item.type = QStringLiteral("view.type");
+    item.name = QStringLiteral("Item");
+    task.items.push_back(item);
+    model.reset({group}, {project}, {task}, {});
+
+    PlacementServices placements;
+    placements.model = &model;
+    placements.types = &types;
+    LayoutServices services;
+    services.model = &model;
+    services.types = &types;
+    const DashboardRef dashboard{QStringLiteral("t1"), QStringLiteral("d1")};
+
+    // Without placements the body stays a placeholder, and without the
+    // callback there is no maximise button.
+    {
+        DashboardCellFactory factory(services, dashboard);
+        std::unique_ptr<QWidget> cellWidget(factory.createCell(itemRef(QStringLiteral("i1")), false, nullptr));
+        auto *frame = qobject_cast<CellFrame *>(cellWidget.get());
+        QVERIFY(frame);
+        QVERIFY(!frame->body());
+        QVERIFY(!frame->findChild<QToolButton *>(QStringLiteral("maximiseButton"))->isVisibleTo(frame));
+    }
+
+    QWidget *toggled = nullptr;
+    services.placements = &placements;
+    services.toggleMaximised = [&toggled](QWidget *cell) { toggled = cell; };
+    auto factory = std::make_unique<DashboardCellFactory>(services, dashboard);
+    std::unique_ptr<QWidget> cellWidget(factory->createCell(itemRef(QStringLiteral("i1")), false, nullptr));
+    // The callbacks are copied, so the cell works after the factory goes.
+    factory.reset();
+    auto *frame = qobject_cast<CellFrame *>(cellWidget.get());
+    QVERIFY(frame);
+    auto *placement = qobject_cast<Placement *>(frame->body());
+    QVERIFY(placement);
+    QCOMPARE(placement->taskId(), QStringLiteral("t1"));
+    QCOMPARE(placement->itemId(), QStringLiteral("i1"));
+    QVERIFY(!placement->view());
+
+    frame->resize(300, 200);
+    frame->show();
+    QVERIFY(placement->view());
+    QCOMPARE(placement->view()->objectName(), QStringLiteral("itemView"));
+
+    // The placement's header widget goes to the frame's header.
+    auto toolbar = std::make_unique<QLabel>(QStringLiteral("toolbar"));
+    emit placement->headerWidgetChanged(toolbar.get());
+    QVERIFY(frame->isAncestorOf(toolbar.get()));
+    emit placement->headerWidgetChanged(nullptr);
+    QVERIFY(!frame->isAncestorOf(toolbar.get()));
+
+    auto *maximise = frame->findChild<QToolButton *>(QStringLiteral("maximiseButton"));
+    QVERIFY(maximise->isVisible());
+    maximise->click();
+    QCOMPARE(toggled, frame);
 }
 
 QTEST_MAIN(TestLayoutView)

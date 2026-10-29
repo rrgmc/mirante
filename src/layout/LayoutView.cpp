@@ -685,7 +685,21 @@ void LayoutView::reattachCell(QWidget *cell)
     delete placeholder;
 }
 
-// Stub from M4 T0. T7 implements it.
-void LayoutView::remakeUnsafeCells() {}
+void LayoutView::remakeUnsafeCells()
+{
+    // Copied first, because replacing a cell changes the map.
+    const std::map<NodePath, QWidget *> current = d->cells;
+    for (const auto &[path, cell] : current) {
+        const LayoutNode *node = layout::nodeAt(d->tree, path);
+        // A detached cell, such as a maximised one, did not move with the view.
+        if (!cell || !node || d->detached.count(cell) > 0 || d->factory->canReparent(node->ref))
+            continue;
+        QWidget *replacement = d->factory->createCell(node->ref, node->removed, this);
+        d->setUpNewCell(replacement);
+        d->replace(path, cell, replacement);
+        d->cells[path] = replacement;
+        delete cell;
+    }
+}
 
 } // namespace mirante
