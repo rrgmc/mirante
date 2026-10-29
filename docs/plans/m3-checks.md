@@ -45,8 +45,8 @@ Tick each box, or note what is wrong next to it.
 
 ## Images
 
-- [X] Copy an image, focus an empty cell of an unlocked task dashboard and press `Ctrl+V`: an Image item named "Image" fills the cell, and a PNG appears in `files/`.
-- [X] `Ctrl+V` on a focused filled cell splits it with the image on the right. On a locked dashboard or a root dashboard, the status bar explains why nothing happened.
+- [ ] Copy an image, right-click a task's Items row and choose "Paste Image…", then "Paste": an Image item named "Image" appears under Items, no dashboard changes, and a PNG appears in `files/`. "Paste Image…" is disabled while the clipboard holds no image. ([Decision 0051](../decisions/0051-paste-images-from-the-items-menu.md) replaced pasting onto dashboards.)
+- [ ] `Ctrl+V` on a focused empty or non-image cell, on a task or root dashboard, adds nothing, and the status bar points to "Paste Image…".
 - [X] Pasting into a focused Image item replaces its image; the old file in `files/` is deleted.
 - [X] Deleting the Image item deletes its file.
 - [X] `Ctrl+V` in a text field of a dialog still pastes text.

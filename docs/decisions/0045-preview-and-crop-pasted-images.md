@@ -1,6 +1,6 @@
 # 0045. Pasted images open a preview with a crop first
 
-- Status: Accepted
+- Status: Accepted; pasting onto dashboards superseded by [0051](0051-paste-images-from-the-items-menu.md)
 - Date: 2026-10-29
 
 ## Context
