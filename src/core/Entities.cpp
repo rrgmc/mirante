@@ -58,26 +58,6 @@ public:
             *out = value->toObject();
     }
 
-    // An object whose values are all strings.
-    void stringMap(const QString &key, QMap<QString, QString> *out)
-    {
-        const auto isStringMap = [](const QJsonValue &v) {
-            if (!v.isObject())
-                return false;
-            const QJsonObject object = v.toObject();
-            for (auto it = object.begin(); it != object.end(); ++it) {
-                if (!it.value().isString())
-                    return false;
-            }
-            return true;
-        };
-        if (const auto value = take(key, isStringMap)) {
-            const QJsonObject object = value->toObject();
-            for (auto it = object.begin(); it != object.end(); ++it)
-                out->insert(it.key(), it.value().toString());
-        }
-    }
-
     void priority(const QString &key, Priority *out)
     {
         const auto isPriority = [](const QJsonValue &v) {
@@ -178,13 +158,6 @@ QJsonArray listToJson(const std::vector<T> &list)
     return array;
 }
 
-QJsonObject mapToJson(const QMap<QString, QString> &map)
-{
-    QJsonObject json;
-    for (auto it = map.begin(); it != map.end(); ++it)
-        json.insert(it.key(), it.value());
-    return json;
-}
 
 QString stateToString(TaskState state)
 {
@@ -223,31 +196,6 @@ QJsonObject Folder::toJson() const
     return withExtra(json, extra);
 }
 
-std::optional<Connection> Connection::fromJson(const QJsonObject &json, QString *error)
-{
-    Reader r(json);
-    Connection connection;
-    if (!r.required(QStringLiteral("id"), &connection.id, error))
-        return std::nullopt;
-    r.string(QStringLiteral("kind"), &connection.kind);
-    r.string(QStringLiteral("name"), &connection.name);
-    r.string(QStringLiteral("baseUrl"), &connection.baseUrl);
-    r.object(QStringLiteral("fields"), &connection.fields);
-    connection.extra = r.extra();
-    return connection;
-}
-
-QJsonObject Connection::toJson() const
-{
-    return withExtra({
-        {QStringLiteral("id"), id},
-        {QStringLiteral("kind"), kind},
-        {QStringLiteral("name"), name},
-        {QStringLiteral("baseUrl"), baseUrl},
-        {QStringLiteral("fields"), fields},
-    }, extra);
-}
-
 std::optional<Group> Group::fromJson(const QJsonObject &json, QString *error)
 {
     Reader r(json);
@@ -282,7 +230,7 @@ QJsonObject Group::toJson() const
 
 bool Profile::hasData() const
 {
-    return !connections.empty() || !defaultConnections.isEmpty() || !moduleSettings.isEmpty() || !extra.isEmpty();
+    return !moduleSettings.isEmpty() || !extra.isEmpty();
 }
 
 std::optional<Profile> Profile::fromJson(const QJsonObject &json, QString *error)
@@ -292,9 +240,8 @@ std::optional<Profile> Profile::fromJson(const QJsonObject &json, QString *error
     if (!r.required(QStringLiteral("id"), &profile.id, error))
         return std::nullopt;
     r.string(QStringLiteral("name"), &profile.name);
-    if (!r.list(QStringLiteral("connections"), &profile.connections, error))
-        return std::nullopt;
-    r.stringMap(QStringLiteral("defaultConnections"), &profile.defaultConnections);
+    // "connections" and "defaultConnections" from before decision 0054 stay
+    // in extra; the profile migration moves them to module settings.
     r.object(QStringLiteral("moduleSettings"), &profile.moduleSettings);
     profile.extra = r.extra();
     return profile;
@@ -306,10 +253,6 @@ QJsonObject Profile::toJson() const
         {QStringLiteral("id"), id},
         {QStringLiteral("name"), name},
     };
-    if (!connections.empty())
-        json.insert(QStringLiteral("connections"), listToJson(connections));
-    if (!defaultConnections.isEmpty())
-        json.insert(QStringLiteral("defaultConnections"), mapToJson(defaultConnections));
     if (!moduleSettings.isEmpty())
         json.insert(QStringLiteral("moduleSettings"), moduleSettings);
     return withExtra(json, extra);
@@ -328,7 +271,6 @@ std::optional<Project> Project::fromJson(const QJsonObject &json, QString *error
     if (!r.list(QStringLiteral("folders"), &project.folders, error))
         return std::nullopt;
     r.object(QStringLiteral("moduleSettings"), &project.moduleSettings);
-    r.stringMap(QStringLiteral("connectionOverrides"), &project.connectionOverrides);
     r.string(QStringLiteral("trashedAt"), &project.trashedAt);
     project.extra = r.extra();
     return project;
@@ -344,7 +286,6 @@ QJsonObject Project::toJson() const
         {QStringLiteral("order"), order},
         {QStringLiteral("folders"), listToJson(folders)},
         {QStringLiteral("moduleSettings"), moduleSettings},
-        {QStringLiteral("connectionOverrides"), mapToJson(connectionOverrides)},
     };
     if (!trashedAt.isEmpty())
         json.insert(QStringLiteral("trashedAt"), trashedAt);
@@ -360,7 +301,6 @@ std::optional<Item> Item::fromJson(const QJsonObject &json, QString *error)
         return std::nullopt;
     r.string(QStringLiteral("name"), &item.name);
     r.object(QStringLiteral("config"), &item.config);
-    r.string(QStringLiteral("connectionId"), &item.connectionId);
     // "webProfile" is the name used before decision 0050. "profile" wins.
     r.string(QStringLiteral("webProfile"), &item.profile);
     r.string(QStringLiteral("profile"), &item.profile);
@@ -376,8 +316,6 @@ QJsonObject Item::toJson() const
         {QStringLiteral("name"), name},
         {QStringLiteral("config"), config},
     };
-    if (!connectionId.isEmpty())
-        json.insert(QStringLiteral("connectionId"), connectionId);
     if (!profile.isEmpty())
         json.insert(QStringLiteral("profile"), profile);
     return withExtra(json, extra);
@@ -470,7 +408,6 @@ QJsonObject Task::toJson() const
 
 // toJson() writes every field and extra, so equal JSON means equal values.
 bool operator==(const Folder &a, const Folder &b) { return a.toJson() == b.toJson(); }
-bool operator==(const Connection &a, const Connection &b) { return a.toJson() == b.toJson(); }
 bool operator==(const Profile &a, const Profile &b) { return a.toJson() == b.toJson(); }
 bool operator==(const Group &a, const Group &b) { return a.toJson() == b.toJson(); }
 bool operator==(const Project &a, const Project &b) { return a.toJson() == b.toJson(); }

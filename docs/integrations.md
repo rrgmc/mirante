@@ -1,13 +1,13 @@
 # Integrations
 
-This document describes how Mirante talks to GitLab, Jira and Claude, and how it starts terminals. Which connection an item uses is defined in the [data model](data-model.md#connection): one of its [profile](data-model.md#profile)'s connections.
+This document describes how Mirante talks to GitLab, Jira and Claude, and how it starts terminals. Which server an item talks to is defined in the [data model](data-model.md#servers-and-tokens): the GitLab or Jira server in the module settings of the item's [profile](data-model.md#profile).
 
 The GitLab, Jira and Claude code lives in the `gitlab`, `jira` and `claude` [modules](modules.md). Polling, caching, errors and terminal launch are core services that all modules use.
 
 ## GitLab
 
 - **API:** REST v4 at `<baseUrl>/api/v4`. It works with gitlab.com and self-hosted GitLab.
-- **Connection kind:** `gitlab`.
+- **Server:** `gitlab.general.baseUrl` of the item's profile, `https://gitlab.com` by default. The token is entered on the same screen and kept in the keychain.
 - **Authentication:** a personal access token in the `PRIVATE-TOKEN` header.
 - **Token scope:** `api`, because the light actions write data. A token with only `read_api` works too, but then the actions fail with a clear message.
 - **Caching:** requests send `If-None-Match` with the last ETag. A `304 Not Modified` answer costs almost nothing and keeps cached data.
@@ -33,7 +33,7 @@ Project paths such as `acme/backend` are URL-encoded and used as `:id`.
 
 ## Jira
 
-Jira has two connection kinds, because Cloud and Data Center differ.
+Jira Cloud and Data Center differ. The server is `jira.general.baseUrl` of the item's profile, with its token on the same screen. Since [decision 0054](decisions/0054-module-settings-replace-connections.md) there is no connection kind to tell them apart; M5 tells them apart by the site, such as an `atlassian.net` address, or by a setting on the Jira screen.
 
 | | Jira Cloud (`jira.cloud`) | Jira Data Center (`jira.dc`) |
 |---|---|---|
@@ -69,7 +69,7 @@ If Anthropic publishes an API for sessions later, a new decision record will cov
 
 The `StatusCache` owns all API data.
 
-- **Cache key:** connection id plus request. Two profiles that use the same server with different tokens never share data.
+- **Cache key:** profile id, module id and request. Two profiles that use the same server with different tokens never share data.
 - **What it polls:**
   - items in visible cells;
   - items in tasks opened in the last 30 minutes;
@@ -81,12 +81,12 @@ The `StatusCache` owns all API data.
   - [attention badges](ui.md#attention) and the tray count;
   - [built-in panels](web-views.md#built-in-panels), through the bridge.
 
-Modules fetch through the cache, never around it. All requests are asynchronous and use one `QNetworkAccessManager`. At most four requests run at once for each connection.
+Modules fetch through the cache, never around it. All requests are asynchronous and use one `QNetworkAccessManager`. At most four requests run at once for each server of a profile.
 
 ## Errors
 
 - A missing token shows "Token not set on this device" with a button to enter it.
-- `401` or `403` marks the connection as failing, shows a banner and pauses polling for that connection until the token is changed.
+- `401` or `403` marks the profile's server as failing, shows a banner and pauses polling for it until the token is changed.
 - Network errors keep the last data and show its age, such as "Updated 12 min ago".
 
 ## Terminal launch
@@ -103,4 +103,4 @@ On every platform a device setting can replace the default with a template, such
 
 ## Later: custom certificate authorities
 
-Company servers are sometimes signed by an internal certificate authority. A connection could later hold a trusted certificate file for this case. It is not part of the first version.
+Company servers are sometimes signed by an internal certificate authority. A module's settings could later hold a trusted certificate file for this case. It is not part of the first version.

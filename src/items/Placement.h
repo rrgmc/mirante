@@ -27,7 +27,7 @@ struct PlacementServices
 // first shown. It holds the item's ItemContext. A web view is added to the
 // ViewPool, and replaced by a "Reload" placeholder while it is unloaded. The
 // view is made again when the item's type, configuration or profile changes,
-// or the connections and module settings of its profile.
+// or the module settings of its profile.
 // Implemented in Placement.cpp.
 class Placement : public QWidget
 {

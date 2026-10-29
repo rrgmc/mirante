@@ -15,8 +15,8 @@ class Model;
 // Creates or edits a project: name, group, priority and folders. Each folder
 // has a name, a remote URL, the main flag, and its local path on this device,
 // shown as "Folder not set on this device" when empty, with "Choose…".
-// Exactly one folder is main when there are any. Module settings and
-// connection overrides arrive in M5. OK is refused while the name is empty.
+// Exactly one folder is main when there are any. Module settings arrive in
+// M5. OK is refused while the name is empty.
 // See the M3 plan, part 5. Implemented in ProjectDialog.cpp.
 class ProjectDialog : public QDialog
 {

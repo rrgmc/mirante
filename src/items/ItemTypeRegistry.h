@@ -41,14 +41,9 @@ public:
     std::vector<const ItemType *> types() const;
 
     // Whether items of the type use their profile: its views are web views,
-    // it uses connections, or its module has settings screens. The item
+    // or its module has settings screens. The item
     // dialog offers a profile for such types. False for an unknown type.
     bool usesProfile(const QString &typeId) const;
-
-    // Every connection kind that a registered type lists in connectionKinds(),
-    // once each, sorted. The profile's connections dialog offers these. See
-    // docs/decisions/0038-read-connections-in-m4.md.
-    QStringList connectionKinds() const;
 
     // Module settings. See decisions 0044 and 0050 in docs/decisions/.
 

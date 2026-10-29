@@ -11,8 +11,8 @@ namespace mirante {
 class Model;
 
 // The workspace's profiles and the profile each item uses. A profile holds
-// web logins, connections and module settings. See docs/data-model.md#profile
-// and docs/decisions/0050-profiles-hold-logins-connections-and-settings.md.
+// web logins and module settings. See docs/data-model.md#profile and
+// decisions 0050 and 0054 in docs/decisions/.
 // Implemented in Profiles.cpp.
 namespace profiles {
 
@@ -40,9 +40,9 @@ QString effective(const Model &model, const QString &taskId, const QString &item
 // itemProfile. Used while an item is edited, before it is saved.
 QString effectiveFor(const Model &model, const QString &taskId, const QString &itemProfile);
 
-// Removes a profile from the workspace's list, with its connections and
-// module settings. Groups and items that name it are left as they are, and
-// fall back by the order above. Default cannot be removed. Returns false for
+// Removes a profile from the workspace's list, with its module settings.
+// Groups and items that name it are left as they are, and fall back by the
+// order above. Default cannot be removed. Returns false for
 // Default or an unknown id.
 bool remove(Model &model, const QString &id);
 

@@ -21,6 +21,8 @@ struct ModuleSettingsDialog::Private
     // them, and the values as last edited.
     std::map<QString, QJsonObject> loaded;
     std::map<QString, QJsonObject> edited;
+    // The secrets typed for each profile shown so far. See secrets().
+    std::map<QString, QJsonObject> secrets;
     bool switching = false;      // true while the profile list is set back
 
     void show(const QString &profileId)
@@ -35,6 +37,20 @@ struct ModuleSettingsDialog::Private
         // What the editor gives for unchanged values, so a profile that was
         // only looked at is not written.
         loaded[profileId] = editor->config();
+    }
+
+    // Keeps the secrets typed into the form for the shown profile.
+    void keepSecrets()
+    {
+        const auto *form = qobject_cast<const FieldForm *>(editor);
+        if (!form)
+            return;
+        const QJsonObject typed = form->secrets();
+        QJsonObject &kept = secrets[shown];
+        for (auto it = typed.begin(); it != typed.end(); ++it)
+            kept.insert(it.key(), it.value());
+        if (kept.isEmpty())
+            secrets.erase(shown);
     }
 
     bool showProblems()
@@ -123,6 +139,7 @@ bool ModuleSettingsDialog::setProfile(const QString &profileId)
     if (index < 0 || !d->showProblems())
         return false;
     d->edited[d->shown] = d->editor->config();
+    d->keepSecrets();
     d->show(profileId);
     if (d->profile->currentIndex() != index) {
         d->switching = true;
@@ -143,6 +160,12 @@ std::map<QString, QJsonObject> ModuleSettingsDialog::values() const
             changed.emplace(id, values);
     }
     return changed;
+}
+
+std::map<QString, QJsonObject> ModuleSettingsDialog::secrets() const
+{
+    d->keepSecrets();
+    return d->secrets;
 }
 
 ItemEditor *ModuleSettingsDialog::editor() const { return d->editor; }

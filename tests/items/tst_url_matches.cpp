@@ -1,7 +1,6 @@
 // Tests asking the item types about a pasted address: which text is a web
-// address, the order of the types that take it, the base URLs each type is
-// given, and the connection that a match's base URL names.
-#include "core/Entities.h"
+// address, the order of the types that take it, and the profile each type is
+// given to read its server from.
 #include "items/ItemTypeRegistry.h"
 #include "items/UrlMatches.h"
 
@@ -16,30 +15,31 @@ using namespace mirante;
 
 namespace {
 
-// The base URLs the server type was last given.
-QList<QUrl> lastBaseUrls;
+// The profile the server type was last given.
+QString lastProfile;
 
-// Takes any address below one of its base URLs, naming that base.
+// Takes any address below the server of the profile "work", as a module
+// that reads its base URL from its settings would.
 class ServerType : public ItemType
 {
 public:
     QString id() const override { return QStringLiteral("testmod.server"); }
     QString name() const override { return QStringLiteral("Zeta server"); }
     QIcon icon() const override { return {}; }
-    QStringList connectionKinds() const override { return {QStringLiteral("srv.a"), QStringLiteral("srv.b")}; }
 
-    std::optional<UrlMatch> fromUrl(const QUrl &url, const QList<QUrl> &baseUrls) const override
+    std::optional<UrlMatch> fromUrl(const QUrl &url, const QString &profileId) const override
     {
-        lastBaseUrls = baseUrls;
-        for (const QUrl &base : baseUrls) {
-            if (pathBelow(url, base)) {
-                UrlMatch match;
-                match.config.insert(QStringLiteral("path"), *pathBelow(url, base));
-                match.baseUrl = base;
-                return match;
-            }
-        }
-        return std::nullopt;
+        lastProfile = profileId;
+        if (profileId != QLatin1String("work"))
+            return std::nullopt;
+        const QUrl base(QStringLiteral("https://srv.example"));
+        const std::optional<QString> path = pathBelow(url, base);
+        if (!path)
+            return std::nullopt;
+        UrlMatch match;
+        match.config.insert(QStringLiteral("path"), *path);
+        match.baseUrl = base;
+        return match;
     }
 };
 
@@ -51,7 +51,7 @@ public:
     QString name() const override { return QStringLiteral("Alpha any"); }
     QIcon icon() const override { return {}; }
 
-    std::optional<UrlMatch> fromUrl(const QUrl &, const QList<QUrl> &) const override
+    std::optional<UrlMatch> fromUrl(const QUrl &, const QString &) const override
     {
         UrlMatch match;
         match.generic = true;
@@ -73,15 +73,6 @@ void registerTestModule(ModuleRegistrar &registrar)
     registrar.addItemType(std::make_unique<ServerType>());
     registrar.addItemType(std::make_unique<AnyType>());
     registrar.addItemType(std::make_unique<NoneType>());
-}
-
-Connection connection(const QString &id, const QString &kind, const QString &baseUrl)
-{
-    Connection result;
-    result.id = id;
-    result.kind = kind;
-    result.baseUrl = baseUrl;
-    return result;
 }
 
 } // namespace
@@ -111,42 +102,33 @@ private slots:
     // Types of modules come first, then generic ones; the rest are left out.
     void order()
     {
-        const std::vector<Connection> connections{connection(QStringLiteral("c1"), QStringLiteral("srv.a"),
-                                                             QStringLiteral("https://srv.example"))};
-        const auto matches =
-            urlmatches::match(types, QUrl(QStringLiteral("https://srv.example/x/y")), connections);
+        const QString work = QStringLiteral("work");
+        const auto matches = urlmatches::match(types, QUrl(QStringLiteral("https://srv.example/x/y")), work);
         QCOMPARE(matches.size(), size_t(2));
         QCOMPARE(matches.at(0).type->id(), QStringLiteral("testmod.server"));
         QCOMPARE(matches.at(0).match.config.value(QStringLiteral("path")).toString(), QStringLiteral("x/y"));
-        QCOMPARE(matches.at(0).connectionId, QStringLiteral("c1"));
         QCOMPARE(matches.at(1).type->id(), QStringLiteral("testmod.any"));
-        QVERIFY(matches.at(1).connectionId.isEmpty());
 
         // An address of no known server leaves the generic type only.
-        const auto other = urlmatches::match(types, QUrl(QStringLiteral("https://other.example/")), connections);
+        const auto other = urlmatches::match(types, QUrl(QStringLiteral("https://other.example/")), work);
         QCOMPARE(other.size(), size_t(1));
         QCOMPARE(other.at(0).type->id(), QStringLiteral("testmod.any"));
 
         // No address, no matches.
-        QVERIFY(urlmatches::match(types, QUrl(), connections).empty());
+        QVERIFY(urlmatches::match(types, QUrl(), work).empty());
     }
 
-    // A type gets the base URLs of its own kinds only, in its order of kinds,
-    // and the first connection with the matched base URL is named.
-    void baseUrlsAndConnection()
+    // Each type is given the profile, and reads its own server there.
+    void profileIsPassed()
     {
-        const std::vector<Connection> connections{
-            connection(QStringLiteral("b1"), QStringLiteral("srv.b"), QStringLiteral("https://b.example/")),
-            connection(QStringLiteral("x1"), QStringLiteral("other"), QStringLiteral("https://x.example")),
-            connection(QStringLiteral("a1"), QStringLiteral("srv.a"), QStringLiteral("https://a.example/sub")),
-            connection(QStringLiteral("b2"), QStringLiteral("srv.b"), QStringLiteral("https://B.example")),
-        };
-        const auto matches = urlmatches::match(types, QUrl(QStringLiteral("https://b.example/p")), connections);
-        QCOMPARE(lastBaseUrls, (QList<QUrl>{QUrl(QStringLiteral("https://a.example/sub")),
-                                            QUrl(QStringLiteral("https://b.example/")),
-                                            QUrl(QStringLiteral("https://B.example"))}));
-        QCOMPARE(matches.at(0).connectionId, QStringLiteral("b1"));
+        const auto inDefault =
+            urlmatches::match(types, QUrl(QStringLiteral("https://srv.example/x/y")), kDefaultProfileId());
+        QCOMPARE(lastProfile, QStringLiteral("default"));
+        QCOMPARE(inDefault.size(), size_t(1));
     }
+
+private:
+    static QString kDefaultProfileId() { return QStringLiteral("default"); }
 };
 
 QTEST_MAIN(TestUrlMatches)

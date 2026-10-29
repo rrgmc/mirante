@@ -38,7 +38,7 @@ The reasons for choosing Qt are in [decision 0001](decisions/0001-qt6-widgets.md
 - The full hierarchy: groups, projects, tasks and items, with priorities and task states.
 - Task dashboards and root dashboards with freely nested splits and tabs.
 - Root dashboards can be detached into separate operating system windows.
-- Profiles that the user names and assigns to groups and items. Each holds web logins, connections with their tokens, and module settings.
+- Profiles that the user names and assigns to groups and items. Each holds web logins and module settings, such as the GitLab and Jira servers with their tokens.
 - The first modules: native views of GitLab and Jira data with light actions, web pages, Claude sessions, notes and project folders.
 - Claude sessions on claude.ai in a web view, and local Claude Code sessions started in a terminal.
 - Sync between devices through a folder that an external tool syncs.

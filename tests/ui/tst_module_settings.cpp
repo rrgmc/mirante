@@ -46,7 +46,7 @@ private:
     QString m_id;
 };
 
-// A screen with a list of paths and a required name.
+// A screen with a list of paths, a required name and a token.
 class FieldScreen : public SettingsScreen
 {
 public:
@@ -62,7 +62,11 @@ public:
         name.key = QStringLiteral("name");
         name.label = QStringLiteral("Name");
         name.required = true;
-        return {paths, name};
+        Field token;
+        token.key = QStringLiteral("token");
+        token.label = QStringLiteral("Token");
+        token.type = Field::Type::Secret;
+        return {paths, name, token};
     }
 };
 
@@ -329,6 +333,42 @@ private slots:
         QCOMPARE(values.size(), std::size_t(1));
         QCOMPARE(values.at(kDefaultProfile),
                  (QJsonObject{{QStringLiteral("keep"), true}, {QStringLiteral("label"), QStringLiteral("Mine")}}));
+    }
+
+    // A token typed into a Secret field never reaches the stored values. It
+    // goes to the secret store under "<profile>/<module>/<key>", and the field
+    // starts empty.
+    void secretsStayOutOfTheValues()
+    {
+        Fixture f(true);
+        f.model.setModuleSettings(kDefaultProfile, QStringLiteral("tools"), QStringLiteral("general"),
+                                  {{QStringLiteral("name"), QStringLiteral("Old")},
+                                   {QStringLiteral("token"), QStringLiteral("leaked")}});
+        QMap<QString, QString> saved;
+        f.window->entityActions()->setSaveSecret(
+            [&saved](const QString &key, const QString &secret) { saved.insert(key, secret); });
+        QString shown;
+        f.window->entityActions()->setExec([&shown](QDialog &dialog) {
+            auto *form = dialog.findChild<FieldForm *>(QStringLiteral("editor"));
+            auto *token = form ? qobject_cast<QLineEdit *>(form->editorFor(QStringLiteral("token"))) : nullptr;
+            if (!token)
+                return false;
+            shown = token->text();
+            token->setText(QStringLiteral("s3cret"));
+            qobject_cast<QLineEdit *>(form->editorFor(QStringLiteral("name")))->setText(QStringLiteral("New"));
+            return true;
+        });
+        f.window->entityActions()->editModuleSettings(QStringLiteral("tools"), QStringLiteral("general"));
+
+        QVERIFY(shown.isEmpty());
+        QCOMPARE(saved, (QMap<QString, QString>{{QStringLiteral("default/tools/token"), QStringLiteral("s3cret")}}));
+        const QJsonObject stored =
+            f.model.moduleSettings(kDefaultProfile, QStringLiteral("tools"), QStringLiteral("general"));
+        // A token found in the values is dropped when they are saved.
+        QVERIFY(!stored.contains(QStringLiteral("token")));
+        QCOMPARE(stored.value(QStringLiteral("name")).toString(), QStringLiteral("New"));
+        QCOMPARE(EntityActions::secretKey(QStringLiteral("p"), QStringLiteral("gitlab"), QStringLiteral("token")),
+                 QStringLiteral("p/gitlab/token"));
     }
 
     // A form refuses OK while a required field is empty.

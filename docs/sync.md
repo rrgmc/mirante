@@ -8,7 +8,7 @@ The user chooses the data folder on each device. It does not have to be at the s
 
 ```
 <data folder>/
-  workspace.mirante           marks the folder as a workspace; holds its name and profiles, with their connections and module settings
+  workspace.mirante           marks the folder as a workspace; holds its name and profiles, with their module settings
   groups/<uuid>.json
   projects/<uuid>.json
   tasks/<uuid>.json
@@ -16,12 +16,12 @@ The user chooses the data folder on each device. It does not have to be at the s
   files/<uuid>.<ext>          images of Image items
 ```
 
-- **One file per entity.** A task file holds the task's items and its task dashboards. The profiles, with their connections without tokens, are in `workspace.mirante`.
+- **One file per entity.** A task file holds the task's items and its task dashboards. The profiles, with their module settings and without tokens, are in `workspace.mirante`.
 - **Binary files** of items, such as the images of Image items, sit in `files/` and are referred to by name. See [decision 0021](decisions/0021-image-items-as-files.md).
 - **Why this layout.** Two devices rarely change the same file at the same time. When they do, the sync tool keeps a conflict copy instead of damaging the data.
-- **Version field.** Every file has a `schemaVersion` field. The app migrates older files when it loads them, and writes them back in the new version only when they change for another reason. The one exception is the move of connections and module settings into profiles, which changes several files together and is written once when the workspace opens; see [migration to profiles](data-model.md#migration-to-profiles). A file with a newer `schemaVersion` was written by a newer version of Mirante. The app skips it, reports it in the warning bar, and never writes over it.
+- **Version field.** Every file has a `schemaVersion` field. The app migrates older files when it loads them, and writes them back in the new version only when they change for another reason. The one exception is the move of connections into module settings of profiles, which changes several files together and is written once when the workspace opens; see [migration to profiles](data-model.md#migration-to-profiles). A file with a newer `schemaVersion` was written by a newer version of Mirante. The app skips it, reports it in the warning bar, and never writes over it.
 - **Unknown fields** are kept when a file is written back, so an older app version does not delete data written by a newer one.
-- **Unknown modules.** Items, connections, project settings and module settings of a module that is not in this build are kept unchanged too. A device built without a module never damages its data. See [missing modules](modules.md#missing-modules).
+- **Unknown modules.** Items, project settings and module settings of a module that is not in this build are kept unchanged too. A device built without a module never damages its data. See [missing modules](modules.md#missing-modules).
 - **Format.** Files are pretty-printed JSON with sorted keys, so the files are easy to read and compare.
 
 A single SQLite database is not used. Sync tools copy database files whole and can damage them.
@@ -103,8 +103,8 @@ Started with `--settings <file>`, the app keeps these settings in that INI file 
   - Windows Credential Manager;
   - macOS Keychain;
   - Secret Service (libsecret) on Linux.
-- Each token is stored under service `mirante` and key `<profileId>/<connectionId>`, the profile that holds the connection. The key contains no secret, so it can be derived from synced data.
-- Tokens are never written to the data folder and never synced. Each device asks for each token once, when an item first needs it. See decisions [0006](decisions/0006-connections-per-group.md) and [0050](decisions/0050-profiles-hold-logins-connections-and-settings.md).
-- No version before decision 0050 stored a token, so there are no keys of the form `<groupId>/<connectionId>` to move. The migration keeps each connection's id.
+- A token is entered on the module's settings screen, in a field of type `Secret`. It is stored under service `mirante` and key `<profileId>/<moduleId>/<fieldKey>`, such as `default/gitlab/token`. The key contains no secret, so it can be derived from synced data.
+- Tokens are never written to the data folder and never synced. Each device asks for each token once. See [decision 0054](decisions/0054-module-settings-replace-connections.md).
+- Storing tokens comes in M5. Until then a token typed into the screen is dropped, and the log says so without the value. No earlier version stored a token, so there are no old keys to move.
 - Web logins are not synced either. The list of profiles is synced, in `workspace.mirante`, but the user logs in once per profile on each device. See [web views](web-views.md#profiles).
 - Module settings are synced, in each profile in `workspace.mirante`, so they never hold a token or a password. See [decision 0044](decisions/0044-module-settings-in-the-workspace.md).

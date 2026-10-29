@@ -4,17 +4,17 @@ A module is one folder of item types and the code they share. Modules are compil
 
 ## The modules
 
-| Module | Item types | Connection kinds | Project settings |
+| Module | Item types | Settings screens | Project settings |
 |---|---|---|---|
-| `gitlab` | `gitlab.mr.summary`, `gitlab.mr.page`, `gitlab.mr.list`, `gitlab.pipeline`, `gitlab.issue.summary`, `gitlab.issue.page`, `gitlab.issue.list` | `gitlab` | `project` |
-| `jira` | `jira.issue.summary`, `jira.issue.page`, `jira.list` | `jira.cloud`, `jira.dc` | `projectKey` |
+| `gitlab` | `gitlab.mr.summary`, `gitlab.mr.page`, `gitlab.mr.list`, `gitlab.pipeline`, `gitlab.issue.summary`, `gitlab.issue.page`, `gitlab.issue.list` | General Configuration: base URL, token, project paths | `project` |
+| `jira` | `jira.issue.summary`, `jira.issue.page`, `jira.list` | General Configuration: base URL, token | `projectKey` |
 | `claude` | `claude.session.web`, `claude.session.local` | none | none |
 | `web` | `web.page` | none | none |
 | `notes` | `notes` | none | none |
 | `folder` | `folder` | none | none |
 | `image` | `image` | none | none |
 
-All modules are enabled by default. The item types are described in [item types](item-types.md). Only the gitlab module has a [settings screen](#settings-screens) so far: General Configuration.
+All modules are enabled by default. The item types are described in [item types](item-types.md). The gitlab and jira modules keep the server they talk to in their [settings screens](#settings-screens), one per profile; see [decision 0054](decisions/0054-module-settings-replace-connections.md).
 
 Built-in panels (`dash.panel`) belong to the core, not to a module, because the `dash://` scheme and its bridge are core code. See [web views](web-views.md#built-in-panels).
 
@@ -23,7 +23,7 @@ Built-in panels (`dash.panel`) belong to the core, not to a module, because the 
 ```
 src/modules/gitlab/
   CMakeLists.txt         calls mirante_add_module()
-  README.md              what the module does, its types and connection kinds
+  README.md              what the module does, its types and settings
   GitLabModule.cpp       the register function
   GitLabClient.h/.cpp    module code, freely organised
   icons/                 SVG icons, compiled in as resources
@@ -36,7 +36,7 @@ A module may add more folders inside its own folder. It never adds files outside
 ## Ids
 
 - A module id is lowercase letters and digits only, such as `gitlab`.
-- Every id a module registers is the module id, or starts with the module id and a dot. This applies to item types (`gitlab.mr.summary`), connection kinds (`jira.cloud`) and settings.
+- Every id a module registers is the module id, or starts with the module id and a dot. This applies to item types (`gitlab.mr.summary`) and settings.
 - The prefix `dash` is reserved for the core. The build refuses a module with the id `dash`.
 - An id has no empty parts: `gitlab..mr` and `gitlab.` are refused.
 
@@ -98,12 +98,11 @@ The module interface contains the headers below. The "Since" column gives the mi
 |---|---|---|
 | `Module.h` | `ModuleRegistrar`, the object a module registers its parts with. `setModuleName()`, `addSettingsScreen()` and `settings()` were added after M4; see [settings screens](#settings-screens). | M2 |
 | `ModuleSettings.h` | `SettingsScreen`, one configuration screen of a module, and `ModuleSettings`, which reads the values of the module's screens in a profile. See [settings screens](#settings-screens). | after M4 |
-| `ItemType.h` | The `ItemType` interface. See [item types](item-types.md#the-type-registry). `shortName()`, the short label in cell headers, was added after M3; see [decision 0033](decisions/0033-cell-header-pills.md). M4 adds `rendering()`, `connectionKinds()` and `createView()`. `fromUrl()` was added after M4; see [items from a link](#items-from-a-link). So was `fieldsForProfile()`; see [decision 0050](decisions/0050-profiles-hold-logins-connections-and-settings.md). | M2 |
-| `UrlMatch.h` | `UrlMatch`, what an item type makes of a pasted web address, and `pathBelow()`, which reads an address below a connection's base URL. See [items from a link](#items-from-a-link). | after M4 |
-| `Fields.h` | `Field`: a key, a label, a type, a default value, a required flag, and for a choice its values and labels. The types are text, multi-line text, URL, integer, boolean, choice, folder, image and text list. A text field can offer `suggestions` in an editable drop-down list. Used for item configuration and settings screens, and from M5 for connection fields and project settings. See decisions [0028](decisions/0028-item-fields-in-m3.md) and [0044](decisions/0044-module-settings-in-the-workspace.md). | M3 |
+| `ItemType.h` | The `ItemType` interface. See [item types](item-types.md#the-type-registry). `shortName()`, the short label in cell headers, was added after M3; see [decision 0033](decisions/0033-cell-header-pills.md). M4 adds `rendering()` and `createView()`; its `connectionKinds()` was removed by [decision 0054](decisions/0054-module-settings-replace-connections.md). `fromUrl()` was added after M4; see [items from a link](#items-from-a-link). So was `fieldsForProfile()`; see [decision 0050](decisions/0050-profiles-hold-logins-connections-and-settings.md). | M2 |
+| `UrlMatch.h` | `UrlMatch`, what an item type makes of a pasted web address, and `pathBelow()`, which reads an address below a server's base URL. See [items from a link](#items-from-a-link). | after M4 |
+| `Fields.h` | `Field`: a key, a label, a type, a default value, a required flag, and for a choice its values and labels. The types are text, multi-line text, URL, integer, boolean, choice, folder, image, text list and secret. A text field can offer `suggestions` in an editable drop-down list. A secret, such as a token, is for settings screens only; its value is never stored with the others. Used for item configuration and settings screens, and from M5 for project settings. See decisions [0028](decisions/0028-item-fields-in-m3.md), [0044](decisions/0044-module-settings-in-the-workspace.md) and [0054](decisions/0054-module-settings-replace-connections.md). | M3 |
 | `ItemEditor.h` | `ItemEditor`, the base of an item type's own configuration editor, and `EditorContext`, what an editor can reach: the project's folders and a way to save an image into `files/` | M3 |
 | `ItemContext.h` | `ItemContext`, everything an item's code can reach. See [below](#item-context). | M4 |
-| `ConnectionKind.h` | The `ConnectionKind` interface | M5 |
 | `ApiClient.h` | The shared HTTP client base: ETags, paging, rate limits, request limits | M5 |
 | `Status.h` | Status results and attention reasons for the [status cache](integrations.md#polling-and-caching) | M5 |
 | `QuickAdd.h` | Quick add handlers and related-item finders | M7 |
@@ -120,7 +119,6 @@ The register function receives a `ModuleRegistrar` and adds any of the following
 | Item types | One object per type, with the properties listed in [item types](item-types.md#the-type-registry). For each type the module chooses how its configuration is edited: it lists its fields, and the core builds the form, or it returns an editor of its own. See [decision 0028](decisions/0028-item-fields-in-m3.md). |
 | Module name | The name the user sees, such as "GitLab", with `setModuleName()`. The module id is used without one. |
 | Settings screens | Configuration screens of the whole module, such as GitLab's "General Configuration", with values kept in each profile of the workspace. See [settings screens](#settings-screens). |
-| Connection kinds | Fields of the connection, how to sign a request, how to test the connection |
 | Project settings | Fields shown in the project dialog, such as the GitLab project path. They are defaults for the module's items. |
 | Device settings | Fields kept on each device, such as an editor command |
 | Quick add handlers | Recognise pasted text and propose a task. See [quick add](#quick-add). |
@@ -154,7 +152,7 @@ void registerModule(ModuleRegistrar &registrar)
 - **Id and name.** The id names the stored values, so it never changes. It has lowercase letters and digits only, and is unique within the module. The name is the menu entry and the dialog title.
 - **Fields or an editor.** As for item types, a screen lists its `fields()`, and the core builds the form, or returns its own `ItemEditor` from `createEditor()`. The editor gets the stored object with `setConfig()`, and its `config()` is stored. Keys that the form or editor does not show are kept.
 - **Values.** Each screen's values are one JSON object per profile, in that profile's entry of `workspace.mirante`, under `moduleSettings.<module id>.<screen id>`. They sync with the workspace. See [data model](data-model.md#module-settings).
-- **No secrets.** A screen never asks for a token or a password. Those stay in the keychain, as for [connections](#connections-and-tokens).
+- **Secrets.** A token or a password goes in a field of type `Secret`. Its value is never part of the stored values, so it never reaches the workspace. The core keeps it in the keychain, under `<profile id>/<module id>/<field key>`; see [servers and tokens](#servers-and-tokens).
 - **Reading.** Module code reads the values of the profile an item uses. There are three ways:
   - in a view, `ItemContext::moduleSettings(screenId)` reads them for the item's profile;
   - in a form, the item dialog calls the type's `fieldsForProfile(profileId)` with the profile the edited item would use, and the type reads them there, for example to offer suggestions. `fields()` stays the plain list, used where no profile is known, such as validation;
@@ -168,20 +166,20 @@ void registerModule(ModuleRegistrar &registrar)
 An item type can read a web address that the user pasted, such as a merge request's page, and return the configuration that shows it. The new item dialog then offers only the types that take the address, and fills the chosen one. See [decision 0049](decisions/0049-items-from-a-pasted-link.md) and [the item dialog](ui.md#item-dialog).
 
 ```cpp
-std::optional<UrlMatch> fromUrl(const QUrl &url, const QList<QUrl> &baseUrls) const override
+std::optional<UrlMatch> fromUrl(const QUrl &url, const QString &profileId) const override
 {
-    for (const QUrl &base : baseUrls) {
-        if (const std::optional<QString> path = pathBelow(url, base)) {
-            // Read *path, such as "group/project/-/merge_requests/42".
-        }
+    // The server in this module's settings, in the profile of the new item.
+    const QUrl base(m_settings.values(profileId, "general").value("baseUrl").toString());
+    if (const std::optional<QString> path = pathBelow(url, base)) {
+        // Read *path, such as "group/project/-/merge_requests/42".
     }
     return std::nullopt;     // not an address of this type
 }
 ```
 
 - **The address.** `url` is an `http` or `https` address with a host. The default `fromUrl()` takes none.
-- **Base URLs.** `baseUrls` are the base URLs of the connections, of the type's connection kinds, in the profile of the new item's group. They let a type read a self-hosted server, including one installed at a path. `pathBelow(url, base)` returns the path of `url` below `base`, or nothing if `url` is on another server.
-- **The match.** `config` holds the keys of the type's own fields; keys left out take the fields' defaults. Map the address only to fields the type already has. `name` is a suggested item name, such as `acme/backend!42`. `baseUrl` is the base URL of the server the address belongs to; the core gives the item the connection of its profile with that base URL, if there is one. `generic` marks a type that takes any address, such as Web page; the dialog lists such types last.
+- **The profile.** `profileId` is the profile the new item would use: its group's. The type reads its server there, from its module settings, so it can read a self-hosted server, including one installed at a path. `pathBelow(url, base)` returns the path of `url` below `base`, or nothing if `url` is on another server.
+- **The match.** `config` holds the keys of the type's own fields; keys left out take the fields' defaults. Map the address only to fields the type already has. `name` is a suggested item name, such as `acme/backend!42`. `baseUrl` is the base URL of the server the address belongs to, for information; the core does not use it. `generic` marks a type that takes any address, such as Web page; the dialog lists such types last.
 - **Tests.** Test `fromUrl()` with good addresses and with addresses it must refuse.
 
 The types that take addresses so far are listed in [item types](item-types.md#items-from-a-link).
@@ -196,28 +194,26 @@ Each item's code gets an `ItemContext`. It gives access to the configuration the
 | `item()`, `task()`, `project()`, `group()` | Read-only views of the item and where it sits | planned |
 | `projectSetting(key)` | A project setting the module declared, such as `project` for GitLab. Undefined if the project does not set it. | M4 |
 | `deviceSetting(key)` | A device setting the module declared | M7 |
-| `moduleSettings(screenId)` | The values of one of the module's [settings screens](#settings-screens), in the item's profile. Empty if nothing is stored. Added after M4; see [decision 0050](decisions/0050-profiles-hold-logins-connections-and-settings.md). | after M4 |
-| `connection(kinds)` | The first connection of one of the kinds, among the connections of the item's profile, found by the [resolution order](data-model.md#connection). In M4 it gives the details without a token; from M5 the handle also signs requests, and reports a missing token or a failure. See [decision 0038](decisions/0038-read-connections-in-m4.md). | M4 |
+| `moduleSettings(screenId)` | The values of one of the module's [settings screens](#settings-screens), in the item's profile. Empty if nothing is stored. A module reads its server here, such as GitLab's base URL. Added after M4; see decisions [0050](decisions/0050-profiles-hold-logins-connections-and-settings.md) and [0054](decisions/0054-module-settings-replace-connections.md). | after M4 |
 | `status()` | This item's entry in the status cache: fetch, read cached data, report attention | M5 |
 | `createWebView(url)` | A live web page in a plain `QWidget`, in the web logins of the item's [profile](web-views.md#profiles), with popups, permissions, downloads and the toolbar handled by the core. The normal way for a web type to show a page. See [decision 0037](decisions/0037-core-makes-web-views.md). | M4 |
 | `profile()` | The web logins of the item's [profile](web-views.md#profiles), as a `QWebEngineProfile`, for a module that builds its own `QWebEngineView`. Such a module links Qt WebEngine with `QT_LIBS`, and handles popups, permissions and downloads itself. The profile holds the logins of every site that its items visit, including those of other modules; see [decision 0042](decisions/0042-user-managed-web-profiles.md). | M4 |
-| `createMessageView(text)` | A grey message in the cell, such as "No GitLab connection in this profile" | M4 |
+| `createMessageView(text)` | A grey message in the cell, such as "Set the issue key in the item's settings." | M4 |
 | `folderPath(folderId)` | The local path of a project folder on this device, or empty if not mapped | M4 |
 | `gitHead(path)` | The current branch of a folder | M7 |
 | `launchTerminal(dir, command)` | Starts a command in a terminal. See [terminal launch](integrations.md#terminal-launch). | M7 |
 | `updateConfig(config)` | Changes the item's configuration through `Model` | M4 |
 
-### Connections and tokens
+### Servers and tokens
 
-A connection handle gives a module:
+A module that talks to a server keeps its base URL in a settings screen, with a `Secret` field for its token on the same screen. Each profile has its own; a view reads them with `moduleSettings(screenId)`. See [decision 0054](decisions/0054-module-settings-replace-connections.md).
 
-- **`details()`:** the kind, the base URL and the kind's own fields, such as the email of a Jira Cloud connection.
-- **`authorize(request)`:** adds the authentication to a `QNetworkRequest`. The connection kind decides how, for example with a `PRIVATE-TOKEN` header for GitLab. Item code never sees the token. This is the normal way to call an API.
+From M5 the core gives a module a handle for its profile's server:
+
+- **`authorize(request)`:** adds the authentication to a `QNetworkRequest`, for example with a `PRIVATE-TOKEN` header for GitLab. Item code never sees the token. This is the normal way to call an API.
 - **`secret()`:** returns the raw token, asynchronously. Use it only when a request is not enough, such as passing a token to a command in a terminal. Every call needs a comment that says why `authorize()` does not work there.
 
-Tokens are loaded from the keychain before the first request of a connection. If no token is stored, `authorize()` fails and the core shows "Token not set on this device", as described in [errors](integrations.md#errors).
-
-The connection kind's own code is the only module code that receives a token for signing.
+Tokens are loaded from the keychain, under `<profile id>/<module id>/<field key>`, before the first request. If no token is stored, `authorize()` fails and the core shows "Token not set on this device", as described in [errors](integrations.md#errors). Until M5 no token is stored: a token typed into a screen is dropped, and the log says so without its value.
 
 ## Quick add
 
@@ -245,7 +241,6 @@ The core suggests marking a task done when every item whose type reports `closed
 Synced data can reach a build that does not include a module. For example, one device builds without `jira`. The core then:
 
 - **Items:** shows a placeholder: "This item needs the jira module, which this build does not include." The item's `type` and `config` are kept unchanged.
-- **Connections:** lists the connection read-only in the profile's [connections dialog](ui.md#connections), with the same message.
 - **Project settings:** keeps the module's settings unchanged and does not show them.
 - **Module settings:** keeps the values of the module's settings screens unchanged in each profile in `workspace.mirante`. The Modules menu has no entry for the module.
 - **Cells and Focus:** show the item's name. No status or attention is computed for it.
@@ -259,13 +254,13 @@ Everything is written back exactly as it was loaded. See [sync](sync.md#the-data
 - Platform-specific code belongs in the core's `platform/`. If a module needs something new from the platform, add it to `ItemContext` first.
 - Everything runs on the main thread. See [threading](architecture.md#threading).
 - Each module tests at least its URL recognition and its attention rules, on recorded API responses.
-- Each module's `README.md` lists its item types, connection kinds, settings and settings screens.
+- Each module's `README.md` lists its item types, settings and settings screens.
 
 ## Adding a module
 
 1. Create `src/modules/<id>/` with a `CMakeLists.txt` that calls `mirante_add_module()`.
 2. Write `registerModule(ModuleRegistrar &)` in the namespace `mirante::modules::<id>`.
-3. Give the module a name with `setModuleName()`. Register the item types and any settings screens, connection kinds, settings and quick add handlers. Give each item type a short label with `shortName()`, such as "MR", for its cell headers. If a type shows something that has a web address, implement `fromUrl()`; see [items from a link](#items-from-a-link).
+3. Give the module a name with `setModuleName()`. Register the item types and any settings screens, settings and quick add handlers. Give each item type a short label with `shortName()`, such as "MR", for its cell headers. If a type shows something that has a web address, implement `fromUrl()`; see [items from a link](#items-from-a-link).
 4. Add tests and a `README.md`.
 5. Add the module's item types to [item types](item-types.md) and the module to the table at the top of this document.
 6. Build once with the module on and once with it off. Both must build and pass the tests.

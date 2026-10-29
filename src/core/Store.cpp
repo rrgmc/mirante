@@ -285,7 +285,10 @@ std::vector<Profile> migratedProfilesOf(const QJsonObject &workspace, bool *chan
     // A value that is not an object is not read.
     const bool moved =
         profilemigration::moveModuleSettings(workspace.value(kOldModuleSettings).toObject(), profiles);
-    *changed = old || moved;
+    // Connections kept in profiles before decision 0054.
+    std::vector<Group> noGroups;
+    const bool connections = profilemigration::moveConnections(noGroups, profiles).profiles;
+    *changed = old || moved || connections;
     return profiles;
 }
 
@@ -320,14 +323,14 @@ Loaded loadFolder(const QString &dir, Model &model)
 
     const std::optional<QJsonObject> workspace = readWorkspaceFile(dir, &loaded);
 
-    // Decision 0050: groups' connections and the workspace's module settings
-    // move into profiles. Not while workspace.mirante cannot be written over.
+    // Decisions 0050 and 0054: connections become module settings of
+    // profiles, and the workspace's module settings move into Default. Not while workspace.mirante cannot be written over.
     std::vector<Profile> profiles;
     if (!loaded.newer.contains(kWorkspaceFile)) {
         bool workspaceMigrated = false;
         if (workspace)
             profiles = migratedProfilesOf(*workspace, &workspaceMigrated);
-        loaded.migrated = profilemigration::moveConnections(groups, projects, profiles);
+        loaded.migrated = profilemigration::moveConnections(groups, profiles);
         loaded.migrated.profiles = loaded.migrated.profiles || workspaceMigrated;
     }
 
@@ -637,8 +640,8 @@ void Store::Private::workspaceSignal()
 }
 
 // Writes the files a profile migration changed: workspace.mirante first, at
-// once, so the connections are stored in a profile before the groups lose
-// them. If it cannot be written yet, the groups keep their old keys on disk,
+// once, so the servers are stored in a profile before the groups lose their
+// connections. If it cannot be written yet, the groups keep their old keys on disk,
 // and the next load moves them again without repeating anything.
 void Store::Private::writeMigrated(const profilemigration::Changes &changes)
 {
@@ -652,30 +655,21 @@ void Store::Private::writeMigrated(const profilemigration::Changes &changes)
     }
     for (const QString &id : changes.groups)
         entitySignal(kGroups, id);
-    for (const QString &id : changes.projects)
-        entitySignal(kProjects, id);
 }
 
 // A reloaded group that still has connections from before decision 0050, for
-// example from a device with an older version: they move to its profile, as
-// on load. Called while applying; reloadFiles() writes the changes after.
+// example from a device with an older version: they become its profile's
+// module settings, as on load. Called while applying; reloadFiles() writes
+// the changes after.
 void Store::Private::migrateGroup(Group group)
 {
     std::vector<Group> groups{std::move(group)};
-    std::vector<Project> projects;
-    for (const Project *project : model->projectsOfGroup(groups.front().id))
-        projects.push_back(*project);
     std::vector<Profile> profiles = model->profiles();
-    const profilemigration::Changes changes = profilemigration::moveConnections(groups, projects, profiles);
+    const profilemigration::Changes changes = profilemigration::moveConnections(groups, profiles);
     model->setProfiles(std::move(profiles));
     model->setGroup(groups.front());
-    for (const Project &project : projects) {
-        if (changes.projects.contains(project.id))
-            model->setProject(project);
-    }
     pendingMigration.profiles = pendingMigration.profiles || changes.profiles;
     pendingMigration.groups << changes.groups;
-    pendingMigration.projects << changes.projects;
 }
 
 Store::Private::Reload Store::Private::reloadFile(const QString &path)

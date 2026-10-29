@@ -79,23 +79,18 @@ public:
 
     // Recognises a web address that the user pasted, such as a merge
     // request's page, and returns the configuration that shows it. Null if
-    // the type does not take the address, the default. baseUrls are the base
-    // URLs of the connections of connectionKinds() in the profile of the new
-    // item's group,
-    // so a type can recognise a self-hosted server. See
-    // docs/modules.md#items-from-a-link.
-    virtual std::optional<UrlMatch> fromUrl(const QUrl &url, const QList<QUrl> &baseUrls) const
+    // the type does not take the address, the default. profileId is the
+    // profile the new item would use, so a type can read the server
+    // configured in its module settings there, such as a self-hosted GitLab.
+    // See docs/modules.md#items-from-a-link and decision 0054.
+    virtual std::optional<UrlMatch> fromUrl(const QUrl &url, const QString &profileId) const
     {
         Q_UNUSED(url)
-        Q_UNUSED(baseUrls)
+        Q_UNUSED(profileId)
         return std::nullopt;
     }
 
     virtual Rendering rendering() const { return Rendering::Native; }
-
-    // The connection kinds the type can use, in order of preference, such as
-    // {"jira.cloud", "jira.dc"}. Empty for types that need no connection.
-    virtual QStringList connectionKinds() const { return {}; }
 
     // Creates the view for one placement. The context outlives the view.
     // Null shows the type's placeholder. Include <mirante/ItemContext.h> to

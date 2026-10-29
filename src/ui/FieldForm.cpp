@@ -70,7 +70,8 @@ QJsonValue FieldForm::Private::value(const Row &row)
 {
     switch (row.field.type) {
     case Field::Type::Text:
-    case Field::Type::Url: {
+    case Field::Type::Url:
+    case Field::Type::Secret: {
         const QString text = row.line->text();
         return text.isEmpty() ? QJsonValue(QJsonValue::Undefined) : QJsonValue(text);
     }
@@ -151,6 +152,10 @@ void FieldForm::Private::show(Row &row, const QJsonValue &value)
             row.combo->setCurrentIndex(row.combo->findText(value.toString()));
         row.line->setText(value.toString());
         break;
+    case Field::Type::Secret:
+        // A secret is never part of the values, so the field starts empty.
+        row.line->clear();
+        break;
     case Field::Type::MultiLineText:
         row.text->setPlainText(value.toString());
         break;
@@ -227,6 +232,13 @@ FieldForm::FieldForm(std::vector<Field> fields, EditorContext context, QWidget *
             }
             row.line->setPlaceholderText(row.field.placeholder);
             connect(row.line, &QLineEdit::textChanged, this, edited);
+            break;
+        case Field::Type::Secret:
+            row.line = new QLineEdit(this);
+            row.line->setEchoMode(QLineEdit::Password);
+            row.line->setPlaceholderText(row.field.placeholder);
+            connect(row.line, &QLineEdit::textChanged, this, edited);
+            row.editor = row.line;
             break;
         case Field::Type::TextList:
             row.text = new QPlainTextEdit(this);
@@ -355,6 +367,11 @@ QJsonObject FieldForm::config() const
 {
     QJsonObject config = d->config;
     for (const Private::Row &row : d->rows) {
+        // Secrets are never part of the values; see secrets().
+        if (row.field.type == Field::Type::Secret) {
+            config.remove(row.field.key);
+            continue;
+        }
         if (!row.edited)
             continue;
         const QJsonValue value = Private::value(row);
@@ -364,6 +381,16 @@ QJsonObject FieldForm::config() const
             config.insert(row.field.key, value);
     }
     return config;
+}
+
+QJsonObject FieldForm::secrets() const
+{
+    QJsonObject secrets;
+    for (const Private::Row &row : d->rows) {
+        if (row.field.type == Field::Type::Secret && row.edited && !row.line->text().isEmpty())
+            secrets.insert(row.field.key, row.line->text());
+    }
+    return secrets;
 }
 
 QStringList FieldForm::problems() const

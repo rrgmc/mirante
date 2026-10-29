@@ -7,7 +7,7 @@ Mirante is a personal desktop dashboard for all of one person's work, built with
 | Document | Contents |
 |---|---|
 | [Overview](overview.md) | Vision, platforms, scope and non-goals |
-| [Data model](data-model.md) | Entities, fields, priorities, connections, layout trees |
+| [Data model](data-model.md) | Entities, fields, priorities, profiles, servers, layout trees |
 | [User interface](ui.md) | Navigation, dashboards, layout editing, Focus, keyboard, tray |
 | [Item types](item-types.md) | Every type of panel: configuration, display, actions |
 | [Modules](modules.md) | How item types are grouped, built, enabled and contributed |
@@ -33,11 +33,10 @@ Mirante is a personal desktop dashboard for all of one person's work, built with
 
 **Item type.** What kind of panel an item is, such as "GitLab MR (summary)" or "Jira List". See [item types](item-types.md).
 
-**Module.** A folder of item types and the code they share, such as connection kinds and API clients. Each module can be included or left out when building. See [modules](modules.md).
+**Module.** A folder of item types and the code they share, such as settings screens and API clients. Each module can be included or left out when building. See [modules](modules.md).
 
 **Settings screen.** A configuration screen of a whole module, such as GitLab's "General Configuration", opened from the Modules menu. Its values are the module's settings. Each profile has its own, kept in the workspace and synced. See [settings screens](modules.md#settings-screens).
 
-**Connection kind.** The type of a connection, such as `gitlab` or `jira.cloud`. A module registers it and decides how requests are signed.
 
 **Placement.** One place where an item is shown: a cell, or the preview slot. Each visible placement has its own view, unless the item type allows only one.
 
@@ -63,9 +62,9 @@ Mirante is a personal desktop dashboard for all of one person's work, built with
 
 **Attention.** A live reason to act now, such as a failed pipeline. Shown as a badge. It is not a priority.
 
-**Connection.** The details for calling one API: kind, base URL and the kind's own fields, such as an email for Jira Cloud. The token is kept in the keychain. Connections belong to a profile.
+**Server.** The GitLab server or Jira site a profile talks to: a base URL in the module's settings, and a token kept in the keychain. Each profile has one per module. Earlier versions called these connections. See [servers and tokens](data-model.md#servers-and-tokens).
 
-**Profile.** A named set of what belongs to one account or context, such as "Work" or "Personal": web logins (cookies and site data), connections with their tokens, and module settings. The workspace holds a list of them, with Default always there. Each group chooses a default profile, and an item can choose its own. Items in one profile share all of it. Logins and tokens stay on each device; the rest is synced. See [decision 0050](decisions/0050-profiles-hold-logins-connections-and-settings.md).
+**Profile.** A named set of what belongs to one account or context, such as "Work" or "Personal": web logins (cookies and site data) and module settings, such as the server of each module, with its token. The workspace holds a list of them, with Default always there. Each group chooses a default profile, and an item can choose its own. Items in one profile share all of it. Logins and tokens stay on each device; the rest is synced. See decisions [0050](decisions/0050-profiles-hold-logins-connections-and-settings.md) and [0054](decisions/0054-module-settings-replace-connections.md).
 
 **Status cache.** The part of the app that polls GitLab and Jira, keeps the results and computes attention.
 

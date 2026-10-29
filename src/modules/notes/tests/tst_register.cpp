@@ -106,7 +106,6 @@ private slots:
 
         for (const mirante::ItemType *type : registry.types()) {
             QVERIFY2(type->rendering() == mirante::Rendering::Native, qPrintable(type->id()));
-            QVERIFY2(type->connectionKinds().isEmpty(), qPrintable(type->id()));
         }
     }
 };

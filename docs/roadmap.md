@@ -65,12 +65,12 @@ See [the M4 plan](plans/m4-web-views.md).
 - [ ] The memory policy unloads hidden views beyond the limit.
 - [ ] Root dashboard tabs can be detached into a window and put back, and window geometry is stored on the device. Nothing else detaches. See [decision 0024](decisions/0024-detach-root-dashboard-tabs.md).
 
-## M5: Connections and status
+## M5: Servers and status
 
-- [ ] Modules register connection kinds and project settings. The connection and project dialogs are built from their fields.
-- [ ] Connections can be added to profiles, with defaults and project overrides. See [decision 0050](decisions/0050-profiles-hold-logins-connections-and-settings.md).
+- [ ] Modules register project settings. The project dialog is built from their fields.
+- [ ] Tokens typed into the settings screens are stored with qtkeychain, under `<profileId>/<moduleId>/<fieldKey>`. See [decision 0054](decisions/0054-module-settings-replace-connections.md).
 - [ ] `SecretStore` stores tokens in the keychain on all three platforms.
-- [ ] `ItemContext` gives modules connections with `authorize()` and `secret()`.
+- [ ] `ItemContext` gives modules their profile's server with `authorize()` and `secret()`.
 - [ ] The `gitlab` and `jira` modules' clients cover the endpoints in [integrations](integrations.md), for both Jira Cloud and Data Center.
 - [ ] `StatusCache` polls, caches and computes attention.
 - [ ] Attention badges appear in the sidebar, Focus and cell headers.

@@ -16,7 +16,7 @@ namespace mirante::modules::web {
 namespace {
 
 // The web page type: a web view of its address, or a message when the address
-// is missing or is not an http or https address. It uses no connection.
+// is missing or is not an http or https address.
 class PageItemType : public ItemType
 {
 public:
@@ -44,11 +44,10 @@ public:
     }
 
     Rendering rendering() const override { return Rendering::Web; }
-    QStringList connectionKinds() const override { return {}; }
 
-    std::optional<UrlMatch> fromUrl(const QUrl &url, const QList<QUrl> &baseUrls) const override
+    std::optional<UrlMatch> fromUrl(const QUrl &url, const QString &profileId) const override
     {
-        Q_UNUSED(baseUrls)
+        Q_UNUSED(profileId)
         return matchUrl(url);
     }
 

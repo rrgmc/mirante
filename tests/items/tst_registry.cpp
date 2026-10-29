@@ -19,28 +19,24 @@ public:
     QString id() const override { return m_id; }
     QString name() const override { return m_name; }
     QIcon icon() const override { return {}; }
-    QStringList connectionKinds() const override { return m_kinds; }
+    mirante::Rendering rendering() const override
+    {
+        return m_web ? mirante::Rendering::Web : mirante::Rendering::Native;
+    }
 
-    QStringList m_kinds;
+    bool m_web = false;
 
 private:
     QString m_id;
     QString m_name;
 };
 
-std::unique_ptr<FakeType> withKinds(const QString &id, const QStringList &kinds)
+void registerWeb(mirante::ModuleRegistrar &registrar)
 {
-    auto type = std::make_unique<FakeType>(id, id);
-    type->m_kinds = kinds;
-    return type;
-}
-
-void registerKinds(mirante::ModuleRegistrar &registrar)
-{
-    registrar.addItemType(withKinds(QStringLiteral("kinds.jira"), {QStringLiteral("jira.dc"), QStringLiteral("jira.cloud")}));
-    registrar.addItemType(withKinds(QStringLiteral("kinds.mr"), {QStringLiteral("gitlab")}));
-    registrar.addItemType(withKinds(QStringLiteral("kinds.issue"), {QStringLiteral("jira.cloud")}));
-    registrar.addItemType(withKinds(QStringLiteral("kinds.none"), {}));
+    auto page = std::make_unique<FakeType>(QStringLiteral("webby.page"), QStringLiteral("Page"));
+    page->m_web = true;
+    registrar.addItemType(std::move(page));
+    registrar.addItemType(std::make_unique<FakeType>(QStringLiteral("webby.plain"), QStringLiteral("Plain")));
 }
 
 void registerAlpha(mirante::ModuleRegistrar &registrar)
@@ -164,21 +160,10 @@ private slots:
         QCOMPARE(names, expected);
     }
 
-    void connectionKinds()
-    {
-        mirante::ItemTypeRegistry registry;
-        registry.registerModule(QStringLiteral("alpha"), &registerAlpha);
-        registry.registerModule(QStringLiteral("kinds"), &registerKinds);
-        // Each kind once, sorted, whatever order the types list them in.
-        const QStringList expected{QStringLiteral("gitlab"), QStringLiteral("jira.cloud"), QStringLiteral("jira.dc")};
-        QCOMPARE(registry.connectionKinds(), expected);
-    }
-
     void emptyRegistry()
     {
         const mirante::ItemTypeRegistry registry;
         QVERIFY(registry.types().empty());
-        QVERIFY(registry.connectionKinds().isEmpty());
         QVERIFY(!registry.contains(QStringLiteral("web.page")));
     }
 
@@ -257,20 +242,20 @@ private slots:
         QCOMPARE(asked, QStringList{QStringLiteral("work/alpha/general")});
     }
 
-    // A type uses a profile when it makes web views, uses connections, or its
-    // module has settings screens.
+    // A type uses a profile when it makes web views or its module has
+    // settings screens.
     void usesProfile()
     {
         mirante::ItemTypeRegistry registry;
         registry.registerModule(QStringLiteral("alpha"), &registerAlpha);
-        registry.registerModule(QStringLiteral("kinds"), &registerKinds);
+        registry.registerModule(QStringLiteral("webby"), &registerWeb);
         registry.registerModule(QStringLiteral("gamma"), [](mirante::ModuleRegistrar &registrar) {
             registerScreens(registrar);
             registrar.addItemType(std::make_unique<FakeType>(QStringLiteral("gamma.thing"), QStringLiteral("Thing")));
         });
         QVERIFY(!registry.usesProfile(QStringLiteral("alpha.zeta")));
-        QVERIFY(registry.usesProfile(QStringLiteral("kinds.mr")));
-        QVERIFY(!registry.usesProfile(QStringLiteral("kinds.none")));
+        QVERIFY(registry.usesProfile(QStringLiteral("webby.page")));
+        QVERIFY(!registry.usesProfile(QStringLiteral("webby.plain")));
         QVERIFY(registry.usesProfile(QStringLiteral("gamma.thing")));
         QVERIFY(!registry.usesProfile(QStringLiteral("missing.type")));
     }

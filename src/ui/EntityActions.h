@@ -48,16 +48,24 @@ public:
     // this device too. Null, the default, leaves them alone. The manager must
     // outlive this object.
     void setProfileManager(ProfileManager *manager);
+    // Keeps a secret typed into a settings screen, such as a token, on this
+    // device, under the keychain key secretKey(). The default only logs that
+    // secrets are stored from M5, without the value. See decision 0054.
+    void setSaveSecret(std::function<void(const QString &key, const QString &secret)> save);
+    // The keychain key of a secret: "<profile id>/<module id>/<field key>",
+    // such as "default/gitlab/token". Stored under the service "mirante".
+    static QString secretKey(const QString &profileId, const QString &moduleId, const QString &fieldKey);
     // Runs the profiles dialog. The default calls exec(); tests work the
     // dialog and return instead. The confirmation set with setConfirm() is
-    // used, and the connections dialog runs through setExec().
+    // used.
     void setEditProfiles(std::function<void(ProfilesDialog &dialog)> edit);
 
     // Opens the profiles dialog, File > Profiles…. See docs/ui.md#profiles.
     void editProfiles();
 
     // Opens the dialog of a module's settings screen, from the Modules menu,
-    // and stores the values edited for each profile in the model. Nothing happens for an unknown
+    // and stores the values edited for each profile in the model. Secrets
+    // typed into it go to setSaveSecret(). Nothing happens for an unknown
     // screen. See docs/ui.md#modules.
     void editModuleSettings(const QString &moduleId, const QString &screenId);
 
@@ -67,10 +75,9 @@ public:
     QString newGroup();
     QString newProject(const QString &groupId);
     QString newTask(const QString &projectId);
-    // url fills the link field of the item dialog's type page. An item made
-    // from a link on a server of one of the group's connections uses that
-    // connection, unless it is already the one the item would use. See
-    // decision 0049.
+    // url fills the link field of the item dialog's type page. The types read
+    // the link with their module settings in the group's profile. See
+    // decisions 0049 and 0054.
     QString newItem(const QString &taskId, const QString &url = QString());
     // "Paste URL…": newItem() with the web address on the clipboard. Nothing
     // happens, and an empty string is returned, if the clipboard holds none.

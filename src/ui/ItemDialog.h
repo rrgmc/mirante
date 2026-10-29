@@ -50,25 +50,18 @@ public:
 
     // The profiles offered, from profiles::all(), after the first entry,
     // "The group's profile", which names groupProfileName. groupProfileId is
-    // the id of that profile. Only that entry, for Default, by default.
+    // the id of that profile; a pasted link is read in it. Only that entry,
+    // for Default, by default.
     void setProfiles(const std::vector<Profile> &profiles, const QString &groupProfileId,
                      const QString &groupProfileName);
 
     // The profile the item would use with the chosen entry.
     QString effectiveProfile() const;
 
-    // The connections of the profile of the new item's group. A pasted link
-    // is read with the base URLs of those of each type's kinds, and an item
-    // made from a link uses the connection of its server. None by default.
-    void setConnections(const std::vector<Connection> &connections);
     // Fills the link field of the type page, as pasting into it does. The
     // grid then shows only the types that take the link, best first, and
     // choosing one fills its configuration and name. See decision 0049.
     void setUrl(const QString &text);
-    // The id of the connection, of those given, whose base URL the chosen
-    // type's link names. Empty when the type was not chosen from a link, or no
-    // connection matches.
-    QString urlConnectionId() const;
 
     // For tests.
     void setProfile(const QString &id);   // empty for the group's profile

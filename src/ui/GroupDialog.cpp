@@ -162,8 +162,8 @@ GroupDialog::GroupDialog(const Group &group, QWidget *parent)
     // The profile.
     d->profile = new QComboBox(this);
     d->profile->setObjectName(QStringLiteral("profile"));
-    auto *profileHelp = new QLabel(tr("Items of this group use this profile for their logins, connections and "
-                                      "module settings, unless an item chooses its own. Manage profiles with "
+    auto *profileHelp = new QLabel(tr("Items of this group use this profile for their logins and module "
+                                      "settings, unless an item chooses its own. Manage profiles with "
                                       "Profiles… in the File menu."),
                                    this);
     profileHelp->setWordWrap(true);

@@ -16,10 +16,6 @@ Since M3 the type declares its configuration fields, so items can be created and
 |---|---|---|
 | `folder` | folder, required | The id of one of the project's folders. |
 
-## Connection kinds
-
-None.
-
 ## Settings
 
 None in M2.

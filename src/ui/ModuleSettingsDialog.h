@@ -46,6 +46,11 @@ public:
     // user changed. Keys the editor does not show are as given.
     std::map<QString, QJsonObject> values() const;
 
+    // The secrets typed into the form's Secret fields, such as a token, by
+    // profile id, then by field key. They are not part of values(); the
+    // caller keeps them in the keychain. See decision 0054.
+    std::map<QString, QJsonObject> secrets() const;
+
     ItemEditor *editor() const;   // for tests
 
     void accept() override;

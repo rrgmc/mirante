@@ -1,6 +1,6 @@
 # 0050. Profiles hold logins, connections and module settings
 
-- Status: Accepted
+- Status: Accepted; the connection parts superseded by [0054](0054-module-settings-replace-connections.md)
 - Date: 2026-10-29
 
 ## Context

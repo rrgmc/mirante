@@ -41,29 +41,15 @@ struct Folder
     QJsonObject toJson() const;
 };
 
-struct Connection
-{
-    QString id;
-    QString kind;               // such as "gitlab" or "jira.cloud"
-    QString name;
-    QString baseUrl;
-    QJsonObject fields;         // declared by the connection kind; opaque to the core
-    QJsonObject extra;
-
-    static std::optional<Connection> fromJson(const QJsonObject &json, QString *error = nullptr);
-    QJsonObject toJson() const;
-};
-
 // A profile of the workspace, listed in workspace.mirante: web logins (kept
-// on each device), connections (tokens in the keychain) and module settings.
-// The Default profile always exists, with id kDefaultProfile; its name is not
-// stored. See docs/data-model.md#profile and decision 0050.
+// on each device) and module settings, such as the server of each module.
+// Tokens are kept in the keychain. The Default profile always exists, with id
+// kDefaultProfile; its name is not stored. See docs/data-model.md#profile and
+// decisions 0050 and 0054.
 struct Profile
 {
     QString id;
     QString name;                                // empty for Default
-    std::vector<Connection> connections;
-    QMap<QString, QString> defaultConnections;   // connection kind to connection id
     // The values of the modules' settings screens: an object of module ids,
     // each an object of screen ids, each the values of that screen.
     QJsonObject moduleSettings;
@@ -101,7 +87,6 @@ struct Project
     int order = 0;
     std::vector<Folder> folders;
     QJsonObject moduleSettings;                  // one object per module id; opaque to the core
-    QMap<QString, QString> connectionOverrides;  // connection kind to connection id
     QString trashedAt;                           // ISO 8601 UTC; empty if not in the trash
     QJsonObject extra;
 
@@ -117,7 +102,6 @@ struct Item
     QString type;               // item type id, such as "gitlab.mr.summary"
     QString name;
     QJsonObject config;         // fields of the item type; opaque to the core
-    QString connectionId;       // empty if not set
     QString profile;            // id of a profile overriding the group's; empty if not set
     QJsonObject extra;
 
@@ -167,7 +151,6 @@ struct Task
 };
 
 bool operator==(const Folder &a, const Folder &b);
-bool operator==(const Connection &a, const Connection &b);
 bool operator==(const Profile &a, const Profile &b);
 bool operator==(const Group &a, const Group &b);
 bool operator==(const Project &a, const Project &b);
@@ -177,7 +160,6 @@ bool operator==(const RootDashboard &a, const RootDashboard &b);
 bool operator==(const Task &a, const Task &b);
 
 inline bool operator!=(const Folder &a, const Folder &b) { return !(a == b); }
-inline bool operator!=(const Connection &a, const Connection &b) { return !(a == b); }
 inline bool operator!=(const Profile &a, const Profile &b) { return !(a == b); }
 inline bool operator!=(const Group &a, const Group &b) { return !(a == b); }
 inline bool operator!=(const Project &a, const Project &b) { return !(a == b); }

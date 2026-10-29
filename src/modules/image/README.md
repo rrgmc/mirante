@@ -22,10 +22,6 @@ Since M3 the type declares its configuration fields, so items can be created and
 
 The type returns `file` from `pastedImageField()`, so "Paste Image…" in a task's Items menu creates an Image item with the pasted image in `file`, and `Ctrl+V` on a focused Image item replaces it.
 
-## Connection kinds
-
-None.
-
 ## Settings
 
 None.

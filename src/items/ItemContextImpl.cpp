@@ -1,6 +1,5 @@
 #include "items/ItemContextImpl.h"
 
-#include "core/Connections.h"
 #include "core/DeviceSettings.h"
 #include "core/Model.h"
 #include "core/Profiles.h"
@@ -82,23 +81,6 @@ QJsonObject ItemContextImpl::moduleSettings(const QString &screenId) const
         return {};
     const QString profile = profiles::effective(*m_services.model, m_taskId, m_itemId);
     return m_services.model->moduleSettings(profile, moduleOfType(item->type), screenId);
-}
-
-std::optional<ConnectionDetails> ItemContextImpl::connection(const QStringList &kinds) const
-{
-    const Item *item = m_services.model ? m_services.model->item(m_taskId, m_itemId) : nullptr;
-    if (!item)
-        return std::nullopt;
-    const Connection *found = connections::resolve(*m_services.model, m_taskId, *item, kinds);
-    if (!found)
-        return std::nullopt;
-    ConnectionDetails details;
-    details.id = found->id;
-    details.kind = found->kind;
-    details.name = found->name;
-    details.baseUrl = QUrl(found->baseUrl);
-    details.fields = found->fields;
-    return details;
 }
 
 QString ItemContextImpl::folderPath(const QString &folderId) const

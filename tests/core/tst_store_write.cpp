@@ -218,26 +218,16 @@ void TestStoreWrite::writesProfiles()
              (QJsonArray{QJsonObject{{QStringLiteral("id"), QStringLiteral("w1")},
                                      {QStringLiteral("name"), QStringLiteral("Work")}}}));
 
-    // A connection of Default lists Default, without a name.
-    Profile standard = *model.profile(kDefaultProfile);
-    Connection connection;
-    connection.id = QStringLiteral("c1");
-    connection.kind = QStringLiteral("gitlab");
-    connection.name = QStringLiteral("gitlab.com");
-    connection.baseUrl = QStringLiteral("https://gitlab.com");
-    standard.connections.push_back(connection);
-    standard.defaultConnections.insert(connection.kind, connection.id);
-    model.setProfile(standard);
+    // A module setting of Default lists Default, without a name.
+    model.setModuleSettings(kDefaultProfile, QStringLiteral("gitlab"), QStringLiteral("general"),
+                            QJsonObject{{QStringLiteral("baseUrl"), QStringLiteral("https://gitlab.com")}});
     store.flush();
     written = json(QStringLiteral("workspace.mirante"));
     const QJsonObject first = written.value(QStringLiteral("profiles")).toArray().at(0).toObject();
     QCOMPARE(first.value(QStringLiteral("id")).toString(), kDefaultProfile);
     QVERIFY(!first.contains(QStringLiteral("name")));
-    QCOMPARE(first.value(QStringLiteral("connections")).toArray().size(), 1);
-    QVERIFY(!first.value(QStringLiteral("connections")).toArray().at(0).toObject().contains(QStringLiteral("token")));
-    standard.connections.clear();
-    standard.defaultConnections.clear();
-    model.setProfile(standard);
+    QVERIFY(first.contains(QStringLiteral("moduleSettings")));
+    model.setModuleSettings(kDefaultProfile, QStringLiteral("gitlab"), QStringLiteral("general"), {});
 
     // Deleting the last one removes the key.
     QVERIFY(profiles::remove(model, QStringLiteral("w1")));
