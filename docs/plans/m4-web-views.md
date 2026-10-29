@@ -154,7 +154,7 @@ enum class NewWindow { LoginPopup, ExternalBrowser };
 NewWindow classifyNewWindow(QWebEnginePage::WebWindowType type, bool userInitiated);
 ```
 
-- **Popups.** A `WebDialog` window, which `window.open` with features makes, opens in a small dialog in the same profile, and closes when the page closes it. OAuth sign-in uses this. Any other new window or tab opens in the external browser.
+- **Popups.** A `WebDialog` window, which `window.open` with features makes, opens in a dialog in the same profile, and closes when the page closes it. OAuth sign-in uses this. The dialog is resizable, takes the size the page asks for but at least 500 × 600 pixels, and fits on the screen. Any other new window or tab opens in the external browser.
 - **Permissions.** Clipboard read and write, and notifications, are asked once per host and profile with a short question in a bar above the page. Qt keeps the answer in the profile. Camera, microphone, screen capture and location are denied without asking. Showing notifications through the tray arrives in M8.
 - **The toolbar.** Back is disabled when there is no history. The address is elided in the middle and selectable. "Open in browser" uses `QDesktopServices::openUrl`.
 - **Load failure.** A failed load shows the error and a Reload button over the page.
@@ -233,7 +233,27 @@ struct PlacementServices {
 
 **Tests:** `tst_view_pool`: the limit, the order of unloading, a shown placement is never unloaded, a removed placement is forgotten. `tst_placement`, with a test item type: the view is made on first show and not before; a hidden web placement over the limit is unloaded and loads again when shown; a config change makes the view again.
 
-## Part 6: the item types
+## Part 6: a bigger view of an item
+
+Signing in is easier on a large page than in a small cell. Two ways already exist, but only from the keyboard or the sidebar: `Ctrl+Shift+M` maximises the focused cell, and a double click on an item in the sidebar opens it alone in a tab. M4 makes both reachable from the cell itself.
+
+- **Maximise button.** Every item cell header gets a button after the menu button, which maximises the cell, or restores it when it is maximised. Its tooltip names the shortcut. Maximising moves the same cell, so a web page keeps its state, including a login in progress.
+- **Cell menu.** The item cell menu gains "Maximise" (or "Restore") and "Open Alone". "Open Alone" opens the item in the preview tab, as the sidebar's double click does. The tab has a view of its own, in the same profile, so a login made there reaches the cell when its page reloads.
+- Both work on locked dashboards and in task dashboards shown inside root dashboards, because neither changes a layout.
+- `LayoutServices` gains two callbacks, which `MainWindow` fills from `Shortcuts` and `openItem`:
+
+```cpp
+std::function<void(QWidget *cell)> toggleMaximised;
+std::function<bool(const QWidget *cell)> isMaximised;
+std::function<void(const QString &taskId, const QString &itemId)> openItemAlone;
+```
+
+- `Shortcuts` gains `toggleMaximised(QWidget *cell)` and `isMaximised(const QWidget *cell)`, so the button and the menu maximise a given cell, not only the focused one. Maximising a cell also focuses it.
+- [ui](../ui.md) describes the button and the menu entries.
+
+**Tests:** `tst_layout_editor` gains the two menu entries on locked and unlocked dashboards. `tst_shortcuts` gains maximising a cell that is not focused.
+
+## Part 7: the item types
 
 Every module declares `rendering()` and `connectionKinds()` for all of its types. The five web types get `createView`:
 
@@ -251,7 +271,7 @@ Every module declares `rendering()` and `connectionKinds()` for all of its types
 
 **Tests:** each of `gitlab`, `jira` and `claude` adds `tst_urls`, with a fake `ItemContext`, covering the URL and every message above. `web` adds the same for `web.page`.
 
-## Part 7: detached windows
+## Part 8: detached windows
 
 **`ui/DetachedWindow.h`:**
 
@@ -278,7 +298,7 @@ signals:
 
 **Tests:** `tst_main_window` gains: detaching moves the page and keeps its widgets; closing puts it back; the detached list is saved and restored.
 
-## Part 8: wiring
+## Part 9: wiring
 
 - `main.cpp` creates `ProfileManager` after the `Store` and before the `MainWindow`, and a `ViewPool` with the limit from `DeviceSettings`. It sets `Qt::AA_ShareOpenGLContexts` before the `QApplication`, as Qt WebEngine asks.
 - `MainWindow` fills `LayoutServices::placements`.
@@ -296,33 +316,34 @@ The headers written by T0 are the interfaces. Where they differ in detail from t
 | T0 | `m4-interfaces` | Qt WebEngine in `setup-qt`, CMake and CI, proven on all three platforms. The `src/web/` library. Every header named in this plan, with stubs that compile. The `ItemType` additions and `ItemContext.h`. `DashboardPage` moved out of `MainWindow.cpp`. `QT_LIBS` in `mirante_add_module()`. Updates [modules](../modules.md#item-context) for `createWebView` and `profile(url)`. | everything it creates; after merging, the headers belong to the orchestrator | none |
 | T1 | `m4-profiles` | Part 2: `ProfileManager`. `tst_profile_manager`. Updates [web views](../web-views.md#profiles). | `src/web/ProfileManager.cpp`, its test | T0 |
 | T2 | `m4-web-panel` | Part 3: `WebPanel`, its page class, the popup dialog and the permission bar. `tst_web_panel`. | `src/web/WebPanel.cpp` and new files in `src/web/` other than `ProfileManager.cpp`, its test | T0 |
-| T3 | `m4-view-pool` | `ViewPool`, and the `DeviceSettings` additions of parts 5 and 7. `tst_view_pool`, `tst_device_settings` additions. | `src/items/ViewPool.cpp`, `src/core/DeviceSettings.cpp`, their tests | T0 |
+| T3 | `m4-view-pool` | `ViewPool`, and the `DeviceSettings` additions of parts 5 and 8. `tst_view_pool`, `tst_device_settings` additions. | `src/items/ViewPool.cpp`, `src/core/DeviceSettings.cpp`, their tests | T0 |
 | T4 | `m4-connections` | Part 4: `connections::resolve`, `ItemTypeRegistry::connectionKinds()` and the group dialog sections. `tst_connections`, `tst_dialogs` additions. Updates [data model](../data-model.md#connection) and [ui](../ui.md). | `src/core/Connections.cpp`, `src/items/ItemTypeRegistry.cpp`, `src/ui/GroupDialog.cpp`, their tests | T0 |
-| T5 | `m4-module-views` | Part 6, for the seven modules. Each module's `tst_urls`. Updates each module's `README.md` and [item types](../item-types.md). | `src/modules/` | T0 |
-| T6 | `m4-placements` | Part 5 except the pool: `Placement`, its `ItemContext`, `CellFrame::setBody` and the header widget, `DashboardCellFactory`. `tst_placement`. | `src/items/Placement*.cpp`, `src/items/ItemContextImpl.*`, `src/layout/CellFrame.cpp`, `src/layout/DashboardCellFactory.cpp`, `src/layout/LayoutView.cpp`, their tests | T1, T2, T3, T4 |
-| T7 | `m4-detach` | Part 7: `DetachedWindow`, the tab menu entry, put back, geometry and restore. `tst_main_window` additions. Updates [ui](../ui.md#detached-windows). | `src/ui/DetachedWindow.cpp`, `src/ui/RootTabBar.cpp`, `src/ui/MainWindow.cpp`, `tests/ui/tst_main_window.cpp` | T3, T6 |
-| T8 | `m4-wiring` | Part 8. | `src/main.cpp`, `src/ui/EntityActions.cpp`, `src/ui/MainWindow.cpp` (services only) | T6, T7 |
-| T9 | none | Done by the orchestrator: write `docs/plans/m4-checks.md`, run both presets, record the login results in [web views](../web-views.md#known-risk-logins-in-embedded-browsers), and tick the roadmap once the user has checked. | any | all |
+| T5 | `m4-module-views` | Part 7, for the seven modules. Each module's `tst_urls`. Updates each module's `README.md` and [item types](../item-types.md). | `src/modules/` | T0 |
+| T6 | `m4-bigger-view` | Part 6 except the header button: the two cell menu entries and the `Shortcuts` methods. `tst_layout_editor` and `tst_shortcuts` additions. Updates [ui](../ui.md). | `src/layout/LayoutEditor.cpp`, `src/ui/Shortcuts.cpp`, their tests | T0 |
+| T7 | `m4-placements` | Part 5 except the pool: `Placement`, its `ItemContext`, `CellFrame::setBody`, the header widget and the maximise button of Part 6, `DashboardCellFactory`. `tst_placement`. | `src/items/Placement*.cpp`, `src/items/ItemContextImpl.*`, `src/layout/CellFrame.cpp`, `src/layout/DashboardCellFactory.cpp`, `src/layout/LayoutView.cpp`, their tests | T1, T2, T3, T4 |
+| T8 | `m4-detach` | Part 8: `DetachedWindow`, the tab menu entry, put back, geometry and restore. `tst_main_window` additions. Updates [ui](../ui.md#detached-windows). | `src/ui/DetachedWindow.cpp`, `src/ui/RootTabBar.cpp`, `src/ui/MainWindow.cpp`, `tests/ui/tst_main_window.cpp` | T3, T7 |
+| T9 | `m4-wiring` | Part 9, and filling the `LayoutServices` callbacks of Part 6. | `src/main.cpp`, `src/ui/EntityActions.cpp`, `src/ui/MainWindow.cpp` (services only) | T6, T7, T8 |
+| T10 | none | Done by the orchestrator: write `docs/plans/m4-checks.md`, run both presets, record the login results in [web views](../web-views.md#known-risk-logins-in-embedded-browsers), and tick the roadmap once the user has checked. | any | all |
 
-T6 owns `LayoutView.cpp` for `remakeUnsafeCells()`, so T7 does not touch the layout library.
+T7 owns `LayoutView.cpp` for `remakeUnsafeCells()`, so T8 does not touch the layout library.
 
 ### Waves
 
 | Wave | Tasks | At the same time |
 |---|---|---|
 | 0 | T0, then the user reviews the headers | 1 |
-| 1 | T1, T2, T3, T4, T5 | 5 |
-| 2 | T6 | 1 |
-| 3 | T7 | 1 |
-| 4 | T8, then the login check | 1 |
-| 5 | T9 | 1 |
+| 1 | T1, T2, T3, T4, T5, T6 | 6 |
+| 2 | T7 | 1 |
+| 3 | T8 | 1 |
+| 4 | T9, then the login check | 1 |
+| 5 | T10 | 1 |
 
-The [roadmap](../roadmap.md#m4-web-views) asks for the login risk to be tested early. The first check by hand after T8 is logging in to claude.ai, gitlab.com and Jira Cloud. If a login fails, the fix belongs in `WebPanel` and `ProfileManager` (the user agent and popup handling), before T9.
+The [roadmap](../roadmap.md#m4-web-views) asks for the login risk to be tested early. The first check by hand after T9 is logging in to claude.ai, gitlab.com and Jira Cloud. If a login fails, the fix belongs in `WebPanel` and `ProfileManager` (the user agent and popup handling), before T10.
 
 ## Checking
 
 - **Automatic:** the tests above, by CTest locally and in CI on three platforms, with all modules and with none. Tests that load a page use `data:` URLs, never the network.
-- **By hand on Windows:** the M4 acceptance criteria, listed in `docs/plans/m4-checks.md` by T9. They include: logins in three services surviving a restart, a login in group A not visible in group B, a shared site seen by both groups, the same item live in two cells, unloading with a limit set low through the settings file, and detaching and putting back.
+- **By hand on Windows:** the M4 acceptance criteria, listed in `docs/plans/m4-checks.md` by T10. They include: logins in three services surviving a restart, a login made in a maximised cell, a login in group A not visible in group B, a shared site seen by both groups, the same item live in two cells, unloading with a limit set low through the settings file, and detaching and putting back.
 
 ## Out of scope
 
@@ -335,4 +356,4 @@ The [roadmap](../roadmap.md#m4-web-views) asks for the login risk to be tested e
 
 ## Ideas for later
 
-- **Sign-in hosts always open in the login dialog.** Some sites open their sign-in with a plain `window.open` and no window features, which Chromium reports as a new tab. Part 3 sends such a window to the external browser, so the sign-in cookies land there and the login in the profile fails. A list of known sign-in hosts, such as `accounts.google.com`, `login.microsoftonline.com`, `id.atlassian.com` and `github.com/login`, could always open in the login dialog, whatever kind of window the page asks for. Worth adding if a login check in T9 shows the problem.
+- **Sign-in hosts always open in the login dialog.** Some sites open their sign-in with a plain `window.open` and no window features, which Chromium reports as a new tab. Part 3 sends such a window to the external browser, so the sign-in cookies land there and the login in the profile fails. A list of known sign-in hosts, such as `accounts.google.com`, `login.microsoftonline.com`, `id.atlassian.com` and `github.com/login`, could always open in the login dialog, whatever kind of window the page asks for. Worth adding if a login check in T10 shows the problem.
