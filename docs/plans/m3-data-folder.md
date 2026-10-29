@@ -6,7 +6,7 @@ M3 still has no web views and no API calls. Item cells keep their M2 placeholder
 
 ## Changes to the architecture
 
-- **Item types declare their fields now, not in M5.** The item dialog is built from the fields of the chosen type, so `Fields.h` joins the module interface in M3. See [decision 0028](../decisions/0028-item-fields-in-m3.md).
+- **Item types declare their fields, or bring an editor, now rather than in M5.** The item dialog is built from the fields of the chosen type, or uses the type's own editor, so `Fields.h` and `ItemEditor.h` join the module interface in M3. See [decision 0028](../decisions/0028-item-fields-in-m3.md).
 - **The Store becomes an object.** M2's `store::load()` and `store::serialise()` stay as free functions. A `Store` class uses them, and adds writing, watching and conflict copies. It is built from two smaller classes, `FileWriter` and `FolderWatcher`, so they can be written and tested apart.
 - **Edits to a task are pure functions.** Code that changes a task, such as removing an item and clearing its cells, is a function from task to task in `core/Edits`, like the layout operations. The `Model` stores the result. This keeps the rules testable without a model.
 - **`MainWindow.cpp` does not grow.** New behaviour goes into new classes: `EntityActions`, `FocusView`, `ConflictBar`, `ImagePaste` and the dialogs. Only the last task connects them in `MainWindow`.
@@ -245,22 +245,47 @@ struct Field {
 }
 ```
 
-`ItemType` gains two methods:
+**`mirante/ItemEditor.h`**, in the module interface, for types that bring their own editor:
+
+```cpp
+namespace mirante {
+
+// What a form or an editor can reach while an item is edited.
+struct EditorContext {
+    std::vector<std::pair<QString, QString>> folders;   // the project's folders: id, name
+    std::function<QString(const QImage &)> saveImage;   // saves into files/, returns the name or empty
+};
+
+class ItemEditor : public QWidget {
+public:
+    using QWidget::QWidget;
+    virtual void setConfig(const QJsonObject &config) = 0;
+    virtual QJsonObject config() const = 0;     // keeps keys it does not show
+    virtual QStringList problems() const { return {}; }   // empty when valid
+};
+
+}
+```
+
+`ItemType` gains three methods:
 
 ```cpp
 virtual std::vector<Field> fields() const { return {}; }
+// An editor of the type's own, or null to use a form built from fields().
+virtual ItemEditor *createEditor(const EditorContext &context, QWidget *parent) const { return nullptr; }
 // The key of an Image field that a pasted image fills. If set, pasting an image
 // onto a task dashboard creates an item of this type. See docs/item-types.md#image.
 virtual QString pastedImageField() const { return {}; }
 ```
 
+- Each module chooses per type: typed fields, or its own editor. See [decision 0028](../decisions/0028-item-fields-in-m3.md).
 - A `Folder` field stores the id of one of the project's folders. An `Image` field stores a file name in `files/`.
-- `UnknownItemType` has no fields. The item dialog then shows only the name, and keeps `config` unchanged.
-- Each module declares the fields listed for its types in [item types](../item-types.md). The image module returns `"file"` from `pastedImageField()`.
+- `UnknownItemType` has neither. The item dialog then shows only the name, and keeps `config` unchanged.
+- Each module declares the fields listed for its types in [item types](../item-types.md). The M3 types all fit typed fields, so no module needs its own editor yet; a test type in `tests/` has one, so the dialog's editor path is covered. The image module returns `"file"` from `pastedImageField()`.
 
 **`items/FieldValidation.h`:** `validate(fields, config)` returns a message for each invalid field: a required field that is empty, an integer that is not one, a URL without `http` or `https`, a choice not in the list. Keys not in `fields` are kept and not checked.
 
-**`ui/FieldForm.h`:** a widget built from a list of fields and a config object. It reads back the edited config, keeping keys it does not show. Folder fields list the project's folders. Image fields show a thumbnail, "Paste" and "Choose file…"; they save through a callback that wraps `Store::saveFile`.
+**`ui/FieldForm.h`:** an `ItemEditor` built from a list of fields and an `EditorContext`. It reads back the edited config, keeping keys it does not show. Folder fields list the project's folders. Image fields show a thumbnail, "Paste" and "Choose file…"; they save through `EditorContext::saveImage`, which wraps `Store::saveFile`.
 
 **Dialogs** in `ui/`. Each takes an entity, lets the user edit it, and returns the edited copy. Each refuses an empty name.
 
@@ -269,7 +294,7 @@ virtual QString pastedImageField() const { return {}; }
 | `GroupDialog` | name |
 | `ProjectDialog` | name, group, priority; folders: name, remote URL, main, and the local path on this device with "Choose…", shown as "Folder not set on this device" when empty. Exactly one folder is main. |
 | `TaskDialog` | title, project, priority, state |
-| `ItemDialog` | type (only when creating), name, the type's fields through `FieldForm`, with `validate` before OK |
+| `ItemDialog` | type (only when creating), name, and the type's own editor or else a `FieldForm`; OK is refused while `problems()` is not empty |
 | `DashboardDialog` | name, and when creating a [preset](../ui.md#layout-presets) |
 
 Module settings and connections in the project and group dialogs arrive in M5.
@@ -351,7 +376,7 @@ The rules, the roles and the brief are those of the [M2 plan](m2-app-skeleton.md
 
 | Task | Branch | Work | Owns | Needs |
 |---|---|---|---|---|
-| T0 | `m3-interfaces` | Every header named in this plan, with stubs that compile. The new `Model` signals and methods, declared. `Fields.h`, and the two new `ItemType` methods. Decisions 0028 to 0031 set to Accepted after the user's review. | everything it creates; after merging, the headers belong to the orchestrator | none |
+| T0 | `m3-interfaces` | Every header named in this plan, with stubs that compile. The new `Model` signals and methods, declared. `Fields.h`, `ItemEditor.h`, and the three new `ItemType` methods. | everything it creates; after merging, the headers belong to the orchestrator | none |
 | T1 | `m3-model-edits` | Part 1: the model setters, removers and signals, entity `operator==`, `core/Edits`. `tst_edits`, `tst_model_edits`. | `src/core/Model.cpp`, `Entities.cpp`, `Edits.cpp`, their tests | T0 |
 | T2 | `m3-migrations` | Part 2: `Migrations` and `ConflictNames`. Their tests. T11 makes the load path call `migrate()`. Updates [sync](../sync.md#conflict-copies). | `src/core/Migrations.cpp`, `ConflictNames.cpp`, their tests | T0 |
 | T3 | `m3-file-writer` | `FileWriter`. `tst_file_writer`. | `src/core/FileWriter.cpp`, its test | T0 |
@@ -359,8 +384,8 @@ The rules, the roles and the brief are those of the [M2 plan](m2-app-skeleton.md
 | T5 | `m3-fields` | `FieldValidation`, `FieldForm`, `Presets`. Their tests. Updates [modules](../modules.md#the-module-interface) and [item types](../item-types.md#the-type-registry). | `src/items/FieldValidation.cpp`, `src/ui/FieldForm.cpp`, `src/layout/Presets.cpp`, their tests | T0 |
 | T6 | `m3-focus` | `focusOrder` and `FocusView`. `tst_focus_view`. Updates [ui](../ui.md#focus-view). | `src/core/Sorting.cpp`, `src/ui/FocusView.cpp`, their tests | T0 |
 | T7 | `m3-folder-watcher` | `FolderWatcher`. `tst_folder_watcher`. | `src/core/FolderWatcher.cpp`, its test | T2, T3 |
-| T8 | `m3-module-fields` | `fields()` for every item type of the seven modules, and `pastedImageField()` for `image`. Each module's `tst_register` checks that its fields validate their defaults. | `src/modules/` | T5 |
-| T9 | `m3-dialogs` | The five dialogs of Part 5. | `src/ui/*Dialog.cpp` except `RootDashboardsDialog.cpp` | T4, T5 |
+| T8 | `m3-module-fields` | `fields()` for every item type of the seven modules, and `pastedImageField()` for `image`. No module needs its own editor in M3. Each module's `tst_register` checks that its fields validate their defaults. | `src/modules/` | T5 |
+| T9 | `m3-dialogs` | The five dialogs of Part 5, and the test type with its own editor. | `src/ui/*Dialog.cpp` except `RootDashboardsDialog.cpp` | T4, T5 |
 | T10 | `m3-sidebar-dnd` | Sidebar drops and the Focus entry. `tst_sidebar_model` additions. | `src/ui/Sidebar*.cpp`, `tests/ui/tst_sidebar_model.cpp` | T1 |
 | T11 | `m3-store` | The `Store` class and `store::fileFor`, on `FileWriter` and `FolderWatcher`. `tst_store_write`, `tst_store_reload`, `tst_store_conflicts`. Updates [sync](../sync.md) and [architecture](../architecture.md#core). | `src/core/Store.cpp`, its tests | T1, T2, T3, T7 |
 | T12 | `m3-entity-actions` | `EntityActions` and its context menus. | `src/ui/EntityActions.cpp` | T1, T9 |
@@ -373,7 +398,7 @@ The rules, the roles and the brief are those of the [M2 plan](m2-app-skeleton.md
 
 | Wave | Tasks | At the same time |
 |---|---|---|
-| 0 | T0, then the user reviews the headers and decisions | 1 |
+| 0 | T0, then the user reviews the headers | 1 |
 | 1 | T1, T2, T3, T4, T5, T6 | 6 |
 | 2 | T7, T8, T9, T10 | 4 |
 | 3 | T11, T12 | 2 |

@@ -1,6 +1,6 @@
 # 0030. Image files are deleted only when this device drops the last reference
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-10-28
 
 ## Context

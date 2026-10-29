@@ -1,6 +1,6 @@
 # 0031. Conflict copies are recognised by the id at the start of their name
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-10-28
 
 ## Context
