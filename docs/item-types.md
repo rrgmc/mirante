@@ -193,7 +193,12 @@ Local sessions exist on one device only. On other devices the panel shows the de
 
 - **Configuration:** `file`, the image's file in the data folder's `files/` folder, required; `link`, an optional URL; `memo`, optional plain text. The type returns `file` from `pastedImageField`.
 - **Shows:** the image, scaled to fit the cell, with the memo under it. A click on the image opens the link, if there is one.
-- **Paste:** pasting an image from the clipboard into the item replaces its image. Pasting an image onto a dashboard creates a new Image item there. A pasted image is saved as PNG.
+- **Paste:** `Ctrl+V` with an image on the clipboard. The image is saved as PNG in `files/`, and the item's `file` is set to the new file's name. `ImagePaste` does the work, and the main window shows its message in the status bar.
+  - If the focused cell shows an Image item, or the item is shown alone in a tab, its image is replaced. This is an item edit, so it works on a locked dashboard, and in a root dashboard cell that shows the item. The old file is deleted when no item refers to it any more ([decision 0030](decisions/0030-deleting-image-files.md)).
+  - Otherwise, on an unlocked task dashboard, a new Image item is created, named "Image", or "Image 2", "Image 3" and so on if the task already has an item with that name. An empty focused cell holds it. Any other focused cell is split, with the new item on the right. Without a focused cell, a dashboard of one empty cell holds it; any other layout is split as a whole, with the new item on the right.
+  - On a locked dashboard, the status bar says "Unlock the dashboard to paste an image into it." On a root dashboard it says "Paste images into a task dashboard.", because a cell there must belong to a task.
+  - The new item is of the first type, by name, whose `pastedImageField` is set. In a build without such a type, such as one without the `image` module, nothing is pasted and the status bar says "This build cannot show images."
+  - If the image cannot be saved, for example in the read-only sample data, nothing changes and the status bar says "The image could not be saved."
 
 ### Folder / terminal
 
