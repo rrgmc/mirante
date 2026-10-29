@@ -258,11 +258,17 @@ Sidebar::Sidebar(const Model &model, const ItemTypeRegistry &types, QWidget *par
 
     connect(d->stateTabs, &QTabBar::currentChanged, this, [this] { d->applyFilter(); });
 
+    // The button has a row of its own above the tabs, so the four tabs keep
+    // their room in a narrow sidebar.
+    auto *trashRow = new QHBoxLayout;
+    trashRow->setContentsMargins(4, 4, 4, 0);
+    trashRow->addStretch(1);
+    trashRow->addWidget(d->emptyTrash);
+
     auto *footer = new QHBoxLayout;
     footer->setContentsMargins(4, 0, 4, 4);
     footer->addWidget(d->stateTabs);
     footer->addStretch(1);
-    footer->addWidget(d->emptyTrash);
 
     auto *layout = new QVBoxLayout(this);
     layout->setContentsMargins(0, 0, 0, 0);
@@ -270,6 +276,7 @@ Sidebar::Sidebar(const Model &model, const ItemTypeRegistry &types, QWidget *par
     layout->addLayout(header);
     layout->addWidget(d->focus);
     layout->addWidget(d->tree, 1);
+    layout->addLayout(trashRow);
     layout->addLayout(footer);
 
     // Expansion and the current row across resets.
