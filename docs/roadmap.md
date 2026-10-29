@@ -33,11 +33,11 @@ The base of the Qt app, reading a fixed set of JSON files. Nothing is written ba
 - [x] One folder per module in `src/modules/`, each registering its item types with id, name and icon only.
 - [x] A build with all modules off and a build with all on both succeed.
 - [x] `core` loads the fixture files into `Model`.
-- [ ] The sidebar, root tab bar and preview tab work as in [ui](ui.md).
-- [ ] `LayoutView` shows any layout tree, with placeholder cells that show the item type and name.
-- [ ] Items whose module is not in the build show the missing-module placeholder.
-- [ ] Layout editing works with the context menu and with drag and drop, including normalisation. Changes are kept in memory only.
-- [ ] `Ctrl+K` switcher and the panel focus shortcuts work.
+- [x] The sidebar, root tab bar and preview tab work as in [ui](ui.md).
+- [x] `LayoutView` shows any layout tree, with placeholder cells that show the item type and name.
+- [x] Items whose module is not in the build show the missing-module placeholder.
+- [x] Layout editing works with the context menu and with drag and drop, including normalisation. Changes are kept in memory only.
+- [x] `Ctrl+K` switcher and the panel focus shortcuts work.
 - [x] Tests cover JSON conversion, layout tree edits and normalisation, and unchanged write-back of data from missing modules.
 
 ## M3: Data folder and editing
