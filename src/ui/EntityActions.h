@@ -9,6 +9,7 @@
 #include <memory>
 
 class QDialog;
+class QImage;
 class QMenu;
 class QWidget;
 
@@ -66,6 +67,15 @@ public:
     QString newTask(const QString &projectId);
     QString newItem(const QString &taskId);
     QString newDashboard(const QString &taskId);
+    // "Paste Image…": opens the paste dialog on the clipboard's image, then
+    // adds the cropped image to the task as a new Image item, on no
+    // dashboard. A paste that cannot happen, such as in the read-only sample
+    // data, emits message() instead of opening the dialog. Returns the new
+    // item's id, or an empty string. See docs/decisions/0051-paste-images-from-the-items-menu.md.
+    QString pasteImage(const QString &taskId);
+    // Reads the clipboard's image for pasteImage() and its menu entry. The
+    // default reads the system clipboard; tests set their own.
+    void setClipboardImage(std::function<QImage()> clipboardImage);
 
     // Editing, through the entity's dialog.
     void editGroup(const QString &id);
@@ -110,7 +120,9 @@ public:
     void moveTask(const QString &id, int index);
 
     // Adds the commands for a sidebar row to menu: new, edit, rename, set
-    // priority, set state, delete, and on dashboards "Set as default". Fits
+    // priority, set state, delete, and on dashboards "Set as default". A task
+    // and its Items row also get "Paste Image…", enabled while the clipboard
+    // holds an image. Fits
     // Sidebar::MenuFiller. "Delete project…" and "Delete task…" move to the
     // trash, or delete for good while Shift is held.
     void fillMenu(QMenu *menu, SidebarModel::Kind kind, const QString &id, const QString &taskId);
@@ -121,8 +133,13 @@ public:
 signals:
     // A task dashboard made with newDashboard, so the window can show it.
     void dashboardCreated(const QString &taskId, const QString &dashboardId);
+    // A short message for the status bar, such as why an image was not pasted.
+    void message(const QString &text);
 
 private:
+    // Adds "Paste Image…" for the task, enabled while the clipboard holds an image.
+    void addPasteImage(QMenu *menu, const QString &taskId);
+
     struct Private;
     std::unique_ptr<Private> d;
 };

@@ -1,12 +1,11 @@
 // Tests ImagePaste on a small task: replacing the image of a focused image
-// item, even on a locked dashboard; creating a new item in an empty focused
-// cell, beside a filled one, or beside the whole layout; the refusals on a
-// locked or root dashboard, without an image type, and without a writable
-// store; pasting into an item alone; and the PNG file written to files/.
+// item, on a task or root dashboard; adding a new item to a task without
+// changing any dashboard; the refusal on a cell without an image item,
+// without an image type, and without a writable store; pasting into an item
+// alone; and the PNG file written to files/.
 #include "core/Model.h"
 #include "core/Store.h"
 #include "items/ItemTypeRegistry.h"
-#include "layout/LockState.h"
 #include "ui/ImagePaste.h"
 
 #include <mirante/Module.h>
@@ -125,10 +124,11 @@ private:
     std::unique_ptr<Store> store;
     ItemTypeRegistry types;
     ItemTypeRegistry typesWithoutImages;
-    LockState locks;
 
     const Task &task() const { return *model.task(taskId); }
     const LayoutNode &board() const { return model.taskDashboard(taskId, boardId)->layout; }
+    const Dashboard &boardEntity() const { return *model.taskDashboard(taskId, boardId); }
+    const RootDashboard &root() const { return *model.rootDashboard(rootId); }
     const Item *itemNamed(const QString &name) const;
     QStringList savedFiles() const;
     QString pictureFile() const;
@@ -136,13 +136,10 @@ private:
 private slots:
     void initTestCase();
     void init();
-    void replaceWhileLocked();
-    void createInEmptyCell();
-    void splitFilledCell();
-    void splitRootWithoutFocus();
-    void fillOnlyEmptyCellWithoutFocus();
+    void replaceFocusedImage();
+    void addToTask();
     void numberedNames();
-    void lockedRefuses();
+    void noImageItem();
     void rootDashboard();
     void noImageType();
     void pasteIntoItem();
@@ -229,14 +226,13 @@ void TestImagePaste::init()
     root.name = QStringLiteral("Root");
     root.layout = rootSplit;
     model.setRootDashboard(root);
-
-    locks.setUnlocked(boardId, false);
-    locks.setUnlocked(rootId, false);
 }
 
-void TestImagePaste::replaceWhileLocked()
+// Ctrl+V on a cell with an image item replaces its image. The layout keeps
+// its shape, and nothing is added.
+void TestImagePaste::replaceFocusedImage()
 {
-    ImagePaste paste(model, *store, types, locks);
+    ImagePaste paste(model, *store, types);
     const LayoutNode before = board();
     const auto result = paste.paste(redImage(), {taskId, boardId}, NodePath{0});
     QCOMPARE(result, ImagePaste::Result::ReplacedImage);
@@ -255,158 +251,92 @@ void TestImagePaste::replaceWhileLocked()
     QCOMPARE(saved.pixelColor(0, 0), QColor(Qt::red));
 }
 
-void TestImagePaste::createInEmptyCell()
+// A new item goes to the task, with the type's defaults and the image's file,
+// and no dashboard changes.
+void TestImagePaste::addToTask()
 {
-    locks.setUnlocked(boardId, true);
-    ImagePaste paste(model, *store, types, locks);
-    const auto result = paste.paste(redImage(), {taskId, boardId}, NodePath{2});
-    QCOMPARE(result, ImagePaste::Result::CreatedItem);
+    ImagePaste paste(model, *store, types);
+    const Dashboard boardBefore = boardEntity();
+    const RootDashboard rootBefore = root();
+    QString newId;
+    QCOMPARE(paste.addToTask(redImage(), taskId, &newId), ImagePaste::Result::CreatedItem);
 
     QCOMPARE(task().items.size(), size_t(3));
     const Item *created = itemNamed(QStringLiteral("Image 2"));
     QVERIFY(created);
+    QCOMPARE(created->id, newId);
     QCOMPARE(created->type, pictureType);
     QCOMPARE(created->config.value(QStringLiteral("memo")).toString(), QStringLiteral("pasted"));
     const QString file = created->config.value(QStringLiteral("file")).toString();
     QVERIFY(QFileInfo::exists(store->filePath(file)));
+    QCOMPARE(QImage(store->filePath(file), "PNG").size(), QSize(4, 3));
 
-    QCOMPARE(layout::cellPaths(board()).size(), size_t(3));
-    const LayoutNode *node = layout::nodeAt(board(), NodePath{2});
-    QVERIFY(node && node->ref);
-    QCOMPARE(node->ref->item, created->id);
-}
-
-void TestImagePaste::splitFilledCell()
-{
-    locks.setUnlocked(boardId, true);
-    ImagePaste paste(model, *store, types, locks);
-    const auto result = paste.paste(redImage(), {taskId, boardId}, NodePath{1});
-    QCOMPARE(result, ImagePaste::Result::CreatedItem);
-
-    const Item *created = itemNamed(QStringLiteral("Image 2"));
-    QVERIFY(created);
-    // The new cell is to the right of the note, before the empty cell.
-    const std::vector<NodePath> cells = layout::cellPaths(board());
-    QCOMPARE(cells.size(), size_t(4));
-    std::vector<std::optional<CellRef>> refs;
-    for (const NodePath &path : cells)
-        refs.push_back(layout::nodeAt(board(), path)->ref);
-    QCOMPARE(refs[0]->item, pictureId);
-    QCOMPARE(refs[1]->item, noteId);
-    QVERIFY(refs[2].has_value());
-    QCOMPARE(refs[2]->item, created->id);
-    QVERIFY(!refs[3].has_value());
-}
-
-void TestImagePaste::splitRootWithoutFocus()
-{
-    locks.setUnlocked(boardId, true);
-    ImagePaste paste(model, *store, types, locks);
-    const auto result = paste.paste(redImage(), {taskId, boardId}, std::nullopt);
-    QCOMPARE(result, ImagePaste::Result::CreatedItem);
-
-    const Item *created = itemNamed(QStringLiteral("Image 2"));
-    QVERIFY(created);
-    const std::vector<NodePath> cells = layout::cellPaths(board());
-    QCOMPARE(cells.size(), size_t(4));
-    const LayoutNode *last = layout::nodeAt(board(), cells.back());
-    QVERIFY(last->ref);
-    QCOMPARE(last->ref->item, created->id);
-}
-
-void TestImagePaste::fillOnlyEmptyCellWithoutFocus()
-{
-    locks.setUnlocked(boardId, true);
-    model.setTaskDashboardLayout(taskId, boardId, LayoutNode{});
-    ImagePaste paste(model, *store, types, locks);
-    QCOMPARE(paste.paste(redImage(), {taskId, boardId}, std::nullopt), ImagePaste::Result::CreatedItem);
-
-    const Item *created = itemNamed(QStringLiteral("Image 2"));
-    QVERIFY(created);
-    QCOMPARE(board().kind, LayoutNode::Kind::Cell);
-    QVERIFY(board().ref);
-    QCOMPARE(board().ref->item, created->id);
+    QVERIFY(boardEntity() == boardBefore);
+    QVERIFY(root() == rootBefore);
+    QCOMPARE(pictureFile(), oldFile);
 }
 
 void TestImagePaste::numberedNames()
 {
-    locks.setUnlocked(boardId, true);
     // "Image 2" is taken, so the next names are "Image 3" and "Image 4".
     Task t = task();
     t.items.push_back(makeItem(QStringLiteral("00000000-0000-0000-0000-000000000008"), noteType,
                                QStringLiteral("Image 2"), {}));
     model.setTask(t);
 
-    ImagePaste paste(model, *store, types, locks);
-    QCOMPARE(paste.paste(redImage(), {taskId, boardId}, NodePath{2}), ImagePaste::Result::CreatedItem);
-    QCOMPARE(paste.paste(redImage(), {taskId, boardId}, NodePath{1}), ImagePaste::Result::CreatedItem);
+    ImagePaste paste(model, *store, types);
+    QCOMPARE(paste.addToTask(redImage(), taskId), ImagePaste::Result::CreatedItem);
+    QCOMPARE(paste.addToTask(redImage(), taskId), ImagePaste::Result::CreatedItem);
     QVERIFY(itemNamed(QStringLiteral("Image 3")));
     QVERIFY(itemNamed(QStringLiteral("Image 4")));
 }
 
-void TestImagePaste::lockedRefuses()
+// Ctrl+V on a dashboard never adds an item: a cell without an image item, or
+// no focused cell, changes nothing.
+void TestImagePaste::noImageItem()
 {
-    ImagePaste paste(model, *store, types, locks);
+    ImagePaste paste(model, *store, types);
     const Task before = task();
     const QStringList files = savedFiles();
-    QCOMPARE(paste.paste(redImage(), {taskId, boardId}, NodePath{1}), ImagePaste::Result::Locked);
-    QCOMPARE(paste.paste(redImage(), {taskId, boardId}, NodePath{2}), ImagePaste::Result::Locked);
-    QCOMPARE(paste.paste(redImage(), {taskId, boardId}, std::nullopt), ImagePaste::Result::Locked);
+    QCOMPARE(paste.paste(redImage(), {taskId, boardId}, NodePath{1}), ImagePaste::Result::NoImageItem);
+    QCOMPARE(paste.paste(redImage(), {taskId, boardId}, NodePath{2}), ImagePaste::Result::NoImageItem);
+    QCOMPARE(paste.paste(redImage(), {taskId, boardId}, std::nullopt), ImagePaste::Result::NoImageItem);
+    QCOMPARE(paste.paste(redImage(), {taskId, boardId}, NodePath{7}), ImagePaste::Result::NoImageItem);
     QVERIFY(task() == before);
     QCOMPARE(savedFiles(), files);
 }
 
+// On a root dashboard, a cell with an image item has its image replaced. A
+// task cell, or no focused cell, adds nothing.
 void TestImagePaste::rootDashboard()
 {
-    locks.setUnlocked(rootId, true);
-    ImagePaste paste(model, *store, types, locks);
-    const QStringList files = savedFiles();
-    QCOMPARE(paste.paste(redImage(), {QString(), rootId}, NodePath{1}), ImagePaste::Result::RootDashboard);
-    QCOMPARE(paste.paste(redImage(), {QString(), rootId}, std::nullopt), ImagePaste::Result::RootDashboard);
-    QCOMPARE(savedFiles(), files);
+    ImagePaste paste(model, *store, types);
+    const RootDashboard rootBefore = root();
+    QCOMPARE(paste.paste(redImage(), {QString(), rootId}, NodePath{1}), ImagePaste::Result::NoImageItem);
+    QCOMPARE(paste.paste(redImage(), {QString(), rootId}, std::nullopt), ImagePaste::Result::NoImageItem);
+    QCOMPARE(task().items.size(), size_t(2));
 
-    // With a task named, the item goes to that task, and the focused task
-    // cell is split to hold it. The cell names the task.
-    QCOMPARE(paste.paste(redImage(), {QString(), rootId}, NodePath{1}, taskId), ImagePaste::Result::CreatedItem);
-    const Item *created = itemNamed(QStringLiteral("Image 2"));
-    QVERIFY(created);
-    const LayoutNode *rootTree = model.layout({QString(), rootId});
-    QVERIFY(rootTree);
-    const std::vector<NodePath> cells = layout::cellPaths(*rootTree);
-    QCOMPARE(cells.size(), size_t(3));
-    const LayoutNode *placed = layout::nodeAt(*rootTree, cells.back());
-    QVERIFY(placed->ref && !placed->removed);
-    QCOMPARE(placed->ref->item, created->id);
-    QCOMPARE(placed->ref->task, taskId);
-    // The task dashboard is unchanged.
-    QCOMPARE(layout::cellPaths(board()).size(), size_t(3));
-
-    // A locked root dashboard refuses a new item.
-    locks.setUnlocked(rootId, false);
-    QCOMPARE(paste.paste(redImage(), {QString(), rootId}, NodePath{1}, taskId), ImagePaste::Result::Locked);
-
-    // A root dashboard cell showing an image item still has its image replaced.
-    locks.setUnlocked(rootId, false);
     QCOMPARE(paste.paste(redImage(), {QString(), rootId}, NodePath{0}), ImagePaste::Result::ReplacedImage);
     QVERIFY(pictureFile() != oldFile);
+    QVERIFY(root() == rootBefore);
 }
 
 void TestImagePaste::noImageType()
 {
-    locks.setUnlocked(boardId, true);
-    ImagePaste paste(model, *store, typesWithoutImages, locks);
+    ImagePaste paste(model, *store, typesWithoutImages);
     const Task before = task();
     const QStringList files = savedFiles();
     QCOMPARE(paste.paste(redImage(), {taskId, boardId}, NodePath{0}), ImagePaste::Result::NoImageType);
     QCOMPARE(paste.paste(redImage(), {taskId, boardId}, NodePath{2}), ImagePaste::Result::NoImageType);
     QCOMPARE(paste.pasteIntoItem(redImage(), taskId, pictureId), ImagePaste::Result::NoImageType);
+    QCOMPARE(paste.addToTask(redImage(), taskId), ImagePaste::Result::NoImageType);
     QVERIFY(task() == before);
     QCOMPARE(savedFiles(), files);
 }
 
 void TestImagePaste::pasteIntoItem()
 {
-    ImagePaste paste(model, *store, types, locks);
+    ImagePaste paste(model, *store, types);
     QCOMPARE(paste.pasteIntoItem(redImage(), taskId, pictureId), ImagePaste::Result::ReplacedImage);
     const QString file = pictureFile();
     QVERIFY(file != oldFile);
@@ -421,42 +351,39 @@ void TestImagePaste::saveFailed()
     // A Store with no folder open is read-only, and cannot save a file.
     Model other;
     Store closed(other);
-    ImagePaste paste(model, closed, types, locks);
+    ImagePaste paste(model, closed, types);
     const Task before = task();
     QCOMPARE(paste.pasteIntoItem(redImage(), taskId, pictureId), ImagePaste::Result::SaveFailed);
-    locks.setUnlocked(boardId, true);
-    QCOMPARE(paste.paste(redImage(), {taskId, boardId}, NodePath{2}), ImagePaste::Result::SaveFailed);
+    QCOMPARE(paste.paste(redImage(), {taskId, boardId}, NodePath{0}), ImagePaste::Result::SaveFailed);
+    QCOMPARE(paste.addToTask(redImage(), taskId), ImagePaste::Result::SaveFailed);
     QVERIFY(task() == before);
-    // check() knows it before anything is tried.
+    // The checks know it before anything is tried.
     QCOMPARE(paste.checkItem(taskId, pictureId), ImagePaste::Result::SaveFailed);
     QCOMPARE(paste.check({taskId, boardId}, NodePath{0}), ImagePaste::Result::SaveFailed);
-    QCOMPARE(paste.check({taskId, boardId}, NodePath{2}), ImagePaste::Result::SaveFailed);
+    QCOMPARE(paste.checkTask(taskId), ImagePaste::Result::SaveFailed);
 }
 
-// check() says what a paste would do, without saving or changing anything.
+// The checks say what a paste would do, without saving or changing anything.
 void TestImagePaste::check()
 {
-    ImagePaste paste(model, *store, types, locks);
+    ImagePaste paste(model, *store, types);
     const QStringList filesBefore = savedFiles();
     const Task before = task();
 
     QCOMPARE(paste.check({taskId, boardId}, NodePath{0}), ImagePaste::Result::ReplacedImage);
-    QCOMPARE(paste.check({taskId, boardId}, NodePath{2}), ImagePaste::Result::Locked);
-    QCOMPARE(paste.check({taskId, boardId}, std::nullopt), ImagePaste::Result::Locked);
+    QCOMPARE(paste.check({taskId, boardId}, NodePath{1}), ImagePaste::Result::NoImageItem);
+    QCOMPARE(paste.check({taskId, boardId}, NodePath{2}), ImagePaste::Result::NoImageItem);
+    QCOMPARE(paste.check({taskId, boardId}, std::nullopt), ImagePaste::Result::NoImageItem);
     QCOMPARE(paste.check({QString(), rootId}, NodePath{0}), ImagePaste::Result::ReplacedImage);
+    QCOMPARE(paste.check({QString(), rootId}, NodePath{1}), ImagePaste::Result::NoImageItem);
     QCOMPARE(paste.checkItem(taskId, pictureId), ImagePaste::Result::ReplacedImage);
     QCOMPARE(paste.checkItem(taskId, noteId), ImagePaste::Result::NoImageType);
+    QCOMPARE(paste.checkTask(taskId), ImagePaste::Result::CreatedItem);
+    QCOMPARE(paste.checkTask(QStringLiteral("gone")), ImagePaste::Result::SaveFailed);
 
-    locks.setUnlocked(boardId, true);
-    locks.setUnlocked(rootId, true);
-    QCOMPARE(paste.check({taskId, boardId}, NodePath{1}), ImagePaste::Result::CreatedItem);
-    QCOMPARE(paste.check({taskId, boardId}, NodePath{2}), ImagePaste::Result::CreatedItem);
-    QCOMPARE(paste.check({QString(), rootId}, NodePath{1}), ImagePaste::Result::RootDashboard);
-    QCOMPARE(paste.check({QString(), rootId}, NodePath{1}, taskId), ImagePaste::Result::CreatedItem);
-    QCOMPARE(paste.check({QString(), rootId}, NodePath{1}, QStringLiteral("gone")), ImagePaste::Result::SaveFailed);
-
-    ImagePaste without(model, *store, typesWithoutImages, locks);
+    ImagePaste without(model, *store, typesWithoutImages);
     QCOMPARE(without.check({taskId, boardId}, NodePath{2}), ImagePaste::Result::NoImageType);
+    QCOMPARE(without.checkTask(taskId), ImagePaste::Result::NoImageType);
 
     QCOMPARE(savedFiles(), filesBefore);
     QCOMPARE(task().items.size(), before.items.size());
@@ -467,10 +394,8 @@ void TestImagePaste::messages()
 {
     QVERIFY(ImagePaste::message(ImagePaste::Result::ReplacedImage).isEmpty());
     QVERIFY(ImagePaste::message(ImagePaste::Result::CreatedItem).isEmpty());
-    QCOMPARE(ImagePaste::message(ImagePaste::Result::Locked),
-             QStringLiteral("Unlock the dashboard to paste an image into it."));
-    QCOMPARE(ImagePaste::message(ImagePaste::Result::RootDashboard),
-             QStringLiteral("A pasted image belongs to a task. Add an active task first."));
+    QCOMPARE(ImagePaste::message(ImagePaste::Result::NoImageItem),
+             QStringLiteral("To add an image, use Paste Image… in a task's Items menu."));
     QCOMPARE(ImagePaste::message(ImagePaste::Result::NoImageType), QStringLiteral("This build cannot show images."));
     QCOMPARE(ImagePaste::message(ImagePaste::Result::SaveFailed), QStringLiteral("The image could not be saved."));
 }
