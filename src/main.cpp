@@ -1,5 +1,6 @@
 #include "Version.h"
 #include "core/DeviceSettings.h"
+#include "core/LogBuffer.h"
 #include "core/Model.h"
 #include "core/Store.h"
 #include "items/EnabledModules.h"
@@ -18,6 +19,13 @@
 
 int main(int argc, char *argv[])
 {
+#ifndef NDEBUG
+    // Debug builds keep the log messages for Help > Show Log. The console
+    // output stays as it is.
+    mirante::LogBuffer logBuffer;
+    logBuffer.install();
+#endif
+
     // Qt WebEngine asks for shared OpenGL contexts, set before the application.
     QCoreApplication::setAttribute(Qt::AA_ShareOpenGLContexts);
     QApplication app(argc, argv);

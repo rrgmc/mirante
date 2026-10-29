@@ -3,6 +3,7 @@
 #include "Version.h"
 #include "core/DeviceSettings.h"
 #include "core/LayoutTree.h"
+#include "core/LogBuffer.h"
 #include "core/Model.h"
 #include "core/Sorting.h"
 #include "items/ItemTypeRegistry.h"
@@ -22,6 +23,7 @@
 #include "ui/DetachedWindow.h"
 #include "ui/EntityActions.h"
 #include "ui/FocusView.h"
+#include "ui/LogWindow.h"
 #include "ui/ImagePaste.h"
 #include "ui/QuickSwitcher.h"
 #include "ui/RootDashboardsDialog.h"
@@ -140,6 +142,7 @@ struct MainWindow::Private
     QuickSwitcher *switcher = nullptr;
     QToolButton *listButton = nullptr;
     QPointer<RootDashboardsDialog> dashboardList;
+    QPointer<LogWindow> logWindow;
 
     std::vector<DashboardPage *> pages;     // in tab order
     DashboardPage *preview = nullptr;       // also in pages, always last
@@ -1175,6 +1178,32 @@ struct MainWindow::Private
         QAction *aboutQt = help->addAction(MainWindow::tr("About &Qt"));
         aboutQt->setMenuRole(QAction::AboutQtRole);
         QObject::connect(aboutQt, &QAction::triggered, q, [] { QApplication::aboutQt(); });
+#ifndef NDEBUG
+        // Debug builds keep the log messages for a window. See main.cpp.
+        if (LogBuffer::installedBuffer()) {
+            help->addSeparator();
+            QAction *log = help->addAction(MainWindow::tr("Show &Log"));
+            log->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_L));
+            QObject::connect(log, &QAction::triggered, q, [this] { showLog(); });
+        }
+#endif
+    }
+
+    // Opens the log window, or brings it to the front. It has no parent, so it
+    // can sit beside the main window.
+    void showLog()
+    {
+        LogBuffer *buffer = LogBuffer::installedBuffer();
+        if (!buffer)
+            return;
+        if (!logWindow) {
+            logWindow = new LogWindow(*buffer);
+            logWindow->setAttribute(Qt::WA_DeleteOnClose);
+            QObject::connect(q, &QObject::destroyed, logWindow.data(), &QObject::deleteLater);
+        }
+        logWindow->show();
+        logWindow->raise();
+        logWindow->activateWindow();
     }
 
     void showSidebar(bool show)
