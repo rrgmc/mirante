@@ -40,15 +40,16 @@ No core folder depends on a module. The core reaches modules only through the re
 
 | Class | Responsibility |
 |---|---|
-| `Group`, `Project`, `Task`, `Item`, `Dashboard`, `Connection`, `Folder`, `WebProfile` | Plain value types matching the [data model](data-model.md), with JSON conversion |
-| `Model` | Holds all entities and the workspace's name, web profiles and module settings, looks them up by id, and emits signals such as `taskChanged(id)` and `taskRemoved(id)` |
+| `Group`, `Project`, `Task`, `Item`, `Dashboard`, `Connection`, `Folder`, `Profile` | Plain value types matching the [data model](data-model.md), with JSON conversion |
+| `Model` | Holds all entities and the workspace's name and profiles, with their connections and module settings, looks them up by id, and emits signals such as `taskChanged(id)` and `taskRemoved(id)` |
 | `Store` | Loads the data folder into `Model`. It turns each model signal into a write of one file through `FileWriter`, applies the changes `FolderWatcher` reports through the model's setters, deletes image files whose last reference a local edit removed, and lists conflict copies. A resource folder, such as the sample data, opens read-only. See [sync](sync.md). |
 | `FileWriter` | Writes and deletes files in the data folder with `QSaveFile`, debounced by 500 ms, and remembers a hash of what it wrote so its own writes can be told apart |
 | `FolderWatcher` | Watches the top of the data folder and its five subfolders, and reports files added, changed or removed by others, after 300 ms of quiet, and the conflict copies present |
 | `Migrations` | Upgrades files from older `schemaVersion` values, and refuses files of a newer one |
 | `ConflictNames` | Recognises a sync tool's conflict copy by the id at the start of its name. See [decision 0031](decisions/0031-conflict-copies-by-id-prefix.md). |
 | `Connections` | Finds the connection for an item by the [resolution order](data-model.md#connection). Used by `ItemContext` from M4, and by `ConnectionResolver` from M5. |
-| `WebProfiles` | Finds the web profile of an item by the [resolution order](web-views.md#profiles), lists the profiles to offer, and removes one from the list |
+| `Profiles` | Finds the profile of an item by the [resolution order](data-model.md#profile), lists the profiles to offer, and removes one from the list |
+| `ProfileMigration` | Moves groups' connections and the workspace's module settings into profiles. See [migration to profiles](data-model.md#migration-to-profiles). |
 | `Edits` | Changes to entities as pure functions, such as removing an item from a task and clearing its cells, for the `Model`'s setters |
 | `DeviceSettings` | Typed access to the `QSettings` values listed in [sync](sync.md#device-settings) |
 | `GroupColours` | The colour of each group: its own, or a palette colour chosen by its id, and the colour for a new group. See [decision 0046](decisions/0046-group-colours.md). |
@@ -80,8 +81,8 @@ The same `LayoutView` shows task dashboards and root dashboards. A task cell ins
 | `ModuleRegistrar` | Receives what each module registers: item types, its name, settings screens, connection kinds, settings, quick add handlers, related-item finders. See [modules](modules.md#what-a-module-registers). |
 | `ItemContext` | What an item's code can reach: settings, connections, status, profile, folders, terminal. See [modules](modules.md#item-context). |
 | `UnknownItemType` | Placeholder for an item whose module is not in this build. See [missing modules](modules.md#missing-modules). |
-| `Placement` | One shown instance of an item, and the body of its cell. It makes the view with the type's `createView` when it is first shown, and owns it. It makes the view again when the item's type, configuration or web profile changes, and drops it when the item goes. A web view is added to the `ViewPool`, and the placement tells the pool when it is shown or hidden. It reports the view's header widget, such as a web toolbar, with `headerWidgetChanged`. |
-| `ItemContextImpl` | The `ItemContext` of one placement. It reads the item, its project and its connection from the `Model` on each call, folders from `DeviceSettings`, and profiles from the `ProfileManager`. `createWebView` makes a `WebPanel` and reports its toolbar to the placement. Without a `ProfileManager`, as in tests, it returns a message instead of a page. |
+| `Placement` | One shown instance of an item, and the body of its cell. It makes the view with the type's `createView` when it is first shown, and owns it. It makes the view again when the item's type, configuration or profile changes, or the connections and module settings of that profile, and drops it when the item goes. A web view is added to the `ViewPool`, and the placement tells the pool when it is shown or hidden. It reports the view's header widget, such as a web toolbar, with `headerWidgetChanged`. |
+| `ItemContextImpl` | The `ItemContext` of one placement. It reads the item, its project, its connection and its module settings from the `Model` on each call, folders from `DeviceSettings`, and web logins from the `ProfileManager`. `createWebView` makes a `WebPanel` and reports its toolbar to the placement. Without a `ProfileManager`, as in tests, it returns a message instead of a page. |
 | `ViewPool` | Applies the [memory policy](web-views.md#memory-policy) to web views. When more hidden views are loaded than the limit, it asks the placements hidden longest to unload. |
 
 Native views are ordinary widgets. Lists use `QTableView` with a model fed from the `StatusCache`.
@@ -90,7 +91,7 @@ Native views are ordinary widgets. Lists use `QTableView` with a model fed from 
 
 | Class | Responsibility |
 |---|---|
-| `ProfileManager` | Creates and owns the profiles: one for each web profile id, and the app profile. It deletes a profile's logins, and the folders of the profiles from before decision 0042. Which profile an item uses is decided by `webprofiles::effective` in the core. See [profiles](web-views.md#profiles) and [decision 0042](decisions/0042-user-managed-web-profiles.md). |
+| `ProfileManager` | Creates and owns the `QWebEngineProfile`s that keep web logins: one for each profile id, and the app profile. It deletes a profile's logins, and the folders of the profiles from before decision 0042. Which profile an item uses is decided by `profiles::effective` in the core. See [profiles](web-views.md#profiles) and [decision 0042](decisions/0042-user-managed-web-profiles.md). |
 | `WebPanel` | `QWebEngineView` with a toolbar, popup handling and permission handling |
 | `WebPage` | The page of a web panel or login dialog: new windows and permissions |
 | `PageArea` | A page with the permission bar and the load failure message |
@@ -136,7 +137,7 @@ Code that differs per platform lives only here, behind these classes.
 | `QuickAdd` | Creates a task from a pasted link, using the modules' quick add handlers. See [quick add](ui.md#quick-add). |
 | `DashboardPage` | One tab's page: a `LayoutView` of one dashboard with its cell factory, or the Focus list. A detached window holds one too. |
 | `DetachedWindow` | A top-level window holding one detached root dashboard. See [decision 0024](decisions/0024-detach-root-dashboard-tabs.md). |
-| Dialogs | Group, project, task, item, connection and settings editors, the [web profiles](ui.md#web-profiles) list, and the dialogs of module [settings screens](ui.md#modules) |
+| Dialogs | Group, project, task, item, connection and settings editors, the [profiles](ui.md#profiles) list and its connections dialog, and the dialogs of module [settings screens](ui.md#modules) |
 
 ## Data flow
 
@@ -154,7 +155,7 @@ Code that differs per platform lives only here, behind these classes.
 - A web view's toolbar is owned by its `WebPanel`, even while the cell header shows it. The `CellFrame` only shows it, and lets it go when the placement reports a new header widget.
 - `ProfileManager` owns the profiles and is destroyed after all web views. Its root folder is `QStandardPaths::AppLocalDataLocation` + `/profiles`. `MainWindow` passes it and the `ViewPool` to placements through `PlacementServices`, which `MainWindow` owns. Without a `ProfileManager`, as in most tests, item cells keep their placeholders.
 - The `ViewPool` reads its limit from `DeviceSettings::hiddenViewLimit()` once, at start. Placements remove themselves from the pool when they go, so the pool outlives the window.
-- Deleting a web profile in `WebProfilesDialog` makes `EntityActions` call `ProfileManager::removeProfile` after the model drops the profile, in a queued call. Placements that used it make new views at once, but delete the old ones a moment later, and a profile must outlive its pages. `main.cpp` calls `ProfileManager::removeOldProfiles` at start.
+- Deleting a profile in `ProfilesDialog` makes `EntityActions` call `ProfileManager::removeProfile` after the model drops the profile, in a queued call. Placements that used it make new views at once, but delete the old ones a moment later, and a profile must outlive its pages. `main.cpp` calls `ProfileManager::removeOldProfiles` at start.
 
 ## Threading
 

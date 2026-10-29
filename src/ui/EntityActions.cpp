@@ -4,17 +4,18 @@
 #include "core/Edits.h"
 #include "core/GroupColours.h"
 #include "core/Model.h"
+#include "core/Profiles.h"
 #include "core/Store.h"
-#include "core/WebProfiles.h"
 #include "items/ItemTypeRegistry.h"
 #include "layout/Presets.h"
+#include "ui/ConnectionsDialog.h"
 #include "ui/DashboardDialog.h"
 #include "ui/GroupDialog.h"
 #include "ui/ItemDialog.h"
 #include "ui/ModuleSettingsDialog.h"
+#include "ui/ProfilesDialog.h"
 #include "ui/ProjectDialog.h"
 #include "ui/TaskDialog.h"
-#include "ui/WebProfilesDialog.h"
 #include "web/ProfileManager.h"
 
 #include <QActionGroup>
@@ -102,7 +103,7 @@ struct EntityActions::Private
     std::function<bool(const QString &)> confirm;
     std::function<Qt::KeyboardModifiers()> modifiers;
     ProfileManager *profiles = nullptr;
-    std::function<void(WebProfilesDialog &)> editProfiles;
+    std::function<void(ProfilesDialog &)> editProfiles;
 
     bool shiftHeld() const { return modifiers && (modifiers() & Qt::ShiftModifier); }
 
@@ -140,22 +141,18 @@ struct EntityActions::Private
         return context;
     }
 
-    // Offers the workspace's web profiles in a group dialog.
-    void offerProfiles(GroupDialog &dialog) const
-    {
-        dialog.setConnectionKinds(types.connectionKinds());
-        dialog.setWebProfiles(webprofiles::all(model));
-    }
+    // Offers the workspace's profiles in a group dialog.
+    void offerProfiles(GroupDialog &dialog) const { dialog.setProfiles(profiles::all(model)); }
 
-    // Offers the workspace's web profiles in an item dialog, naming the
-    // profile of the task's group.
+    // Offers the workspace's profiles in an item dialog, naming the profile
+    // of the task's group.
     void offerProfiles(ItemDialog &dialog, const QString &taskId) const
     {
         const Task *task = model.task(taskId);
         const Project *project = task ? model.project(task->projectId) : nullptr;
         const Group *group = project ? model.group(project->groupId) : nullptr;
-        const QString groupProfile = group ? webprofiles::groupDefault(model, *group) : kDefaultWebProfile;
-        dialog.setWebProfiles(webprofiles::all(model), webprofiles::nameOf(model, groupProfile));
+        const QString groupProfile = group ? profiles::groupDefault(model, *group) : kDefaultProfile;
+        dialog.setProfiles(profiles::all(model), groupProfile, profiles::nameOf(model, groupProfile));
     }
 
     // Runs the project dialog and applies its value and folder paths.
@@ -194,27 +191,29 @@ void EntityActions::setModifiers(std::function<Qt::KeyboardModifiers()> modifier
     d->modifiers = std::move(modifiers);
 }
 
-void EntityActions::setProfiles(ProfileManager *profiles) { d->profiles = profiles; }
+void EntityActions::setProfileManager(ProfileManager *manager) { d->profiles = manager; }
 
-void EntityActions::setEditProfiles(std::function<void(WebProfilesDialog &)> edit)
+void EntityActions::setEditProfiles(std::function<void(ProfilesDialog &)> edit)
 {
     d->editProfiles = std::move(edit);
 }
 
-// Web profiles.
+// Profiles.
 
-void EntityActions::editWebProfiles()
+void EntityActions::editProfiles()
 {
-    WebProfilesDialog dialog(d->model, d->dialogParent);
+    ProfilesDialog dialog(d->model, d->dialogParent);
     dialog.setConfirm(d->confirm);
-    connect(&dialog, &WebProfilesDialog::profileDeleted, this, [this](const QString &id) {
+    dialog.setConnectionKinds(d->types.connectionKinds());
+    dialog.setEditConnections([this](ConnectionsDialog &connections) { return d->exec(connections); });
+    connect(&dialog, &ProfilesDialog::profileDeleted, this, [this](const QString &id) {
         // Its logins on this device go too. The placements that used it make
         // new views at once, but delete the old ones later. The profile goes
         // after those pages, or Qt warns.
         if (ProfileManager *profiles = d->profiles)
             QTimer::singleShot(0, profiles, [profiles, id] { profiles->removeProfile(id); });
     });
-    connect(&dialog, &WebProfilesDialog::profileClearRequested, this, [this](const QString &id) {
+    connect(&dialog, &ProfilesDialog::profileClearRequested, this, [this](const QString &id) {
         if (ProfileManager *profiles = d->profiles)
             profiles->clearProfile(id);
     });
@@ -229,10 +228,16 @@ void EntityActions::editModuleSettings(const QString &moduleId, const QString &s
     const SettingsScreen *screen = d->types.settingsScreen(moduleId, screenId);
     if (!screen)
         return;
-    ModuleSettingsDialog dialog(d->types.moduleName(moduleId), *screen, d->model.moduleSettings(moduleId, screenId),
+    Model *model = &d->model;
+    ModuleSettingsDialog dialog(d->types.moduleName(moduleId), *screen, profiles::all(*model),
+                                [model, moduleId, screenId](const QString &profileId) {
+                                    return model->moduleSettings(profileId, moduleId, screenId);
+                                },
                                 d->dialogParent);
-    if (d->exec(dialog))
-        d->model.setModuleSettings(moduleId, screenId, dialog.values());
+    if (!d->exec(dialog))
+        return;
+    for (const auto &[profileId, values] : dialog.values())
+        d->model.setModuleSettings(profileId, moduleId, screenId, values);
 }
 
 // Creating.

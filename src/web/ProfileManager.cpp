@@ -191,13 +191,13 @@ QString ProfileManager::storageName(const QString &profileId)
     // Ids come from synced data, so one that is not a plain name, and could
     // reach outside the profiles folder, uses Default instead.
     static const QRegularExpression plain(QStringLiteral("^[A-Za-z0-9_-]+$"));
-    const QString id = plain.match(profileId).hasMatch() ? profileId : kDefaultWebProfile;
+    const QString id = plain.match(profileId).hasMatch() ? profileId : kDefaultProfile;
     return QStringLiteral("p-%1").arg(id);
 }
 
 QWebEngineProfile *ProfileManager::profile(const QString &profileId)
 {
-    const QString name = storageName(profileId.isEmpty() ? kDefaultWebProfile : profileId);
+    const QString name = storageName(profileId.isEmpty() ? kDefaultProfile : profileId);
     // A profile being cleared must not be made again over its folder. A
     // profile without a storage name is off the record: it keeps nothing.
     if (d->clearingNames.contains(name)) {
@@ -252,17 +252,17 @@ void ProfileManager::removeStorage(const QString &storageName, std::function<voi
 
 void ProfileManager::removeProfile(const QString &profileId)
 {
-    if (profileId.isEmpty() || profileId == kDefaultWebProfile)
+    if (profileId.isEmpty() || profileId == kDefaultProfile)
         return;
     const QString name = storageName(profileId);
-    if (name == storageName(kDefaultWebProfile))
+    if (name == storageName(kDefaultProfile))
         return;
     removeStorage(name);
 }
 
 void ProfileManager::clearProfile(const QString &profileId)
 {
-    const QString id = profileId.isEmpty() ? QString(kDefaultWebProfile) : profileId;
+    const QString id = profileId.isEmpty() ? QString(kDefaultProfile) : profileId;
     const QString name = storageName(id);
     if (d->clearingNames.contains(name))
         return;
@@ -279,7 +279,7 @@ void ProfileManager::clearProfile(const QString &profileId)
 
 bool ProfileManager::isClearing(const QString &profileId) const
 {
-    return d->clearingNames.contains(storageName(profileId.isEmpty() ? kDefaultWebProfile : profileId));
+    return d->clearingNames.contains(storageName(profileId.isEmpty() ? kDefaultProfile : profileId));
 }
 
 void ProfileManager::removeOldProfiles()

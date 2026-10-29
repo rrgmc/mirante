@@ -3,8 +3,8 @@
 // image files are deleted only when a local edit drops the last reference.
 #include "core/Edits.h"
 #include "core/Model.h"
+#include "core/Profiles.h"
 #include "core/Store.h"
-#include "core/WebProfiles.h"
 
 #include <QDir>
 #include <QFile>
@@ -86,7 +86,7 @@ private slots:
 
     void writesEachKind();
     void keepsWorkspaceKeys();
-    void writesWebProfiles();
+    void writesProfiles();
     void writesModuleSettings();
     void removalsDeleteFiles();
     void trashSurvivesReload();
@@ -197,71 +197,104 @@ void TestStoreWrite::keepsWorkspaceKeys()
     QCOMPARE(json(QStringLiteral("workspace.mirante")).value(QStringLiteral("futureField")).toInt(), 7);
 }
 
-void TestStoreWrite::writesWebProfiles()
+void TestStoreWrite::writesProfiles()
 {
     writeFile(path(QStringLiteral("workspace.mirante")),
               R"({ "schemaVersion": 1, "name": "Old", "futureField": 7 })");
     Model model;
     Store store(model);
     QVERIFY(store.open(m_dir->path()).empty());
-    QVERIFY(model.webProfiles().empty());
+    QCOMPARE(model.profiles().size(), std::size_t(1));
 
-    WebProfile work;
+    Profile work;
     work.id = QStringLiteral("w1");
     work.name = QStringLiteral("Work");
-    model.setWebProfiles({work});
+    model.setProfiles({work});
     store.flush();
     QJsonObject written = json(QStringLiteral("workspace.mirante"));
     QCOMPARE(written.value(QStringLiteral("name")).toString(), QStringLiteral("Old"));
     QCOMPARE(written.value(QStringLiteral("futureField")).toInt(), 7);
-    QCOMPARE(written.value(QStringLiteral("webProfiles")).toArray(),
+    QCOMPARE(written.value(QStringLiteral("profiles")).toArray(),
              (QJsonArray{QJsonObject{{QStringLiteral("id"), QStringLiteral("w1")},
                                      {QStringLiteral("name"), QStringLiteral("Work")}}}));
 
-    // Deleting the last one removes the key.
-    QVERIFY(webprofiles::remove(model, QStringLiteral("w1")));
+    // A connection of Default lists Default, without a name.
+    Profile standard = *model.profile(kDefaultProfile);
+    Connection connection;
+    connection.id = QStringLiteral("c1");
+    connection.kind = QStringLiteral("gitlab");
+    connection.name = QStringLiteral("gitlab.com");
+    connection.baseUrl = QStringLiteral("https://gitlab.com");
+    standard.connections.push_back(connection);
+    standard.defaultConnections.insert(connection.kind, connection.id);
+    model.setProfile(standard);
     store.flush();
     written = json(QStringLiteral("workspace.mirante"));
-    QVERIFY(!written.contains(QStringLiteral("webProfiles")));
+    const QJsonObject first = written.value(QStringLiteral("profiles")).toArray().at(0).toObject();
+    QCOMPARE(first.value(QStringLiteral("id")).toString(), kDefaultProfile);
+    QVERIFY(!first.contains(QStringLiteral("name")));
+    QCOMPARE(first.value(QStringLiteral("connections")).toArray().size(), 1);
+    QVERIFY(!first.value(QStringLiteral("connections")).toArray().at(0).toObject().contains(QStringLiteral("token")));
+    standard.connections.clear();
+    standard.defaultConnections.clear();
+    model.setProfile(standard);
+
+    // Deleting the last one removes the key.
+    QVERIFY(profiles::remove(model, QStringLiteral("w1")));
+    store.flush();
+    written = json(QStringLiteral("workspace.mirante"));
+    QVERIFY(!written.contains(QStringLiteral("profiles")));
     QCOMPARE(written.value(QStringLiteral("name")).toString(), QStringLiteral("Old"));
     QCOMPARE(written.value(QStringLiteral("futureField")).toInt(), 7);
 }
 
-// Changing one screen's values keeps the other screens and modules, and the
-// file's unknown keys. Empty values remove the screen, then the module.
+// Changing one screen's values in a profile keeps the other screens, modules
+// and profiles, and the file's unknown keys. Empty values remove the screen,
+// then the module. Settings at the top of the file, from before decision
+// 0050, are written into Default when the folder opens.
 void TestStoreWrite::writesModuleSettings()
 {
     writeFile(path(QStringLiteral("workspace.mirante")),
               R"({ "schemaVersion": 1, "name": "Old", "futureField": 7,
+                   "profiles": [ { "id": "w1", "name": "Work" } ],
                    "moduleSettings": { "missing": { "general": { "y": "z" } } } })");
     Model model;
     Store store(model);
     QVERIFY(store.open(m_dir->path()).empty());
+    QJsonObject written = json(QStringLiteral("workspace.mirante"));
+    QVERIFY(!written.contains(QStringLiteral("moduleSettings")));
+    QCOMPARE(model.moduleSettings(kDefaultProfile, QStringLiteral("missing"), QStringLiteral("general")),
+             (QJsonObject{{QStringLiteral("y"), QStringLiteral("z")}}));
 
     const QJsonObject general{{QStringLiteral("projects"), QJsonArray{QStringLiteral("acme/backend")}}};
-    model.setModuleSettings(QStringLiteral("gitlab"), QStringLiteral("general"), general);
+    model.setModuleSettings(QStringLiteral("w1"), QStringLiteral("gitlab"), QStringLiteral("general"), general);
     store.flush();
-    QJsonObject written = json(QStringLiteral("workspace.mirante"));
+    written = json(QStringLiteral("workspace.mirante"));
     QCOMPARE(written.value(QStringLiteral("name")).toString(), QStringLiteral("Old"));
     QCOMPARE(written.value(QStringLiteral("futureField")).toInt(), 7);
-    const QJsonObject settings = written.value(QStringLiteral("moduleSettings")).toObject();
-    QCOMPARE(settings.value(QStringLiteral("gitlab")).toObject().value(QStringLiteral("general")).toObject(),
-             general);
-    QCOMPARE(settings.value(QStringLiteral("missing")).toObject(),
+    const QJsonArray profiles = written.value(QStringLiteral("profiles")).toArray();
+    QCOMPARE(profiles.size(), 2);
+    const QJsonObject standard = profiles.at(0).toObject().value(QStringLiteral("moduleSettings")).toObject();
+    QCOMPARE(standard.value(QStringLiteral("missing")).toObject(),
              (QJsonObject{{QStringLiteral("general"), QJsonObject{{QStringLiteral("y"), QStringLiteral("z")}}}}));
+    const QJsonObject work = profiles.at(1).toObject().value(QStringLiteral("moduleSettings")).toObject();
+    QCOMPARE(work.value(QStringLiteral("gitlab")).toObject().value(QStringLiteral("general")).toObject(), general);
 
     // Opened again, the values are back.
     Model reopened;
     Store again(reopened);
     QVERIFY(again.open(m_dir->path()).empty());
-    QCOMPARE(reopened.moduleSettings(QStringLiteral("gitlab"), QStringLiteral("general")), general);
+    QCOMPARE(reopened.moduleSettings(QStringLiteral("w1"), QStringLiteral("gitlab"), QStringLiteral("general")),
+             general);
     again.close();
 
-    model.setModuleSettings(QStringLiteral("gitlab"), QStringLiteral("general"), QJsonObject());
-    model.setModuleSettings(QStringLiteral("missing"), QStringLiteral("general"), QJsonObject());
+    model.setModuleSettings(QStringLiteral("w1"), QStringLiteral("gitlab"), QStringLiteral("general"), {});
+    model.setModuleSettings(kDefaultProfile, QStringLiteral("missing"), QStringLiteral("general"), {});
     store.flush();
     written = json(QStringLiteral("workspace.mirante"));
-    QVERIFY(!written.contains(QStringLiteral("moduleSettings")));
+    QCOMPARE(written.value(QStringLiteral("profiles")).toArray(),
+             (QJsonArray{QJsonObject{{QStringLiteral("id"), QStringLiteral("w1")},
+                                     {QStringLiteral("name"), QStringLiteral("Work")}}}));
     QCOMPARE(written.value(QStringLiteral("futureField")).toInt(), 7);
 }
 

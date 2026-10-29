@@ -50,6 +50,15 @@ public:
     // core builds a form, or an editor of the type's own. See
     // docs/decisions/0028-item-fields-in-m3.md.
     virtual std::vector<Field> fields() const { return {}; }
+    // The fields for an item that uses the profile with this id, such as a
+    // field whose suggestions come from that profile's module settings. The
+    // item dialog calls it with the profile the edited item would use.
+    // Defaults to fields(). See decision 0050.
+    virtual std::vector<Field> fieldsForProfile(const QString &profileId) const
+    {
+        Q_UNUSED(profileId)
+        return fields();
+    }
     // An editor of the type's own, or null to use a form built from fields().
     // Include <mirante/ItemEditor.h> to implement it.
     virtual ItemEditor *createEditor(const EditorContext &context, QWidget *parent) const

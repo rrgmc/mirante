@@ -13,6 +13,7 @@
 #include <mirante/ItemEditor.h>
 
 #include <QAction>
+#include <QComboBox>
 #include <QJsonArray>
 #include <QJsonObject>
 #include <QLabel>
@@ -182,19 +183,22 @@ private slots:
             QVERIFY(action->text() != QStringLiteral("&Modules"));
     }
 
-    // The menu entry opens a form built from the fields, shows the stored
-    // values, and stores the edited ones, keeping unknown keys.
+    // The menu entry opens a form built from the fields, shows Default's
+    // stored values, and stores the edited ones, keeping unknown keys.
     void entryEditsTheModel()
     {
         Fixture f(true);
-        f.model.setModuleSettings(QStringLiteral("tools"), QStringLiteral("general"),
+        f.model.setModuleSettings(kDefaultProfile, QStringLiteral("tools"), QStringLiteral("general"),
                                   {{QStringLiteral("paths"), QJsonArray{QStringLiteral("a/b")}},
                                    {QStringLiteral("name"), QStringLiteral("Old")},
                                    {QStringLiteral("future"), 3}});
 
         QString title;
-        f.window->entityActions()->setExec([&title](QDialog &dialog) {
+        QString profile;
+        f.window->entityActions()->setExec([&title, &profile](QDialog &dialog) {
             title = dialog.windowTitle();
+            if (auto *settings = qobject_cast<ModuleSettingsDialog *>(&dialog))
+                profile = settings->profileId();
             auto *form = dialog.findChild<FieldForm *>(QStringLiteral("editor"));
             if (!form)
                 return false;
@@ -207,7 +211,9 @@ private slots:
         f.modulesMenu()->findChild<QAction *>(QStringLiteral("moduleSettings.tools.general"))->trigger();
 
         QCOMPARE(title, QStringLiteral("Tools: General Configuration"));
-        const QJsonObject stored = f.model.moduleSettings(QStringLiteral("tools"), QStringLiteral("general"));
+        QCOMPARE(profile, kDefaultProfile);
+        const QJsonObject stored =
+            f.model.moduleSettings(kDefaultProfile, QStringLiteral("tools"), QStringLiteral("general"));
         QCOMPARE(stored.value(QStringLiteral("paths")).toArray(),
                  (QJsonArray{QStringLiteral("a/b"), QStringLiteral("c/d")}));
         QCOMPARE(stored.value(QStringLiteral("name")).toString(), QStringLiteral("Old"));
@@ -216,7 +222,7 @@ private slots:
         // Cancel changes nothing.
         f.window->entityActions()->setExec([](QDialog &) { return false; });
         f.window->entityActions()->editModuleSettings(QStringLiteral("tools"), QStringLiteral("general"));
-        QCOMPARE(f.model.moduleSettings(QStringLiteral("tools"), QStringLiteral("general")), stored);
+        QCOMPARE(f.model.moduleSettings(kDefaultProfile, QStringLiteral("tools"), QStringLiteral("general")), stored);
 
         // An unknown screen opens nothing.
         bool opened = false;
@@ -226,12 +232,84 @@ private slots:
         QVERIFY(!opened);
     }
 
+    // The profile list chooses whose values are edited. Values edited for
+    // several profiles are all stored on OK; a profile only looked at is not
+    // written.
+    void editsEachProfile()
+    {
+        Fixture f(true);
+        Profile work;
+        work.id = QStringLiteral("work");
+        work.name = QStringLiteral("Work");
+        Profile bank;
+        bank.id = QStringLiteral("bank");
+        bank.name = QStringLiteral("Bank");
+        f.model.setProfiles({work, bank});
+        const QString tools = QStringLiteral("tools");
+        const QString look = QStringLiteral("look");
+        f.model.setModuleSettings(QStringLiteral("work"), tools, look, {{QStringLiteral("label"), QStringLiteral("W")}});
+
+        QStringList offered;
+        f.window->entityActions()->setExec([&offered](QDialog &dialog) {
+            auto *settings = qobject_cast<ModuleSettingsDialog *>(&dialog);
+            auto *list = dialog.findChild<QComboBox *>(QStringLiteral("profile"));
+            if (!settings || !list)
+                return false;
+            for (int i = 0; i < list->count(); ++i)
+                offered << list->itemText(i);
+            auto *editor = dynamic_cast<OwnEditor *>(settings->editor());
+            // Default first, empty: its label is required, so another profile
+            // cannot be chosen yet.
+            if (editor->line->text() != QString() || settings->setProfile(QStringLiteral("work")))
+                return false;
+            editor->line->setText(QStringLiteral("D"));
+            // Choosing in the list works like setProfile().
+            list->setCurrentIndex(list->findData(QStringLiteral("work")));
+            if (settings->profileId() != QLatin1String("work") || editor->line->text() != QLatin1String("W"))
+                return false;
+            editor->line->setText(QStringLiteral("W2"));
+            // Bank gets a label too, and back to Default keeps its edit.
+            if (!settings->setProfile(QStringLiteral("bank")))
+                return false;
+            editor->line->setText(QStringLiteral("B"));
+            editor->line->setText(QString());
+            if (settings->setProfile(kDefaultProfile))
+                return false;   // the empty label is refused
+            editor->line->setText(QStringLiteral("B"));
+            if (!settings->setProfile(kDefaultProfile) || editor->line->text() != QLatin1String("D"))
+                return false;
+            return true;
+        });
+        f.window->entityActions()->editModuleSettings(tools, look);
+
+        QCOMPARE(offered, (QStringList{QStringLiteral("Default"), QStringLiteral("Bank"), QStringLiteral("Work")}));
+        QCOMPARE(f.model.moduleSettings(kDefaultProfile, tools, look),
+                 (QJsonObject{{QStringLiteral("label"), QStringLiteral("D")}}));
+        QCOMPARE(f.model.moduleSettings(QStringLiteral("work"), tools, look),
+                 (QJsonObject{{QStringLiteral("label"), QStringLiteral("W2")}}));
+        QCOMPARE(f.model.moduleSettings(QStringLiteral("bank"), tools, look),
+                 (QJsonObject{{QStringLiteral("label"), QStringLiteral("B")}}));
+
+        // A profile only looked at is not written.
+        f.window->entityActions()->setExec([](QDialog &dialog) {
+            auto *settings = qobject_cast<ModuleSettingsDialog *>(&dialog);
+            return settings && settings->setProfile(QStringLiteral("work")) && settings->values().empty();
+        });
+        const QJsonObject before = f.model.profile(QStringLiteral("work"))->toJson();
+        f.window->entityActions()->editModuleSettings(tools, look);
+        QCOMPARE(f.model.profile(QStringLiteral("work"))->toJson(), before);
+        QCOMPARE(f.model.moduleSettings(kDefaultProfile, tools, look),
+                 (QJsonObject{{QStringLiteral("label"), QStringLiteral("D")}}));
+    }
+
     // A screen with its own editor gets it in the dialog, and OK is refused
     // while it reports problems.
     void ownEditor()
     {
         const EditorScreen screen;
-        ModuleSettingsDialog dialog(QStringLiteral("Tools"), screen, {{QStringLiteral("keep"), true}});
+        ModuleSettingsDialog dialog(QStringLiteral("Tools"), screen, {}, [](const QString &) {
+            return QJsonObject{{QStringLiteral("keep"), true}};
+        });
         auto *editor = dynamic_cast<OwnEditor *>(dialog.editor());
         QVERIFY(editor);
         QCOMPARE(editor->objectName(), QStringLiteral("editor"));
@@ -244,14 +322,17 @@ private slots:
         editor->line->setText(QStringLiteral("Mine"));
         dialog.accept();
         QCOMPARE(dialog.result(), int(QDialog::Accepted));
-        QCOMPARE(dialog.values(), (QJsonObject{{QStringLiteral("keep"), true}, {QStringLiteral("label"), QStringLiteral("Mine")}}));
+        const std::map<QString, QJsonObject> values = dialog.values();
+        QCOMPARE(values.size(), std::size_t(1));
+        QCOMPARE(values.at(kDefaultProfile),
+                 (QJsonObject{{QStringLiteral("keep"), true}, {QStringLiteral("label"), QStringLiteral("Mine")}}));
     }
 
     // A form refuses OK while a required field is empty.
     void formProblems()
     {
         const FieldScreen screen;
-        ModuleSettingsDialog dialog(QStringLiteral("Tools"), screen, {});
+        ModuleSettingsDialog dialog(QStringLiteral("Tools"), screen, {}, {});
         dialog.accept();
         QCOMPARE(dialog.result(), int(QDialog::Rejected));
         QVERIFY(dialog.findChild<QLabel *>(QStringLiteral("message"))->text().contains(QStringLiteral("Name")));

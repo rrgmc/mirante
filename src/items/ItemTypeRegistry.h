@@ -40,17 +40,23 @@ public:
     // The registered types, sorted by name.
     std::vector<const ItemType *> types() const;
 
+    // Whether items of the type use their profile: its views are web views,
+    // it uses connections, or its module has settings screens. The item
+    // dialog offers a profile for such types. False for an unknown type.
+    bool usesProfile(const QString &typeId) const;
+
     // Every connection kind that a registered type lists in connectionKinds(),
-    // once each, sorted. The group dialog offers these. See
+    // once each, sorted. The profile's connections dialog offers these. See
     // docs/decisions/0038-read-connections-in-m4.md.
     QStringList connectionKinds() const;
 
-    // Module settings. See docs/decisions/0044-module-settings-in-the-workspace.md.
+    // Module settings. See decisions 0044 and 0050 in docs/decisions/.
 
-    // Reads the stored values of one screen, such as Model::moduleSettings().
+    // Reads the stored values of one screen in a profile, such as
+    // Model::moduleSettings().
     // Without a reader, every module's ModuleSettings returns empty objects.
     // It may be set after the modules registered.
-    using SettingsReader = std::function<QJsonObject(const QString &moduleId, const QString &screenId)>;
+    using SettingsReader = std::function<QJsonObject(const QString &profileId, const QString &moduleId, const QString &screenId)>;
     void setSettingsReader(SettingsReader reader);
 
     // The ids of the registered modules, sorted.

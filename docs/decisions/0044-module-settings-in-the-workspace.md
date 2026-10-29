@@ -1,6 +1,6 @@
 # 0044. Modules have settings screens, stored in the workspace
 
-- Status: Accepted
+- Status: Accepted; superseded in part by [0050](0050-profiles-hold-logins-connections-and-settings.md): the values are kept per profile
 - Date: 2026-10-29
 
 ## Context

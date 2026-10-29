@@ -11,7 +11,7 @@ Each file records one design decision: what was decided, what else was considere
 | [0003](0003-view-per-placement.md) | One live view per placement | Accepted |
 | [0004](0004-file-per-entity-sync.md) | One JSON file per entity in an externally synced folder | Accepted |
 | [0005](0005-profiles-per-group.md) | One web login profile per group, with a shared option | Superseded by 0042 |
-| [0006](0006-connections-per-group.md) | API connections per group, tokens in the keychain | Accepted |
+| [0006](0006-connections-per-group.md) | API connections per group, tokens in the keychain | Accepted; in part superseded by 0050 |
 | [0007](0007-separate-item-types-per-rendering.md) | Separate item types for summary and page | Accepted |
 | [0008](0008-claude-sessions.md) | Claude sessions through web views and the terminal only | Accepted |
 | [0009](0009-priority-and-attention.md) | Four priority levels; attention as badges | Accepted; sorting superseded by 0034 |
@@ -46,12 +46,13 @@ Each file records one design decision: what was decided, what else was considere
 | [0039](0039-profiles-deleted-only-by-local-delete.md) | A group's web profile is deleted only when the group is deleted on this device | Accepted; for web profiles by 0042 |
 | [0040](0040-profiles-per-group-and-module.md) | One web login profile per group and module | Superseded by 0042 |
 | [0041](0041-own-look-for-tabs-and-tool-buttons.md) | Mirante draws its own tabs and tool buttons | Accepted |
-| [0042](0042-user-managed-web-profiles.md) | Web profiles are a list the user manages | Accepted |
+| [0042](0042-user-managed-web-profiles.md) | Web profiles are a list the user manages | Accepted; in part superseded by 0050 |
 | [0043](0043-pick-the-item-type-first.md) | A new item starts by picking its type in an icon grid | Accepted |
-| [0044](0044-module-settings-in-the-workspace.md) | Modules have settings screens, stored in the workspace | Accepted |
+| [0044](0044-module-settings-in-the-workspace.md) | Modules have settings screens, stored in the workspace | Accepted; in part superseded by 0050 |
 | [0045](0045-preview-and-crop-pasted-images.md) | Pasted images open a preview with a crop first | Accepted |
 | [0046](0046-group-colours.md) | Each group has a colour | Accepted; item cell headers by 0047 |
 | [0047](0047-item-headers-in-group-colours.md) | Item cell headers take their group's colour | Accepted |
+| [0050](0050-profiles-hold-logins-connections-and-settings.md) | Profiles hold logins, connections and module settings | Accepted |
 
 ## Template
 

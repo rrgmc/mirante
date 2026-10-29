@@ -95,8 +95,9 @@ Item makeItem(const QString &id, const QString &type, const QJsonObject &config)
     return item;
 }
 
-// Group g1 with a GitLab connection, project p1 with a setting of the test
-// module, and task t1 with one item of each type.
+// Group g1, which uses Default, with a GitLab connection in Default, project
+// p1 with a setting of the test module, and task t1 with one item of each
+// type.
 void fill(Model &model)
 {
     Group group;
@@ -108,8 +109,10 @@ void fill(Model &model)
     gitlab.name = QStringLiteral("GitLab");
     gitlab.baseUrl = QStringLiteral("https://gitlab.example.com");
     gitlab.fields = QJsonObject{{QStringLiteral("x"), 1}};
-    group.connections.push_back(gitlab);
-    group.defaultConnections.insert(QStringLiteral("gitlab"), QStringLiteral("c1"));
+    Profile standard;
+    standard.id = kDefaultProfile;
+    standard.connections.push_back(gitlab);
+    standard.defaultConnections.insert(QStringLiteral("gitlab"), QStringLiteral("c1"));
 
     Project project;
     project.id = QStringLiteral("p1");
@@ -130,6 +133,7 @@ void fill(Model &model)
                                   {{QStringLiteral("url"), QStringLiteral("data:text/plain,first")}}));
 
     model.reset({group}, {project}, {task}, {});
+    model.setProfiles({standard});
 }
 
 // Changes one item of task t1 through the model.
@@ -387,6 +391,25 @@ private slots:
         QCOMPARE(connection->fields.value(QStringLiteral("x")).toInt(), 1);
         QVERIFY(!context.connection({QStringLiteral("jira.cloud")}));
 
+        // Module settings of the item's own module, in the item's profile.
+        QVERIFY(context.moduleSettings(QStringLiteral("general")).isEmpty());
+        const QJsonObject standardValues{{QStringLiteral("a"), 1}};
+        const QJsonObject workValues{{QStringLiteral("a"), 2}};
+        Profile work;
+        work.id = QStringLiteral("work");
+        work.name = QStringLiteral("Work");
+        model->setProfile(work);
+        model->setModuleSettings(kDefaultProfile, QStringLiteral("test"), QStringLiteral("general"), standardValues);
+        model->setModuleSettings(QStringLiteral("work"), QStringLiteral("test"), QStringLiteral("general"), workValues);
+        model->setModuleSettings(kDefaultProfile, QStringLiteral("other"), QStringLiteral("general"), workValues);
+        QCOMPARE(context.moduleSettings(QStringLiteral("general")), standardValues);
+        QVERIFY(context.moduleSettings(QStringLiteral("none")).isEmpty());
+        changeItem(*model, QStringLiteral("n1"), [](Item &item) { item.profile = QStringLiteral("work"); });
+        QCOMPARE(context.moduleSettings(QStringLiteral("general")), workValues);
+        // The connections are those of the item's profile, which has none.
+        QVERIFY(!context.connection({QStringLiteral("gitlab")}));
+        changeItem(*model, QStringLiteral("n1"), [](Item &item) { item.profile.clear(); });
+
         // Read on each call, so a change shows at once.
         changeItem(*model, QStringLiteral("n1"), [](Item &item) {
             item.name = QStringLiteral("Changed");
@@ -408,9 +431,9 @@ private slots:
         services.settings = nullptr;
     }
 
-    // A web view is made again when the item's web profile changes: through
-    // the item, its group, or the workspace's list. A native view is not.
-    void webProfileChangeMakesTheViewAgain()
+    // A web view is made again when the item's profile changes: through the
+    // item, its group, or the workspace's list. A native view is not.
+    void profileChangeMakesTheViewAgain()
     {
         auto web = make(QStringLiteral("w1"));
         auto native = make(QStringLiteral("n1"));
@@ -420,37 +443,54 @@ private slots:
         QPointer<QWidget> nativeView = native->view();
         QVERIFY(webView && nativeView);
 
-        WebProfile work;
+        const Profile standard = *model->profile(kDefaultProfile);
+        Profile work;
         work.id = QStringLiteral("work");
         work.name = QStringLiteral("Work");
-        WebProfile bank;
+        Profile bank;
         bank.id = QStringLiteral("bank");
         bank.name = QStringLiteral("Bank");
 
         // A new profile that nobody uses changes nothing.
-        model->setWebProfiles({work, bank});
+        model->setProfiles({standard, work, bank});
         QCOMPARE(web->view(), webView.data());
 
         // The group's default.
         Group group = *model->group(QStringLiteral("g1"));
-        group.webProfile = QStringLiteral("work");
+        group.profile = QStringLiteral("work");
         model->setGroup(group);
         QVERIFY(web->view() && web->view() != webView.data());
         QCOMPARE(native->view(), nativeView.data());
         webView = web->view();
 
         // The item's own profile.
-        changeItem(*model, QStringLiteral("w1"), [](Item &item) { item.webProfile = QStringLiteral("bank"); });
+        changeItem(*model, QStringLiteral("w1"), [](Item &item) { item.profile = QStringLiteral("bank"); });
         QVERIFY(web->view() && web->view() != webView.data());
         webView = web->view();
 
         // The group's default no longer reaches it.
-        group.webProfile.clear();
+        group.profile.clear();
         model->setGroup(group);
         QCOMPARE(web->view(), webView.data());
 
+        // Renaming its profile changes nothing.
+        bank.name = QStringLiteral("Bank 2");
+        model->setProfile(bank);
+        QCOMPARE(web->view(), webView.data());
+
+        // A change of its profile's connections or module settings does: the
+        // view may have read them. Another profile's change does not.
+        Profile changedWork = work;
+        changedWork.moduleSettings = QJsonObject{{QStringLiteral("test"), QJsonObject{}}};
+        model->setProfile(changedWork);
+        QCOMPARE(web->view(), webView.data());
+        bank.connections = standard.connections;
+        model->setProfile(bank);
+        QVERIFY(web->view() && web->view() != webView.data());
+        webView = web->view();
+
         // Deleting its profile falls back to the group's, Default.
-        model->setWebProfiles({work});
+        model->setProfiles({standard, work});
         QVERIFY(web->view() && web->view() != webView.data());
         QCOMPARE(native->view(), nativeView.data());
     }
@@ -472,7 +512,7 @@ private slots:
         QVERIFY(webView && nativeView);
 
         QSignalSpy cleared(profiles.get(), &ProfileManager::profileCleared);
-        profiles->clearProfile(kDefaultWebProfile);
+        profiles->clearProfile(kDefaultProfile);
         QVERIFY(!web->view());
         QCOMPARE(native->view(), nativeView.data());
         QTRY_COMPARE_WITH_TIMEOUT(cleared.count(), 1, 15000);
@@ -506,7 +546,7 @@ private slots:
 
             auto *panel = qobject_cast<WebPanel *>(placement->view());
             QVERIFY(panel);
-            QCOMPARE(panel->view()->page()->profile(), profiles->profile(kDefaultWebProfile));
+            QCOMPARE(panel->view()->page()->profile(), profiles->profile(kDefaultProfile));
             QCOMPARE(header.count(), 1);
             QCOMPARE(header.at(0).at(0).value<QWidget *>(), panel->toolbar());
             QCOMPARE(placement->headerWidget(), panel->toolbar());

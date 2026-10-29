@@ -97,8 +97,8 @@ The module interface contains the headers below. The "Since" column gives the mi
 | Header | Contents | Since |
 |---|---|---|
 | `Module.h` | `ModuleRegistrar`, the object a module registers its parts with. `setModuleName()`, `addSettingsScreen()` and `settings()` were added after M4; see [settings screens](#settings-screens). | M2 |
-| `ModuleSettings.h` | `SettingsScreen`, one configuration screen of a module, and `ModuleSettings`, which reads the values of the module's screens. See [settings screens](#settings-screens). | after M4 |
-| `ItemType.h` | The `ItemType` interface. See [item types](item-types.md#the-type-registry). `shortName()`, the short label in cell headers, was added after M3; see [decision 0033](decisions/0033-cell-header-pills.md). M4 adds `rendering()`, `connectionKinds()` and `createView()`. | M2 |
+| `ModuleSettings.h` | `SettingsScreen`, one configuration screen of a module, and `ModuleSettings`, which reads the values of the module's screens in a profile. See [settings screens](#settings-screens). | after M4 |
+| `ItemType.h` | The `ItemType` interface. See [item types](item-types.md#the-type-registry). `shortName()`, the short label in cell headers, was added after M3; see [decision 0033](decisions/0033-cell-header-pills.md). M4 adds `rendering()`, `connectionKinds()` and `createView()`. `fieldsForProfile()` was added after M4; see [decision 0050](decisions/0050-profiles-hold-logins-connections-and-settings.md). | M2 |
 | `Fields.h` | `Field`: a key, a label, a type, a default value, a required flag, and for a choice its values and labels. The types are text, multi-line text, URL, integer, boolean, choice, folder, image and text list. A text field can offer `suggestions` in an editable drop-down list. Used for item configuration and settings screens, and from M5 for connection fields and project settings. See decisions [0028](decisions/0028-item-fields-in-m3.md) and [0044](decisions/0044-module-settings-in-the-workspace.md). | M3 |
 | `ItemEditor.h` | `ItemEditor`, the base of an item type's own configuration editor, and `EditorContext`, what an editor can reach: the project's folders and a way to save an image into `files/` | M3 |
 | `ItemContext.h` | `ItemContext`, everything an item's code can reach. See [below](#item-context). | M4 |
@@ -118,7 +118,7 @@ The register function receives a `ModuleRegistrar` and adds any of the following
 |---|---|
 | Item types | One object per type, with the properties listed in [item types](item-types.md#the-type-registry). For each type the module chooses how its configuration is edited: it lists its fields, and the core builds the form, or it returns an editor of its own. See [decision 0028](decisions/0028-item-fields-in-m3.md). |
 | Module name | The name the user sees, such as "GitLab", with `setModuleName()`. The module id is used without one. |
-| Settings screens | Configuration screens of the whole module, such as GitLab's "General Configuration", with values kept in the workspace. See [settings screens](#settings-screens). |
+| Settings screens | Configuration screens of the whole module, such as GitLab's "General Configuration", with values kept in each profile of the workspace. See [settings screens](#settings-screens). |
 | Connection kinds | Fields of the connection, how to sign a request, how to test the connection |
 | Project settings | Fields shown in the project dialog, such as the GitLab project path. They are defaults for the module's items. |
 | Device settings | Fields kept on each device, such as an editor command |
@@ -129,7 +129,7 @@ The core builds every dialog from the field definitions, and checks the values a
 
 ## Settings screens
 
-A module can add configuration screens for values that belong to the whole module, not to one item or project. For example, the gitlab module keeps a list of project paths, and offers them wherever an item asks for a project. See [decision 0044](decisions/0044-module-settings-in-the-workspace.md).
+A module can add configuration screens for values that belong to the whole module, not to one item or project. Each [profile](data-model.md#profile) has its own values, and an item uses those of its profile. For example, the gitlab module keeps a list of project paths, and offers the paths of the item's profile wherever an item asks for a project. See decisions [0044](decisions/0044-module-settings-in-the-workspace.md) and [0050](decisions/0050-profiles-hold-logins-connections-and-settings.md).
 
 ```cpp
 class GeneralScreen : public mirante::SettingsScreen
@@ -145,16 +145,22 @@ void registerModule(ModuleRegistrar &registrar)
     registrar.setModuleName(QStringLiteral("GitLab"));
     registrar.addSettingsScreen(std::make_unique<GeneralScreen>());
     const ModuleSettings &settings = registrar.settings();
-    // Item types may keep &settings and call settings.values("general").
+    // Item types may keep &settings and call settings.values(profileId, "general")
+    // in fieldsForProfile(profileId).
 }
 ```
 
 - **Id and name.** The id names the stored values, so it never changes. It has lowercase letters and digits only, and is unique within the module. The name is the menu entry and the dialog title.
 - **Fields or an editor.** As for item types, a screen lists its `fields()`, and the core builds the form, or returns its own `ItemEditor` from `createEditor()`. The editor gets the stored object with `setConfig()`, and its `config()` is stored. Keys that the form or editor does not show are kept.
-- **Values.** Each screen's values are one JSON object, in `workspace.mirante` under `moduleSettings.<module id>.<screen id>`. They sync with the workspace. See [data model](data-model.md#module-settings).
+- **Values.** Each screen's values are one JSON object per profile, in that profile's entry of `workspace.mirante`, under `moduleSettings.<module id>.<screen id>`. They sync with the workspace. See [data model](data-model.md#module-settings).
 - **No secrets.** A screen never asks for a token or a password. Those stay in the keychain, as for [connections](#connections-and-tokens).
-- **Reading.** `registrar.settings()` returns a `ModuleSettings`, which lives as long as the module's item types. `values(screenId)` reads the current values of one of the module's screens on each call, so code reads them where it needs them: in `fields()`, an editor or a view. It returns an empty object when nothing is stored.
-- **Menu.** The core adds a submenu named after the module to the [Modules menu](ui.md#modules), with one entry per screen. A module without screens does not appear there.
+- **Reading.** Module code reads the values of the profile an item uses. There are three ways:
+  - in a view, `ItemContext::moduleSettings(screenId)` reads them for the item's profile;
+  - in a form, the item dialog calls the type's `fieldsForProfile(profileId)` with the profile the edited item would use, and the type reads them there, for example to offer suggestions. `fields()` stays the plain list, used where no profile is known, such as validation;
+  - anywhere else, `registrar.settings()` returns a `ModuleSettings`, which lives as long as the module's item types. Its `values(profileId, screenId)` reads one screen's values in a profile.
+
+  Each call reads the current values, so code reads them where it needs them. An empty object means nothing is stored.
+- **Menu.** The core adds a submenu named after the module to the [Modules menu](ui.md#modules), with one entry per screen. Its dialog edits the values of a profile chosen at its top. A module without screens does not appear there.
 
 ## Item context
 
@@ -166,11 +172,12 @@ Each item's code gets an `ItemContext`. It gives access to the configuration the
 | `item()`, `task()`, `project()`, `group()` | Read-only views of the item and where it sits | planned |
 | `projectSetting(key)` | A project setting the module declared, such as `project` for GitLab. Undefined if the project does not set it. | M4 |
 | `deviceSetting(key)` | A device setting the module declared | M7 |
-| `connection(kinds)` | The first connection of one of the kinds found by the [resolution order](data-model.md#connection). In M4 it gives the details without a token; from M5 the handle also signs requests, and reports a missing token or a failure. See [decision 0038](decisions/0038-read-connections-in-m4.md). | M4 |
+| `moduleSettings(screenId)` | The values of one of the module's [settings screens](#settings-screens), in the item's profile. Empty if nothing is stored. Added after M4; see [decision 0050](decisions/0050-profiles-hold-logins-connections-and-settings.md). | after M4 |
+| `connection(kinds)` | The first connection of one of the kinds, among the connections of the item's profile, found by the [resolution order](data-model.md#connection). In M4 it gives the details without a token; from M5 the handle also signs requests, and reports a missing token or a failure. See [decision 0038](decisions/0038-read-connections-in-m4.md). | M4 |
 | `status()` | This item's entry in the status cache: fetch, read cached data, report attention | M5 |
-| `createWebView(url)` | A live web page in a plain `QWidget`, in the item's [web profile](web-views.md#profiles), with popups, permissions, downloads and the toolbar handled by the core. The normal way for a web type to show a page. See [decision 0037](decisions/0037-core-makes-web-views.md). | M4 |
-| `profile()` | The item's [web profile](web-views.md#profiles), for a module that builds its own `QWebEngineView`. Such a module links Qt WebEngine with `QT_LIBS`, and handles popups, permissions and downloads itself. The profile holds the logins of every site that its items visit, including those of other modules; see [decision 0042](decisions/0042-user-managed-web-profiles.md). | M4 |
-| `createMessageView(text)` | A grey message in the cell, such as "No GitLab connection in this group" | M4 |
+| `createWebView(url)` | A live web page in a plain `QWidget`, in the web logins of the item's [profile](web-views.md#profiles), with popups, permissions, downloads and the toolbar handled by the core. The normal way for a web type to show a page. See [decision 0037](decisions/0037-core-makes-web-views.md). | M4 |
+| `profile()` | The web logins of the item's [profile](web-views.md#profiles), as a `QWebEngineProfile`, for a module that builds its own `QWebEngineView`. Such a module links Qt WebEngine with `QT_LIBS`, and handles popups, permissions and downloads itself. The profile holds the logins of every site that its items visit, including those of other modules; see [decision 0042](decisions/0042-user-managed-web-profiles.md). | M4 |
+| `createMessageView(text)` | A grey message in the cell, such as "No GitLab connection in this profile" | M4 |
 | `folderPath(folderId)` | The local path of a project folder on this device, or empty if not mapped | M4 |
 | `gitHead(path)` | The current branch of a folder | M7 |
 | `launchTerminal(dir, command)` | Starts a command in a terminal. See [terminal launch](integrations.md#terminal-launch). | M7 |
@@ -214,9 +221,9 @@ The core suggests marking a task done when every item whose type reports `closed
 Synced data can reach a build that does not include a module. For example, one device builds without `jira`. The core then:
 
 - **Items:** shows a placeholder: "This item needs the jira module, which this build does not include." The item's `type` and `config` are kept unchanged.
-- **Connections:** lists the connection read-only in the group dialog, with the same message.
+- **Connections:** lists the connection read-only in the profile's [connections dialog](ui.md#connections), with the same message.
 - **Project settings:** keeps the module's settings unchanged and does not show them.
-- **Module settings:** keeps the values of the module's settings screens unchanged in `workspace.mirante`. The Modules menu has no entry for the module.
+- **Module settings:** keeps the values of the module's settings screens unchanged in each profile in `workspace.mirante`. The Modules menu has no entry for the module.
 - **Cells and Focus:** show the item's name. No status or attention is computed for it.
 
 Everything is written back exactly as it was loaded. See [sync](sync.md#the-data-folder).
