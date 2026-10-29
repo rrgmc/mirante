@@ -19,6 +19,7 @@
 #include <QLabel>
 #include <QMenu>
 #include <QMimeData>
+#include <QUrl>
 #include <QSignalSpy>
 #include <QTabBar>
 #include <QTabWidget>
@@ -446,6 +447,35 @@ private slots:
         view.setEditMode(false);
         QCOMPARE(cellMenu(view, {0}).value(0), QStringLiteral("Restore"));
         editor->detach(&view);
+    }
+
+    // "Edit Item…" is offered only while the dashboard is edited. Without a
+    // web page in the cell there is no "Use Current Address".
+    void itemCellMenuEditsTheItem()
+    {
+        LayoutServices services;
+        QStringList edited;     // "task/item"
+        services.editItem = [&edited](const QString &taskId, const QString &itemId) {
+            edited << taskId + QLatin1Char('/') + itemId;
+        };
+        editor->setServices(&services);
+        FakeFactory factory;
+        LayoutView view(&factory);
+        view.resize(800, 600);
+        view.setTree(tree(work));
+        editor->attach(&view, work);
+        view.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&view));
+
+        QVERIFY(!cellMenu(view, {0}).contains(QStringLiteral("Edit Item…")));
+        view.setEditMode(true);
+        const QStringList unlocked = cellMenu(view, {0});
+        QCOMPARE(unlocked.value(0), QStringLiteral("Edit Item…"));
+        QVERIFY(!unlocked.contains(QStringLiteral("Use Current Address")));
+        cellMenu(view, {0}, QStringLiteral("Edit Item…"));
+        QTRY_COMPARE(edited, (QStringList{loginTask + QLatin1Char('/') + claudeItem}));
+        editor->detach(&view);
+        editor->setServices(nullptr);
     }
 
     void itemCellMenuCallsTheBiggerView()
@@ -959,6 +989,47 @@ private slots:
             QApplication::sendEvent(&view, &dropLocked);
         }
         QCOMPARE(spy.count(), 1);   // only the drop made while unlocked
+    }
+
+    // A widget in a cell that takes drags itself, as a web page does, does not
+    // keep a drag of an item from the overlay. Other drags still reach it.
+    void overlaySeesDragsOverWidgetsThatTakeDrags()
+    {
+        FakeFactory factory;
+        LayoutView view(&factory);
+        view.resize(800, 600);
+        view.setTree(tree(work));
+        view.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&view));
+        view.setEditMode(true);
+        auto *overlay = new DropOverlay(&view);
+        QSignalSpy spy(overlay, &DropOverlay::dropped);
+
+        QWidget *cell = view.cellAt({0});
+        auto *page = new QWidget(cell);
+        page->setAcceptDrops(true);
+        page->setGeometry(cell->rect());
+        page->show();
+        const QPoint pos = page->rect().center();
+        std::unique_ptr<QMimeData> mime(dragMimeData(fromSidebar(itemRef(notesItem))));
+
+        QDragEnterEvent enter(pos, Qt::CopyAction, mime.get(), Qt::LeftButton, Qt::NoModifier);
+        QApplication::sendEvent(page, &enter);
+        QVERIFY(enter.isAccepted());
+        QVERIFY(overlay->isVisible());
+        QDropEvent drop(QPointF(pos), Qt::CopyAction, mime.get(), Qt::LeftButton, Qt::NoModifier);
+        QApplication::sendEvent(page, &drop);
+        QVERIFY(!overlay->isVisible());
+        QCOMPARE(spy.count(), 1);
+        QCOMPARE(spy.at(0).at(0).value<DropTarget>().path, NodePath{0});
+
+        // A file is not the overlay's: it goes to the widget.
+        QMimeData file;
+        file.setUrls({QUrl::fromLocalFile(QStringLiteral("/tmp/a.txt"))});
+        QDragEnterEvent fileEnter(pos, Qt::CopyAction, &file, Qt::LeftButton, Qt::NoModifier);
+        QApplication::sendEvent(page, &fileEnter);
+        QVERIFY(!overlay->isVisible());
+        QCOMPARE(spy.count(), 1);
     }
 
     // Holding a drag over a tab that is not shown opens it, so its content

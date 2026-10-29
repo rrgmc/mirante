@@ -112,7 +112,7 @@ A root dashboard is a tab in the main tab bar. It has a name and a [layout tree]
 - The `+` button creates an empty root dashboard, with editing on.
 - Closing a root dashboard's tab, with its close button, a middle click or the tab bar's context menu, does not delete it. It can be opened again with the [quick switcher](#keyboard) or the dashboard list.
 - The **dashboard list**, opened with the button after the lock in the tab bar row or with "All dashboards…" in the tab bar's context menu, lists every root dashboard and marks closed ones. It opens a dashboard again, and it is the only place where a root dashboard is deleted, after a confirmation.
-- Right-clicking the tab bar shows "New dashboard", "Close tab" over a tab, "Detach into Window" over a root dashboard tab, and "All dashboards…".
+- Right-clicking the tab bar shows "New dashboard", "Close tab" over a tab, "Rename dashboard…" and "Detach into Window" over a root dashboard tab, and "All dashboards…". "Rename dashboard…" opens the dashboard dialog with the name to edit.
 
 ### Placing tasks and items
 
@@ -162,6 +162,8 @@ Layouts are locked by default, to prevent accidental changes while working. The 
 When editing is on:
 
 - **The cell context menu** offers, after "Maximise" and "Open Alone" for an item cell (see [a bigger view](#a-bigger-view-of-an-item)):
+  - "Edit Item…", for an item cell, which opens the item dialog;
+  - "Use Current Address", for an item cell that shows a web page, when the item's type has an address field. It saves the address the page shows now in that field, such as the Address of a Web page item. It is disabled when the two are already the same, and its tooltip shows the address;
   - split right;
   - split down;
   - wrap in tabs;
@@ -174,7 +176,7 @@ When editing is on:
   - "Delete tab" removes the tab and its content from the layout.
   - "Ungroup" appears only when the group has one tab. It removes the tab group: the tab's content takes the group's place.
 - **A `+` button** at the right of each tab group adds an empty tab at the end.
-- **Drag and drop:** drag a cell by its header, a tab by its tab, a whole tab group by the empty part of its tab bar, or an item from the sidebar. Cell headers and tab bars show an open hand while the dashboard is unlocked. Holding a drag over a tab that is not shown opens it, so a cell can be dropped beside its content. A tab group or a split moves within its own dashboard. A semi-transparent overlay shows five drop zones on the cell under the cursor:
+- **Drag and drop:** drag a cell by its header, a tab by its tab, a whole tab group by the empty part of its tab bar, or an item from the sidebar. Cell headers and tab bars show an open hand while the dashboard is unlocked. Holding a drag over a tab that is not shown opens it, so a cell can be dropped beside its content. A tab group or a split moves within its own dashboard. The zones work over web pages too: a web page does not take a drag of a cell or an item, but it still takes other drags, such as files. A semi-transparent overlay shows five drop zones on the cell under the cursor:
   - the left, right, top or bottom edge splits the cell on that side;
   - the centre adds the dropped content as a tab, turning the cell into a tab group if needed. On an empty cell, or a "Removed" one whose task or item was deleted, the centre fills the cell instead.
 - Dropping on a tab bar inserts a new tab at that position.
