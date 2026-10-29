@@ -9,11 +9,24 @@
 #include <QComboBox>
 #include <QDialogButtonBox>
 #include <QFormLayout>
+#include <QHBoxLayout>
 #include <QLabel>
 #include <QLineEdit>
+#include <QListWidget>
+#include <QPushButton>
+#include <QStackedWidget>
 #include <QVBoxLayout>
 
 namespace mirante {
+
+namespace {
+
+// The type grid: icons of this size, in cells of this size, with up to two
+// lines of name under each icon.
+constexpr int kTypeIconSize = 48;
+constexpr QSize kTypeCellSize(124, 100);
+
+} // namespace
 
 struct ItemDialog::Private
 {
@@ -21,19 +34,32 @@ struct ItemDialog::Private
     const ItemTypeRegistry *types = nullptr;
     EditorContext context;
     Item item;
-    QComboBox *type = nullptr;          // only when creating
+    Item original;                      // as given, for its configuration
+    bool creating = false;
+
+    QStackedWidget *pages = nullptr;
+    QWidget *typePage = nullptr;        // only when creating
+    QWidget *itemPage = nullptr;
+    QListWidget *typeList = nullptr;    // only when creating
+    QLabel *typeIcon = nullptr;
+    QLabel *typeName = nullptr;
     QLineEdit *name = nullptr;
     QFormLayout *form = nullptr;
     QComboBox *webProfile = nullptr;    // shown for types whose views are web views
     QVBoxLayout *editorBox = nullptr;
     ItemEditor *editor = nullptr;       // null for an item of a missing module
+    QString editorType;                 // the type the editor was made for
     QLabel *message = nullptr;          // why OK was refused
+    QPushButton *back = nullptr;        // only when creating
+    QPushButton *next = nullptr;        // only when creating
+    QPushButton *ok = nullptr;
 
     // Replaces the editor with one for the type of item, showing config.
     void makeEditor(const QJsonObject &config)
     {
         delete editor;
         editor = nullptr;
+        editorType = item.type;
         item.config = config;
         if (!types->contains(item.type))
             return;
@@ -53,15 +79,97 @@ struct ItemDialog::Private
         form->setRowVisible(webProfile, web);
     }
 
-    void typeChosen()
+    void showTypeName()
     {
-        const QString id = type->currentData().toString();
-        if (id == item.type)
+        const ItemType &type = types->type(item.type);
+        typeName->setText(type.name());
+        const QIcon icon = type.icon();
+        typeIcon->setPixmap(icon.isNull() ? QPixmap() : icon.pixmap(16, 16));
+        typeIcon->setVisible(!icon.isNull());
+    }
+
+    // Shows the type page or the item page, with its buttons.
+    void showPage(bool typePageShown)
+    {
+        if (typePage)
+            pages->setCurrentWidget(typePageShown ? typePage : itemPage);
+        message->hide();
+        if (next) {
+            next->setVisible(typePageShown);
+            back->setVisible(!typePageShown);
+        }
+        ok->setVisible(!typePageShown);
+        // Enter presses the button that goes on.
+        (typePageShown ? next : ok)->setDefault(true);
+        if (typePageShown)
+            typeList->setFocus();
+        else
+            name->setFocus();
+    }
+
+    // Uses the type with id for the new item, and shows the item's page.
+    void choose(const QString &id)
+    {
+        if (!types->contains(id))
             return;
         item.type = id;
-        message->hide();
-        makeEditor(defaultConfig(types->type(id).fields()));
+        if (id != editorType) {
+            // The configuration given with the item belongs to its own type.
+            const bool given = id == original.type && !original.config.isEmpty();
+            makeEditor(given ? original.config : defaultConfig(types->type(id).fields()));
+        }
+        showTypeName();
         showWebProfile();
+        showPage(false);
+    }
+
+    void chooseSelected()
+    {
+        if (QListWidgetItem *selected = typeList->currentItem())
+            choose(selected->data(Qt::UserRole).toString());
+    }
+
+    QWidget *makeTypePage()
+    {
+        auto *page = new QWidget;
+        auto *heading = new QLabel(tr("Choose the type of the new item."), page);
+
+        typeList = new QListWidget(page);
+        typeList->setObjectName(QStringLiteral("types"));
+        typeList->setViewMode(QListView::IconMode);
+        typeList->setIconSize(QSize(kTypeIconSize, kTypeIconSize));
+        typeList->setGridSize(kTypeCellSize);
+        typeList->setMovement(QListView::Static);
+        typeList->setResizeMode(QListView::Adjust);
+        typeList->setWrapping(true);
+        typeList->setWordWrap(true);
+        typeList->setUniformItemSizes(true);
+        typeList->setTextElideMode(Qt::ElideRight);
+        typeList->setEditTriggers(QAbstractItemView::NoEditTriggers);
+        typeList->setSelectionMode(QAbstractItemView::SingleSelection);
+        // The registry lists types by name. Names start with their product,
+        // such as "GitLab" or "Jira", so the types of a module stay together.
+        for (const ItemType *type : types->types()) {
+            auto *entry = new QListWidgetItem(type->icon(), type->name(), typeList);
+            entry->setData(Qt::UserRole, type->id());
+            entry->setToolTip(type->name());
+            entry->setTextAlignment(Qt::AlignHCenter | Qt::AlignTop);
+        }
+
+        auto *hint = new QLabel(page);
+        hint->setObjectName(QStringLiteral("typeHint"));
+        hint->setWordWrap(true);
+        hint->setForegroundRole(QPalette::PlaceholderText);
+        hint->setText(typeList->count() > 0
+                          ? tr("Double-click a type, or select it and choose Next.")
+                          : tr("This build has no item types."));
+
+        auto *layout = new QVBoxLayout(page);
+        layout->setContentsMargins(0, 0, 0, 0);
+        layout->addWidget(heading);
+        layout->addWidget(typeList, 1);
+        layout->addWidget(hint);
+        return page;
     }
 };
 
@@ -74,39 +182,34 @@ ItemDialog::ItemDialog(const Item &item, bool creating, const ItemTypeRegistry &
     d->types = &types;
     d->context = std::move(context);
     d->item = item;
-
-    const std::vector<const ItemType *> registered = types.types();
-    QJsonObject config = item.config;
-    if (creating) {
-        if (d->item.type.isEmpty() && !registered.empty())
-            d->item.type = registered.front()->id();
-        if (config.isEmpty())
-            config = defaultConfig(types.type(d->item.type).fields());
-    }
+    d->original = item;
+    d->creating = creating;
 
     setWindowTitle(creating ? tr("New item") : tr("Edit item"));
-    resize(480, 360);
+    if (creating)
+        resize(600, 440);
+    else
+        resize(480, 360);
 
+    // The item's page.
+    d->itemPage = new QWidget(this);
     auto *form = new QFormLayout;
     d->form = form;
-    if (creating) {
-        d->type = new QComboBox(this);
-        d->type->setObjectName(QStringLiteral("type"));
-        for (const ItemType *type : registered)
-            d->type->addItem(type->icon(), type->name(), type->id());
-        d->type->setCurrentIndex(d->type->findData(d->item.type));
-        form->addRow(tr("Type:"), d->type);
-    } else {
-        auto *typeName = new QLabel(types.type(d->item.type).name(), this);
-        typeName->setObjectName(QStringLiteral("typeName"));
-        form->addRow(tr("Type:"), typeName);
-    }
 
-    d->name = new QLineEdit(item.name, this);
+    auto *typeRow = new QHBoxLayout;
+    typeRow->setContentsMargins(0, 0, 0, 0);
+    d->typeIcon = new QLabel(d->itemPage);
+    d->typeName = new QLabel(d->itemPage);
+    d->typeName->setObjectName(QStringLiteral("typeName"));
+    typeRow->addWidget(d->typeIcon);
+    typeRow->addWidget(d->typeName, 1);
+    form->addRow(tr("Type:"), typeRow);
+
+    d->name = new QLineEdit(item.name, d->itemPage);
     d->name->setObjectName(QStringLiteral("name"));
     form->addRow(tr("Name:"), d->name);
 
-    d->webProfile = new QComboBox(this);
+    d->webProfile = new QComboBox(d->itemPage);
     d->webProfile->setObjectName(QStringLiteral("webProfile"));
     d->webProfile->setToolTip(tr("The item can read the logins and data of every site in its profile."));
     form->addRow(tr("Web profile:"), d->webProfile);
@@ -114,45 +217,87 @@ ItemDialog::ItemDialog(const Item &item, bool creating, const ItemTypeRegistry &
     d->editorBox = new QVBoxLayout;
     d->editorBox->setContentsMargins(0, 0, 0, 0);
 
+    auto *itemLayout = new QVBoxLayout(d->itemPage);
+    itemLayout->setContentsMargins(0, 0, 0, 0);
+    itemLayout->addLayout(form);
+    itemLayout->addLayout(d->editorBox, 1);
+    if (!creating && !types.contains(d->item.type)) {
+        auto *missing = new QLabel(
+            tr("The module of this item type is not available, so only the name can be changed. "
+               "The rest of the item is kept."),
+            d->itemPage);
+        missing->setObjectName(QStringLiteral("missing"));
+        missing->setWordWrap(true);
+        itemLayout->addWidget(missing);
+    }
+    itemLayout->addStretch(0);
+
+    d->pages = new QStackedWidget(this);
+    if (creating) {
+        d->typePage = d->makeTypePage();
+        d->pages->addWidget(d->typePage);
+    }
+    d->pages->addWidget(d->itemPage);
+
     d->message = new QLabel(this);
     d->message->setObjectName(QStringLiteral("message"));
     d->message->setWordWrap(true);
     d->message->hide();
 
     auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
+    d->ok = buttons->button(QDialogButtonBox::Ok);
+    if (creating) {
+        // Next accepts too: accept() on the type page chooses the type.
+        d->next = buttons->addButton(tr("Next"), QDialogButtonBox::AcceptRole);
+        d->next->setObjectName(QStringLiteral("next"));
+        d->back = buttons->addButton(tr("Back"), QDialogButtonBox::ActionRole);
+        d->back->setObjectName(QStringLiteral("back"));
+        connect(d->back, &QPushButton::clicked, this, &ItemDialog::back);
+    }
     connect(buttons, &QDialogButtonBox::accepted, this, &ItemDialog::accept);
     connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
 
     auto *layout = new QVBoxLayout(this);
-    layout->addLayout(form);
-    layout->addLayout(d->editorBox, 1);
-    if (!types.contains(d->item.type)) {
-        auto *missing = new QLabel(
-            tr("The module of this item type is not available, so only the name can be changed. "
-               "The rest of the item is kept."),
-            this);
-        missing->setObjectName(QStringLiteral("missing"));
-        missing->setWordWrap(true);
-        layout->addWidget(missing);
-    }
-    layout->addStretch(0);
+    layout->addWidget(d->pages, 1);
     layout->addWidget(d->message);
     layout->addWidget(buttons);
 
-    d->makeEditor(config);
     setWebProfiles({}, tr("Default"));
-    d->showWebProfile();
-    if (d->type)
-        connect(d->type, &QComboBox::currentIndexChanged, this, [this] { d->typeChosen(); });
 
-    d->name->setFocus();
+    if (creating) {
+        // Nothing is edited until a type is chosen.
+        d->item.type.clear();
+        d->item.config = {};
+        form->setRowVisible(d->webProfile, false);
+        QListWidget *list = d->typeList;
+        int row = 0;
+        for (int i = 0; i < list->count(); ++i) {
+            if (list->item(i)->data(Qt::UserRole).toString() == item.type)
+                row = i;
+        }
+        if (list->count() > 0)
+            list->setCurrentRow(row);
+        d->next->setEnabled(list->count() > 0);
+        // Enter on the list reaches the dialog, and so presses Next.
+        connect(list, &QListWidget::itemDoubleClicked, this, [this](QListWidgetItem *entry) {
+            d->typeList->setCurrentItem(entry);
+            d->chooseSelected();
+        });
+        connect(list, &QListWidget::currentRowChanged, this, [this](int current) { d->next->setEnabled(current >= 0); });
+        d->showPage(true);
+    } else {
+        d->makeEditor(item.config);
+        d->showTypeName();
+        d->showWebProfile();
+        d->showPage(false);
+    }
 }
 
 ItemDialog::~ItemDialog()
 {
-    // The combo box outlives d, so its signals must not reach it.
-    if (d->type)
-        d->type->disconnect(this);
+    // The type list outlives d, so its signals must not reach it.
+    if (d->typeList)
+        d->typeList->disconnect(this);
 }
 
 Item ItemDialog::value() const
@@ -170,11 +315,21 @@ Item ItemDialog::value() const
 
 void ItemDialog::setType(const QString &typeId)
 {
-    if (!d->type)
+    if (!d->creating)
         return;
-    const int index = d->type->findData(typeId);
-    if (index >= 0)
-        d->type->setCurrentIndex(index);
+    for (int i = 0; i < d->typeList->count(); ++i) {
+        if (d->typeList->item(i)->data(Qt::UserRole).toString() == typeId)
+            d->typeList->setCurrentRow(i);
+    }
+    d->choose(typeId);
+}
+
+bool ItemDialog::choosingType() const { return d->typePage && d->pages->currentWidget() == d->typePage; }
+
+void ItemDialog::back()
+{
+    if (d->creating)
+        d->showPage(true);
 }
 
 void ItemDialog::setName(const QString &name) { d->name->setText(name); }
@@ -206,6 +361,11 @@ ItemEditor *ItemDialog::editor() const { return d->editor; }
 
 void ItemDialog::accept()
 {
+    if (choosingType()) {
+        d->chooseSelected();
+        return;
+    }
+
     QStringList problems;
     if (d->name->text().trimmed().isEmpty())
         problems << tr("Enter a name.");

@@ -27,7 +27,7 @@ A module registers each of its types in the `ItemTypeRegistry` with:
 | `singleView` | Optional, off by default: the item can have only one view at a time |
 | `reparentSafe` | Optional, on by default: the view can be moved to another cell without being created again |
 
-The item dialog keeps the configuration keys that its form or editor does not show. For a type whose `rendering` is web, the dialog also offers a **Web profile** choice: "The group's profile (<name>)", which is the default, or any profile of the list. It is stored in the item's `webProfile`, not in its configuration. See [web views](web-views.md#profiles). An item whose module is missing has neither fields nor an editor; its dialog edits the name only and keeps the configuration unchanged.
+A new item starts with a grid of the registered types, where the user picks one, then edits the item of that type; see [the item dialog](ui.md#item-dialog). The item dialog keeps the configuration keys that its form or editor does not show. For a type whose `rendering` is web, the dialog also offers a **Web profile** choice: "The group's profile (<name>)", which is the default, or any profile of the list. It is stored in the item's `webProfile`, not in its configuration. See [web views](web-views.md#profiles). An item whose module is missing has neither fields nor an editor; its dialog edits the name only and keeps the configuration unchanged.
 
 New types are added by registering a class in a module. No core code changes. See [adding a module](modules.md#adding-a-module).
 
