@@ -52,6 +52,7 @@ Each file records one design decision: what was decided, what else was considere
 | [0045](0045-preview-and-crop-pasted-images.md) | Pasted images open a preview with a crop first | Accepted; pasting onto dashboards by 0051 |
 | [0046](0046-group-colours.md) | Each group has a colour | Accepted; item cell headers by 0047 |
 | [0047](0047-item-headers-in-group-colours.md) | Item cell headers take their group's colour | Accepted |
+| [0049](0049-items-from-a-pasted-link.md) | Item types read a pasted link, and the item dialog offers the types that take it | Accepted |
 | [0051](0051-paste-images-from-the-items-menu.md) | Pasted images become items of a task, not cells of a dashboard | Accepted |
 
 ## Template

@@ -588,7 +588,7 @@ void TestEntityActions::menus()
 
     QMenu task;
     actions->fillMenu(&task, SidebarModel::Kind::Task, fixLoginTimeout, fixLoginTimeout);
-    QCOMPARE(texts(task), (QStringList{QStringLiteral("New item…"), QStringLiteral("Paste Image…"),
+    QCOMPARE(texts(task), (QStringList{QStringLiteral("New item…"), QStringLiteral("Paste URL…"), QStringLiteral("Paste Image…"),
                                        QStringLiteral("New dashboard…"),
                                        QStringLiteral("Edit task…"), QStringLiteral("Priority"),
                                        QStringLiteral("State"), QStringLiteral("Delete task…")}));
@@ -602,7 +602,7 @@ void TestEntityActions::menus()
 
     QMenu itemList;
     actions->fillMenu(&itemList, SidebarModel::Kind::ItemList, QString(), fixLoginTimeout);
-    QCOMPARE(texts(itemList), (QStringList{QStringLiteral("New item…"), QStringLiteral("Paste Image…")}));
+    QCOMPARE(texts(itemList), (QStringList{QStringLiteral("New item…"), QStringLiteral("Paste URL…"), QStringLiteral("Paste Image…")}));
 
     QMenu dashboardList;
     actions->fillMenu(&dashboardList, SidebarModel::Kind::DashboardList, QString(), fixLoginTimeout);
