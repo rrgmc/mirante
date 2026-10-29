@@ -1,6 +1,7 @@
 // Tests FieldForm: one editor per field type, reading back an unchanged
 // configuration, keeping keys it does not show, edits, problems and images.
 #include "ui/FieldForm.h"
+#include "ui/ImagePasteDialog.h"
 
 #include <QApplication>
 #include <QCheckBox>
@@ -201,10 +202,19 @@ private slots:
         QVERIFY(form.problems().isEmpty());
     }
 
+    // "Paste" opens the paste dialog. Cancel keeps the image; Paste saves
+    // the cropped image.
     void pasteImage()
     {
         QStringList saved;
-        FieldForm form(allFields(), context(&saved));
+        EditorContext c = context(&saved);
+        QSize savedSize;
+        c.saveImage = [&saved, &savedSize](const QImage &image) {
+            savedSize = image.size();
+            saved << QStringLiteral("pasted.png");
+            return QStringLiteral("pasted.png");
+        };
+        FieldForm form(allFields(), c);
         QSignalSpy changed(&form, &FieldForm::changed);
         form.setConfig(fullConfig());
 
@@ -215,8 +225,25 @@ private slots:
             QSKIP("The clipboard does not hold images on this platform.");
 
         QWidget *editor = form.editorFor(QStringLiteral("file"));
+        int dialogs = 0;
+        form.setExec([&dialogs](QDialog &) {
+            ++dialogs;
+            return false;
+        });
+        editor->findChild<QPushButton *>(QStringLiteral("pasteImage"))->click();
+        QCOMPARE(dialogs, 1);
+        QVERIFY(saved.isEmpty());
+        QCOMPARE(changed.count(), 0);
+
+        form.setExec([](QDialog &d) {
+            auto *dialog = qobject_cast<ImagePasteDialog *>(&d);
+            if (dialog)
+                dialog->setCrop(QRect(5, 5, 10, 20));
+            return dialog != nullptr;
+        });
         editor->findChild<QPushButton *>(QStringLiteral("pasteImage"))->click();
         QCOMPARE(saved, QStringList{QStringLiteral("pasted.png")});
+        QCOMPARE(savedSize, QSize(10, 20));
         QCOMPARE(changed.count(), 1);
         QVERIFY(!editor->findChild<QLabel *>(QStringLiteral("imageThumbnail"))->pixmap().isNull());
 

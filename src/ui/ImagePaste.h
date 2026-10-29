@@ -54,6 +54,15 @@ public:
     // has a pastedImageField; otherwise returns NoImageType.
     Result pasteIntoItem(const QImage &image, const QString &taskId, const QString &itemId);
 
+    // What paste() and pasteIntoItem() would return, without saving or
+    // changing anything. The caller asks it before it opens the paste dialog,
+    // so a paste that cannot happen shows its message at once. SaveFailed
+    // means a read-only workspace, or a task or dashboard that is gone; other
+    // save failures show only when paste() tries to save.
+    Result check(const DashboardRef &dashboard, const std::optional<NodePath> &focusedCell,
+                 const QString &rootTaskId = QString()) const;
+    Result checkItem(const QString &taskId, const QString &itemId) const;
+
     // A short message for the status bar, or empty for success.
     static QString message(Result result);
 

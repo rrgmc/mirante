@@ -4,8 +4,10 @@
 
 #include <QMainWindow>
 
+class QDialog;
 class QImage;
 
+#include <functional>
 #include <memory>
 #include <vector>
 
@@ -89,8 +91,13 @@ public:
     void openFocus();
     // Pastes an image onto the dashboard or into the item of the current tab,
     // through ImagePaste, and shows its message in the status bar. Ctrl+V calls
-    // it when the clipboard holds an image.
+    // it when the clipboard holds an image. If the paste can happen, the paste
+    // dialog shows the image and lets the user crop it first; on a root
+    // dashboard a second dialog then asks for the task.
     void pasteImage(const QImage &image);
+    // Runs the dialogs of pasteImage() and says whether each was accepted.
+    // The default calls exec(); tests work the dialog and return instead.
+    void setExec(std::function<bool(QDialog &dialog)> exec);
     // Saves the open tabs of the open workspace on this device.
     void saveOpenTabs();
     // Full screen, as in web browsers: View > Full Screen, F11, or Ctrl+Cmd+F

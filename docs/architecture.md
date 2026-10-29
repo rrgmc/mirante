@@ -131,6 +131,7 @@ Code that differs per platform lives only here, behind these classes.
 | `FocusView` | The [Focus](ui.md#focus-view) list |
 | `ConflictBar` | One line for each conflict copy, with "Keep current", "Use other" and "Compare". See [sync](sync.md#conflict-copies). |
 | `ImagePaste` | Pastes an image from the clipboard into an image item, or as a new one. See [image](item-types.md#image). |
+| `ImagePasteDialog` | The paste dialog: a preview of a pasted image, with an `ImageCropView` to crop it. See [pasting images](ui.md#pasting-images). |
 | `QuickSwitcher` | `Ctrl+K` fuzzy search |
 | `QuickAdd` | Creates a task from a pasted link, using the modules' quick add handlers. See [quick add](ui.md#quick-add). |
 | `DashboardPage` | One tab's page: a `LayoutView` of one dashboard with its cell factory, or the Focus list. A detached window holds one too. |
