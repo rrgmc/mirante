@@ -21,6 +21,17 @@ Do these first. They test the [known risk](../web-views.md#known-risk-logins-in-
 - [X] In group A, a GitLab connection to `https://gitlab.com` (group dialog, Connections) and a GitLab MR (page) item. Sign in to gitlab.com. The merge request page shows. (Google account, work)
 - [X] In group A, a Jira Cloud connection to your Atlassian site and a Jira Issue (page) item. Sign in. The issue page shows. (Google account, work)
 - [X] A login popup, such as "Sign in with Google", opens in a dialog of at least 500 × 600 that can be resized, and closes by itself when the sign-in is done.
+
+  A dialog opens only when the site opens its sign-in in a popup window. Most Google sign-ins, such as those of GitLab and Atlassian, load in the same page instead. Two ways to get one:
+
+  1. Sign out of claude.ai in the Claude session (web) item, then choose "Continue with Google". The Google sign-in opens in the dialog. It closes by itself when the sign-in is done.
+  2. A Web page item with this URL, which checks the size and the closing without a login:
+
+     ```
+     data:text/html,<button onclick="w=window.open('','login','width=300,height=200');w.document.write('<button onclick=window.close()>Done</button>')">Open popup</button>
+     ```
+
+     "Open popup" opens a dialog of 500 × 600, although the page asks for 300 × 200. The dialog can be resized. "Done" closes it.
 - [X] Quit and start again. All three items are still signed in.
 
 ## Profiles
