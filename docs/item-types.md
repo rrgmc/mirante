@@ -74,7 +74,7 @@ Module `gitlab`. All GitLab types need a `gitlab` connection.
 
 ### GitLab MR (page)
 
-`gitlab.mr.page`, web. The merge request's web page, using the group's [profile](web-views.md#profiles). Its configuration is the summary's: `project` and `iid`.
+`gitlab.mr.page`, web. The merge request's web page, using the `gitlab` module's [profile](web-views.md#profiles) of the group. Its configuration is the summary's: `project` and `iid`.
 
 - **Address:** `<baseUrl>/<project>/-/merge_requests/<iid>`, where `baseUrl` is the connection's base URL. An empty `project` uses the project's `gitlab.project` setting.
 - **Without a `gitlab` connection,** the cell says "No GitLab connection in this group."
@@ -164,7 +164,7 @@ Module `claude`.
 `claude.session.web`, web.
 
 - **Configuration:** `url`, a claude.ai URL, such as a Remote Control or cloud session link, required.
-- **Shows:** the claude.ai page, using the group's profile. If `url` is empty or is not an `http` or `https` address, the cell says "Set the address in the item's settings."
+- **Shows:** the claude.ai page, using the `claude` module's profile of the group. If `url` is empty or is not an `http` or `https` address, the cell says "Set the address in the item's settings."
 
 There is no public API for these sessions, so the app has no status or summary for them. See [decision 0008](decisions/0008-claude-sessions.md).
 
@@ -188,7 +188,7 @@ Local sessions exist on one device only. On other devices the panel shows the de
 `web.page`, web, module `web`.
 
 - **Configuration:** `url`, the page's address, required.
-- **Shows:** the page, using the group's profile, or the shared profile if the host is overridden. If `url` is empty or is not an `http` or `https` address, the cell says "Set the address in the item's settings."
+- **Shows:** the page, using the `web` module's profile of the group, or the module's shared profile if the host is overridden. See [decision 0040](decisions/0040-profiles-per-group-and-module.md). If `url` is empty or is not an `http` or `https` address, the cell says "Set the address in the item's settings."
 
 ### Notes
 
