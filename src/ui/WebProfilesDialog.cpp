@@ -11,6 +11,7 @@
 #include <QListWidget>
 #include <QMessageBox>
 #include <QPushButton>
+#include <QStyle>
 #include <QVBoxLayout>
 
 namespace mirante {
@@ -126,20 +127,31 @@ WebProfilesDialog::WebProfilesDialog(Model &model, QWidget *parent)
     setWindowTitle(tr("Web profiles"));
     resize(440, 440);
 
-    auto *warning = new QLabel(tr("Every item that uses a profile can read the logins and data of all sites in "
-                                  "that profile. Use separate profiles for things you do not trust together."),
-                               this);
-    warning->setObjectName(QStringLiteral("warning"));
-    warning->setWordWrap(true);
-    warning->setFrameShape(QFrame::StyledPanel);
-    warning->setMargin(8);
-    warning->setStyleSheet(QStringLiteral("QLabel#warning { background: palette(alternate-base); }"));
-
-    auto *help = new QLabel(tr("A profile keeps logins, cookies and site data apart from other profiles. Each "
-                               "group chooses a default profile, and each web item can choose its own. The list "
-                               "is shared with the workspace; logins stay on this device."),
+    auto *help = new QLabel(tr("Each group chooses a default profile, and each web item can choose its own. The "
+                               "list is shared with the workspace; logins stay on this device."),
                             this);
     help->setWordWrap(true);
+
+    // The warning, in a tinted box with the warning icon. It also says what
+    // a profile keeps apart, so the help above does not repeat it.
+    auto *warningBox = new QFrame(this);
+    warningBox->setObjectName(QStringLiteral("warningBox"));
+    warningBox->setStyleSheet(
+        QStringLiteral("QFrame#warningBox { background: palette(alternate-base); border-radius: 6px; }"));
+    auto *icon = new QLabel(warningBox);
+    const int iconSize = style()->pixelMetric(QStyle::PM_SmallIconSize, nullptr, this) * 2;
+    icon->setPixmap(style()->standardIcon(QStyle::SP_MessageBoxWarning, nullptr, this).pixmap(iconSize));
+    icon->setAlignment(Qt::AlignTop);
+    auto *warning = new QLabel(tr("Every item that uses a profile can read the logins and data of all sites in "
+                                  "that profile. Use separate profiles for things you do not trust together."),
+                               warningBox);
+    warning->setObjectName(QStringLiteral("warning"));
+    warning->setWordWrap(true);
+    auto *warningLayout = new QHBoxLayout(warningBox);
+    warningLayout->setContentsMargins(10, 8, 10, 8);
+    warningLayout->setSpacing(10);
+    warningLayout->addWidget(icon, 0, Qt::AlignTop);
+    warningLayout->addWidget(warning, 1);
 
     d->list = new QListWidget(this);
     d->list->setObjectName(QStringLiteral("profileList"));
@@ -166,8 +178,8 @@ WebProfilesDialog::WebProfilesDialog(Model &model, QWidget *parent)
     connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
 
     auto *layout = new QVBoxLayout(this);
-    layout->addWidget(warning);
     layout->addWidget(help);
+    layout->addWidget(warningBox);
     layout->addWidget(d->list, 1);
     layout->addLayout(rowButtons);
     layout->addWidget(d->message);

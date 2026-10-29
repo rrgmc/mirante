@@ -74,8 +74,9 @@ Tokens, the fields of each kind and testing a connection come in M5.
 
 File > Web Profiles… opens the list of the workspace's web profiles. A web profile keeps logins, cookies and site data apart from other profiles. See [web views](web-views.md#profiles) and [decision 0042](decisions/0042-user-managed-web-profiles.md).
 
-- **Warning.** A framed text at the top says: "Every item that uses a profile can read the logins and data of all sites in that profile. Use separate profiles for things you do not trust together."
-- **The list.** Default first, then the other profiles by name. A short text explains that each group chooses a default profile, that each web item can choose its own, and that the list is shared with the workspace while logins stay on this device.
+- **Help.** A short text at the top explains that each group chooses a default profile, that each web item can choose its own, and that the list is shared with the workspace while logins stay on this device.
+- **Warning.** Under the help, a tinted box with the warning icon says: "Every item that uses a profile can read the logins and data of all sites in that profile. Use separate profiles for things you do not trust together." The help does not repeat what a profile keeps apart, since the warning says it.
+- **The list.** Default first, then the other profiles by name.
 - **New profile…** asks for a name. **Rename…**, or a double click, asks for a new one. A blank name, or one already used, ignoring case, is refused with a message. "Default" is such a name.
 - **Delete…** asks for confirmation first. The question names the groups and items that use the profile, such as "It is used by 1 group and 2 items. A group then uses Default, and an item its group's profile." Deleting removes the profile from the list, and deletes its logins and site data on this device. Groups and items that named it keep the id and fall back, so nothing else changes in their files.
 - Default cannot be renamed or deleted; both buttons are disabled while it is selected.
