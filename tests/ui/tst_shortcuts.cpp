@@ -1,5 +1,6 @@
 // Tests Shortcuts on the fixtures: the focused cell, moving between cells,
 // changing tabs and root tabs, maximising and closing.
+#include "core/DeviceSettings.h"
 #include "core/Model.h"
 #include "core/Store.h"
 #include "items/ItemTypeRegistry.h"
@@ -10,7 +11,9 @@
 #include "ui/Shortcuts.h"
 
 #include <QApplication>
+#include <QSettings>
 #include <QTabWidget>
+#include <QTemporaryDir>
 #include <QTest>
 
 #include <algorithm>
@@ -32,10 +35,16 @@ const QString kPipeline = QStringLiteral("74147943-d9e2-59eb-9363-5ec6fdd175ee")
 const QString kNotes = QStringLiteral("11039501-ba22-5677-86da-ea27842bf0b1");
 
 // The registry has no modules, so every item has an unknown type.
+// The Store is not opened, so nothing is written; the settings live in a
+// temporary INI file.
 struct Fixture
 {
+    QTemporaryDir dir;
+    QSettings iniSettings{dir.filePath(QStringLiteral("settings.ini")), QSettings::IniFormat};
+    DeviceSettings settings{&iniSettings};
     ItemTypeRegistry types;
     Model model;
+    Store dataStore{model};
     std::unique_ptr<MainWindow> window;
 
     Fixture()
@@ -43,7 +52,7 @@ struct Fixture
         const auto problems = store::load(QStringLiteral(MIRANTE_FIXTURES_DIR), model);
         if (!problems.empty())
             qWarning() << "fixture problems:" << problems.size();
-        window = std::make_unique<MainWindow>(model, types);
+        window = std::make_unique<MainWindow>(model, types, dataStore, settings);
     }
 
     bool showActive()

@@ -23,6 +23,8 @@ This document describes navigation, dashboards and editing. It was checked with 
   - A tree of groups, projects and tasks.
 - **Tab bar, on the right:** root dashboards and the preview tab.
 - **Content area:** the dashboard of the selected tab.
+- **Warning bar, above the tab bar:** files that could not be loaded or saved. While the sample data is open, it also says that changes to it are not saved, and points to File > New Workspace…. See [decision 0029](decisions/0029-sample-data-read-only.md).
+- **Conflict bar, under the warning bar:** one line for each conflict copy a sync tool made, such as "Two versions of task Fix login timeout", with "Keep current", "Use other" and "Compare". See [sync](sync.md#conflict-copies).
 
 The sidebar can be collapsed.
 
@@ -34,13 +36,14 @@ The sidebar can be collapsed.
 - Each task has two fixed children: **Dashboards**, with its task dashboards, then **Items**, with the task's items. They are there for every task, even when empty.
 - The selected row keeps its full highlight colour when the sidebar does not have the focus, so the dashboard on screen stays easy to see.
 - Three tabs at the bottom choose the task list. **Projects** lists active tasks under every project, including projects without any. **Active** lists the same tasks, but leaves out projects without active tasks. **Done** lists done and archived tasks under every project. A filter, off by default, hides Low items in all three.
+- A `+` button in the sidebar header opens a menu: New Group…, New Project… in the group of the selected row, and New Task… in the project of the selected row. The last two are disabled when the selection has no group or project.
 - Two buttons in the sidebar header expand or collapse every task at once, with its Dashboards and Items. Groups and projects are left as they are; they open and close by hand only.
 - [Attention badges](#attention) appear on tasks, and are summed on projects and groups.
 - **Drag and drop:**
   - Dragging within a priority level changes the order.
   - Dragging across the boundary between two levels changes the priority.
   - A task itself is not dragged onto dashboards. Drag one of its items, to show that item, or one of its dashboards, to show the task with that dashboard in a root dashboard. See [placing tasks](#placing-tasks-and-items).
-- The context menu holds new, rename, set priority, set state and delete. On a task dashboard or an item it also holds "Open in new root dashboard", which makes a root dashboard showing just that dashboard or item.
+- The context menu holds new, edit, rename, set priority, set state and delete, and on a task dashboard "Set as default". On a task dashboard or an item it also holds "Open in new root dashboard", which makes a root dashboard showing just that dashboard or item.
 - Project rows have a light tinted background, so they stand out between groups and tasks.
 - Every delete asks for confirmation first.
 
@@ -52,7 +55,7 @@ The window opens centred on the screen, at the size it had when it was last clos
 
 The menu bar has three menus.
 
-- **File:** New Workspace… (`Ctrl+N`), Open Workspace… (`Ctrl+O`), Open Recent with the last ten workspaces and Clear Recent, Rename Workspace…, Open Sample Data, Reload Workspace (`F5`), and Quit (`Ctrl+Q`). A workspace is a data folder with a `workspace.mirante` file at its top. Open Workspace… chooses that file. New Workspace… chooses a folder and a name and writes the file. A folder without the file is not opened; from the menus the app offers to make it a workspace. At start the app opens the workspace given with `--data`, otherwise the last one used on this device if it still has its file, otherwise the sample data. The window title and the sidebar header show the workspace's name: the name in its `workspace.mirante`, else the folder's name. Rename Workspace…, or a double click on the name in the sidebar header, renames it and writes `workspace.mirante` at once. The sample data cannot be renamed. See decisions [0025](decisions/0025-workspace-file.md) and [0027](decisions/0027-workspace-needs-its-file.md).
+- **File:** New Workspace… (`Ctrl+N`), Open Workspace… (`Ctrl+O`), Open Recent with the last ten workspaces and Clear Recent, Rename Workspace…, Open Sample Data, Reload Workspace (`F5`), New Group…, and Quit (`Ctrl+Q`). A workspace is a data folder with a `workspace.mirante` file at its top. Open Workspace… chooses that file. New Workspace… chooses a folder and a name and writes the file. A folder without the file is not opened; from the menus the app offers to make it a workspace. At start the app opens the workspace given with `--data`, otherwise the last one used on this device if it still has its file, otherwise the sample data. The window title and the sidebar header show the workspace's name: the name in its `workspace.mirante`, else the folder's name. Rename Workspace…, or a double click on the name in the sidebar header, renames it, and the Store writes `workspace.mirante`. The sample data cannot be renamed. Reload Workspace opens the workspace again from its files. See decisions [0025](decisions/0025-workspace-file.md) and [0027](decisions/0027-workspace-needs-its-file.md).
 - **View:** Sidebar (show or hide), Expand All Tasks, Collapse All Tasks, Go To… (`Ctrl+K`, the [quick switcher](#keyboard)), All Dashboards…, and New Dashboard.
 - **Help:** About Mirante, with the version, the author and the project's address, and About Qt.
 
@@ -66,7 +69,7 @@ The menu bar has three menus.
 - When a task tab comes to the front, the sidebar selects its dashboard under its task.
 - Opening a task dashboard that already has a tab switches to that tab instead of opening a preview.
 
-The open tabs, and which one is the preview, are stored on each device, not synced.
+The open tabs are stored on each device for each workspace, not synced: the root dashboard tabs and the Focus tab in order, the task dashboard in the preview tab, and the current tab. They are saved when another workspace opens and when the window closes, and come back when the workspace opens again. Pinned task tabs and item tabs are not kept. The first time a workspace opens on a device, every root dashboard opens.
 
 ## Root dashboards
 
@@ -199,6 +202,7 @@ The project is chosen by matching the merge request's GitLab project or the issu
 | `Ctrl+PgDown`, `Ctrl+PgUp` | Next or previous root dashboard tab |
 | `Ctrl+Shift+M` | Maximise the focused cell, or restore it |
 | `Ctrl+W` | Close the preview tab or the focused root tab |
+| `Ctrl+V` | With an image on the clipboard: paste it into the focused cell's image item, or as a new image item on an unlocked task dashboard. See [image](item-types.md#image). A text field keeps its own paste. |
 | Global hotkey (configurable) | Bring Mirante to the front |
 
 On macOS, `Cmd` replaces `Ctrl`.

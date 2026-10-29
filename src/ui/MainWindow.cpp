@@ -1,6 +1,7 @@
 #include "ui/MainWindow.h"
 
 #include "Version.h"
+#include "core/DeviceSettings.h"
 #include "core/LayoutTree.h"
 #include "core/Model.h"
 #include "items/ItemTypeRegistry.h"
@@ -13,14 +14,20 @@
 #include "layout/LockState.h"
 #include "layout/SingleViewTracker.h"
 #include "layout/TaskCell.h"
+#include "ui/ConflictBar.h"
+#include "ui/EntityActions.h"
+#include "ui/FocusView.h"
+#include "ui/ImagePaste.h"
 #include "ui/QuickSwitcher.h"
 #include "ui/RootDashboardsDialog.h"
 #include "ui/RootTabBar.h"
 #include "ui/Shortcuts.h"
 #include "ui/Sidebar.h"
 
+#include <QAbstractSpinBox>
 #include <QAction>
 #include <QApplication>
+#include <QClipboard>
 #include <QCloseEvent>
 #include <QDir>
 #include <QFileDialog>
@@ -28,6 +35,7 @@
 #include <QGuiApplication>
 #include <QHBoxLayout>
 #include <QIcon>
+#include <QImage>
 #include <QInputDialog>
 #include <QKeySequence>
 #include <QLabel>
@@ -35,14 +43,18 @@
 #include <QMenu>
 #include <QMenuBar>
 #include <QMessageBox>
+#include <QMimeData>
+#include <QModelIndex>
+#include <QPlainTextEdit>
 #include <QPointer>
 #include <QScreen>
-#include <QSettings>
 #include <QShortcut>
 #include <QSignalBlocker>
 #include <QSplitter>
 #include <QStackedWidget>
+#include <QStatusBar>
 #include <QStringList>
+#include <QTextEdit>
 #include <QTimer>
 #include <QToolButton>
 #include <QUuid>
@@ -55,13 +67,24 @@ namespace mirante {
 
 namespace {
 
-// One page of the stack: a LayoutView of one dashboard, with its factory.
-// One tab's page. A task dashboard's page has a title bar with its own lock,
+// One tab's page: a LayoutView of one dashboard, with its factory, or the
+// Focus list. A task dashboard's page has a title bar with its own lock,
 // because a task dashboard is edited on its own (decision 0020). A root
 // dashboard's lock is the one at the end of the tab bar row.
 class DashboardPage : public QWidget
 {
 public:
+    // The Focus page. Its ref is empty and it has no view.
+    DashboardPage(FocusView *focusView, QWidget *parent)
+        : QWidget(parent)
+        , focus(focusView)
+    {
+        auto *layout = new QVBoxLayout(this);
+        layout->setContentsMargins(0, 0, 0, 0);
+        focusView->setParent(this);
+        layout->addWidget(focusView);
+    }
+
     // With an item id, the page shows only that item of the task, read-only.
     DashboardPage(const LayoutServices &services, const DashboardRef &dashboard, QWidget *parent,
                   const QString &item = QString())
@@ -102,10 +125,15 @@ public:
         delete view;
     }
 
+    bool isFocus() const { return focus != nullptr; }
+    // A root dashboard's page. The Focus page has an empty ref too, but is not one.
+    bool isRoot() const { return ref.isRoot() && !focus; }
+
     const DashboardRef ref;
     const QString itemId;           // set for an item page
     const std::unique_ptr<DashboardCellFactory> factory;
-    LayoutView *view = nullptr;
+    FocusView *focus = nullptr;     // set for the Focus page
+    LayoutView *view = nullptr;     // null for the Focus page
     QLabel *title = nullptr;        // task dashboards only
     QToolButton *lock = nullptr;    // task dashboards only
 };
@@ -145,6 +173,11 @@ struct MainWindow::Private
     MainWindow *q = nullptr;
     Model *model = nullptr;
     const ItemTypeRegistry *types = nullptr;
+    Store *store = nullptr;
+    DeviceSettings *settings = nullptr;
+    EntityActions *actions = nullptr;
+    std::unique_ptr<ImagePaste> imagePaste;
+    std::vector<LoadProblem> ownProblems;   // set with setLoadProblems(), such as a missing folder
 
     LayoutEditor *editor = nullptr;
     LockState *locks = nullptr;
@@ -204,6 +237,8 @@ struct MainWindow::Private
     // item page "Task / Item".
     QString pageTitle(const DashboardPage *page) const
     {
+        if (page->isFocus())
+            return MainWindow::tr("Focus");
         if (page->itemId.isEmpty())
             return title(page->ref);
         const Task *task = model->task(page->ref.taskId);
@@ -373,7 +408,7 @@ struct MainWindow::Private
     {
         const DashboardPage *page = currentPage();
         lockButton->setVisible(!page || page->ref.isRoot());
-        lockButton->setEnabled(page != nullptr);
+        lockButton->setEnabled(page && page->isRoot());
         showLockState(lockButton, page && locks->isUnlocked(page->ref.dashboardId));
     }
 
@@ -516,10 +551,15 @@ struct MainWindow::Private
 
     void onTaskChanged(const QString &taskId)
     {
-        // An item page whose item is gone closes.
+        // An item page whose item is gone closes, and so does a task dashboard
+        // page whose dashboard is gone.
         for (int i = int(pages.size()) - 1; i >= 0; --i) {
             const DashboardPage *page = pages[std::size_t(i)];
-            if (page->ref.taskId == taskId && !page->itemId.isEmpty() && !model->item(taskId, page->itemId))
+            if (page->ref.taskId != taskId)
+                continue;
+            const bool gone = page->itemId.isEmpty() ? !model->taskDashboard(taskId, page->ref.dashboardId)
+                                                     : !model->item(taskId, page->itemId);
+            if (gone)
                 removeTab(i);
         }
         for (std::size_t i = 0; i < pages.size(); ++i) {
@@ -545,10 +585,235 @@ struct MainWindow::Private
         }
     }
 
+    // The pages of a removed task close.
+    void onTaskRemoved(const QString &taskId)
+    {
+        for (int i = int(pages.size()) - 1; i >= 0; --i) {
+            if (pages[std::size_t(i)]->ref.taskId == taskId)
+                removeTab(i);
+        }
+    }
+
+    DashboardPage *focusPage() const
+    {
+        for (DashboardPage *page : pages) {
+            if (page->isFocus())
+                return page;
+        }
+        return nullptr;
+    }
+
+    // The Focus page, at the start of the tab bar.
+    DashboardPage *makeFocusPage()
+    {
+        auto *view = new FocusView(*model);
+        QObject::connect(view, &FocusView::taskOpened, q, [this](const QString &taskId) { q->openTaskPreview(taskId); });
+        auto *page = new DashboardPage(view, stack);
+        stack->addWidget(page);
+        return page;
+    }
+
+    // The open tabs, as DeviceSettings keeps them: root dashboards and Focus in
+    // tab order, the current one, and the task dashboard in the preview tab.
+    // Pinned task tabs and item tabs are not kept.
+    DeviceSettings::Tabs openTabs() const
+    {
+        DeviceSettings::Tabs tabs;
+        tabs.saved = true;
+        for (const DashboardPage *page : pages) {
+            if (page->isFocus())
+                tabs.ids << focusTabId;
+            else if (page->isRoot())
+                tabs.ids << page->ref.dashboardId;
+        }
+        if (preview && preview->itemId.isEmpty()) {
+            tabs.previewTask = preview->ref.taskId;
+            tabs.previewDashboard = preview->ref.dashboardId;
+        }
+        // The current tab, or empty for the preview. Another current tab, which
+        // is not kept, falls back to the first.
+        const DashboardPage *current = currentPage();
+        if (current && current->isFocus())
+            tabs.current = focusTabId;
+        else if (current && current->isRoot())
+            tabs.current = current->ref.dashboardId;
+        else if (!(current && current == preview && !tabs.previewTask.isEmpty()) && !tabs.ids.isEmpty())
+            tabs.current = tabs.ids.front();
+        return tabs;
+    }
+
+    // Replaces the open tabs with saved ones. Ids that no longer exist are
+    // skipped.
+    void restoreTabs(const DeviceSettings::Tabs &tabs)
+    {
+        closeAllTabs();
+        for (const QString &id : tabs.ids) {
+            if (id == focusTabId) {
+                if (!focusPage())
+                    insertTab(int(pages.size()), makeFocusPage());
+            } else if (model->rootDashboard(id) && !rootPage(id)) {
+                insertTab(int(pages.size()), makePage(DashboardRef{QString(), id}));
+            }
+        }
+        if (!tabs.previewTask.isEmpty())
+            q->openTaskPreview(tabs.previewTask, tabs.previewDashboard);
+
+        const DashboardPage *current = nullptr;
+        if (tabs.current == focusTabId)
+            current = focusPage();
+        else if (!tabs.current.isEmpty())
+            current = rootPage(tabs.current);
+        else
+            current = preview;
+        if (!current && !pages.empty())
+            current = pages.front();
+        if (current)
+            setCurrent(current);
+    }
+
+    // The key the open tabs are saved under: the Store's folder, or none
+    // before anything was opened through it.
+    QString tabsKey() const { return store->dir(); }
+
+    void saveOpenTabs()
+    {
+        if (!tabsKey().isEmpty())
+            settings->setOpenTabs(tabsKey(), openTabs());
+    }
+
+    // After opening a workspace: its saved tabs, or else every root dashboard,
+    // which the model's reset already opened.
+    void restoreOpenTabs()
+    {
+        const DeviceSettings::Tabs tabs = settings->openTabs(tabsKey());
+        if (tabs.saved)
+            restoreTabs(tabs);
+    }
+
+    // The warning bar: the read-only note of the sample data, the problems
+    // set by the window, and the Store's problems.
+    void updateWarnings()
+    {
+        std::vector<LoadProblem> problems = ownProblems;
+        const std::vector<LoadProblem> stored = store->problems();
+        problems.insert(problems.end(), stored.begin(), stored.end());
+        const bool readOnly = store->readOnly() && !store->dir().isEmpty();
+
+        QStringList lines;
+        if (readOnly)
+            lines << MainWindow::tr("Changes to the sample data are not saved. "
+                                    "Use File > New Workspace… to keep your own data.");
+        if (!problems.empty()) {
+            lines << MainWindow::tr("Some files could not be loaded or saved:");
+            for (const LoadProblem &problem : problems)
+                lines << MainWindow::tr("%1: %2").arg(problem.file, problem.message);
+        }
+        if (lines.isEmpty()) {
+            warningText->clear();
+            warningBar->hide();
+            return;
+        }
+        warningText->setText(lines.join(QLatin1Char('\n')));
+        warningBar->show();
+    }
+
+    // Opens a folder, or the sample data, through the Store, keeping the open
+    // tabs of the one before.
+    void openThroughStore(const QString &dir)
+    {
+        saveOpenTabs();
+        ownProblems.clear();
+        store->open(dir);
+        restoreOpenTabs();
+        updateWarnings();
+    }
+
+    // The group and project the sidebar's selection belongs to, for the +
+    // menu. Each is empty if the selection has none.
+    std::pair<QString, QString> selectedGroupAndProject() const
+    {
+        const QModelIndex index = sidebar->currentIndex();
+        if (!index.isValid())
+            return {};
+        const auto kind = SidebarModel::Kind(index.data(SidebarModel::KindRole).toInt());
+        const QString id = index.data(SidebarModel::IdRole).toString();
+        QString projectId;
+        switch (kind) {
+        case SidebarModel::Kind::Group:
+            return {id, QString()};
+        case SidebarModel::Kind::Project:
+            projectId = id;
+            break;
+        default:
+            if (const Task *task = model->task(index.data(SidebarModel::TaskIdRole).toString()))
+                projectId = task->projectId;
+            break;
+        }
+        const Project *project = model->project(projectId);
+        return project ? std::make_pair(project->groupId, project->id) : std::pair<QString, QString>();
+    }
+
+    // The + menu in the sidebar header: New Group, New Project in the selected
+    // group, New Task in the selected project.
+    QToolButton *buildNewButton()
+    {
+        auto *button = new QToolButton;
+        button->setObjectName(QStringLiteral("newEntityButton"));
+        button->setText(QStringLiteral("+"));
+        button->setToolTip(MainWindow::tr("New group, project or task"));
+        button->setAutoRaise(true);
+        button->setPopupMode(QToolButton::InstantPopup);
+        auto *menu = new QMenu(button);
+        QAction *group = menu->addAction(MainWindow::tr("New &Group…"));
+        QAction *project = menu->addAction(MainWindow::tr("New &Project…"));
+        QAction *task = menu->addAction(MainWindow::tr("New &Task…"));
+        QObject::connect(menu, &QMenu::aboutToShow, q, [this, project, task] {
+            const auto [groupId, projectId] = selectedGroupAndProject();
+            project->setEnabled(!groupId.isEmpty());
+            task->setEnabled(!projectId.isEmpty());
+        });
+        QObject::connect(group, &QAction::triggered, q, [this] { revealNew(actions->newGroup()); });
+        QObject::connect(project, &QAction::triggered, q,
+                         [this] { revealNew(actions->newProject(selectedGroupAndProject().first)); });
+        QObject::connect(task, &QAction::triggered, q,
+                         [this] { revealNew(actions->newTask(selectedGroupAndProject().second)); });
+        button->setMenu(menu);
+        return button;
+    }
+
+    void revealNew(const QString &id)
+    {
+        if (!id.isEmpty())
+            sidebar->reveal(id);
+    }
+
+    void onMoveRequested(SidebarModel::Kind kind, const QString &id, int priority, int index)
+    {
+        switch (kind) {
+        case SidebarModel::Kind::Group:
+            actions->moveGroup(id, index);
+            break;
+        case SidebarModel::Kind::Project:
+            actions->moveProject(id, Priority(priority), index);
+            break;
+        case SidebarModel::Kind::Task:
+            actions->moveTask(id, Priority(priority), index);
+            break;
+        default:
+            break;
+        }
+    }
+
+    static bool isTextInput(const QWidget *widget)
+    {
+        return qobject_cast<const QLineEdit *>(widget) || qobject_cast<const QTextEdit *>(widget)
+               || qobject_cast<const QPlainTextEdit *>(widget) || qobject_cast<const QAbstractSpinBox *>(widget);
+    }
+
+    static inline const QString focusTabId = QStringLiteral("focus");
+
     QString workspace;              // the open data folder; empty for the sample data
     QAction *showSidebarAction = nullptr;
-
-    static constexpr int maxRecent = 10;
 
     // The workspace's name, else its folder's name, else "Sample data".
     QString workspaceDisplayName() const
@@ -611,30 +876,10 @@ struct MainWindow::Private
             q->renameWorkspace(name);
     }
 
-    QStringList recent() const
-    {
-        return QSettings().value(QStringLiteral("workspace/recent")).toStringList();
-    }
-
     void remember(const QString &folder)
     {
-        QSettings settings;
-        settings.setValue(QStringLiteral("workspace/last"), folder);
-        if (folder.isEmpty())
-            return;
-        QStringList list = recent();
-        list.removeAll(folder);
-        list.prepend(folder);
-        while (list.size() > maxRecent)
-            list.removeLast();
-        settings.setValue(QStringLiteral("workspace/recent"), list);
-    }
-
-    void forget(const QString &folder)
-    {
-        QStringList list = recent();
-        list.removeAll(folder);
-        QSettings().setValue(QStringLiteral("workspace/recent"), list);
+        settings->setLastWorkspace(folder);
+        settings->addRecentWorkspace(folder);   // ignores the sample data's empty folder
     }
 
     // The File, View and Help menus.
@@ -667,7 +912,7 @@ struct MainWindow::Private
         QMenu *recentMenu = file->addMenu(MainWindow::tr("Open &Recent"));
         QObject::connect(recentMenu, &QMenu::aboutToShow, q, [this, recentMenu] {
             recentMenu->clear();
-            const QStringList folders = recent();
+            const QStringList folders = settings->recentWorkspaces();
             for (const QString &folder : folders) {
                 QAction *action = recentMenu->addAction(QDir::toNativeSeparators(folder));
                 QObject::connect(action, &QAction::triggered, q, [this, folder] { openInteractively(folder); });
@@ -677,8 +922,7 @@ struct MainWindow::Private
             recentMenu->addSeparator();
             QAction *clear = recentMenu->addAction(MainWindow::tr("Clear Recent"));
             clear->setEnabled(!folders.isEmpty());
-            QObject::connect(clear, &QAction::triggered, q,
-                             [] { QSettings().remove(QStringLiteral("workspace/recent")); });
+            QObject::connect(clear, &QAction::triggered, q, [this] { settings->clearRecentWorkspaces(); });
         });
         QAction *rename = file->addAction(MainWindow::tr("Re&name Workspace…"));
         QObject::connect(rename, &QAction::triggered, q, [this] { promptRename(); });
@@ -687,12 +931,10 @@ struct MainWindow::Private
         QObject::connect(sample, &QAction::triggered, q, &MainWindow::openSampleData);
         QAction *reload = file->addAction(MainWindow::tr("Re&load Workspace"));
         reload->setShortcut(QKeySequence::Refresh);
-        QObject::connect(reload, &QAction::triggered, q, [this] {
-            if (workspace.isEmpty())
-                q->openSampleData();
-            else
-                q->openWorkspace(workspace);
-        });
+        QObject::connect(reload, &QAction::triggered, q, &MainWindow::reloadWorkspace);
+        file->addSeparator();
+        QAction *newGroup = file->addAction(MainWindow::tr("New &Group…"));
+        QObject::connect(newGroup, &QAction::triggered, q, [this] { revealNew(actions->newGroup()); });
         file->addSeparator();
         QAction *quit = file->addAction(MainWindow::tr("&Quit"));
         quit->setShortcut(QKeySequence::Quit);
@@ -832,22 +1074,28 @@ struct MainWindow::Private
         layout->setContentsMargins(0, 0, 0, 0);
         layout->setSpacing(0);
         layout->addWidget(buildWarningBar());
+        layout->addWidget(new ConflictBar(*store, *model, content));
         layout->addLayout(tabRow);
         layout->addWidget(stack, 1);
         return content;
     }
 };
 
-MainWindow::MainWindow(Model &model, const ItemTypeRegistry &types, QWidget *parent)
+MainWindow::MainWindow(Model &model, const ItemTypeRegistry &types, Store &store, DeviceSettings &settings,
+                       QWidget *parent)
     : QMainWindow(parent)
     , d(std::make_unique<Private>())
 {
     d->q = this;
     d->model = &model;
     d->types = &types;
+    d->store = &store;
+    d->settings = &settings;
 
     d->editor = new LayoutEditor(model, types, this);
     d->locks = new LockState(this);
+    d->actions = new EntityActions(model, store, types, settings, this);
+    d->imagePaste = std::make_unique<ImagePaste>(model, store, types, *d->locks);
     d->tracker = new SingleViewTracker(this);
     d->services.model = &model;
     d->services.types = &types;
@@ -873,8 +1121,7 @@ MainWindow::MainWindow(Model &model, const ItemTypeRegistry &types, QWidget *par
 
     // The window's size and sidebar width from the last session on this
     // device. The window always opens centred on the screen.
-    const QSettings settings;
-    const QSize size = settings.value(QStringLiteral("window/size")).toSize();
+    const QSize size = settings.windowSize();
     if (size.isValid())
         resize(size);
     if (const QScreen *screen = QGuiApplication::primaryScreen()) {
@@ -882,9 +1129,9 @@ MainWindow::MainWindow(Model &model, const ItemTypeRegistry &types, QWidget *par
         frame.moveCenter(screen->availableGeometry().center());
         move(frame.topLeft());
     }
-    if (settings.value(QStringLiteral("window/maximized")).toBool())
+    if (settings.windowMaximized())
         setWindowState(windowState() | Qt::WindowMaximized);
-    d->splitter->restoreState(settings.value(QStringLiteral("window/splitter")).toByteArray());
+    d->splitter->restoreState(settings.sidebarSplitterState());
     setCentralWidget(d->splitter);
 
     // The sidebar.
@@ -902,6 +1149,15 @@ MainWindow::MainWindow(Model &model, const ItemTypeRegistry &types, QWidget *par
     });
     connect(d->sidebar, &Sidebar::collapseRequested, this, [this] { d->showSidebar(false); });
     connect(d->sidebar, &Sidebar::titleDoubleClicked, this, [this] { d->promptRename(); });
+    connect(d->sidebar, &Sidebar::focusRequested, this, &MainWindow::openFocus);
+    d->sidebar->setMenuFiller([this](QMenu *menu, SidebarModel::Kind kind, const QString &id, const QString &taskId) {
+        d->actions->fillMenu(menu, kind, id, taskId);
+    });
+    connect(d->sidebar->model(), &SidebarModel::moveRequested, this,
+            [this](SidebarModel::Kind kind, const QString &id, int priority, int index) {
+                d->onMoveRequested(kind, id, priority, index);
+            });
+    d->sidebar->addHeaderWidget(d->buildNewButton());
     connect(&model, &Model::workspaceNameChanged, this, [this] { d->updateTitle(); });
     connect(d->showSidebarButton, &QToolButton::clicked, this, [this] { d->showSidebar(true); });
 
@@ -918,7 +1174,8 @@ MainWindow::MainWindow(Model &model, const ItemTypeRegistry &types, QWidget *par
 
     // Locks.
     connect(d->lockButton, &QToolButton::clicked, this, [this] {
-        if (const DashboardPage *page = d->currentPage())
+        const DashboardPage *page = d->currentPage();
+        if (page && page->isRoot())
             d->locks->setUnlocked(page->ref.dashboardId, !d->locks->isUnlocked(page->ref.dashboardId));
     });
     connect(d->locks, &LockState::changed, this,
@@ -932,9 +1189,28 @@ MainWindow::MainWindow(Model &model, const ItemTypeRegistry &types, QWidget *par
             d->removeTab(d->indexOf(page));
     });
     connect(&model, &Model::taskChanged, this, [this](const QString &taskId) { d->onTaskChanged(taskId); });
+    connect(&model, &Model::taskRemoved, this, [this](const QString &taskId) { d->onTaskRemoved(taskId); });
     connect(&model, &Model::modelReset, this, [this] {
         d->closeAllTabs();
         d->openInitialTabs();
+    });
+
+    // The Store: its problems and the read-only note go to the warning bar.
+    connect(&store, &Store::problemsChanged, this, [this] { d->updateWarnings(); });
+
+    // Ctrl+V with an image on the clipboard pastes it. A text input keeps
+    // its own paste: it takes the key before window shortcuts.
+    auto *paste = new QShortcut(QKeySequence::Paste, this);
+    paste->setContext(Qt::WindowShortcut);
+    connect(paste, &QShortcut::activated, this, [this] {
+        if (Private::isTextInput(QApplication::focusWidget()))
+            return;
+        const QMimeData *mime = QGuiApplication::clipboard()->mimeData();
+        if (!mime || !mime->hasImage())
+            return;
+        const QImage image = qvariant_cast<QImage>(mime->imageData());
+        if (!image.isNull())
+            pasteImage(image);
     });
 
     // The switcher and the shortcuts.
@@ -952,6 +1228,7 @@ MainWindow::~MainWindow()
     // Lambdas connected here read d, which goes before QWidget's destructor
     // deletes the children. Disconnect them all first.
     disconnect(d->model, nullptr, this, nullptr);
+    disconnect(d->store, nullptr, this, nullptr);
     const auto children = findChildren<QObject *>();
     for (QObject *child : children)
         child->disconnect(this);
@@ -968,26 +1245,17 @@ MainWindow::~MainWindow()
 void MainWindow::closeEvent(QCloseEvent *event)
 {
     // The size of the normal, not maximized, window is kept.
-    QSettings settings;
-    settings.setValue(QStringLiteral("window/size"), normalGeometry().size());
-    settings.setValue(QStringLiteral("window/maximized"), isMaximized());
-    settings.setValue(QStringLiteral("window/splitter"), d->splitter->saveState());
+    d->settings->setWindowSize(normalGeometry().size());
+    d->settings->setWindowMaximized(isMaximized());
+    d->settings->setSidebarSplitterState(d->splitter->saveState());
+    d->saveOpenTabs();
     QMainWindow::closeEvent(event);
 }
 
 void MainWindow::setLoadProblems(const std::vector<LoadProblem> &problems)
 {
-    if (problems.empty()) {
-        d->warningText->clear();
-        d->warningBar->hide();
-        return;
-    }
-    QStringList lines;
-    lines << tr("Some files could not be loaded and were skipped:");
-    for (const LoadProblem &problem : problems)
-        lines << tr("%1: %2").arg(problem.file, problem.message);
-    d->warningText->setText(lines.join(QLatin1Char('\n')));
-    d->warningBar->show();
+    d->ownProblems = problems;
+    d->updateWarnings();
 }
 
 void MainWindow::openWorkspace(const QString &path)
@@ -996,7 +1264,7 @@ void MainWindow::openWorkspace(const QString &path)
     const QFileInfo info(path);
     const QString folder = info.isFile() ? info.absolutePath() : path;
     if (folder.isEmpty() || !QDir(folder).exists()) {
-        d->forget(folder);
+        d->settings->removeRecentWorkspace(folder);
         setLoadProblems({LoadProblem{QDir::toNativeSeparators(folder), tr("The workspace folder does not exist.")}});
         return;
     }
@@ -1005,11 +1273,10 @@ void MainWindow::openWorkspace(const QString &path)
                                      tr("not a Mirante workspace: it has no %1").arg(store::workspaceFileName())}});
         return;
     }
-    const std::vector<LoadProblem> problems = store::load(folder, *d->model);
     d->workspace = QDir(folder).absolutePath();
+    d->openThroughStore(d->workspace);
     d->remember(d->workspace);
     d->updateTitle();
-    setLoadProblems(problems);
 }
 
 bool MainWindow::createWorkspace(const QString &folder, const QString &name)
@@ -1026,29 +1293,33 @@ bool MainWindow::createWorkspace(const QString &folder, const QString &name)
 
 void MainWindow::openSampleData()
 {
-    const std::vector<LoadProblem> problems = store::load(QStringLiteral(":/fixtures"), *d->model);
     d->workspace.clear();
+    d->openThroughStore(QStringLiteral(":/fixtures"));
     d->remember(QString());
     d->updateTitle();
-    setLoadProblems(problems);
+}
+
+void MainWindow::reloadWorkspace()
+{
+    if (d->workspace.isEmpty())
+        openSampleData();
+    else
+        openWorkspace(d->workspace);
 }
 
 bool MainWindow::renameWorkspace(const QString &name)
 {
-    if (d->workspace.isEmpty() || name.trimmed().isEmpty())
+    // The Store writes workspace.mirante when the model's name changes, and
+    // reports a failed write in the warning bar.
+    if (d->workspace.isEmpty() || d->store->readOnly() || name.trimmed().isEmpty())
         return false;
-    QString error;
-    if (!store::saveWorkspaceName(d->workspace, name.trimmed(), &error)) {
-        setLoadProblems({LoadProblem{QStringLiteral("workspace.mirante"), tr("cannot be written: %1").arg(error)}});
-        return false;
-    }
     d->model->setWorkspaceName(name.trimmed());
     return true;
 }
 
 QString MainWindow::workspace() const { return d->workspace; }
 
-QStringList MainWindow::recentWorkspaces() const { return d->recent(); }
+QStringList MainWindow::recentWorkspaces() const { return d->settings->recentWorkspaces(); }
 
 void MainWindow::showAbout()
 {
@@ -1173,6 +1444,39 @@ void MainWindow::revealInSidebar(const QString &id)
 void MainWindow::showQuickSwitcher() { d->switcher->popup(); }
 
 void MainWindow::closeCurrentTab() { d->removeTab(d->tabBar->currentIndex()); }
+
+void MainWindow::openFocus()
+{
+    DashboardPage *page = d->focusPage();
+    if (!page) {
+        page = d->makeFocusPage();
+        d->insertTab(0, page);
+    }
+    d->setCurrent(page);
+}
+
+void MainWindow::pasteImage(const QImage &image)
+{
+    const DashboardPage *page = d->currentPage();
+    if (!page || page->isFocus())
+        return;
+    ImagePaste::Result result;
+    if (!page->itemId.isEmpty()) {
+        result = d->imagePaste->pasteIntoItem(image, page->ref.taskId, page->itemId);
+    } else {
+        std::optional<NodePath> path;
+        if (const QWidget *cell = d->shortcuts->focusedCell())
+            path = page->view->pathOf(cell);
+        result = d->imagePaste->paste(image, page->ref, path);
+    }
+    const QString message = ImagePaste::message(result);
+    if (!message.isEmpty())
+        statusBar()->showMessage(message, 5000);
+}
+
+void MainWindow::saveOpenTabs() { d->saveOpenTabs(); }
+
+EntityActions *MainWindow::entityActions() const { return d->actions; }
 
 RootTabBar *MainWindow::rootTabBar() const { return d->tabBar; }
 

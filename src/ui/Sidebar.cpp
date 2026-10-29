@@ -59,6 +59,7 @@ struct Sidebar::Private
     QLabel *title = nullptr;
     QTabBar *stateTabs = nullptr;       // the task lists: "Projects", "Active" and "Done"
     QPushButton *focus = nullptr;       // the Focus entry above the tree
+    QHBoxLayout *header = nullptr;
     MenuFiller menuFiller;
 
     // Expansion survives a reset of the model. Groups and projects start
@@ -159,6 +160,7 @@ Sidebar::Sidebar(const Model &model, const ItemTypeRegistry &types, QWidget *par
     header->addWidget(expandTasks);
     header->addWidget(collapseTasks);
     header->addWidget(collapse);
+    d->header = header;
 
     // The Focus entry, above the tree.
     d->focus = new QPushButton(tr("Focus"), this);
@@ -346,6 +348,14 @@ void Sidebar::collapseAllTasks()
 }
 
 SidebarModel *Sidebar::model() const { return d->model; }
+
+QModelIndex Sidebar::currentIndex() const { return d->tree->currentIndex(); }
+
+void Sidebar::addHeaderWidget(QWidget *widget)
+{
+    // After the title, which is first.
+    d->header->insertWidget(1, widget);
+}
 
 void Sidebar::setMenuFiller(MenuFiller filler) { d->menuFiller = std::move(filler); }
 

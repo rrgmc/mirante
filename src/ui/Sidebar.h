@@ -38,6 +38,12 @@ public:
     void collapseAllTasks();
 
     SidebarModel *model() const;
+    // The selected row, or an invalid index.
+    QModelIndex currentIndex() const;
+
+    // Adds a widget to the header, before the expand and collapse buttons,
+    // such as the main window's + menu.
+    void addHeaderWidget(QWidget *widget);
 
     // Fills the context menu of a row with the entity commands, such as
     // EntityActions::fillMenu. The sidebar adds its own commands, such as "Open
