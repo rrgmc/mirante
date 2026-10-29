@@ -33,6 +33,11 @@ QString detachedKey(const QString &dashboardId)
     return QStringLiteral("detached/") + dashboardId;
 }
 
+QString cleanAbsolute(const QString &path)
+{
+    return path.isEmpty() ? QString() : QDir::cleanPath(QFileInfo(path).absoluteFilePath());
+}
+
 // The group holding one workspace's open tabs. A path can hold characters a
 // settings key cannot, so the group is named by a hash of the cleaned absolute
 // path.
@@ -107,6 +112,53 @@ void DeviceSettings::removeRecentWorkspace(const QString &folder)
 void DeviceSettings::clearRecentWorkspaces()
 {
     d->settings->remove(recentWorkspacesKey);
+}
+
+void DeviceSettings::moveWorkspace(const QString &from, const QString &to)
+{
+    const QString oldPath = cleanAbsolute(from);
+    const QString newPath = cleanAbsolute(to);
+    if (oldPath.isEmpty() || newPath.isEmpty() || oldPath == newPath)
+        return;
+    // A path is the old folder or inside it; the result is the same place
+    // under the new folder, or empty.
+    const auto moved = [&](const QString &path) -> QString {
+        const QString clean = cleanAbsolute(path);
+        if (clean == oldPath)
+            return newPath;
+        if (clean.startsWith(oldPath + QLatin1Char('/')))
+            return newPath + clean.mid(oldPath.size());
+        return {};
+    };
+
+    QSettings &settings = *d->settings;
+    if (!moved(lastWorkspace()).isEmpty())
+        setLastWorkspace(newPath);
+
+    QStringList recent;
+    for (const QString &folder : recentWorkspaces()) {
+        const QString path = moved(folder) == newPath ? newPath : folder;
+        if (!recent.contains(path))
+            recent << path;
+    }
+    if (!recent.isEmpty())
+        settings.setValue(recentWorkspacesKey, recent);
+
+    const Tabs tabs = openTabs(oldPath);
+    if (tabs.saved) {
+        setOpenTabs(newPath, tabs);
+        settings.remove(tabsGroup(oldPath));
+    }
+
+    // Project folders kept inside the workspace's folder moved with it.
+    settings.beginGroup(QStringLiteral("folders"));
+    const QStringList folderIds = settings.childKeys();
+    settings.endGroup();
+    for (const QString &folderId : folderIds) {
+        const QString path = moved(folderPath(folderId));
+        if (!path.isEmpty())
+            setFolderPath(folderId, path);
+    }
 }
 
 QString DeviceSettings::folderPath(const QString &folderId) const

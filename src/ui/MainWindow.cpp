@@ -1149,6 +1149,30 @@ struct MainWindow::Private
             q->renameWorkspace(name);
     }
 
+    // Asks where to move the open workspace. An empty folder takes its files;
+    // any other gets a folder with the workspace folder's name inside it.
+    void promptMove()
+    {
+        if (workspace.isEmpty() || store->readOnly()) {
+            QMessageBox::information(q, MainWindow::tr("Move Workspace"),
+                                     MainWindow::tr("The sample data cannot be moved. Open a workspace folder first."));
+            return;
+        }
+        const QString chosen = QFileDialog::getExistingDirectory(
+            q, MainWindow::tr("Move Workspace: choose its new place"), QFileInfo(workspace).absolutePath());
+        if (chosen.isEmpty())
+            return;
+        const QDir dir(chosen);
+        const bool empty = dir.isEmpty(QDir::AllEntries | QDir::Hidden | QDir::System | QDir::NoDotAndDotDot);
+        const QString destination = empty ? dir.absolutePath() : dir.filePath(QDir(workspace).dirName());
+        const auto answer = QMessageBox::question(
+            q, MainWindow::tr("Move Workspace"),
+            MainWindow::tr("Move the workspace from %1 to %2?")
+                .arg(QDir::toNativeSeparators(workspace), QDir::toNativeSeparators(destination)));
+        if (answer == QMessageBox::Yes)
+            q->moveWorkspace(destination);
+    }
+
     void remember(const QString &folder)
     {
         settings->setLastWorkspace(folder);
@@ -1289,12 +1313,16 @@ struct MainWindow::Private
         });
         QAction *rename = file->addAction(MainWindow::tr("Re&name Workspace…"));
         QObject::connect(rename, &QAction::triggered, q, [this] { promptRename(); });
+        QAction *move = file->addAction(MainWindow::tr("&Move Workspace…"));
+        move->setObjectName(QStringLiteral("moveWorkspace"));
+        QObject::connect(move, &QAction::triggered, q, [this] { promptMove(); });
         // Opens the folder in Explorer, Finder or the desktop's file manager.
         QAction *showFolder = file->addAction(MainWindow::tr("Show Workspace &Folder"));
         QObject::connect(showFolder, &QAction::triggered, q,
                          [this] { QDesktopServices::openUrl(QUrl::fromLocalFile(workspace)); });
-        QObject::connect(file, &QMenu::aboutToShow, q, [this, rename, showFolder] {
+        QObject::connect(file, &QMenu::aboutToShow, q, [this, rename, move, showFolder] {
             rename->setEnabled(!workspace.isEmpty());
+            move->setEnabled(!workspace.isEmpty() && !store->readOnly());
             showFolder->setEnabled(!workspace.isEmpty());
         });
         QAction *sample = file->addAction(MainWindow::tr("Open &Sample Data"));
@@ -1898,6 +1926,33 @@ bool MainWindow::renameWorkspace(const QString &name)
     if (d->workspace.isEmpty() || d->store->readOnly() || name.trimmed().isEmpty())
         return false;
     d->model->setWorkspaceName(name.trimmed());
+    return true;
+}
+
+bool MainWindow::moveWorkspace(const QString &destination)
+{
+    if (d->workspace.isEmpty() || d->store->readOnly() || destination.isEmpty())
+        return false;
+    const QString from = d->workspace;
+    const QString to = QDir::cleanPath(QFileInfo(destination).absoluteFilePath());
+    // Closing the Store writes pending changes and stops watching the folder,
+    // which on Windows holds it open. It also forgets the folder, so opening
+    // the workspace again saves no tabs over the ones saved here.
+    d->saveOpenTabs();
+    d->store->close();
+    QString error;
+    QString leftover;
+    if (!store::moveWorkspace(from, to, &error, &leftover)) {
+        openWorkspace(from);
+        setLoadProblems({LoadProblem{QDir::toNativeSeparators(from), tr("cannot be moved: %1").arg(error)}});
+        return false;
+    }
+    d->settings->moveWorkspace(from, to);
+    openWorkspace(to);
+    if (!leftover.isEmpty())
+        setLoadProblems({LoadProblem{QDir::toNativeSeparators(leftover),
+                                     tr("the workspace was moved, but this copy of its old folder could not be "
+                                        "removed entirely; delete it when no program uses it")}});
     return true;
 }
 

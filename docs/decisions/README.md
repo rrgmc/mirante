@@ -59,6 +59,7 @@ Each file records one design decision: what was decided, what else was considere
 | [0052](0052-no-pinning.md) | The preview is never pinned | Accepted |
 | [0053](0053-no-focus-entry-in-the-sidebar.md) | The sidebar has no Focus entry | Accepted |
 | [0054](0054-module-settings-replace-connections.md) | Module settings replace connections | Accepted |
+| [0055](0055-move-workspace.md) | Moving a workspace to another folder | Accepted |
 
 ## Template
 

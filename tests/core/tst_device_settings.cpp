@@ -188,6 +188,54 @@ private slots:
         QCOMPARE(device.folderPath(QStringLiteral("other")), QStringLiteral("D:/other"));
     }
 
+    // After a workspace moves, everything that named its folder names the
+    // new one. Other workspaces and folders outside it stay.
+    void moveWorkspace()
+    {
+        const QString from = dir->filePath(QStringLiteral("old"));
+        const QString to = dir->filePath(QStringLiteral("new"));
+        const QString other = dir->filePath(QStringLiteral("other"));
+        DeviceSettings::Tabs tabs;
+        tabs.ids = {QStringLiteral("d1"), QStringLiteral("d2")};
+        tabs.current = QStringLiteral("d2");
+        tabs.detached = {QStringLiteral("d3")};
+        {
+            DeviceSettings device(settings.get());
+            device.addRecentWorkspace(from);
+            device.addRecentWorkspace(other);
+            device.setLastWorkspace(from);
+            device.setOpenTabs(from, tabs);
+            device.setFolderPath(QStringLiteral("inside"), from + QStringLiteral("/code"));
+            device.setFolderPath(QStringLiteral("outside"), other + QStringLiteral("/code"));
+            device.setFolderPath(QStringLiteral("similar"), from + QStringLiteral("er/code"));
+            device.moveWorkspace(from, to);
+        }
+        reopen();
+        const DeviceSettings device(settings.get());
+        QCOMPARE(device.lastWorkspace(), to);
+        QCOMPARE(device.recentWorkspaces(), (QStringList{other, to}));
+        QVERIFY(!device.openTabs(from).saved);
+        const DeviceSettings::Tabs read = device.openTabs(to);
+        QVERIFY(read.saved);
+        QCOMPARE(read.ids, tabs.ids);
+        QCOMPARE(read.current, tabs.current);
+        QCOMPARE(read.detached, tabs.detached);
+        QCOMPARE(device.folderPath(QStringLiteral("inside")), to + QStringLiteral("/code"));
+        QCOMPARE(device.folderPath(QStringLiteral("outside")), other + QStringLiteral("/code"));
+        QCOMPARE(device.folderPath(QStringLiteral("similar")), from + QStringLiteral("er/code"));
+    }
+
+    // The last workspace is left alone when another one moved.
+    void moveOtherWorkspace()
+    {
+        DeviceSettings device(settings.get());
+        const QString last = dir->filePath(QStringLiteral("last"));
+        device.setLastWorkspace(last);
+        device.moveWorkspace(dir->filePath(QStringLiteral("old")), dir->filePath(QStringLiteral("new")));
+        QCOMPARE(device.lastWorkspace(), last);
+        QVERIFY(device.recentWorkspaces().isEmpty());
+    }
+
     void openTabsRoundTrip()
     {
         const QString one = dir->filePath(QStringLiteral("one"));

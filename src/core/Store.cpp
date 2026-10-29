@@ -8,7 +8,9 @@
 #include "core/Model.h"
 #include "core/ProfileMigration.h"
 
+#include <QDateTime>
 #include <QDir>
+#include <QDirIterator>
 #include <QFile>
 #include <QFileInfo>
 #include <QJsonArray>
@@ -482,6 +484,108 @@ bool createWorkspace(const QString &dir, const QString &name, QString *error)
         return false;
     }
     return saveWorkspaceName(dir, name, error);
+}
+
+namespace {
+
+// How often, and how long apart, a workspace folder in use is tried again.
+constexpr int kMoveAttempts = 10;
+constexpr int kMoveIntervalMs = 100;
+
+// Copies the files and folders in from into to, which exists. Hidden files,
+// such as a sync tool's, are copied too.
+bool copyContents(const QString &from, const QString &to, QString *error)
+{
+    const QDir source(from);
+    QDirIterator it(from, QDir::AllEntries | QDir::Hidden | QDir::System | QDir::NoDotAndDotDot,
+                    QDirIterator::Subdirectories);
+    while (it.hasNext()) {
+        const QFileInfo info = it.nextFileInfo();
+        const QString target = QDir(to).filePath(source.relativeFilePath(info.filePath()));
+        if (info.isDir() && !info.isSymLink()) {
+            if (!QDir().mkpath(target)) {
+                *error = QStringLiteral("cannot make %1").arg(QDir::toNativeSeparators(target));
+                return false;
+            }
+        } else if (!QFile::copy(info.filePath(), target)) {
+            *error = QStringLiteral("cannot copy %1").arg(QDir::toNativeSeparators(info.filePath()));
+            return false;
+        }
+    }
+    return true;
+}
+
+// Renames a file or folder, trying again for a while if it is in use.
+bool renameRetrying(const QString &from, const QString &to, int attempts = kMoveAttempts)
+{
+    for (int attempt = 1;; ++attempt) {
+        if (QDir().rename(from, to))
+            return true;
+        if (attempt >= attempts)
+            return false;
+        QThread::msleep(kMoveIntervalMs);
+    }
+}
+
+} // namespace
+
+bool moveWorkspace(const QString &from, const QString &to, QString *error, QString *leftover)
+{
+    const auto fail = [&](const QString &why) {
+        if (error)
+            *error = why;
+        return false;
+    };
+    const QString source = QDir::cleanPath(QFileInfo(from).absoluteFilePath());
+    const QString target = QDir::cleanPath(QFileInfo(to).absoluteFilePath());
+    if (!isWorkspace(source))
+        return fail(QStringLiteral("the folder is not a workspace"));
+    if (target == source || target.startsWith(source + QLatin1Char('/')))
+        return fail(QStringLiteral("the new folder is the workspace's folder or inside it"));
+    const QFileInfo targetInfo(target);
+    const bool targetExisted = targetInfo.exists();
+    if (targetExisted) {
+        if (!targetInfo.isDir())
+            return fail(QStringLiteral("a file has that name"));
+        if (!QDir(target).isEmpty(QDir::AllEntries | QDir::Hidden | QDir::System | QDir::NoDotAndDotDot))
+            return fail(QStringLiteral("the folder is not empty"));
+    }
+    if (!QDir().mkpath(QFileInfo(target).absolutePath()))
+        return fail(QStringLiteral("cannot make the folder that holds it"));
+
+    // On Windows a folder cannot be renamed while another program has a file
+    // or the folder itself open: Explorer, a terminal, a sync tool or a virus
+    // scanner. Renaming it in place first finds that before anything changes.
+    // Scanners hold files only briefly, so it is tried a few times.
+    const QString moving = source + QStringLiteral(".moving-") + QString::number(QDateTime::currentMSecsSinceEpoch());
+    if (!renameRetrying(source, moving))
+        return fail(QStringLiteral("a file or folder in it is open in another program, such as Explorer, a "
+                                   "terminal or a sync tool. Close it and try again"));
+
+    // A rename needs a name that is not taken.
+    if (targetExisted)
+        QDir().rmdir(target);
+    if (renameRetrying(moving, target, 1))
+        return true;
+
+    // Across drives: copy, then remove the old folder. A failed copy puts
+    // everything back as it was.
+    QString message;
+    if (!QDir().mkpath(target) || !copyContents(moving, target, &message)) {
+        QDir(target).removeRecursively();
+        if (targetExisted)
+            QDir().mkpath(target);
+        if (message.isEmpty())
+            message = QStringLiteral("cannot make the folder");
+        if (!renameRetrying(moving, source))
+            message += QStringLiteral("; the workspace is now in %1").arg(QDir::toNativeSeparators(moving));
+        return fail(message);
+    }
+    // The copy is complete. Files that cannot be removed stay in the renamed
+    // old folder, which is no longer found as the workspace.
+    if (!QDir(moving).removeRecursively() && leftover)
+        *leftover = moving;
+    return true;
 }
 
 } // namespace store
