@@ -14,8 +14,9 @@ class Model;
 // The sidebar tree over Model: groups, then projects, then tasks. Each task
 // has two fixed children, "Dashboards" and "Items", which hold the task's
 // task dashboards and items. Groups use their manual order; projects and tasks
-// are sorted with Sorting. Items and dashboards can be dragged, as DragMime
-// payloads; tasks cannot.
+// are sorted with Sorting. Items and dashboards are dragged onto dashboards as
+// DragMime payloads. Groups, projects and tasks are dragged only to reorder the
+// sidebar, under a sidebar-only MIME type.
 // Implemented in SidebarModel.cpp.
 class SidebarModel : public QAbstractItemModel
 {
