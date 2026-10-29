@@ -1190,6 +1190,9 @@ MainWindow::MainWindow(Model &model, const ItemTypeRegistry &types, Store &store
     d->editor = new LayoutEditor(model, types, this);
     d->locks = new LockState(this);
     d->actions = new EntityActions(model, store, types, settings, this);
+    // A new task dashboard opens in the preview tab, ready to fill.
+    connect(d->actions, &EntityActions::dashboardCreated, this,
+            [this](const QString &taskId, const QString &dashboardId) { openTaskPreview(taskId, dashboardId); });
     d->imagePaste = std::make_unique<ImagePaste>(model, store, types, *d->locks);
     d->tracker = new SingleViewTracker(this);
     d->services.model = &model;

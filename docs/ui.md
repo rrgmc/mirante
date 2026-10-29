@@ -101,7 +101,7 @@ Each cell has a small header containing:
 
 ### Layout presets
 
-"New dashboard" and "Apply preset" offer starting layouts:
+"New dashboard" and "Apply preset" offer starting layouts. A task dashboard made with "New dashboard…" in the sidebar opens in the preview tab.
 
 - Full: one cell.
 - Two side by side.

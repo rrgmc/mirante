@@ -260,6 +260,18 @@ private slots:
         QCOMPARE(f.tabText(f.bar()->currentIndex()), QStringLiteral("Fix login timeout / Work"));
     }
 
+    void newDashboardOpensInPreview()
+    {
+        Fixture f;
+        const QString review = QStringLiteral("ece7e850-6e0f-51ef-ad23-4ee948afdd66");
+        emit f.window->entityActions()->dashboardCreated(kFixLoginTask, review);
+        QCOMPARE(f.bar()->previewIndex(), 2);
+        QCOMPARE(f.bar()->currentIndex(), 2);
+        const LayoutNode *reviewTree = f.model.layout(DashboardRef{kFixLoginTask, review});
+        QVERIFY(reviewTree);
+        QVERIFY(layout::sameShape(f.window->currentLayoutView()->tree(), *reviewTree));
+    }
+
     void otherTaskChangesKeepPreview()
     {
         Fixture f;

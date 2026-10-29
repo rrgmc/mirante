@@ -78,6 +78,10 @@ public:
     // Sidebar::MenuFiller.
     void fillMenu(QMenu *menu, SidebarModel::Kind kind, const QString &id, const QString &taskId);
 
+signals:
+    // A task dashboard made with newDashboard, so the window can show it.
+    void dashboardCreated(const QString &taskId, const QString &dashboardId);
+
 private:
     struct Private;
     std::unique_ptr<Private> d;
