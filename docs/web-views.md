@@ -10,17 +10,21 @@ Mirante creates these profiles:
 
 | Profile | Storage name | Used for |
 |---|---|---|
-| One per group | `g-<groupId>` | All web items of that group, by default |
-| Shared | `shared` | Sites that a group sends to the shared profile |
+| One per group and module | `g-<groupId>-<moduleId>` | All web items of that module in that group, by default |
+| Shared, one per module | `shared-<moduleId>` | Sites that a group sends to the shared profile |
 | App | `app` | [Built-in panels](#built-in-panels) only |
+
+The module of an item is the prefix of its type id, before the first dot, such as `gitlab` for `gitlab.mr.page`. Each module has its own profiles, so module code cannot read the logins of another module. The cost is that the same site is logged in to once per module and group. See [decision 0040](decisions/0040-profiles-per-group-and-module.md).
 
 Rules:
 
-- **Persistence.** All profiles are persistent, so logins survive restarts. Each one uses `ForcePersistentCookies`, because some sites set session cookies that would otherwise be lost.
-- **Overrides per group.** A group's `profileOverrides` can send a site host to the shared profile. For example, the user can log in to Jira once in the shared profile, while claude.ai stays separate for each group. See [decision 0005](decisions/0005-profiles-per-group.md).
+- **Persistence.** All profiles are persistent, so logins survive restarts. Each one uses `ForcePersistentCookies`, because some sites set session cookies that would otherwise be lost. Site permissions are also kept on disk.
+- **Overrides per group.** A group's `profileOverrides` can send a site host to the shared profile of the item's module. Hosts match exactly, ignoring case, so `jira.example.com` does not cover `a.jira.example.com`. For example, the user can log in to Jira once in the shared profile, while claude.ai stays separate for each group. See [decision 0005](decisions/0005-profiles-per-group.md).
+- **User agent.** Every profile sends Chromium's user agent without the `QtWebEngine/<version>` part, so sites see an ordinary Chromium. Some identity providers refuse a browser that names itself embedded. This is the first thing to adjust if a login fails.
+- **Downloads.** A download asks where to save the file, starting in the system download folder.
 - **Ownership.** `ProfileManager` owns every profile and creates it when first needed. A profile must outlive all pages that use it, so the manager deletes pages first at shutdown.
-- **Deleting a group.** This deletes its profile: cookies are cleared through `cookieStore()`, and the profile's data folder is removed after the profile is released.
-- **Location.** Profile data lives in the app's local data folder. It is never synced.
+- **Deleting a group.** This deletes the profiles of all its modules: cookies and HTTP cache are cleared, the profiles are released, and their data folders are removed once the profiles are gone. The folders are found by their `g-<groupId>-` prefix, so the folders of modules missing from this build go too. Chromium may hold a file open for a moment after a profile goes, so removal is tried again for a few seconds. Only a group deleted by the user on this device loses its profiles, not one removed by a sync. See [decision 0039](decisions/0039-profiles-deleted-only-by-local-delete.md).
+- **Location.** Profile data lives in the app's local data folder, under `profiles/<storage name>`, with the HTTP cache in its `cache` subfolder. It is never synced.
 
 Profiles isolate storage only. All pages run in the same Chromium processes, so this is account separation, not a security sandbox.
 
