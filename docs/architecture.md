@@ -42,8 +42,12 @@ No core folder depends on a module. The core reaches modules only through the re
 |---|---|
 | `Group`, `Project`, `Task`, `Item`, `Dashboard`, `Connection`, `Folder` | Plain value types matching the [data model](data-model.md), with JSON conversion |
 | `Model` | Holds all entities, looks them up by id, and emits signals such as `taskChanged(id)` and `taskRemoved(id)` |
-| `Store` | Loads the data folder into `Model`, writes changes, watches for external changes, detects conflict copies. See [sync](sync.md). |
-| `Migrations` | Upgrades files from older `schemaVersion` values |
+| `Store` | Loads the data folder into `Model`. It turns each model signal into a write of one file through `FileWriter`, applies the changes `FolderWatcher` reports through the model's setters, deletes image files whose last reference a local edit removed, and lists conflict copies. A resource folder, such as the sample data, opens read-only. See [sync](sync.md). |
+| `FileWriter` | Writes and deletes files in the data folder with `QSaveFile`, debounced by 500 ms, and remembers a hash of what it wrote so its own writes can be told apart |
+| `FolderWatcher` | Watches the top of the data folder and its five subfolders, and reports files added, changed or removed by others, after 300 ms of quiet, and the conflict copies present |
+| `Migrations` | Upgrades files from older `schemaVersion` values, and refuses files of a newer one |
+| `ConflictNames` | Recognises a sync tool's conflict copy by the id at the start of its name. See [decision 0031](decisions/0031-conflict-copies-by-id-prefix.md). |
+| `Edits` | Changes to entities as pure functions, such as removing an item from a task and clearing its cells, for the `Model`'s setters |
 | `DeviceSettings` | Typed access to the `QSettings` values listed in [sync](sync.md#device-settings) |
 | `Sorting` | Priority and order sorting, used by the sidebar and Focus |
 | `LayoutTree` | The [layout tree](data-model.md#layout-tree): split, tabs and cell nodes, with JSON conversion, edit operations and normalisation. It lives in `core` because `Dashboard` holds one. |

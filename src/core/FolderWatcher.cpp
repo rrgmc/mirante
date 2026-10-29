@@ -179,8 +179,12 @@ Listing FolderWatcher::Private::list() const
                 counts = true;
                 break;
             }
-            if (counts)
-                listing.files.insert(relativePath(folder, name), Stamp{info.size(), info.lastModified()});
+            if (counts) {
+                // On Windows the directory listing can still hold the old size
+                // and time of a file just replaced by a rename, so ask the file.
+                const QFileInfo fresh(info.absoluteFilePath());
+                listing.files.insert(relativePath(folder, name), Stamp{fresh.size(), fresh.lastModified()});
+            }
         }
     }
     std::sort(listing.conflictCopies.begin(), listing.conflictCopies.end());
