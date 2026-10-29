@@ -397,8 +397,8 @@ GroupDialog::GroupDialog(const Group &group, QWidget *parent)
             d->chooseColour(colour.name());
     });
     d->showColour();
-    auto *colourHelp = new QLabel(tr("The title bars of the group's task dashboards and its projects in the sidebar "
-                                     "are tinted with this colour."),
+    auto *colourHelp = new QLabel(tr("The title bars and cell headers of the group's tasks and items, and its "
+                                     "projects in the sidebar, are tinted with this colour."),
                                   this);
     colourHelp->setWordWrap(true);
 
@@ -406,7 +406,7 @@ GroupDialog::GroupDialog(const Group &group, QWidget *parent)
     d->webProfile = new QComboBox(this);
     d->webProfile->setObjectName(QStringLiteral("webProfile"));
     auto *profileHelp = new QLabel(tr("Web items of this group use this profile, unless an item chooses its own. "
-                                      "Manage profiles with File > Web Profiles…."),
+                                      "Manage profiles with Web Profiles… in the File menu."),
                                    this);
     profileHelp->setWordWrap(true);
 

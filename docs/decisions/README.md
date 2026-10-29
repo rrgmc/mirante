@@ -50,7 +50,8 @@ Each file records one design decision: what was decided, what else was considere
 | [0043](0043-pick-the-item-type-first.md) | A new item starts by picking its type in an icon grid | Accepted |
 | [0044](0044-module-settings-in-the-workspace.md) | Modules have settings screens, stored in the workspace | Accepted |
 | [0045](0045-preview-and-crop-pasted-images.md) | Pasted images open a preview with a crop first | Accepted |
-| [0046](0046-group-colours.md) | Each group has a colour | Accepted |
+| [0046](0046-group-colours.md) | Each group has a colour | Accepted; item cell headers by 0047 |
+| [0047](0047-item-headers-in-group-colours.md) | Item cell headers take their group's colour | Accepted |
 
 ## Template
 

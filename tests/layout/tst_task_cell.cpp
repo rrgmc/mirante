@@ -52,10 +52,9 @@ int cellCount(const LayoutView *view)
 }
 
 // The header colour that cellstyle::tintHeader gives for colour, as a name.
-QString tinted(const QWidget &cell, const QColor &colour)
+QString tinted(const QWidget &cell, const QColor &colour, qreal amount = 0.22)
 {
     const QColor window = cell.palette().color(QPalette::Window);
-    const qreal amount = 0.22;
     return QColor::fromRgbF(float(window.redF() + (colour.redF() - window.redF()) * amount),
                             float(window.greenF() + (colour.greenF() - window.greenF()) * amount),
                             float(window.blueF() + (colour.blueF() - window.blueF()) * amount))
@@ -296,6 +295,20 @@ void TestTaskCell::rootItemsNameTheirTask()
     DashboardCellFactory taskFactory(m_services, {task->id, task->defaultDashboardId});
     std::unique_ptr<QWidget> taskCell(taskFactory.createCell(CellRef{itemRef->item, QString(), QString()}, false, nullptr));
     QVERIFY(taskCell->findChild<QLabel *>(QStringLiteral("cellContext"))->text().isEmpty());
+
+    // Both headers take a light tint of the group colour of the item's task,
+    // and follow a change of it (decision 0047).
+    const auto headerColour = [](const QWidget &cell) {
+        return cell.findChild<QWidget *>(QStringLiteral("cellHeader"))->palette().color(QPalette::Window).name();
+    };
+    const QColor group(groupcolours::ofTask(*m_model, task->id));
+    QCOMPARE(headerColour(*rootCell), tinted(*rootCell, group, 0.12));
+    QCOMPARE(headerColour(*taskCell), tinted(*taskCell, group, 0.12));
+    Group changed = *m_model->group(project->groupId);
+    changed.colour = QStringLiteral("#ff0000");
+    m_model->setGroup(changed);
+    QCOMPARE(headerColour(*rootCell), tinted(*rootCell, Qt::red, 0.12));
+    QCOMPARE(headerColour(*taskCell), tinted(*taskCell, Qt::red, 0.12));
 }
 
 void TestTaskCell::openAlone()
