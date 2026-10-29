@@ -1531,7 +1531,6 @@ MainWindow::MainWindow(Model &model, const ItemTypeRegistry &types, Store &store
     });
     connect(d->sidebar, &Sidebar::collapseRequested, this, [this] { d->showSidebar(false); });
     connect(d->sidebar, &Sidebar::titleDoubleClicked, this, [this] { d->promptRename(); });
-    connect(d->sidebar, &Sidebar::focusRequested, this, &MainWindow::openFocus);
     // The sidebar tints the row of what the hovered dashboard cell shows.
     connect(d->services.hover, &CellHoverTracker::hoveredChanged, d->sidebar, &Sidebar::setHoverHighlight);
     d->sidebar->setMenuFiller([this](QMenu *menu, SidebarModel::Kind kind, const QString &id, const QString &taskId) {

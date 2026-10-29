@@ -49,6 +49,7 @@
 #include <QMenuBar>
 #include <QPainter>
 #include <QPointer>
+#include <QPushButton>
 #include <QScreen>
 #include <QSettings>
 #include <QSignalSpy>
@@ -906,11 +907,15 @@ private slots:
     }
 
     // The Focus entry selects the Focus slot, which is not a tab.
-    void focusEntrySelectsSlot()
+    // A click on the Focus slot, or openFocus(), makes Focus current. The
+    // sidebar has no Focus entry (decision 0053).
+    void focusSlotSelectsFocus()
     {
         Fixture f;
-        auto *sidebar = f.window->findChild<Sidebar *>();
-        emit sidebar->focusRequested();
+        f.window->show();
+        QVERIFY(QTest::qWaitForWindowExposed(f.window.get()));
+        QVERIFY(!f.window->findChild<Sidebar *>()->findChild<QPushButton *>(QStringLiteral("focusEntry")));
+        QTest::mouseClick(f.slotBar(), Qt::LeftButton, {}, f.slotBar()->tabRect(SlotTabBar::FocusSlot).center());
         QCOMPARE(f.bar()->count(), 2);
         QCOMPARE(f.slotBar()->currentSlot(), int(SlotTabBar::FocusSlot));
         QVERIFY(!f.bar()->selectionShown());
@@ -918,7 +923,7 @@ private slots:
 
         f.window->openRootDashboard(kRelease);
         QCOMPARE(f.slotBar()->currentSlot(), -1);
-        emit sidebar->focusRequested();
+        f.window->openFocus();
         QCOMPARE(f.slotBar()->currentSlot(), int(SlotTabBar::FocusSlot));
         QCOMPARE(f.window->findChildren<FocusView *>().size(), 1);
 

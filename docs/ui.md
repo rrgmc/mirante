@@ -6,21 +6,19 @@ This document describes navigation, dashboards and editing. It was checked with 
 
 ```
 ┌───────────────┬──────────────────────────────────────────────┐
-│ Focus         │ [Morning] [Release] [+] ≡ │ [◎ Focus] [Fix…] 🔒 │
-│               ├──────────────────────────────────────────────┤
-│ ▾ Work        │                                              │
-│   ▾ backend   │        active root dashboard or task         │
-│     Default   │        (splits, tabs and cells)              │
-│     ● Fix ... │                                              │
+│ Workspace     │ [Morning] [Release] [+] ≡ │ [◎ Focus] [Fix…] 🔒 │
+│ ▾ Work        ├──────────────────────────────────────────────┤
+│   ▾ backend   │                                              │
+│     Default   │        active root dashboard or task         │
+│     ● Fix ... │        (splits, tabs and cells)              │
 │     ○ Add ... │                                              │
 │   ▸ frontend  │                                              │
 │ ▸ Personal    │                                              │
+│               │                                              │
 └───────────────┴──────────────────────────────────────────────┘
 ```
 
-- **Sidebar, on the left:**
-  - A **Focus** entry at the top. See [Focus view](#focus-view).
-  - A tree of groups, projects and tasks.
+- **Sidebar, on the left:** the workspace's name, then a tree of groups, projects and tasks. It has no Focus entry: Focus has its own slot in the tab row. See [decision 0053](decisions/0053-no-focus-entry-in-the-sidebar.md).
 - **Tab row, on the right, above the content:**
   - On the left, the **tabs**: root dashboards only. The `+` button and the dashboard list button follow them. Task dashboards and items open in the preview slot, which never becomes a tab. See [decision 0052](decisions/0052-no-pinning.md).
   - On the right, after a thin separator, two fixed **slots**: **Focus** and the **preview**, then the lock. They look like tabs. See [decision 0048](decisions/0048-focus-and-preview-slots.md).
@@ -286,7 +284,7 @@ If the same item is shown in two places, each place has its own live view. See [
 
 Focus answers "what should I work on now?", across all projects.
 
-- Focus has a fixed slot right of the tabs, before the preview slot. The Focus entry in the sidebar selects it, and so does a click on the slot. The entry and the slot carry a target icon, since Focus is a list and not a dashboard. The slot is always there and cannot be closed. See [decision 0048](decisions/0048-focus-and-preview-slots.md).
+- Focus has a fixed slot right of the tabs, before the preview slot. A click on the slot selects it, and so do `Ctrl+PgDown` and `Ctrl+PgUp` on their way through the tab row. The slot carries a target icon, since Focus is a list and not a dashboard. The sidebar has no Focus entry; see [decision 0053](decisions/0053-no-focus-entry-in-the-sidebar.md). The slot is always there and cannot be closed. See [decision 0048](decisions/0048-focus-and-preview-slots.md).
 - It lists active tasks from all projects, or from one group, chosen in a combo box. Tasks in the [trash](#trash), and the tasks of projects in the trash, are left out. The combo box holds "All groups", then the groups in manual order.
 - Each row shows the task title, then its project and group, dimmed, and the [priority](data-model.md#priority) marker of the sidebar, a circle as for every task. Low tasks are dimmed.
 - A right click on a task opens the task's menu from the sidebar: edit, set priority, set state, delete and the rest.

@@ -64,7 +64,6 @@ struct Sidebar::Private
     QLabel *title = nullptr;
     QTabBar *stateTabs = nullptr;       // the task lists: "Projects", "Active", "Done" and "Trash"
     QPushButton *emptyTrash = nullptr;  // shown while the Trash list is current
-    QPushButton *focus = nullptr;       // the Focus entry above the tree
     QHBoxLayout *header = nullptr;
     MenuFiller menuFiller;
     MenuFiller trashMenuFiller;
@@ -251,15 +250,6 @@ Sidebar::Sidebar(const Model &model, const ItemTypeRegistry &types, QWidget *par
     header->addWidget(collapse);
     d->header = header;
 
-    // The Focus entry, above the tree.
-    d->focus = new QPushButton(tr("Focus"), this);
-    d->focus->setObjectName(QStringLiteral("focusEntry"));
-    d->focus->setIcon(QIcon(QStringLiteral(":/icons/focus.svg")));
-    d->focus->setToolTip(tr("Active tasks of every project, most important first"));
-    d->focus->setFlat(true);
-    d->focus->setStyleSheet(QStringLiteral("QPushButton { text-align: left; padding: 4px 8px; }"));
-    connect(d->focus, &QPushButton::clicked, this, &Sidebar::focusRequested);
-
     // The tree.
     d->tree = new SidebarTree(this);
     d->tree->setModel(d->model);
@@ -323,7 +313,6 @@ Sidebar::Sidebar(const Model &model, const ItemTypeRegistry &types, QWidget *par
     layout->setContentsMargins(0, 0, 0, 0);
     layout->setSpacing(0);
     layout->addLayout(header);
-    layout->addWidget(d->focus);
     layout->addWidget(d->tree, 1);
     layout->addLayout(trashRow);
     layout->addLayout(footer);
