@@ -20,6 +20,9 @@ public:
     // Without settings, uses the application's default QSettings. Tests pass
     // their own, which must outlive this object.
     explicit DeviceSettings(QSettings *settings = nullptr);
+    // Keeps the settings in an INI file instead, made if missing. For test
+    // runs that must not change this device's settings: the --settings option.
+    explicit DeviceSettings(const QString &iniFile);
     ~DeviceSettings();
     DeviceSettings(const DeviceSettings &) = delete;
     DeviceSettings &operator=(const DeviceSettings &) = delete;

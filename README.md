@@ -14,6 +14,7 @@ On Windows, with Visual Studio 2022 and its C++ tools installed:
 tools/build.ps1                  # downloads Qt if needed, builds and tests the dev preset
 tools/build.ps1 -Preset release
 tools/run.ps1                    # starts the dev build; -Data <folder> opens that workspace, -Build builds first
+tools/run.ps1 -Data <folder> -Settings <file.ini>   # a test run that leaves this device's settings alone
 ```
 
 On macOS and Linux:

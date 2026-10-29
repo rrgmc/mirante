@@ -11,6 +11,8 @@
 #include <QDir>
 #include <QIcon>
 
+#include <memory>
+
 int main(int argc, char *argv[])
 {
     QApplication app(argc, argv);
@@ -26,13 +28,21 @@ int main(int argc, char *argv[])
                                         QStringLiteral("Open the workspace <folder> instead of the last one."),
                                         QStringLiteral("folder"));
     parser.addOption(dataOption);
+    const QCommandLineOption settingsOption(
+        QStringLiteral("settings"),
+        QStringLiteral("Keep this device's settings in the INI <file> instead, for test runs."),
+        QStringLiteral("file"));
+    parser.addOption(settingsOption);
     parser.process(app);
 
     // Created in the order of docs/architecture.md#ownership-and-lifetime, and
     // destroyed in reverse. Services that do not exist yet are left out. The
     // settings come after the application and organisation names, which
     // choose where QSettings keeps them.
-    mirante::DeviceSettings settings;
+    const auto ownedSettings = parser.isSet(settingsOption)
+        ? std::make_unique<mirante::DeviceSettings>(parser.value(settingsOption))
+        : std::make_unique<mirante::DeviceSettings>();
+    mirante::DeviceSettings &settings = *ownedSettings;
     mirante::ItemTypeRegistry types;
     mirante::registerEnabledModules(types);
 

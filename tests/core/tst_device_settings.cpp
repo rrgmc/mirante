@@ -3,6 +3,7 @@
 #include "core/DeviceSettings.h"
 
 #include <QDir>
+#include <QFileInfo>
 #include <QSettings>
 #include <QTemporaryDir>
 #include <QTest>
@@ -53,6 +54,22 @@ private slots:
         const DeviceSettings::Tabs tabs = device.openTabs(QStringLiteral("C:/work"));
         QVERIFY(!tabs.saved);
         QVERIFY(tabs.ids.isEmpty());
+    }
+
+    // The --settings option: settings kept in an INI file of their own.
+    void ownIniFile()
+    {
+        const QString file = dir->filePath(QStringLiteral("own.ini"));
+        {
+            DeviceSettings device(file);
+            QVERIFY(device.lastWorkspace().isEmpty());
+            device.setLastWorkspace(QStringLiteral("C:/test"));
+        }
+        QVERIFY(QFileInfo::exists(file));
+        QCOMPARE(QSettings(file, QSettings::IniFormat).value(QStringLiteral("workspace/last")).toString(),
+                 QStringLiteral("C:/test"));
+        const DeviceSettings again(file);
+        QCOMPARE(again.lastWorkspace(), QStringLiteral("C:/test"));
     }
 
     // Values written by M2 under its keys are read.

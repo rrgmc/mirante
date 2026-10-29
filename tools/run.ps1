@@ -2,6 +2,8 @@
 #
 #   tools/run.ps1                       the dev build, last workspace used
 #   tools/run.ps1 -Data <folder>        open the workspace in <folder>
+#   tools/run.ps1 -Settings <file>      keep the settings in an INI file, so a
+#                                       test run leaves this device's alone
 #   tools/run.ps1 -Build                build the preset first, without tests
 #   tools/run.ps1 -Preset release       another preset's build
 #
@@ -11,6 +13,7 @@
 param(
     [string]$Preset = 'dev',
     [string]$Data,
+    [string]$Settings,
     [switch]$Build
 )
 
@@ -33,7 +36,11 @@ if (-not (Test-Path $Exe)) { throw "$Exe was not found. Build it with tools/buil
 $QtDir = & (Join-Path $PSScriptRoot 'setup-qt.ps1') | Select-Object -Last 1
 $env:PATH = "$(Join-Path $QtDir 'bin');$env:PATH"
 
+$AppArgs = @()
+# Start-Process joins its arguments with spaces, so the paths are quoted.
+if ($Data) { $AppArgs += '--data', "`"$((Resolve-Path $Data).Path)`"" }
+# The settings file need not exist yet, so its path is not resolved.
+if ($Settings) { $AppArgs += '--settings', "`"$($ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Settings))`"" }
 $Start = @{ FilePath = $Exe }
-# Start-Process joins its arguments with spaces, so the folder is quoted.
-if ($Data) { $Start.ArgumentList = '--data', "`"$((Resolve-Path $Data).Path)`"" }
+if ($AppArgs) { $Start.ArgumentList = $AppArgs }
 Start-Process @Start
