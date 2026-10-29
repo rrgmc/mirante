@@ -36,10 +36,20 @@ Do these first. They test the [known risk](../web-views.md#known-risk-logins-in-
 
 ## Profiles
 
-- [ ] The same claude.ai URL in a Claude session (web) item in group B asks for a login: group A's login is not visible in group B.
-- [ ] A Web page item in group A with a claude.ai URL also asks for a login: the `web` and `claude` modules have separate profiles ([decision 0040](../decisions/0040-profiles-per-group-and-module.md)).
-- [ ] Add your Atlassian host to "Sites in the shared profile" in group A and group B. After a login in a Jira Issue (page) item of group A, the same kind of item in group B is signed in too.
-- [ ] Delete group B. Its folders `g-<groupId>-*` under the app's local data folder `profiles/` are gone after a few seconds. Group A's are still there.
+These check the web profiles of [decision 0042](../decisions/0042-user-managed-web-profiles.md). Profile data is under the app's local data folder, in `profiles/`, with one folder `p-<id>` for each profile.
+
+- [ ] After the update, the folders `g-*` and `shared-*` under `profiles/` are gone after a few seconds. The items of the Logins checks ask for a login again, once per profile.
+- [ ] File > Web Profiles… opens the list. Default is first. Rename… and Delete… are disabled while Default is selected.
+- [ ] The dialog shows the warning that every item in a profile can read the logins and data of all sites in it.
+- [ ] New profile… creates "Work". A blank name, or "default" in any case, is refused with a message.
+- [ ] Rename… changes "Work" to "Office". The new name shows in the group dialog and the item dialog.
+- [ ] A Web page item and a Claude session (web) item with the same claude.ai URL, both in group A with Default: a login in one is visible in the other.
+- [ ] In the group dialog of group B, choose "Office" as the web profile. The claude.ai item in group B asks for a login: Default's login is not visible in "Office". A new folder `p-<id>` appears.
+- [ ] In the item dialog of a web item in group A, the Web profile list starts with "The group's profile (Default)". Choose "Office". The page reloads and is signed in with the login from group B.
+- [ ] Items that are not web types, such as Notes, have no Web profile choice in the item dialog.
+- [ ] Delete "Office" in File > Web Profiles…. The question names the group and the item that use it. After Yes, those pages reload in the profile they fall back to: the group B item in Default, the group A item in its group's profile, Default. Its folder `p-<id>` is gone after a few seconds.
+- [ ] With two devices on one synced workspace, a profile created on one appears in the list on the other, without its logins.
+- [ ] Delete group A. No folder under `profiles/` goes.
 
 ## Views
 

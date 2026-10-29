@@ -4,6 +4,8 @@
 #include "items/ItemTypeRegistry.h"
 #include "ui/FieldForm.h"
 
+#include <mirante/ItemType.h>
+
 #include <QComboBox>
 #include <QDialogButtonBox>
 #include <QFormLayout>
@@ -21,6 +23,8 @@ struct ItemDialog::Private
     Item item;
     QComboBox *type = nullptr;          // only when creating
     QLineEdit *name = nullptr;
+    QFormLayout *form = nullptr;
+    QComboBox *webProfile = nullptr;    // shown for types whose views are web views
     QVBoxLayout *editorBox = nullptr;
     ItemEditor *editor = nullptr;       // null for an item of a missing module
     QLabel *message = nullptr;          // why OK was refused
@@ -42,6 +46,13 @@ struct ItemDialog::Private
         editorBox->addWidget(editor);
     }
 
+    // The web profile row is shown only for a type whose views are web views.
+    void showWebProfile()
+    {
+        const bool web = types->contains(item.type) && types->type(item.type).rendering() == Rendering::Web;
+        form->setRowVisible(webProfile, web);
+    }
+
     void typeChosen()
     {
         const QString id = type->currentData().toString();
@@ -50,6 +61,7 @@ struct ItemDialog::Private
         item.type = id;
         message->hide();
         makeEditor(defaultConfig(types->type(id).fields()));
+        showWebProfile();
     }
 };
 
@@ -76,6 +88,7 @@ ItemDialog::ItemDialog(const Item &item, bool creating, const ItemTypeRegistry &
     resize(480, 360);
 
     auto *form = new QFormLayout;
+    d->form = form;
     if (creating) {
         d->type = new QComboBox(this);
         d->type->setObjectName(QStringLiteral("type"));
@@ -92,6 +105,11 @@ ItemDialog::ItemDialog(const Item &item, bool creating, const ItemTypeRegistry &
     d->name = new QLineEdit(item.name, this);
     d->name->setObjectName(QStringLiteral("name"));
     form->addRow(tr("Name:"), d->name);
+
+    d->webProfile = new QComboBox(this);
+    d->webProfile->setObjectName(QStringLiteral("webProfile"));
+    d->webProfile->setToolTip(tr("The item can read the logins and data of every site in its profile."));
+    form->addRow(tr("Web profile:"), d->webProfile);
 
     d->editorBox = new QVBoxLayout;
     d->editorBox->setContentsMargins(0, 0, 0, 0);
@@ -122,6 +140,8 @@ ItemDialog::ItemDialog(const Item &item, bool creating, const ItemTypeRegistry &
     layout->addWidget(buttons);
 
     d->makeEditor(config);
+    setWebProfiles({}, tr("Default"));
+    d->showWebProfile();
     if (d->type)
         connect(d->type, &QComboBox::currentIndexChanged, this, [this] { d->typeChosen(); });
 
@@ -141,6 +161,10 @@ Item ItemDialog::value() const
     item.name = d->name->text().trimmed();
     if (d->editor)
         item.config = d->editor->config();
+    // Only a web item chooses a profile. Another keeps what it had, such as
+    // an item of a missing module.
+    if (d->form->isRowVisible(d->webProfile))
+        item.webProfile = d->webProfile->currentData().toString();
     return item;
 }
 
@@ -154,6 +178,29 @@ void ItemDialog::setType(const QString &typeId)
 }
 
 void ItemDialog::setName(const QString &name) { d->name->setText(name); }
+
+void ItemDialog::setWebProfiles(const std::vector<WebProfile> &profiles, const QString &groupProfileName)
+{
+    d->webProfile->clear();
+    d->webProfile->addItem(tr("The group's profile (%1)").arg(groupProfileName), QString());
+    for (const WebProfile &profile : profiles)
+        d->webProfile->addItem(profile.name, profile.id);
+    // A profile that is not listed, because it was deleted or has not arrived
+    // yet, is kept until another is chosen.
+    const QString current = d->item.webProfile;
+    if (d->webProfile->findData(current) < 0)
+        d->webProfile->addItem(tr("Unknown profile, uses the group's"), current);
+    d->webProfile->setCurrentIndex(d->webProfile->findData(current));
+}
+
+void ItemDialog::setWebProfile(const QString &id)
+{
+    const int index = d->webProfile->findData(id);
+    if (index >= 0)
+        d->webProfile->setCurrentIndex(index);
+}
+
+bool ItemDialog::showsWebProfile() const { return d->form->isRowVisible(d->webProfile); }
 
 ItemEditor *ItemDialog::editor() const { return d->editor; }
 

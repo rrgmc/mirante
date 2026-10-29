@@ -285,6 +285,14 @@ void TestStoreReload::workspaceFile()
     const QJsonObject json = QJsonDocument::fromJson(readFile(path(QStringLiteral("workspace.mirante")))).object();
     QCOMPARE(json.value(QStringLiteral("name")).toString(), QStringLiteral("Mine"));
     QCOMPARE(json.value(QStringLiteral("futureField")).toInt(), 3);
+
+    // Web profiles from another device arrive with the file.
+    QSignalSpy profilesChanged(&model, &Model::webProfilesChanged);
+    writeFile(path(QStringLiteral("workspace.mirante")),
+              R"({"schemaVersion":1,"name":"Mine","futureField":3,"webProfiles":[{"id":"w1","name":"Work"}]})");
+    QTRY_VERIFY_WITH_TIMEOUT(model.webProfile(QStringLiteral("w1")), kTimeout);
+    QCOMPARE(model.webProfile(QStringLiteral("w1"))->name, QStringLiteral("Work"));
+    QCOMPARE(profilesChanged.count(), 1);
 }
 
 // Only local edits delete image files. A reload that drops a reference leaves

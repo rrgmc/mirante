@@ -4,6 +4,7 @@
 
 #include <QDir>
 #include <QFile>
+#include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QSignalSpy>
@@ -37,6 +38,7 @@ private slots:
     void emptyFolder();
     void replacesModel();
     void workspaceName();
+    void webProfiles();
 };
 
 void TestStoreLoad::loadsFixtures()
@@ -178,6 +180,41 @@ void TestStoreLoad::replacesModel()
     QVERIFY(store::load(dir.path(), model).empty());
     QVERIFY(model.groups().empty());
     QVERIFY(model.rootDashboards().empty());
+}
+
+// workspace.mirante lists the web profiles. Entries that cannot be used, a
+// repeated id and the id of Default are skipped.
+void TestStoreLoad::webProfiles()
+{
+    Model model;
+    QVERIFY(store::load(QStringLiteral(MIRANTE_FIXTURES_DIR), model).empty());
+    QCOMPARE(model.webProfiles().size(), std::size_t(1));
+    QCOMPARE(model.webProfiles().front().name, QStringLiteral("Work"));
+
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    writeFile(dir.path(), QStringLiteral("workspace.mirante"), R"({ "schemaVersion": 1, "name": "W",
+        "webProfiles": [ { "id": "b", "name": "Bank" }, { "name": "No id" }, 3,
+                         { "id": "default", "name": "Not the Default" }, { "id": "a", "name": "Admin", "color": 1 },
+                         { "id": "b", "name": "Repeat" } ] })");
+    QVERIFY(store::load(dir.path(), model).empty());
+    QCOMPARE(model.webProfiles().size(), std::size_t(2));
+    QCOMPARE(model.webProfiles()[0].id, QStringLiteral("b"));
+    QCOMPARE(model.webProfiles()[0].name, QStringLiteral("Bank"));
+    QCOMPARE(model.webProfiles()[1].id, QStringLiteral("a"));
+    QCOMPARE(model.webProfiles()[1].extra.value(QStringLiteral("color")).toInt(), 1);
+
+    // The file holds them in their order, with their unknown keys.
+    const std::optional<QJsonObject> json = store::fileFor(model, QStringLiteral("workspace.mirante"));
+    QVERIFY(json);
+    const QJsonArray profiles = json->value(QStringLiteral("webProfiles")).toArray();
+    QCOMPARE(profiles.size(), 2);
+    QCOMPARE(profiles.at(1).toObject().value(QStringLiteral("color")).toInt(), 1);
+
+    // Without a name or profiles there is nothing to write.
+    model.setWorkspaceName(QString());
+    model.setWebProfiles({});
+    QVERIFY(!store::fileFor(model, QStringLiteral("workspace.mirante")));
 }
 
 // workspace.mirante holds the workspace's name. Saving it keeps the file's other keys.

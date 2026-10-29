@@ -6,25 +6,35 @@ Web content uses Qt WebEngine, which embeds Chromium. This document describes lo
 
 A `QWebEngineProfile` holds cookies, local storage, cache and site permissions. Pages in different profiles cannot see each other's logins.
 
-Mirante creates these profiles:
+The workspace holds a list of web profiles, each with an id and a name, such as "Work" and "Personal". The user manages the list with File > Web Profiles…; see [ui](ui.md#web-profiles). A profile called Default always exists and cannot be renamed or deleted. See [decision 0042](decisions/0042-user-managed-web-profiles.md).
+
+Mirante creates these `QWebEngineProfile`s:
 
 | Profile | Storage name | Used for |
 |---|---|---|
-| One per group and module | `g-<groupId>-<moduleId>` | All web items of that module in that group, by default |
-| Shared, one per module | `shared-<moduleId>` | Sites that a group sends to the shared profile |
+| One per web profile | `p-<id>`, `p-default` for Default | The web items that use that profile |
 | App | `app` | [Built-in panels](#built-in-panels) only |
 
-The module of an item is the prefix of its type id, before the first dot, such as `gitlab` for `gitlab.mr.page`. Each module has its own profiles, so module code cannot read the logins of another module. The cost is that the same site is logged in to once per module and group. See [decision 0040](decisions/0040-profiles-per-group-and-module.md).
+**Which profile an item uses.** Each group has a default profile, set in the [group dialog](ui.md#group-dialog). Each item of a web type can choose its own in its properties. An item uses the first of these that exists:
+
+1. the item's own profile;
+2. its group's default profile;
+3. Default.
+
+A step that names a profile not in the list is skipped. This happens when the profile was deleted, or when its entry has not arrived from another device yet. The code is `webprofiles::effective` in `src/core/WebProfiles.h`.
+
+**Every item in a profile can read all its logins.** Browsers keep each site's storage apart from other sites. Module code is different. A module that takes the profile with `ItemContext::profile()` can read the cookies of every site in it, and load any page in it. A Jira item and a GitLab item in the same profile can therefore reach each other's sessions. Putting items in one profile means the user trusts them together. The web profiles dialog shows this warning. To keep two things apart, use two profiles.
 
 Rules:
 
 - **Persistence.** All profiles are persistent, so logins survive restarts. Each one uses `ForcePersistentCookies`, because some sites set session cookies that would otherwise be lost. Site permissions are also kept on disk.
-- **Overrides per group.** A group's `profileOverrides` can send a site host to the shared profile of the item's module. Hosts match exactly, ignoring case, so `jira.example.com` does not cover `a.jira.example.com`. For example, the user can log in to Jira once in the shared profile, while claude.ai stays separate for each group. See [decision 0005](decisions/0005-profiles-per-group.md).
 - **User agent.** Every profile sends Chromium's user agent without the `QtWebEngine/<version>` part, so sites see an ordinary Chromium. Some identity providers refuse a browser that names itself embedded. This is the first thing to adjust if a login fails.
 - **Downloads.** A download asks where to save the file, starting in the system download folder.
 - **Ownership.** `ProfileManager` owns every profile and creates it when first needed. A profile must outlive all pages that use it, so the manager deletes pages first at shutdown.
-- **Deleting a group.** This deletes the profiles of all its modules: cookies and HTTP cache are cleared, the profiles are released, and their data folders are removed once the profiles are gone. The folders are found by their `g-<groupId>-` prefix, so the folders of modules missing from this build go too. Chromium may hold a file open for a moment after a profile goes, so removal is tried again for a few seconds. Only a group deleted by the user on this device loses its profiles, not one removed by a sync. See [decision 0039](decisions/0039-profiles-deleted-only-by-local-delete.md).
-- **Location.** Profile data lives in the app's local data folder, under `profiles/<storage name>`, with the HTTP cache in its `cache` subfolder. It is never synced.
+- **A change of profile.** When an item's profile changes, through the item, its group, or the list, its web views are made again in the new profile.
+- **Deleting a profile.** Deleting a profile in the web profiles dialog deletes its logins on this device: cookies and HTTP cache are cleared, the profile is released, and its data folder is removed once the profile is gone. Chromium may hold a file open for a moment after a profile goes, so removal is tried again for a few seconds. Groups and items that named the profile are not changed; they fall back by the order above. A profile that disappears through a sync keeps its folder. Deleting a group deletes no logins. See [decision 0039](decisions/0039-profiles-deleted-only-by-local-delete.md).
+- **Location.** Profile data lives in the app's local data folder, under `profiles/<storage name>`, with the HTTP cache in its `cache` subfolder. It is never synced, so the user logs in once per profile on each device.
+- **Logins from before 0042.** The folders of the earlier profiles, `g-<groupId>-<moduleId>` and `shared-<moduleId>`, are deleted at start. The user logs in again once per profile.
 
 Profiles isolate storage only. All pages run in the same Chromium processes, so this is account separation, not a security sandbox.
 
@@ -80,7 +90,7 @@ The debug build cannot be used for these checks: Qt WebEngine's debug libraries 
 Built-in panels are HTML pages shipped with the app. They show data from the [status cache](integrations.md#polling-and-caching).
 
 - **The `dash://` scheme.** It is registered with `QWebEngineUrlScheme` before `QApplication` is created. It is served by `DashSchemeHandler` from Qt resources, at paths such as `dash://panels/task-summary/index.html`.
-- **The `app` profile.** Built-in panels only load in this profile, never in a group profile.
+- **The `app` profile.** Built-in panels only load in this profile, never in a web profile of the list.
 - **Content Security Policy.** Every response sends `default-src dash:; connect-src 'none'`, so panel pages cannot load remote code or call the network.
 - **The bridge.** Panels talk to the app through `QWebChannel`, using one object named `dash`:
 

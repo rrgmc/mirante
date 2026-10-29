@@ -8,8 +8,8 @@
 
 namespace mirante {
 
-// Creates or edits a group: its name, its connections and the sites in the
-// shared profile. OK is refused while the name is empty. See docs/ui.md#group-dialog.
+// Creates or edits a group: its name, its default web profile and its
+// connections. OK is refused while the name is empty. See docs/ui.md#group-dialog.
 // Implemented in GroupDialog.cpp.
 class GroupDialog : public QDialog
 {
@@ -26,7 +26,12 @@ public:
     // Connections of other kinds are read-only. None by default.
     void setConnectionKinds(const QStringList &kinds);
 
+    // The web profiles offered, from webprofiles::all(). Default is offered
+    // even if missing. Only Default by default.
+    void setWebProfiles(const std::vector<WebProfile> &profiles);
+
     void setName(const QString &name);    // for tests
+    void setWebProfile(const QString &id);   // for tests
 
     void accept() override;
 

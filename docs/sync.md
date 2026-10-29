@@ -8,7 +8,7 @@ The user chooses the data folder on each device. It does not have to be at the s
 
 ```
 <data folder>/
-  workspace.mirante           marks the folder as a workspace; holds its name
+  workspace.mirante           marks the folder as a workspace; holds its name and web profiles
   groups/<uuid>.json
   projects/<uuid>.json
   tasks/<uuid>.json
@@ -34,7 +34,7 @@ The sample data compiled into the app is read-only. Edits change what is shown, 
 - Writes are debounced by 500 ms, so dragging through a layout does not write many times.
 - Deleting an entity deletes its file. Entities that refer to it are cleaned up when they are next loaded. For example, a cell refers to a deleted task: see [normalisation](data-model.md#normalisation).
 - Moving a task or project to the [trash](data-model.md#trash) only changes its file, through its `trashedAt` field, so the trash syncs like any other change. Its file is deleted when the trash is emptied.
-- `workspace.mirante` is never deleted. Its keys other than the name are kept when the name changes.
+- `workspace.mirante` is never deleted. Its keys other than the name and the web profiles are kept when those change.
 - A write that fails, for example because another program holds the file open for a moment, is tried again. While it fails, the warning bar shows it.
 
 ### Image files
@@ -104,4 +104,4 @@ Started with `--settings <file>`, the app keeps these settings in that INI file 
   - Secret Service (libsecret) on Linux.
 - Each token is stored under service `mirante` and key `<groupId>/<connectionId>`. The key contains no secret, so it can be derived from synced data.
 - Tokens are never written to the data folder and never synced. Each device asks for each token once, when an item first needs it. See [decision 0006](decisions/0006-connections-per-group.md).
-- Web login profiles are not synced either. The user logs in once per device and group. See [web views](web-views.md#profiles).
+- Web logins are not synced either. The list of web profiles is synced, in `workspace.mirante`, but the user logs in once per profile on each device. See [web views](web-views.md#profiles).

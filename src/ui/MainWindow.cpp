@@ -1183,6 +1183,8 @@ struct MainWindow::Private
         file->addSeparator();
         QAction *newGroup = file->addAction(MainWindow::tr("New &Group…"));
         QObject::connect(newGroup, &QAction::triggered, q, [this] { revealNew(actions->newGroup()); });
+        QAction *webProfiles = file->addAction(MainWindow::tr("&Web Profiles…"));
+        QObject::connect(webProfiles, &QAction::triggered, q, [this] { actions->editWebProfiles(); });
         file->addSeparator();
         QAction *quit = file->addAction(MainWindow::tr("&Quit"));
         quit->setShortcut(QKeySequence::Quit);

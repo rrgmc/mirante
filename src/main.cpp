@@ -74,6 +74,9 @@ int main(int argc, char *argv[])
     // them. The pool's limit is read once, at start.
     mirante::ProfileManager profiles(QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation)
                                      + QStringLiteral("/profiles"));
+    // Logins from before user-managed profiles are no longer used. See
+    // docs/decisions/0042-user-managed-web-profiles.md.
+    profiles.removeOldProfiles();
     mirante::ViewPool pool;
     pool.setLimit(settings.hiddenViewLimit());
     mirante::MainWindow window(model, types, store, settings, &profiles, &pool);

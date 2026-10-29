@@ -1,6 +1,6 @@
 # 0005. One web login profile per group, with a shared option
 
-- Status: Accepted; the profile part is superseded by [0040](0040-profiles-per-group-and-module.md)
+- Status: Superseded by [0042](0042-user-managed-web-profiles.md); earlier, in part, by [0040](0040-profiles-per-group-and-module.md)
 - Date: 2026-10-28
 
 ## Context

@@ -123,15 +123,17 @@ private slots:
         QVERIFY(group);
         QCOMPARE(group->order, 0);
         QVERIFY(group->connections.empty());
+        QVERIFY(group->webProfile.isEmpty());
+        // webProfile is omitted when empty.
         QCOMPARE(group->toJson(), parse(R"({ "id": "g-1", "name": "", "order": 0, "connections": [],
-            "defaultConnections": {}, "profileOverrides": {} })"));
+            "defaultConnections": {} })"));
     }
 
     void groupFields()
     {
         const auto group = Group::fromJson(parse(R"({ "id": "g-1", "name": "Work", "order": 2,
             "connections": [ { "id": "c-1", "kind": "gitlab" }, { "id": "c-2", "kind": "timetrack" } ],
-            "defaultConnections": { "gitlab": "c-1" },
+            "defaultConnections": { "gitlab": "c-1" }, "webProfile": "w-1",
             "profileOverrides": { "github.com": "shared" } })"));
         QVERIFY(group);
         QCOMPARE(group->name, QStringLiteral("Work"));
@@ -139,7 +141,10 @@ private slots:
         QCOMPARE(group->connections.size(), std::size_t(2));
         QCOMPARE(group->connections[1].kind, QStringLiteral("timetrack"));
         QCOMPARE(group->defaultConnections.value(QStringLiteral("gitlab")), QStringLiteral("c-1"));
-        QCOMPARE(group->profileOverrides.value(QStringLiteral("github.com")).toString(),
+        QCOMPARE(group->webProfile, QStringLiteral("w-1"));
+        // profileOverrides is from before decision 0042. It is kept as an
+        // unknown key.
+        QCOMPARE(group->extra.value(QStringLiteral("profileOverrides")).toObject().value(QStringLiteral("github.com")).toString(),
                  QStringLiteral("shared"));
     }
 
@@ -216,7 +221,7 @@ private slots:
     {
         const auto item = Item::fromJson(parse(R"({ "id": "i-1", "type": "notes.note" })"));
         QVERIFY(item);
-        // connectionId is omitted when empty.
+        // connectionId and webProfile are omitted when empty.
         QCOMPARE(item->toJson(), parse(
             R"({ "id": "i-1", "type": "notes.note", "name": "", "config": {} })"));
     }
@@ -224,12 +229,26 @@ private slots:
     void itemFields()
     {
         const auto item = Item::fromJson(parse(R"({ "id": "i-1", "type": "jira.issue",
-            "name": "ACME-1", "config": { "key": "ACME-1" }, "connectionId": "c-3" })"));
+            "name": "ACME-1", "config": { "key": "ACME-1" }, "connectionId": "c-3", "webProfile": "w-2" })"));
         QVERIFY(item);
         QCOMPARE(item->type, QStringLiteral("jira.issue"));
         QCOMPARE(item->name, QStringLiteral("ACME-1"));
         QCOMPARE(item->config.value(QStringLiteral("key")).toString(), QStringLiteral("ACME-1"));
         QCOMPARE(item->connectionId, QStringLiteral("c-3"));
+        QCOMPARE(item->webProfile, QStringLiteral("w-2"));
+    }
+
+    // WebProfile
+
+    void webProfileFields()
+    {
+        const QJsonObject json = parse(R"({ "id": "w-1", "name": "Work", "color": 3 })");
+        const auto profile = WebProfile::fromJson(json);
+        QVERIFY(profile);
+        QCOMPARE(profile->id, QStringLiteral("w-1"));
+        QCOMPARE(profile->name, QStringLiteral("Work"));
+        QCOMPARE(profile->toJson(), json);
+        QVERIFY(!WebProfile::fromJson(parse(R"({ "name": "No id" })")));
     }
 
     // Dashboard and RootDashboard
@@ -416,11 +435,12 @@ private slots:
             "connectionOverrides": { "gitlab": 3 } })"));
 
         const QJsonObject groupJson = parse(R"({ "id": "g-1", "name": null, "order": "1",
-            "connections": 0, "defaultConnections": [], "profileOverrides": "shared" })");
+            "connections": 0, "defaultConnections": [], "webProfile": 7 })");
         const auto group = Group::fromJson(groupJson);
         QVERIFY(group);
         QVERIFY(group->name.isEmpty());
         QCOMPARE(group->order, 0);
+        QVERIFY(group->webProfile.isEmpty());
         QCOMPARE(group->extra.size(), 5);
         QCOMPARE(group->toJson(), groupJson);
 
@@ -532,7 +552,7 @@ private slots:
                 { "id": "c-2", "kind": "timetrack", "name": "Hours", "baseUrl": "https:\/\/t.example",
                   "fields": { "team": 4 }, "region": "eu" } ],
             "defaultConnections": { "gitlab": "c-1", "timetrack": "c-2" },
-            "profileOverrides": { "gitlab.com": "shared" }, "schemaVersion": 1 })");
+            "webProfile": "w-1", "profileOverrides": { "gitlab.com": "shared" }, "schemaVersion": 1 })");
         QTest::newRow("project") << "Project" << QByteArray(R"({ "id": "p-1", "groupId": "g-1",
             "name": "Backend", "priority": 3, "order": 7,
             "folders": [ { "id": "f-1", "name": "backend", "remoteUrl": "git@x:a/b.git", "main": true },

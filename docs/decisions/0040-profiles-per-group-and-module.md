@@ -1,6 +1,6 @@
 # 0040. One web login profile per group and module
 
-- Status: Accepted
+- Status: Superseded by [0042](0042-user-managed-web-profiles.md)
 - Date: 2026-10-29
 
 ## Context

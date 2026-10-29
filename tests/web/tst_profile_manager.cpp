@@ -1,6 +1,6 @@
 // Tests ProfileManager in a temporary folder: the storage names, folders and
-// settings of the profiles, cookie isolation between groups and between
-// modules, the shared profile for overridden hosts, and removing a group.
+// settings of the profiles, cookie isolation between profiles, removing a
+// profile, and removing the profiles from before decision 0042.
 // No test uses the network.
 #include "core/Entities.h"
 #include "web/ProfileManager.h"
@@ -131,23 +131,23 @@ private slots:
 
     void storageNamesAndFolders()
     {
-        QWebEngineProfile *group = manager->groupProfile(QStringLiteral("A"), QStringLiteral("web"));
-        QWebEngineProfile *shared = manager->sharedProfile(QStringLiteral("web"));
+        QWebEngineProfile *standard = manager->profile(kDefaultWebProfile);
+        QWebEngineProfile *work = manager->profile(QStringLiteral("work-id"));
         QWebEngineProfile *app = manager->appProfile();
-        QVERIFY(group && shared && app);
+        QVERIFY(standard && work && app);
 
-        QCOMPARE(group->storageName(), QStringLiteral("g-A-web"));
-        QCOMPARE(shared->storageName(), QStringLiteral("shared-web"));
+        QCOMPARE(standard->storageName(), QStringLiteral("p-default"));
+        QCOMPARE(work->storageName(), QStringLiteral("p-work-id"));
         QCOMPARE(app->storageName(), QStringLiteral("app"));
 
-        // Made once, then reused.
-        QCOMPARE(manager->groupProfile(QStringLiteral("A"), QStringLiteral("web")), group);
-        QCOMPARE(manager->sharedProfile(QStringLiteral("web")), shared);
+        // Made once, then reused. An empty id means Default.
+        QCOMPARE(manager->profile(kDefaultWebProfile), standard);
+        QCOMPARE(manager->profile(QString()), standard);
+        QCOMPARE(manager->profile(QStringLiteral("work-id")), work);
         QCOMPARE(manager->appProfile(), app);
-        QVERIFY(manager->groupProfile(QStringLiteral("A"), QStringLiteral("jira")) != group);
-        QVERIFY(manager->groupProfile(QStringLiteral("B"), QStringLiteral("web")) != group);
+        QVERIFY(manager->profile(QStringLiteral("other")) != work);
 
-        for (QWebEngineProfile *profile : {group, shared, app}) {
+        for (QWebEngineProfile *profile : {standard, work, app}) {
             const QString path = manager->storagePath(profile->storageName());
             QCOMPARE(normalized(path), normalized(QDir(root->path()).filePath(profile->storageName())));
             QCOMPARE(normalized(profile->persistentStoragePath()), normalized(path));
@@ -162,99 +162,99 @@ private slots:
         }
     }
 
-    void cookiesStayInTheirGroup()
+    // Ids come from synced files, so one that could name another folder gives
+    // Default.
+    void oddIdsGiveDefault()
     {
-        const QSet<QString> seen = cookiesSeenByOther(manager->groupProfile(QStringLiteral("A"), QStringLiteral("web")),
-                                                      manager->groupProfile(QStringLiteral("B"), QStringLiteral("web")));
+        QCOMPARE(ProfileManager::storageName(QStringLiteral("../x")), QStringLiteral("p-default"));
+        QCOMPARE(ProfileManager::storageName(QStringLiteral("a/b")), QStringLiteral("p-default"));
+        QCOMPARE(ProfileManager::storageName(QStringLiteral("0b4c-9A_z")), QStringLiteral("p-0b4c-9A_z"));
+        QCOMPARE(manager->profile(QStringLiteral("..")), manager->profile(kDefaultWebProfile));
+    }
+
+    void cookiesStayInTheirProfile()
+    {
+        const QSet<QString> seen = cookiesSeenByOther(manager->profile(QStringLiteral("a")),
+                                                      manager->profile(QStringLiteral("b")));
         QVERIFY2(seen.contains(QStringLiteral("fromB")), qPrintable(joined(seen)));
         QVERIFY2(!seen.contains(QStringLiteral("fromA")), qPrintable(joined(seen)));
     }
 
-    void cookiesStayInTheirModule()
+    void removeProfileRemovesItsFolder()
     {
-        const QSet<QString> seen = cookiesSeenByOther(manager->groupProfile(QStringLiteral("A"), QStringLiteral("gitlab")),
-                                                      manager->groupProfile(QStringLiteral("A"), QStringLiteral("jira")));
-        QVERIFY2(seen.contains(QStringLiteral("fromB")), qPrintable(joined(seen)));
-        QVERIFY2(!seen.contains(QStringLiteral("fromA")), qPrintable(joined(seen)));
-    }
+        QWebEngineProfile *work = manager->profile(QStringLiteral("work"));
+        manager->profile(QStringLiteral("workshop"));
+        manager->profile(kDefaultWebProfile);
 
-    void overriddenHostUsesTheSharedProfile()
-    {
-        Group group;
-        group.id = QStringLiteral("A");
-        group.profileOverrides.insert(QStringLiteral("Jira.Example.com"), QStringLiteral("shared"));
-
-        QWebEngineProfile *shared = manager->sharedProfile(QStringLiteral("jira"));
-        QWebEngineProfile *own = manager->groupProfile(QStringLiteral("A"), QStringLiteral("jira"));
-
-        QCOMPARE(manager->profileFor(group, QStringLiteral("jira"), QUrl(QStringLiteral("https://jira.example.com/browse/X-1"))), shared);
-        QCOMPARE(manager->profileFor(group, QStringLiteral("jira"), QUrl(QStringLiteral("https://JIRA.example.com/"))), shared);
-        // Another host, and a subdomain, stay in the group's own profile.
-        QCOMPARE(manager->profileFor(group, QStringLiteral("jira"), QUrl(QStringLiteral("https://example.com/"))), own);
-        QCOMPARE(manager->profileFor(group, QStringLiteral("jira"), QUrl(QStringLiteral("https://a.jira.example.com/"))), own);
-        // The shared profile belongs to the item's module.
-        QCOMPARE(manager->profileFor(group, QStringLiteral("web"), QUrl(QStringLiteral("https://jira.example.com/"))),
-                 manager->sharedProfile(QStringLiteral("web")));
-    }
-
-    void removeGroupRemovesEveryModulesFolder()
-    {
-        QWebEngineProfile *web = manager->groupProfile(QStringLiteral("A"), QStringLiteral("web"));
-        QWebEngineProfile *gitlab = manager->groupProfile(QStringLiteral("A"), QStringLiteral("gitlab"));
-        manager->groupProfile(QStringLiteral("B"), QStringLiteral("web"));
-        manager->sharedProfile(QStringLiteral("web"));
-
-        // Write a cookie to disk in a loaded profile. The page goes before
-        // the group is removed, as the app closes a group's pages first.
+        // Write a cookie to disk in the loaded profile. The page goes before
+        // the profile is removed, as the app's views go first.
         {
-            CookieNames inWeb(web);
-            QVERIFY(inWeb.load());
-            inWeb.set("session");
-            QVERIFY(inWeb.waitFor(QStringLiteral("session")));
+            CookieNames inWork(work);
+            QVERIFY(inWork.load());
+            inWork.set("session");
+            QVERIFY(inWork.waitFor(QStringLiteral("session")));
         }
 
-        // The folder of a module missing from this build, never loaded.
-        const QString absent = manager->storagePath(QStringLiteral("g-A-absent"));
-        QVERIFY(QDir().mkpath(QDir(absent).filePath(QStringLiteral("cache"))));
-        QFile file(QDir(absent).filePath(QStringLiteral("Cookies")));
-        QVERIFY(file.open(QIODevice::WriteOnly));
-        file.write("x");
-        file.close();
+        // A profile that is not loaded loses its folder too.
+        const QString unloaded = manager->storagePath(QStringLiteral("p-unloaded"));
+        QVERIFY(QDir().mkpath(QDir(unloaded).filePath(QStringLiteral("cache"))));
 
-        // A group whose id starts with the same letter keeps its folder.
-        const QString similar = manager->storagePath(QStringLiteral("g-AB-web"));
-        QVERIFY(QDir().mkpath(similar));
-
-        QPointer<QWebEngineProfile> released(gitlab);
-        manager->removeGroup(QStringLiteral("A"));
+        QPointer<QWebEngineProfile> released(work);
+        manager->removeProfile(QStringLiteral("work"));
+        manager->removeProfile(QStringLiteral("unloaded"));
+        // Default is never removed.
+        manager->removeProfile(kDefaultWebProfile);
+        manager->removeProfile(QString());
 
         QTRY_VERIFY_WITH_TIMEOUT(released.isNull(), 5000);
-        QTRY_VERIFY_WITH_TIMEOUT(!QDir(manager->storagePath(QStringLiteral("g-A-web"))).exists(), 15000);
-        QTRY_VERIFY_WITH_TIMEOUT(!QDir(manager->storagePath(QStringLiteral("g-A-gitlab"))).exists(), 15000);
-        QTRY_VERIFY_WITH_TIMEOUT(!QDir(absent).exists(), 15000);
+        QTRY_VERIFY_WITH_TIMEOUT(!QDir(manager->storagePath(QStringLiteral("p-work"))).exists(), 15000);
+        QTRY_VERIFY_WITH_TIMEOUT(!QDir(unloaded).exists(), 15000);
 
-        QVERIFY(QDir(manager->storagePath(QStringLiteral("g-B-web"))).exists());
-        QVERIFY(QDir(manager->storagePath(QStringLiteral("shared-web"))).exists());
-        QVERIFY(QDir(similar).exists());
+        QVERIFY(QDir(manager->storagePath(QStringLiteral("p-workshop"))).exists());
+        QVERIFY(QDir(manager->storagePath(QStringLiteral("p-default"))).exists());
+        QCOMPARE(manager->profile(kDefaultWebProfile)->storageName(), QStringLiteral("p-default"));
     }
 
-    // The manager is destroyed right after removeGroup, while the released
-    // profile still clears its cache. It must wait for that, not crash.
-    void managerGoesRightAfterRemoveGroup()
+    // The folders of the profiles per group and module, and the shared ones,
+    // go at start. The new profiles and the app profile stay.
+    void oldProfilesGo()
     {
-        QPointer<QWebEngineProfile> profile = manager->groupProfile(QStringLiteral("A"), QStringLiteral("web"));
-        {
-            CookieNames inWeb(profile);
-            QVERIFY(inWeb.load());
+        const QStringList old{QStringLiteral("g-A-web"), QStringLiteral("g-B-gitlab"), QStringLiteral("shared-jira")};
+        for (const QString &name : old) {
+            const QString path = manager->storagePath(name);
+            QVERIFY(QDir().mkpath(QDir(path).filePath(QStringLiteral("cache"))));
+            QFile file(QDir(path).filePath(QStringLiteral("Cookies")));
+            QVERIFY(file.open(QIODevice::WriteOnly));
+            file.write("x");
         }
-        manager->removeGroup(QStringLiteral("A"));
+        manager->profile(QStringLiteral("g"));     // "p-g", not an old one
+        manager->appProfile();
+
+        manager->removeOldProfiles();
+
+        for (const QString &name : old)
+            QTRY_VERIFY_WITH_TIMEOUT(!QDir(manager->storagePath(name)).exists(), 15000);
+        QVERIFY(QDir(manager->storagePath(QStringLiteral("p-g"))).exists());
+        QVERIFY(QDir(manager->storagePath(QStringLiteral("app"))).exists());
+    }
+
+    // The manager is destroyed right after removeProfile, while the released
+    // profile still clears its cache. It must wait for that, not crash.
+    void managerGoesRightAfterRemoveProfile()
+    {
+        QPointer<QWebEngineProfile> profile = manager->profile(QStringLiteral("a"));
+        {
+            CookieNames inA(profile);
+            QVERIFY(inA.load());
+        }
+        manager->removeProfile(QStringLiteral("a"));
         manager.reset();
         QVERIFY(profile.isNull());
     }
 
     void profilesGoWithTheManager()
     {
-        QPointer<QWebEngineProfile> profile = manager->groupProfile(QStringLiteral("A"), QStringLiteral("web"));
+        QPointer<QWebEngineProfile> profile = manager->profile(QStringLiteral("a"));
         QVERIFY(profile);
         manager.reset();
         QVERIFY(profile.isNull());

@@ -10,6 +10,7 @@
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
+#include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonParseError>
 #include <QJsonValue>
@@ -37,6 +38,7 @@ const QString kDashboards = QStringLiteral("dashboards");
 const QString kFiles = QStringLiteral("files");
 const QString kWorkspaceFile = QStringLiteral("workspace.mirante");
 const QString kName = QStringLiteral("name");
+const QString kWebProfiles = QStringLiteral("webProfiles");
 const QString kJson = QStringLiteral(".json");
 
 // A write can fail for a moment while another program, such as a virus scanner
@@ -242,9 +244,27 @@ std::optional<QJsonObject> readWorkspaceFile(const QString &dir, Loaded *loaded)
     return json;
 }
 
+// The web profiles listed in workspace.mirante. An entry that cannot be used,
+// one that repeats an id, and one with the id of Default, are skipped.
+std::vector<WebProfile> webProfilesOf(const QJsonObject &workspace)
+{
+    std::vector<WebProfile> profiles;
+    QSet<QString> ids;
+    for (const QJsonValue &value : workspace.value(kWebProfiles).toArray()) {
+        std::optional<WebProfile> profile = WebProfile::fromJson(value.toObject());
+        if (!profile || profile->id == kDefaultWebProfile || ids.contains(profile->id))
+            continue;
+        ids.insert(profile->id);
+        profiles.push_back(std::move(*profile));
+    }
+    return profiles;
+}
+
+// The keys of workspace.mirante that the model does not hold.
 QJsonObject withoutName(QJsonObject json)
 {
     json.remove(kName);
+    json.remove(kWebProfiles);
     json.remove(kSchemaVersion);
     return json;
 }
@@ -272,6 +292,7 @@ Loaded loadFolder(const QString &dir, Model &model)
     model.reset(std::move(groups), std::move(projects), std::move(tasks), std::move(dashboards));
     if (workspace) {
         model.setWorkspaceName(workspace->value(kName).toString());
+        model.setWebProfiles(webProfilesOf(*workspace));
         loaded.workspaceExtra = withoutName(*workspace);
     }
     return loaded;
@@ -298,10 +319,18 @@ std::optional<QJsonObject> fileFor(const Model &model, const QString &relPath)
     if (!ref)
         return std::nullopt;
     switch (ref->kind) {
-    case FileKind::Workspace:
-        if (model.workspaceName().isEmpty())
+    case FileKind::Workspace: {
+        if (model.workspaceName().isEmpty() && model.webProfiles().empty())
             return std::nullopt;
-        return withSchemaVersion(QJsonObject{{kName, model.workspaceName()}});
+        QJsonObject json{{kName, model.workspaceName()}};
+        if (!model.webProfiles().empty()) {
+            QJsonArray profiles;
+            for (const WebProfile &profile : model.webProfiles())
+                profiles.append(profile.toJson());
+            json.insert(kWebProfiles, profiles);
+        }
+        return withSchemaVersion(json);
+    }
     case FileKind::Group:
         if (const Group *group = model.group(ref->id))
             return withSchemaVersion(group->toJson());
@@ -587,6 +616,7 @@ Store::Private::Reload Store::Private::reloadFile(const QString &path)
     case FileKind::Workspace:
         workspaceExtra = withoutName(*json);
         model->setWorkspaceName(json->value(kName).toString());
+        model->setWebProfiles(webProfilesOf(*json));
         break;
     case FileKind::Group:
         if (const std::optional<Group> group = entityOf<Group>(*json, ref->id, &message))
@@ -856,6 +886,7 @@ Store::Store(Model &model, QObject *parent)
     connect(&model, &Model::rootDashboardChanged, this, on(kDashboards));
     connect(&model, &Model::rootDashboardRemoved, this, on(kDashboards));
     connect(&model, &Model::workspaceNameChanged, this, [this] { d->workspaceSignal(); });
+    connect(&model, &Model::webProfilesChanged, this, [this] { d->workspaceSignal(); });
     // modelReset comes from loading, which writes nothing.
 }
 

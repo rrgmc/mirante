@@ -64,6 +64,13 @@ public:
     QString workspaceName() const;
     void setWorkspaceName(const QString &name);
 
+    // The workspace's web profiles, from workspace.mirante, in their stored
+    // order. The Default profile is not among them; see core/WebProfiles.h.
+    // reset() clears them.
+    const std::vector<WebProfile> &webProfiles() const;
+    const WebProfile *webProfile(const QString &id) const;   // nullptr if not listed
+    void setWebProfiles(const std::vector<WebProfile> &profiles);
+
     // Whether a task is in the trash: its own trashedAt is set, or its
     // project's is. See docs/data-model.md#task.
     bool taskInTrash(const Task &task) const;
@@ -100,6 +107,7 @@ public:
 signals:
     void modelReset();
     void workspaceNameChanged();
+    void webProfilesChanged();
     void groupAdded(const QString &id);
     void groupChanged(const QString &id);
     void groupRemoved(const QString &id);

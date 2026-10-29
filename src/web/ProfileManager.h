@@ -5,16 +5,13 @@
 
 #include <memory>
 
-class QUrl;
 class QWebEngineProfile;
 
 namespace mirante {
 
-struct Group;
-
-// Creates and owns the web login profiles: one per group and module, one
-// shared profile per module, and the app profile. See docs/web-views.md#profiles
-// and docs/decisions/0040-profiles-per-group-and-module.md.
+// Creates and owns the web login profiles: one for each web profile of the
+// workspace, by its id, and the app profile. See docs/web-views.md#profiles
+// and docs/decisions/0042-user-managed-web-profiles.md.
 // Implemented in ProfileManager.cpp.
 //
 // A profile must outlive every page that uses it, so the manager is destroyed
@@ -29,29 +26,35 @@ public:
     explicit ProfileManager(const QString &root, QObject *parent = nullptr);
     ~ProfileManager() override;
 
-    // "g-<groupId>-<moduleId>", made when first asked for.
-    QWebEngineProfile *groupProfile(const QString &groupId, const QString &moduleId);
-    // "shared-<moduleId>".
-    QWebEngineProfile *sharedProfile(const QString &moduleId);
+    // The storage name of a web profile: "p-<id>". An id that is not made of
+    // letters, digits, "-" and "_" gives the name of Default.
+    static QString storageName(const QString &profileId);
+
+    // The profile with this id, made when first asked for. An empty id means
+    // Default. The manager does not check that the workspace lists the id;
+    // webprofiles::effective() does that.
+    QWebEngineProfile *profile(const QString &profileId);
     // "app", for built-in panels from M9.
     QWebEngineProfile *appProfile();
 
-    // The module's profile in the group, or the module's shared one if the
-    // group's profileOverrides sends the URL's host there. Hosts match
-    // exactly, ignoring case.
-    QWebEngineProfile *profileFor(const Group &group, const QString &moduleId, const QUrl &url);
+    // Clears the cookies and cache of a profile, then removes its folder once
+    // no page uses it. Called only when the user deletes the profile on this
+    // device; see docs/decisions/0039-profiles-deleted-only-by-local-delete.md.
+    // Default is never removed.
+    void removeProfile(const QString &profileId);
 
-    // Clears the cookies and cache of every module's profile of the group,
-    // then removes their folders once no page uses them. The folders are found
-    // by their "g-<groupId>-" prefix, so profiles of modules missing from this
-    // build go too. Called only when the user deletes a group on this device;
-    // see docs/decisions/0039-profiles-deleted-only-by-local-delete.md.
-    void removeGroup(const QString &groupId);
+    // Removes the folders of the profiles from before decision 0042,
+    // "g-<groupId>-<moduleId>" and "shared-<moduleId>". main.cpp calls it at
+    // start. Once they are gone, it finds nothing.
+    void removeOldProfiles();
 
     // The data folder of a profile, by its storage name.
     QString storagePath(const QString &storageName) const;
 
 private:
+    // Removes the profile with this storage name, loaded or not, and its folder.
+    void removeStorage(const QString &storageName);
+
     struct Private;
     std::unique_ptr<Private> d;
 };

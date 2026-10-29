@@ -1,6 +1,6 @@
 # 0039. A group's web profile is deleted only when the group is deleted on this device
 
-- Status: Accepted
+- Status: Accepted; applies to web profiles instead of groups by [0042](0042-user-managed-web-profiles.md)
 - Date: 2026-10-29
 
 ## Context

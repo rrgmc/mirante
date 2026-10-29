@@ -54,6 +54,22 @@ struct Connection
     QJsonObject toJson() const;
 };
 
+// A web login profile of the workspace, listed in workspace.mirante. The
+// Default profile is not listed; it always exists, with id kDefaultWebProfile.
+// See docs/web-views.md#profiles.
+struct WebProfile
+{
+    QString id;
+    QString name;
+    QJsonObject extra;
+
+    static std::optional<WebProfile> fromJson(const QJsonObject &json, QString *error = nullptr);
+    QJsonObject toJson() const;
+};
+
+// The id of the Default web profile.
+inline const QString kDefaultWebProfile = QStringLiteral("default");
+
 struct Group
 {
     QString id;
@@ -61,7 +77,7 @@ struct Group
     int order = 0;
     std::vector<Connection> connections;
     QMap<QString, QString> defaultConnections;   // connection kind to connection id
-    QJsonObject profileOverrides;                // site host to "shared"
+    QString webProfile;                          // id of the default web profile; empty for Default
     QJsonObject extra;
 
     static std::optional<Group> fromJson(const QJsonObject &json, QString *error = nullptr);
@@ -94,6 +110,7 @@ struct Item
     QString name;
     QJsonObject config;         // fields of the item type; opaque to the core
     QString connectionId;       // empty if not set
+    QString webProfile;         // id of a web profile overriding the group's; empty if not set
     QJsonObject extra;
 
     static std::optional<Item> fromJson(const QJsonObject &json, QString *error = nullptr);
@@ -143,6 +160,7 @@ struct Task
 
 bool operator==(const Folder &a, const Folder &b);
 bool operator==(const Connection &a, const Connection &b);
+bool operator==(const WebProfile &a, const WebProfile &b);
 bool operator==(const Group &a, const Group &b);
 bool operator==(const Project &a, const Project &b);
 bool operator==(const Item &a, const Item &b);
@@ -152,6 +170,7 @@ bool operator==(const Task &a, const Task &b);
 
 inline bool operator!=(const Folder &a, const Folder &b) { return !(a == b); }
 inline bool operator!=(const Connection &a, const Connection &b) { return !(a == b); }
+inline bool operator!=(const WebProfile &a, const WebProfile &b) { return !(a == b); }
 inline bool operator!=(const Group &a, const Group &b) { return !(a == b); }
 inline bool operator!=(const Project &a, const Project &b) { return !(a == b); }
 inline bool operator!=(const Item &a, const Item &b) { return !(a == b); }

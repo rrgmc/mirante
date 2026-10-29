@@ -61,7 +61,7 @@ Mirante is a personal desktop dashboard for all of one person's work, built with
 
 **Connection.** The details for calling one API: kind, base URL and the kind's own fields, such as an email for Jira Cloud. The token is kept in the keychain. Connections belong to a group.
 
-**Profile.** A web login storage (cookies and site data). Each group has one, and sites can be sent to a shared profile instead.
+**Profile.** A web login storage (cookies and site data), also called a web profile. The workspace holds a list of them, with Default always there. Each group chooses a default profile, and a web item can choose its own. Logins stay on each device.
 
 **Status cache.** The part of the app that polls GitLab and Jira, keeps the results and computes attention.
 

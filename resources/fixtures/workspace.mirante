@@ -1,4 +1,10 @@
 {
     "name": "Sample data",
-    "schemaVersion": 1
+    "schemaVersion": 1,
+    "webProfiles": [
+        {
+            "id": "3f6c2a8e-5d1b-4c7a-9e2f-8b0d4a6c1e93",
+            "name": "Work"
+        }
+    ]
 }
