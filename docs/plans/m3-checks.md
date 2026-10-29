@@ -4,11 +4,10 @@ These are the checks for [milestone M3](../roadmap.md#m3-data-folder-and-editing
 
 ```powershell
 tools/build.ps1
-$env:PATH = "$env:MIRANTE_QT_ROOT\6.8.3\msvc2022_64\bin;$env:PATH"
-build/dev/mirante.exe
+tools/run.ps1
 ```
 
-From M3 the app writes to the workspace. Use a new workspace for these checks (File > New Workspace…), or a copy of `resources/fixtures` opened with `--data <that folder>`. Never point it at data you want to keep until these checks pass.
+From M3 the app writes to the workspace. Use a new workspace for these checks (File > New Workspace…), or a copy of `resources/fixtures` opened with `tools/run.ps1 -Data <that folder>`. Never point it at data you want to keep until these checks pass.
 
 Tick each box, or note what is wrong next to it.
 
