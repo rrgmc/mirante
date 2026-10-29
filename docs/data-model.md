@@ -200,7 +200,7 @@ After every edit, the app cleans the tree:
 1. A split with one child is replaced by that child.
 2. A split whose child is a split in the same direction absorbs that child's children, with sizes scaled to match.
 3. A tabs node with no tabs is replaced by an empty cell.
-4. A tabs node with one tab keeps its tab bar, unless `collapseSingle` is `true`. Then it is replaced by the tab's node.
+4. A tabs node with one tab keeps its tab bar, unless `collapseSingle` is `true`. Then it is replaced by the tab's node. The app no longer offers `collapseSingle` as a setting. It still reads and honours the flag in existing files. "Ungroup" in the tab menu sets it on a group of one tab, so this rule removes the group at once.
 5. Removing an item from a cell leaves an empty cell, not a gap.
 6. A cell that refers to a deleted item, task or dashboard becomes an empty cell showing "Removed".
 7. A tabs node with one tab whose node is another tabs node is replaced by that inner tabs node. A tab bar with one tab around another tab bar shows nothing new.
