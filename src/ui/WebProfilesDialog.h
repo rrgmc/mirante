@@ -10,10 +10,10 @@ namespace mirante {
 class Model;
 
 // Lists the workspace's web profiles, Default first, and creates, renames and
-// deletes them. Changes go to the model at once. Default cannot be renamed or
-// deleted. A warning says that every item in a profile can read the logins of
-// all sites in it. Opened with File > Web Profiles…. See
-// docs/ui.md#web-profiles. Implemented in WebProfilesDialog.cpp.
+// deletes them, and clears a profile's data on this device. Changes go to the
+// model at once. Default cannot be renamed or deleted, but can be cleared. A
+// warning says that every item in a profile can read the logins of all sites
+// in it. Opened with File > Web Profiles…. See docs/ui.md#web-profiles. Implemented in WebProfilesDialog.cpp.
 class WebProfilesDialog : public QDialog
 {
     Q_OBJECT
@@ -27,6 +27,9 @@ public:
     void setAskName(std::function<QString(const QString &title, const QString &text)> ask);
     // Asks the user to confirm a deletion. The default shows a message box.
     void setConfirm(std::function<bool(const QString &question)> confirm);
+    // Asks the user to confirm clearing the data of the named profile. The
+    // default shows a warning with the warning icon; tests replace it.
+    void setConfirmClear(std::function<bool(const QString &profileName)> confirm);
 
     // The ids in the list, in its order: Default first, then by name.
     QStringList ids() const;
@@ -36,10 +39,13 @@ public:
     void addProfile();
     void renameSelected();
     void deleteSelected();
+    void clearSelected();
 
 signals:
     // A profile was deleted from the list. Its logins on this device go next.
     void profileDeleted(const QString &id);
+    // The user chose to clear a profile's logins and site data on this device.
+    void profileClearRequested(const QString &id);
 
 private:
     struct Private;

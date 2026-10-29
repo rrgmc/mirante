@@ -80,13 +80,16 @@ void askWhereToSave(QWebEngineDownloadRequest *download)
 
 // Removes a folder, trying again for a while if a file in it is still in use.
 // The timer stops when the manager is destroyed.
-void removeFolderSoon(QObject *owner, const QString &path, int attemptsLeft)
+void removeFolderSoon(QObject *owner, const QString &path, int attemptsLeft, std::function<void()> done)
 {
     QDir dir(path);
-    if (!dir.exists() || dir.removeRecursively() || attemptsLeft <= 1)
+    if (!dir.exists() || dir.removeRecursively() || attemptsLeft <= 1) {
+        if (done)
+            done();
         return;
-    QTimer::singleShot(kRemoveIntervalMs, owner, [owner, path, attemptsLeft] {
-        removeFolderSoon(owner, path, attemptsLeft - 1);
+    }
+    QTimer::singleShot(kRemoveIntervalMs, owner, [owner, path, attemptsLeft, done = std::move(done)]() mutable {
+        removeFolderSoon(owner, path, attemptsLeft - 1, std::move(done));
     });
 }
 
@@ -106,6 +109,10 @@ struct ProfileManager::Private
     QSet<QWebEngineProfile *> clearing;
     // Folders still to remove when the manager is destroyed.
     QStringList pendingFolders;
+    // Storage names of profiles being cleared, and the temporary profile that
+    // stands in for them meanwhile.
+    QSet<QString> clearingNames;
+    QWebEngineProfile *standIn = nullptr;
 };
 
 ProfileManager::ProfileManager(const QString &root, QObject *parent)
@@ -122,6 +129,8 @@ ProfileManager::~ProfileManager()
     for (QWebEngineProfile *profile : std::as_const(d->profiles))
         delete profile;
     d->profiles.clear();
+    delete d->standIn;
+    d->standIn = nullptr;
     // Released profiles still clearing their cache cannot be deleted safely
     // yet, so wait a little for the clears to end.
     if (!d->clearing.isEmpty()) {
@@ -188,7 +197,17 @@ QString ProfileManager::storageName(const QString &profileId)
 
 QWebEngineProfile *ProfileManager::profile(const QString &profileId)
 {
-    return profileNamed(this, d->profiles, storageName(profileId.isEmpty() ? kDefaultWebProfile : profileId));
+    const QString name = storageName(profileId.isEmpty() ? kDefaultWebProfile : profileId);
+    // A profile being cleared must not be made again over its folder. A
+    // profile without a storage name is off the record: it keeps nothing.
+    if (d->clearingNames.contains(name)) {
+        if (!d->standIn) {
+            d->standIn = new QWebEngineProfile(this);
+            d->standIn->setHttpUserAgent(plainUserAgent(d->standIn->httpUserAgent()));
+        }
+        return d->standIn;
+    }
+    return profileNamed(this, d->profiles, name);
 }
 
 QWebEngineProfile *ProfileManager::appProfile()
@@ -196,22 +215,29 @@ QWebEngineProfile *ProfileManager::appProfile()
     return profileNamed(this, d->profiles, QStringLiteral("app"));
 }
 
-void ProfileManager::removeStorage(const QString &storageName)
+void ProfileManager::removeStorage(const QString &storageName, std::function<void()> done)
 {
     const QString path = storagePath(storageName);
     if (d->pendingFolders.contains(path))
         return;
     d->pendingFolders.append(path);
+    // Once the folder is gone, it can be removed again later, such as a
+    // profile cleared twice.
+    auto finished = [this, path, done = std::move(done)] {
+        d->pendingFolders.removeAll(path);
+        if (done)
+            done();
+    };
 
     QWebEngineProfile *profile = d->profiles.take(storageName);
     if (!profile) {
-        removeFolderSoon(this, path, kRemoveAttempts);
+        removeFolderSoon(this, path, kRemoveAttempts, std::move(finished));
         return;
     }
     // A loaded profile: clear what can be cleared now, then release it. Its
     // folder is removed once the profile is gone.
-    connect(profile, &QObject::destroyed, this, [this, path] {
-        removeFolderSoon(this, path, kRemoveAttempts);
+    connect(profile, &QObject::destroyed, this, [this, path, finished = std::move(finished)] {
+        removeFolderSoon(this, path, kRemoveAttempts, finished);
     });
     d->released.emplace_back(profile);
     // The profile is deleted only once its cache is cleared; see clearing.
@@ -232,6 +258,28 @@ void ProfileManager::removeProfile(const QString &profileId)
     if (name == storageName(kDefaultWebProfile))
         return;
     removeStorage(name);
+}
+
+void ProfileManager::clearProfile(const QString &profileId)
+{
+    const QString id = profileId.isEmpty() ? QString(kDefaultWebProfile) : profileId;
+    const QString name = storageName(id);
+    if (d->clearingNames.contains(name))
+        return;
+    d->clearingNames.insert(name);
+    emit profileClearing(id);
+    // The views delete their pages later, and the profile must go after them.
+    QTimer::singleShot(0, this, [this, id, name] {
+        removeStorage(name, [this, id, name] {
+            d->clearingNames.remove(name);
+            emit profileCleared(id);
+        });
+    });
+}
+
+bool ProfileManager::isClearing(const QString &profileId) const
+{
+    return d->clearingNames.contains(storageName(profileId.isEmpty() ? kDefaultWebProfile : profileId));
 }
 
 void ProfileManager::removeOldProfiles()

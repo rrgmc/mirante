@@ -455,6 +455,36 @@ private slots:
         QCOMPARE(native->view(), nativeView.data());
     }
 
+    // Clearing a profile drops the views in it at once, so the profile can be
+    // released, and makes them again when the clearing is done.
+    void clearingAProfileDropsItsViewsUntilDone()
+    {
+        QTemporaryDir root;
+        QVERIFY(root.isValid());
+        auto profiles = std::make_unique<ProfileManager>(root.path());
+        services.profiles = profiles.get();
+        auto web = make(QStringLiteral("w1"));
+        auto native = make(QStringLiteral("n1"));
+        web->show();
+        native->show();
+        QPointer<QWidget> webView = web->view();
+        QPointer<QWidget> nativeView = native->view();
+        QVERIFY(webView && nativeView);
+
+        QSignalSpy cleared(profiles.get(), &ProfileManager::profileCleared);
+        profiles->clearProfile(kDefaultWebProfile);
+        QVERIFY(!web->view());
+        QCOMPARE(native->view(), nativeView.data());
+        QTRY_COMPARE_WITH_TIMEOUT(cleared.count(), 1, 15000);
+        QVERIFY(web->view() && web->view() != webView.data());
+        QCOMPARE(native->view(), nativeView.data());
+
+        web.reset();
+        native.reset();
+        services.profiles = nullptr;
+        profiles.reset();
+    }
+
     void moduleOfTheType()
     {
         QCOMPARE(moduleOfType(QStringLiteral("gitlab.mr.page")), QStringLiteral("gitlab"));

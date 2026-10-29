@@ -500,6 +500,25 @@ void TestDialogs::webProfiles()
     QCOMPARE(local.group(QStringLiteral("g1"))->webProfile, QStringLiteral("work"));
     QCOMPARE(webprofiles::groupDefault(local, *local.group(QStringLiteral("g1"))), kDefaultWebProfile);
     QCOMPARE(dialog.ids(), (QStringList{kDefaultWebProfile, bank}));
+
+    // Clear Data works on any profile, Default too, and asks first.
+    QStringList clearAsked;
+    bool clearYes = false;
+    dialog.setConfirmClear([&](const QString &name) {
+        clearAsked << name;
+        return clearYes;
+    });
+    QSignalSpy clearRequested(&dialog, &WebProfilesDialog::profileClearRequested);
+    dialog.select(kDefaultWebProfile);
+    QVERIFY(dialog.findChild<QPushButton *>(QStringLiteral("clearProfile"))->isEnabled());
+    dialog.clearSelected();
+    QCOMPARE(clearAsked, QStringList{QStringLiteral("Default")});
+    QCOMPARE(clearRequested.count(), 0);
+    clearYes = true;
+    dialog.clearSelected();
+    QCOMPARE(clearRequested.count(), 1);
+    QCOMPARE(clearRequested.at(0).at(0).toString(), kDefaultWebProfile);
+    QCOMPARE(dialog.ids(), (QStringList{kDefaultWebProfile, bank}));
 }
 
 void TestDialogs::project()

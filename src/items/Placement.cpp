@@ -5,6 +5,7 @@
 #include "items/ItemContextImpl.h"
 #include "items/ItemTypeRegistry.h"
 #include "items/ViewPool.h"
+#include "web/ProfileManager.h"
 
 #include <mirante/ItemType.h>
 
@@ -76,6 +77,7 @@ struct Placement::Private
     QString madeProfile;                // the web profile id; empty for a type that is not web
     QLabel *typePlaceholder = nullptr;  // the placeholder of a type without a view, if shown
     bool gone = false;                  // the item or its task no longer exists
+    QString waitingFor;                 // the profile being cleared, while the view waits for it
     bool inPool = false;
     QObject *watcher = nullptr;
 
@@ -162,6 +164,9 @@ struct Placement::Private
 
     void makeView()
     {
+        // A profile being cleared gets its views back once it is done.
+        if (!waitingFor.isEmpty())
+            return;
         const Item *found = item();
         if (!found) {
             gone = true;
@@ -208,6 +213,27 @@ struct Placement::Private
             makeView();
         if (inPool && services.pool)
             services.pool->setVisible(q, shown);
+    }
+
+    // The user clears the data of a profile. A view in it goes at once, so
+    // the profile can be released, and comes back when the clearing is done.
+    void onProfileClearing(const QString &profileId)
+    {
+        const Item *found = item();
+        const QString profile = made ? madeProfile : (found ? profileOf(*found) : QString());
+        if (profile.isEmpty() || profile != profileId)
+            return;
+        waitingFor = profileId;
+        dropView(createMessageLabel(Placement::tr("Clearing this profile's data…"), q));
+    }
+
+    void onProfileCleared(const QString &profileId)
+    {
+        if (waitingFor.isEmpty() || waitingFor != profileId)
+            return;
+        waitingFor.clear();
+        if (q->isVisible())
+            makeView();
     }
 
     // Called by the pool. The view goes until the placement is shown again.
@@ -290,6 +316,12 @@ Placement::Placement(const PlacementServices &services, const QString &taskId, c
         connect(model, &Model::groupChanged, this, profileMayChange);
         connect(model, &Model::projectChanged, this, profileMayChange);
         connect(model, &Model::webProfilesChanged, this, profileMayChange);
+    }
+    if (ProfileManager *profiles = services.profiles) {
+        connect(profiles, &ProfileManager::profileClearing, this,
+                [this](const QString &id) { d->onProfileClearing(id); });
+        connect(profiles, &ProfileManager::profileCleared, this,
+                [this](const QString &id) { d->onProfileCleared(id); });
     }
 }
 
