@@ -32,7 +32,7 @@ The sidebar can be collapsed.
 
 - Groups appear in manual order.
 - Projects and tasks are sorted by [priority](data-model.md#priority), then manual order.
-- A coloured marker shows the priority level. Low items are dimmed.
+- A coloured marker shows the priority level. Projects have a small rounded square and tasks a circle, so the two levels are easy to tell apart. Low items are dimmed.
 - Each task has two fixed children: **Dashboards**, with its task dashboards, then **Items**, with the task's items. They are there for every task, even when empty.
 - The selected row keeps its full highlight colour when the sidebar does not have the focus, so the dashboard on screen stays easy to see.
 - Three tabs at the bottom choose the task list. **Projects** lists active tasks under every project, including projects without any. **Active** lists the same tasks, but leaves out projects without active tasks. **Done** lists done and archived tasks under every project. A filter, off by default, hides Low items in all three.
@@ -156,7 +156,7 @@ Focus answers "what should I work on now?", across all projects.
 
 - The Focus entry in the sidebar opens Focus in a "Focus" tab at the start of the root tab bar. There is at most one Focus tab. It can be closed like any other tab.
 - It lists active tasks from all projects, or from one group, chosen in a combo box. The combo box holds "All groups", then the groups in manual order.
-- Each row shows the task title, then its project and group, dimmed, and the [priority](data-model.md#priority) marker of the sidebar. Low tasks are dimmed.
+- Each row shows the task title, then its project and group, dimmed, and the [priority](data-model.md#priority) marker of the sidebar, a circle as for every task. Low tasks are dimmed.
 - A right click on a task opens the task's menu from the sidebar: edit, set priority, set state, delete and the rest.
 - **Sort order:**
   1. task priority;
