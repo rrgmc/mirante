@@ -4,7 +4,9 @@
 #include "items/PaintedIconEngine.h"
 #include "ui/SidebarModel.h"
 
+#include <QApplication>
 #include <QPainter>
+#include <QStyle>
 
 namespace mirante {
 
@@ -88,6 +90,10 @@ SidebarDelegate::MarkerShape SidebarDelegate::markerShape(SidebarModel::Kind kin
 void SidebarDelegate::paint(QPainter *painter, const QStyleOptionViewItem &option, const QModelIndex &index) const
 {
     // Row backgrounds, the selection included, are painted by SidebarTree.
+    if (SidebarModel::Kind(index.data(SidebarModel::KindRole).toInt()) == SidebarModel::Kind::Group) {
+        paintGroup(painter, option, index);
+        return;
+    }
     if (!isDimmed(index)) {
         QStyledItemDelegate::paint(painter, option, index);
         return;
@@ -98,10 +104,51 @@ void SidebarDelegate::paint(QPainter *painter, const QStyleOptionViewItem &optio
     painter->restore();
 }
 
-// Rows a little taller than the default, as in macOS sidebars.
+// A group's name in a pill of the group's colour: a light tint of it behind
+// the name, and a thin edge in the colour itself. On the selected row the
+// selection shows instead, and the name takes the selection's text colour.
+// See docs/decisions/0046-group-colours.md.
+void SidebarDelegate::paintGroup(QPainter *painter, const QStyleOptionViewItem &option, const QModelIndex &index) const
+{
+    QStyleOptionViewItem opt = option;
+    initStyleOption(&opt, index);
+    const QWidget *widget = opt.widget;
+    QStyle *style = widget ? widget->style() : QApplication::style();
+    const QRect textRect = style->subElementRect(QStyle::SE_ItemViewItemText, &opt, widget);
+    const QFontMetrics metrics(opt.font);
+    const int padding = metrics.height() / 2;
+    const QString text = metrics.elidedText(opt.text, Qt::ElideRight, textRect.width() - 2 * padding);
+    const qreal height = metrics.height() + 4;
+    const QRectF pill(textRect.left(), textRect.center().y() + 0.5 - height / 2,
+                      metrics.horizontalAdvance(text) + 2 * padding, height);
+
+    const bool selected = opt.state & QStyle::State_Selected;
+    painter->save();
+    painter->setRenderHint(QPainter::Antialiasing);
+    const QColor colour = index.data(SidebarModel::GroupColourRole).value<QColor>();
+    if (!selected && colour.isValid()) {
+        const QColor base = opt.palette.color(QPalette::Base);
+        const auto mix = [](const QColor &a, const QColor &b, qreal amount) {
+            return QColor::fromRgbF(float(a.redF() + (b.redF() - a.redF()) * amount),
+                                    float(a.greenF() + (b.greenF() - a.greenF()) * amount),
+                                    float(a.blueF() + (b.blueF() - a.blueF()) * amount));
+        };
+        painter->setPen(QPen(mix(base, colour, 0.6), 1));
+        painter->setBrush(mix(base, colour, 0.28));
+        painter->drawRoundedRect(pill.adjusted(0.5, 0.5, -0.5, -0.5), height / 2, height / 2);
+    }
+    painter->setFont(opt.font);
+    painter->setPen(opt.palette.color(selected ? QPalette::HighlightedText : QPalette::Text));
+    painter->drawText(pill.adjusted(padding, 0, -padding, 0), Qt::AlignVCenter | Qt::AlignLeft, text);
+    painter->restore();
+}
+
+// Rows a little taller than the default, as in macOS sidebars, and group
+// headings taller still, for their pill.
 QSize SidebarDelegate::sizeHint(const QStyleOptionViewItem &option, const QModelIndex &index) const
 {
-    return QStyledItemDelegate::sizeHint(option, index) + QSize(0, 4);
+    const bool group = SidebarModel::Kind(index.data(SidebarModel::KindRole).toInt()) == SidebarModel::Kind::Group;
+    return QStyledItemDelegate::sizeHint(option, index) + QSize(0, group ? 10 : 4);
 }
 
 void SidebarDelegate::setHoverId(const QString &id) { m_hoverId = id; }
@@ -124,16 +171,9 @@ void SidebarDelegate::initStyleOption(QStyleOptionViewItem *option, const QModel
 {
     QStyledItemDelegate::initStyleOption(option, index);
     const auto kind = SidebarModel::Kind(index.data(SidebarModel::KindRole).toInt());
-    // A group heading starts with a dot in the group's colour. See
-    // docs/decisions/0046-group-colours.md.
-    if (kind == SidebarModel::Kind::Group) {
-        const QColor colour = index.data(SidebarModel::GroupColourRole).value<QColor>();
-        if (colour.isValid()) {
-            option->icon = QIcon(new MarkerIconEngine(colour, MarkerShape::Circle));
-            option->features |= QStyleOptionViewItem::HasDecoration;
-        }
+    // A group heading has its name in a pill instead of a marker; see paintGroup().
+    if (kind == SidebarModel::Kind::Group)
         return;
-    }
     if (kind != SidebarModel::Kind::Project && kind != SidebarModel::Kind::Task)
         return;
 

@@ -411,16 +411,14 @@ QVariant SidebarModel::data(const QModelIndex &index, int role) const
             return group->name;
         if (role == GroupColourRole)
             return QColor(groupcolours::of(*group));
-        // Groups are section headings, as in macOS sidebars: small, bold
-        // and grey.
+        // Groups are headings: bold and a little larger than the rows under
+        // them. SidebarDelegate puts the name in a pill of the group's colour.
         if (role == Qt::FontRole) {
             QFont font;
             font.setBold(true);
-            font.setPointSizeF(font.pointSizeF() * 0.85);
+            font.setPointSizeF(font.pointSizeF() * 1.08);
             return font;
         }
-        if (role == Qt::ForegroundRole)
-            return QPalette().color(QPalette::PlaceholderText);
         return {};
     }
     case Kind::Project: {
