@@ -1830,6 +1830,19 @@ bool MainWindow::createWorkspace(const QString &folder, const QString &name)
         return false;
     }
     openWorkspace(folder);
+    // A new workspace starts with one empty root dashboard, open as a tab, so
+    // the content area is not empty. A folder of earlier data that is made a
+    // workspace keeps the root dashboards it has.
+    if (d->workspace == QDir(folder).absolutePath() && !d->store->readOnly() && d->model->rootDashboards().empty()) {
+        RootDashboard dashboard;
+        dashboard.id = QUuid::createUuid().toString(QUuid::WithoutBraces);
+        dashboard.name = tr("Main");
+        dashboard.order = 0;
+        dashboard.layout = layout::emptyLayout();
+        d->model->addRootDashboard(dashboard);
+        d->locks->setUnlocked(dashboard.id, true);
+        openRootDashboard(dashboard.id);
+    }
     return true;
 }
 

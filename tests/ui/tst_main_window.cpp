@@ -757,6 +757,29 @@ private slots:
         QVERIFY(f.window->windowTitle().startsWith(QStringLiteral("Fresh")));
         QVERIFY(f.window->findChild<QWidget *>(QStringLiteral("warningBar"))->isHidden());
 
+        // A new workspace starts with one empty root dashboard, "Main", open
+        // as the current tab and ready to fill.
+        QCOMPARE(int(f.model.rootDashboards().size()), 1);
+        const RootDashboard *main = f.model.rootDashboards().front();
+        QCOMPARE(main->name, QStringLiteral("Main"));
+        QCOMPARE(f.bar()->count(), 1);
+        QCOMPARE(f.tabText(0), QStringLiteral("Main"));
+        QVERIFY(f.bar()->selectionShown());
+        QVERIFY(f.window->currentLayoutView());
+        QVERIFY(f.window->currentLayoutView()->editMode());
+        // It is written to disk like any other root dashboard.
+        const QString mainId = main->id;
+        f.dataStore.flush();
+        QVERIFY(QFile::exists(dir.filePath(QStringLiteral("dashboards/%1.json").arg(mainId))));
+
+        // It is ordinary: deleting it leaves the workspace without one, and
+        // opening the workspace again does not add another.
+        f.model.removeRootDashboard(mainId);
+        f.dataStore.flush();
+        f.window->openWorkspace(dir.path());
+        QVERIFY(f.model.rootDashboards().empty());
+        QCOMPARE(f.bar()->count(), 0);
+
         // A folder that does not exist cannot be made one.
         QVERIFY(!f.window->createWorkspace(dir.filePath(QStringLiteral("missing")), QStringLiteral("X")));
     }

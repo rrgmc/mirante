@@ -56,7 +56,9 @@ public:
     // opened; the warning bar says why.
     void openWorkspace(const QString &path);
     // Makes folder a workspace with the given name, by writing its
-    // workspace.mirante, and opens it. Returns false, and shows why, if it fails.
+    // workspace.mirante, and opens it. A workspace without root dashboards
+    // gets one empty root dashboard, "Main", open as a tab and unlocked.
+    // Returns false, and shows why, if it fails.
     bool createWorkspace(const QString &folder, const QString &name);
     // The sample data compiled into the app, used when there is no workspace.
     // It is read-only: the warning bar says that changes are not saved.
