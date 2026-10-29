@@ -1,10 +1,13 @@
 // Tests MainWindow on the fixtures: the root tabs, the preview tab, pinning,
 // new root dashboards, closing and reopening tabs, the warning bar, focusing an
-// item, views following the model, and detached windows.
+// item, views following the model, detached windows, and the web views of
+// item cells.
 #include "core/DeviceSettings.h"
 #include "core/Model.h"
 #include "core/Store.h"
 #include "items/ItemTypeRegistry.h"
+#include "items/Placement.h"
+#include "items/ViewPool.h"
 #include "layout/CellFrame.h"
 #include "layout/LayoutView.h"
 #include "layout/TaskCell.h"
@@ -19,6 +22,12 @@
 #include "ui/Sidebar.h"
 #include "ui/SidebarDelegate.h"
 #include "ui/SidebarModel.h"
+#include "ui/Shortcuts.h"
+#include "web/ProfileManager.h"
+#include "web/WebPanel.h"
+
+#include <mirante/ItemContext.h>
+#include <mirante/ItemType.h>
 
 #include <QApplication>
 #include <QDir>
@@ -39,7 +48,9 @@
 #include <QTemporaryDir>
 #include <QTest>
 #include <QToolButton>
+#include <QTimer>
 #include <QTreeView>
+#include <QWebEngineView>
 
 #include <memory>
 
@@ -53,6 +64,29 @@ const QString kFixLoginTask = QStringLiteral("760c8e20-8555-5a2c-bcbe-75e7fd08ca
 const QString kFixLoginDashboard = QStringLiteral("e7c480bf-fc19-50f3-81e4-18fc51f27f6c");
 const QString kOverviewTask = QStringLiteral("c34def7a-af34-507f-a44d-770bb60dbe95");
 const QString kReviewsItem = QStringLiteral("191057b6-8355-5994-beae-62a500d35f8d");
+// A web.page item of the Accessibility audit task.
+const QString kAuditTask = QStringLiteral("2038cae6-f1d0-5380-a038-ecc1602c4c5a");
+const QString kAuditPage = QStringLiteral("161e69b0-d18e-595b-8a31-08f457e40d3b");
+
+// The page every test web item shows, in place of the fixture's address, so
+// no test uses the network.
+const QUrl kTestPage(QStringLiteral("data:text/html,<p>test page</p>"));
+
+// A stand-in for the web module's web.page, which the ui tests do not link.
+class TestWebPage : public ItemType
+{
+public:
+    QString id() const override { return QStringLiteral("web.page"); }
+    QString name() const override { return QStringLiteral("Web page"); }
+    QIcon icon() const override { return {}; }
+    Rendering rendering() const override { return Rendering::Web; }
+    QWidget *createView(ItemContext &context, QWidget *parent) const override
+    {
+        return context.createWebView(kTestPage, parent);
+    }
+};
+
+void registerTestWeb(ModuleRegistrar &registrar) { registrar.addItemType(std::make_unique<TestWebPage>()); }
 
 // The registry has no modules, so every item has an unknown type.
 struct Fixture;
@@ -74,7 +108,8 @@ bool copyFixtures(const QString &target)
 
 // The window starts on the fixtures, loaded without the Store, so nothing is
 // written until a test opens a workspace. The settings live in a temporary
-// INI file.
+// INI file. With web set, item cells get real views: web.page items show a
+// data: page, in profiles of a temporary folder.
 struct Fixture
 {
     QTemporaryDir settingsDir;
@@ -83,14 +118,35 @@ struct Fixture
     ItemTypeRegistry types;
     Model model;
     Store dataStore{model};
+    QString profilesRoot;
+    std::unique_ptr<ProfileManager> profiles;
+    std::unique_ptr<ViewPool> pool;
     std::unique_ptr<MainWindow> window;
 
-    Fixture()
+    explicit Fixture(bool web = false)
     {
         const auto problems = store::load(QStringLiteral(MIRANTE_FIXTURES_DIR), model);
         if (!problems.empty())
             qWarning() << "fixture problems:" << problems.size();
-        window = std::make_unique<MainWindow>(model, types, dataStore, settings);
+        if (web) {
+            types.registerModule(QStringLiteral("web"), &registerTestWeb);
+            QTemporaryDir root;
+            root.setAutoRemove(false);
+            profilesRoot = root.path();
+            profiles = std::make_unique<ProfileManager>(profilesRoot);
+            pool = std::make_unique<ViewPool>();
+        }
+        window = std::make_unique<MainWindow>(model, types, dataStore, settings, profiles.get(), pool.get());
+    }
+
+    ~Fixture()
+    {
+        // The pages go before their profiles. Chromium closes some profile
+        // files a moment after the profile goes.
+        window.reset();
+        profiles.reset();
+        if (!profilesRoot.isEmpty())
+            (void)QTest::qWaitFor([this] { return QDir(profilesRoot).removeRecursively(); }, 15000);
     }
 
     QWidget *warningBar() const { return window->findChild<QWidget *>(QStringLiteral("warningBar")); }
@@ -102,6 +158,64 @@ struct Fixture
 
     RootTabBar *bar() const { return window->rootTabBar(); }
     QString tabText(int index) const { return bar()->tabText(index); }
+
+    // The group of a task.
+    QString groupOf(const QString &taskId) const
+    {
+        const Task *task = model.task(taskId);
+        const Project *project = task ? model.project(task->projectId) : nullptr;
+        return project ? project->groupId : QString();
+    }
+};
+
+// The first item cell in a widget, or the one showing itemId.
+CellFrame *itemCell(const QWidget *within, const QString &itemId = QString())
+{
+    for (CellFrame *frame : within->findChildren<CellFrame *>()) {
+        const auto ref = frame->ref();
+        if (ref && ref->isItem() && (itemId.isEmpty() || ref->item == itemId))
+            return frame;
+    }
+    return nullptr;
+}
+
+// Opens a view's cell menu, and chooses the entry named choose if there is one.
+void chooseInCellMenu(LayoutView &view, const NodePath &path, const QString &choose)
+{
+    QTimer timer;
+    timer.setSingleShot(true);
+    QObject::connect(&timer, &QTimer::timeout, [choose] {
+        auto *menu = qobject_cast<QMenu *>(QApplication::activePopupWidget());
+        if (!menu)
+            return;
+        for (QAction *action : menu->actions()) {
+            if (action->text() == choose) {
+                menu->setActiveAction(action);
+                QTest::keyClick(menu, Qt::Key_Return);
+                return;
+            }
+        }
+        menu->close();
+    });
+    timer.start(0);
+    emit view.cellMenuRequested(path, view.mapToGlobal(QPoint(10, 10)));
+}
+
+// Records the warnings Qt prints while it exists.
+struct WarningLog
+{
+    static inline QStringList messages;
+    QtMessageHandler previous = nullptr;
+
+    WarningLog()
+    {
+        messages.clear();
+        previous = qInstallMessageHandler([](QtMsgType type, const QMessageLogContext &, const QString &message) {
+            if (type == QtWarningMsg || type == QtCriticalMsg)
+                messages << message;
+        });
+    }
+    ~WarningLog() { qInstallMessageHandler(previous); }
 };
 
 // The tab title of the Overview task's default dashboard: "Task / Dashboard".
@@ -1065,6 +1179,153 @@ private slots:
         QCOMPARE(detachedWindows().front()->size(), QSize(640, 480));
     }
 
+    // A cell in a detached window is maximised within its own window's page.
+    void maximiseInDetachedWindow()
+    {
+        Fixture f;
+        f.window->show();
+        emit f.bar()->detachRequested(0);
+        DetachedWindow *window = detachedWindows().value(0);
+        QVERIFY(window);
+        CellFrame *cell = itemCell(window->page());
+        QVERIFY(cell);
+
+        f.window->shortcuts()->toggleMaximised(cell);
+        QVERIFY(f.window->shortcuts()->isMaximised(cell));
+        QCOMPARE(cell->window(), window);
+        QWidget *layer = cell->parentWidget();
+        QCOMPARE(layer->objectName(), QStringLiteral("maximiseLayer"));
+        QCOMPARE(layer->parentWidget(), window->page());
+        QCOMPARE(layer->geometry(), window->page()->rect());
+
+        // Changing the main window's tab leaves it maximised.
+        f.window->openTaskPreview(kFixLoginTask);
+        QVERIFY(f.window->shortcuts()->isMaximised(cell));
+
+        f.window->shortcuts()->toggleMaximised(cell);
+        QVERIFY(!f.window->shortcuts()->isMaximised(cell));
+        QCOMPARE(cell->window(), window);
+        QVERIFY(window->page()->view->isAncestorOf(cell));
+
+        // A cell of the main window is maximised over its content area.
+        CellFrame *mainCell = itemCell(f.window->currentLayoutView());
+        QVERIFY(mainCell);
+        f.window->shortcuts()->toggleMaximised(mainCell);
+        QCOMPARE(mainCell->parentWidget()->parentWidget(), f.window->contentArea());
+        f.window->shortcuts()->toggleMaximised(mainCell);
+        QVERIFY(f.window->currentLayoutView()->isAncestorOf(mainCell));
+    }
+
+    // The cell's maximise button and menu reach Shortcuts, and "Open Alone"
+    // reaches openItem.
+    void biggerViewCallbacks()
+    {
+        Fixture f;
+        f.window->show();
+        QVERIFY(QTest::qWaitForWindowExposed(f.window.get()));
+        LayoutView *view = f.window->currentLayoutView();
+        CellFrame *cell = itemCell(view);
+        QVERIFY(cell);
+        const QString itemId = cell->ref()->item;
+        const auto path = view->pathOf(cell);
+        QVERIFY(path);
+
+        emit cell->maximiseRequested();
+        QVERIFY(f.window->shortcuts()->isMaximised(cell));
+        chooseInCellMenu(*view, *path, QStringLiteral("Restore"));
+        QTRY_VERIFY(!f.window->shortcuts()->isMaximised(cell));
+        chooseInCellMenu(*view, *path, QStringLiteral("Maximise"));
+        QTRY_VERIFY(f.window->shortcuts()->isMaximised(cell));
+        emit cell->maximiseRequested();
+        QVERIFY(!f.window->shortcuts()->isMaximised(cell));
+
+        chooseInCellMenu(*view, *path, QStringLiteral("Open Alone"));
+        QTRY_COMPARE(f.bar()->previewIndex(), 2);
+        QCOMPARE(f.bar()->currentIndex(), 2);
+        const LayoutNode &tree = f.window->currentLayoutView()->tree();
+        QVERIFY(tree.ref);
+        QCOMPARE(tree.ref->item, itemId);
+    }
+
+    // Without profiles, item cells keep their placeholders. With them, an item
+    // cell's body is a Placement.
+    void itemCellsGetPlacements()
+    {
+        {
+            Fixture f;
+            CellFrame *cell = itemCell(f.window->currentLayoutView());
+            QVERIFY(cell);
+            QVERIFY(!qobject_cast<Placement *>(cell->body()));
+        }
+        Fixture f(true);
+        CellFrame *cell = itemCell(f.window->currentLayoutView());
+        QVERIFY(cell);
+        auto *placement = qobject_cast<Placement *>(cell->body());
+        QVERIFY(placement);
+        QCOMPARE(placement->itemId(), cell->ref()->item);
+    }
+
+    // A web item's cell shows a web page, in its group's profile of the module.
+    void webItemShowsPage()
+    {
+        Fixture f(true);
+        f.window->show();
+        QVERIFY(QTest::qWaitForWindowExposed(f.window.get()));
+        f.window->openItem(kAuditTask, kAuditPage);
+        CellFrame *cell = itemCell(f.window->currentLayoutView(), kAuditPage);
+        QVERIFY(cell);
+        auto *placement = qobject_cast<Placement *>(cell->body());
+        QVERIFY(placement);
+        QTRY_VERIFY(qobject_cast<WebPanel *>(placement->view()));
+        auto *panel = qobject_cast<WebPanel *>(placement->view());
+        QCOMPARE(panel->view()->url(), kTestPage);
+        QCOMPARE(panel->view()->page()->profile(),
+                 f.profiles->groupProfile(f.groupOf(kAuditTask), QStringLiteral("web")));
+        QCOMPARE(placement->headerWidget(), panel->toolbar());
+    }
+
+    // Deleting a group deletes its profiles, after the pages that use them:
+    // here a preview tab and a detached window.
+    void deletingGroupRemovesProfiles()
+    {
+        WarningLog warnings;
+        {
+            Fixture f(true);
+            f.window->show();
+            QVERIFY(QTest::qWaitForWindowExposed(f.window.get()));
+            const QString groupId = f.groupOf(kAuditTask);
+            QVERIFY(!groupId.isEmpty());
+
+            emit f.window->findChild<Sidebar *>()->openItemInNewRootDashboard(kAuditTask, kAuditPage);
+            emit f.bar()->detachRequested(f.bar()->currentIndex());
+            DetachedWindow *window = detachedWindows().value(0);
+            QVERIFY(window);
+            f.window->openItem(kAuditTask, kAuditPage);
+            CellFrame *detachedCell = itemCell(window->page(), kAuditPage);
+            CellFrame *previewCell = itemCell(f.window->currentLayoutView(), kAuditPage);
+            QVERIFY(detachedCell && previewCell);
+            auto *detachedPlacement = qobject_cast<Placement *>(detachedCell->body());
+            auto *previewPlacement = qobject_cast<Placement *>(previewCell->body());
+            QVERIFY(detachedPlacement && previewPlacement);
+            QTRY_VERIFY(detachedPlacement->view() && previewPlacement->view());
+            const QPointer<QWidget> detachedView = detachedPlacement->view();
+            const QPointer<QWidget> previewView = previewPlacement->view();
+
+            const QString folder = f.profiles->storagePath(QStringLiteral("g-%1-web").arg(groupId));
+            QTRY_VERIFY(QFileInfo::exists(folder));
+
+            f.window->entityActions()->setConfirm([](const QString &) { return true; });
+            f.window->entityActions()->removeGroup(groupId);
+            QVERIFY(!f.model.group(groupId));
+            QCOMPARE(f.bar()->previewIndex(), -1);
+            QVERIFY(!previewView);
+            QTRY_VERIFY(!detachedView);
+            QTRY_VERIFY_WITH_TIMEOUT(!QFileInfo::exists(folder), 15000);
+        }
+        for (const QString &message : std::as_const(WarningLog::messages))
+            QVERIFY2(!message.contains(QStringLiteral("profile"), Qt::CaseInsensitive), qPrintable(message));
+    }
+
 private:
     // The visible detached windows, ignoring those already put back.
     static QList<DetachedWindow *> detachedWindows()
@@ -1079,5 +1340,16 @@ private:
     }
 };
 
-QTEST_MAIN(TestMainWindow)
+int main(int argc, char *argv[])
+{
+    // Qt WebEngine needs shared OpenGL contexts, set before the application.
+    QCoreApplication::setAttribute(Qt::AA_ShareOpenGLContexts);
+    // Without a display, Chromium's GPU process can fail a check when a view
+    // goes away. Pages render in software instead.
+    if (qEnvironmentVariableIsEmpty("QTWEBENGINE_CHROMIUM_FLAGS"))
+        qputenv("QTWEBENGINE_CHROMIUM_FLAGS", "--disable-gpu");
+    QApplication app(argc, argv);
+    TestMainWindow test;
+    return QTest::qExec(&test, argc, argv);
+}
 #include "tst_main_window.moc"

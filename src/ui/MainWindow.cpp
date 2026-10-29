@@ -6,6 +6,7 @@
 #include "core/Model.h"
 #include "core/Sorting.h"
 #include "items/ItemTypeRegistry.h"
+#include "items/Placement.h"
 #include "layout/CellFrame.h"
 #include "layout/CellHoverTracker.h"
 #include "layout/CellStyle.h"
@@ -68,6 +69,7 @@
 #include <QUrl>
 #include <QUuid>
 #include <QVBoxLayout>
+#include <QtWebEngineCore/qtwebenginecoreglobal.h>
 
 #include <algorithm>
 #include <limits>
@@ -123,6 +125,7 @@ struct MainWindow::Private
     LockState *locks = nullptr;
     SingleViewTracker *tracker = nullptr;
     LayoutServices services;
+    PlacementServices placements;           // services.placements points here
 
     QSplitter *splitter = nullptr;
     Sidebar *sidebar = nullptr;
@@ -1317,6 +1320,35 @@ MainWindow::MainWindow(Model &model, const ItemTypeRegistry &types, Store &store
     d->services.openTaskAlone = [this](const QString &taskId, const QString &dashboardId) {
         openTaskPreview(taskId, dashboardId);
     };
+    // Item cells show their views only with profiles. Without them, as in
+    // tests, they keep their placeholders.
+    if (profiles) {
+        d->placements.model = &model;
+        d->placements.types = &types;
+        d->placements.profiles = profiles;
+        d->placements.pool = pool;
+        d->placements.settings = &settings;
+        d->services.placements = &d->placements;
+    }
+    // A bigger view of an item, from its cell's button and menu. A cell in a
+    // detached window is maximised within that window; see
+    // docs/ui.md#detached-windows. Shortcuts is made last, after the first
+    // pages, so it may not exist yet.
+    d->services.toggleMaximised = [this](QWidget *cell) {
+        if (d->shortcuts)
+            d->shortcuts->toggleMaximised(cell);
+    };
+    d->services.isMaximised = [this](const QWidget *cell) { return d->shortcuts && d->shortcuts->isMaximised(cell); };
+    // From a detached window, the main window comes to the front to show it.
+    d->services.openItemAlone = [this](const QString &taskId, const QString &itemId) {
+        openItem(taskId, itemId);
+        if (!isActiveWindow()) {
+            raise();
+            activateWindow();
+        }
+    };
+    d->editor->setServices(&d->services);
+    d->actions->setProfiles(profiles);
 
     setWindowTitle(QStringLiteral(MIRANTE_APP_NAME));
     resize(1280, 800);
@@ -1597,13 +1629,17 @@ QStringList MainWindow::recentWorkspaces() const { return d->settings->recentWor
 
 void MainWindow::showAbout()
 {
+    // The versions of Qt and of the browser engine help when a login fails.
     QMessageBox::about(
         this, tr("About %1").arg(QStringLiteral(MIRANTE_APP_NAME)),
         tr("<h3>%1 %2</h3><p>%3</p><p>%4 &lt;<a href=\"mailto:%5\">%5</a>&gt;</p>"
            "<p><a href=\"%6\">%6</a></p><p>Released under the MIT License.</p>")
-            .arg(QStringLiteral(MIRANTE_APP_NAME), QStringLiteral(MIRANTE_VERSION),
-                 QStringLiteral(MIRANTE_DESCRIPTION), QStringLiteral(MIRANTE_AUTHOR),
-                 QStringLiteral(MIRANTE_AUTHOR_EMAIL), QStringLiteral(MIRANTE_HOMEPAGE)));
+                .arg(QStringLiteral(MIRANTE_APP_NAME), QStringLiteral(MIRANTE_VERSION),
+                     QStringLiteral(MIRANTE_DESCRIPTION), QStringLiteral(MIRANTE_AUTHOR),
+                     QStringLiteral(MIRANTE_AUTHOR_EMAIL), QStringLiteral(MIRANTE_HOMEPAGE))
+            + tr("<p>Qt %1, Qt WebEngine %2, Chromium %3</p>")
+                  .arg(QString::fromLatin1(qVersion()), QString::fromLatin1(qWebEngineVersion()),
+                       QString::fromLatin1(qWebEngineChromiumVersion())));
 }
 
 void MainWindow::openTaskPreview(const QString &taskId, const QString &chosenDashboardId)

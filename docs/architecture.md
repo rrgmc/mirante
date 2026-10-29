@@ -146,10 +146,12 @@ Code that differs per platform lives only here, behind these classes.
 
 ## Ownership and lifetime
 
-- `main.cpp` creates the long-lived services in this order: `DeviceSettings`, the registries (filled by `registerEnabledModules()`), `Model`, `Store`, `SecretStore`, `StatusCache`, `ProfileManager`, `MainWindow`. It destroys them in reverse order. `DeviceSettings` is created after the application and organisation names are set, because they choose where `QSettings` keeps its values. The `Store` flushes its pending writes when the application is about to quit.
+- `main.cpp` creates the long-lived services in this order: `DeviceSettings`, the registries (filled by `registerEnabledModules()`), `Model`, `Store`, `SecretStore`, `StatusCache`, `ProfileManager`, `ViewPool`, `MainWindow`. It destroys them in reverse order. `SecretStore` and `StatusCache` come in later milestones. Before the `QApplication` it sets `Qt::AA_ShareOpenGLContexts`, which Qt WebEngine needs. `DeviceSettings` is created after the application and organisation names are set, because they choose where `QSettings` keeps its values. The `Store` flushes its pending writes when the application is about to quit.
 - Each `Placement` owns its view widget and its `ItemContextImpl`. The context outlives the view: the placement deletes its views before its context. A view that is replaced is deleted later, not at once, because the change may come from the view's own code, for example through `updateConfig`.
 - A web view's toolbar is owned by its `WebPanel`, even while the cell header shows it. The `CellFrame` only shows it, and lets it go when the placement reports a new header widget.
-- `ProfileManager` owns the profiles and is destroyed after all web views.
+- `ProfileManager` owns the profiles and is destroyed after all web views. Its root folder is `QStandardPaths::AppLocalDataLocation` + `/profiles`. `MainWindow` passes it and the `ViewPool` to placements through `PlacementServices`, which `MainWindow` owns. Without a `ProfileManager`, as in most tests, item cells keep their placeholders.
+- The `ViewPool` reads its limit from `DeviceSettings::hiddenViewLimit()` once, at start. Placements remove themselves from the pool when they go, so the pool outlives the window.
+- Deleting a group in `EntityActions` calls `ProfileManager::removeGroup` after the model removes the group, in a queued call. The tabs of the group's tasks close at once, but placements in other pages delete their views a moment later, and a profile must outlive its pages.
 
 ## Threading
 
