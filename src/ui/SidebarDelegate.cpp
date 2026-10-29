@@ -87,22 +87,7 @@ SidebarDelegate::MarkerShape SidebarDelegate::markerShape(SidebarModel::Kind kin
 
 void SidebarDelegate::paint(QPainter *painter, const QStyleOptionViewItem &option, const QModelIndex &index) const
 {
-    // Projects get a light tint of the highlight colour, so they stand out
-    // between groups and tasks.
-    if (SidebarModel::Kind(index.data(SidebarModel::KindRole).toInt()) == SidebarModel::Kind::Project) {
-        const QColor base = option.palette.color(QPalette::Base);
-        const QColor tint = option.palette.color(QPalette::Highlight);
-        const qreal amount = 0.12;
-        painter->fillRect(option.rect, QColor::fromRgbF(float(base.redF() + (tint.redF() - base.redF()) * amount),
-                                                        float(base.greenF() + (tint.greenF() - base.greenF()) * amount),
-                                                        float(base.blueF() + (tint.blueF() - base.blueF()) * amount)));
-    }
-    // The row of what the hovered dashboard cell shows.
-    if (isHoverTinted(index)) {
-        QColor tint = option.palette.color(QPalette::Highlight);
-        tint.setAlphaF(0.22f);
-        painter->fillRect(option.rect, tint);
-    }
+    // Row backgrounds, the selection included, are painted by SidebarTree.
     if (!isDimmed(index)) {
         QStyledItemDelegate::paint(painter, option, index);
         return;
@@ -111,6 +96,12 @@ void SidebarDelegate::paint(QPainter *painter, const QStyleOptionViewItem &optio
     painter->setOpacity(dimmedOpacity);
     QStyledItemDelegate::paint(painter, option, index);
     painter->restore();
+}
+
+// Rows a little taller than the default, as in macOS sidebars.
+QSize SidebarDelegate::sizeHint(const QStyleOptionViewItem &option, const QModelIndex &index) const
+{
+    return QStyledItemDelegate::sizeHint(option, index) + QSize(0, 4);
 }
 
 void SidebarDelegate::setHoverId(const QString &id) { m_hoverId = id; }

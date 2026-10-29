@@ -92,7 +92,8 @@ public:
 
     QSize sizeHint(const QStyleOptionViewItem &option, const QModelIndex &index) const override
     {
-        QSize size = SidebarDelegate::sizeHint(option, index);
+        // The sidebar's taller rows are for the sidebar only.
+        QSize size = QStyledItemDelegate::sizeHint(option, index);
         const QString context = index.data(contextRole).toString();
         if (!context.isEmpty())
             size.rwidth() += QFontMetrics(option.font).horizontalAdvance(QStringLiteral("  ") + context);
