@@ -37,6 +37,8 @@ protected:
     void initStyleOption(QStyleOptionViewItem *option, const QModelIndex &index) const override;
 
 private:
+    void paintGroup(QPainter *painter, const QStyleOptionViewItem &option, const QModelIndex &index) const;
+
     QIcon m_projectMarkers[4];  // indexed by Priority
     QIcon m_taskMarkers[4];     // indexed by Priority
     QString m_hoverId;
