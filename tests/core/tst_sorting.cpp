@@ -1,4 +1,5 @@
-// Tests the display order and the filters of projects and tasks.
+// Tests the display order and the filters of projects and tasks, and the Focus order.
+#include "core/Model.h"
 #include "core/Sorting.h"
 
 #include <QTest>
@@ -18,9 +19,10 @@ Project project(const QString &id, const QString &name, Priority priority = Prio
 }
 
 Task task(const QString &id, const QString &title, Priority priority = Priority::Normal, int order = 0,
-          TaskState state = TaskState::Active)
+          TaskState state = TaskState::Active, const QString &projectId = {})
 {
     Task t;
+    t.projectId = projectId;
     t.id = id;
     t.title = title;
     t.priority = priority;
@@ -192,6 +194,47 @@ private slots:
         QVERIFY(!filter.closedTasks);
         QVERIFY(!taskVisible(task("d", "D", Priority::Normal, 0, TaskState::Done), filter));
         QVERIFY(taskVisible(task("l", "L", Priority::Low), filter));
+    }
+
+    // Task priority first, then project priority, then the task's own order.
+    // Done and archived tasks are left out. A task without a known project
+    // comes after the others of its priority.
+    void focusOrderKeys()
+    {
+        Group group;
+        group.id = "g";
+        group.name = "G";
+        Project urgentProject = project("pu", "U", Priority::Urgent);
+        Project lowProject = project("pl", "L", Priority::Low);
+        urgentProject.groupId = group.id;
+        lowProject.groupId = group.id;
+        Model model;
+        model.reset({group}, {urgentProject, lowProject}, {}, {});
+
+        const auto active = TaskState::Active;
+        const std::vector<Task> tasks = {
+            task("low-in-urgent", "a", Priority::Low, 0, active, "pu"),
+            task("normal-in-low", "a", Priority::Normal, 0, active, "pl"),
+            task("normal-in-urgent-2", "a", Priority::Normal, 2, active, "pu"),
+            task("normal-in-urgent-1", "z", Priority::Normal, 1, active, "pu"),
+            task("normal-orphan", "a", Priority::Normal, 0, active, "unknown"),
+            task("high-in-low", "a", Priority::High, 0, active, "pl"),
+            task("done", "a", Priority::Urgent, 0, TaskState::Done, "pu"),
+            task("archived", "a", Priority::Urgent, 0, TaskState::Archived, "pu"),
+        };
+        const QStringList expected = {"high-in-low", "normal-in-urgent-1", "normal-in-urgent-2",
+                                      "normal-in-low", "normal-orphan", "low-in-urgent"};
+        std::vector<const Task *> forward = pointers(tasks);
+        forward.push_back(nullptr);
+        const std::vector<const Task *> backward(forward.rbegin(), forward.rend());
+        QCOMPARE(taskIds(focusOrder(forward, model)), expected);
+        QCOMPARE(taskIds(focusOrder(backward, model)), expected);
+    }
+
+    void focusOrderOfNothing()
+    {
+        const Model model;
+        QVERIFY(focusOrder({}, model).empty());
     }
 };
 
