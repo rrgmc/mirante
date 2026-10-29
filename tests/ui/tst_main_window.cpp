@@ -260,6 +260,24 @@ private slots:
         QCOMPARE(f.tabText(f.bar()->currentIndex()), QStringLiteral("Fix login timeout / Work"));
     }
 
+    void otherTaskChangesKeepPreview()
+    {
+        Fixture f;
+        f.window->openTaskPreview(kFixLoginTask);
+        QCOMPARE(f.bar()->previewIndex(), 2);
+        // The tooltip names the project, which the tab title leaves out.
+        QCOMPARE(f.bar()->tabToolTip(2), QStringLiteral("backend / Fix login timeout / Work"));
+
+        // A change to the task that leaves this dashboard's layout as it is,
+        // such as a new title or a new dashboard, does not pin the preview.
+        Task task = *f.model.task(kFixLoginTask);
+        task.title = QStringLiteral("Login timeout");
+        f.model.setTask(task);
+        QTest::qWait(20);
+        QCOMPARE(f.bar()->previewIndex(), 2);
+        QCOMPARE(f.bar()->tabToolTip(2), QStringLiteral("backend / Login timeout / Work"));
+    }
+
     void pinButton()
     {
         Fixture f;

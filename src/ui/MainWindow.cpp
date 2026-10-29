@@ -38,6 +38,7 @@
 #include <QIcon>
 #include <QImage>
 #include <QInputDialog>
+#include <QJsonObject>
 #include <QKeySequence>
 #include <QLabel>
 #include <QLineEdit>
@@ -108,7 +109,16 @@ public:
             QFont font = title->font();
             font.setBold(true);
             title->setFont(font);
-            headerLayout->addWidget(title, 1);
+            title->setMinimumWidth(1);
+            headerLayout->addWidget(title);
+            // The task's project, dimmed after the title, as in a task cell.
+            context = new QLabel(header);
+            context->setObjectName(QStringLiteral("taskDashboardContext"));
+            context->setTextFormat(Qt::PlainText);
+            context->setForegroundRole(QPalette::PlaceholderText);
+            context->setMinimumWidth(1);
+            context->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
+            headerLayout->addWidget(context, 1);
             if (item.isEmpty()) {
                 lock = new QToolButton(header);
                 lock->setObjectName(QStringLiteral("taskLockButton"));
@@ -136,8 +146,12 @@ public:
     const std::unique_ptr<DashboardCellFactory> factory;
     FocusView *focus = nullptr;     // set for the Focus page
     LayoutView *view = nullptr;     // null for the Focus page
-    QLabel *title = nullptr;        // task dashboards only
+    QLabel *title = nullptr;        // task dashboards and items only
+    QLabel *context = nullptr;      // task dashboards and items only: the project
     QToolButton *lock = nullptr;    // task dashboards only
+    // The model's layout of a task dashboard when it was last shown, to tell
+    // an edit of this dashboard from other changes to its task.
+    QJsonObject shownLayout;
 };
 
 // Shows a lock's state on its button. The icon shows the state, so the button
@@ -251,6 +265,31 @@ struct MainWindow::Private
         return MainWindow::tr("%1 / %2").arg(task->title, name);
     }
 
+    // The project of a task dashboard or item page, or empty.
+    QString pageProject(const DashboardPage *page) const
+    {
+        const Task *task = page->ref.isRoot() ? nullptr : model->task(page->ref.taskId);
+        const Project *project = task ? model->project(task->projectId) : nullptr;
+        return project ? project->name : QString();
+    }
+
+    // A tab's tooltip names the project too, which its title leaves out.
+    QString pageToolTip(const DashboardPage *page) const
+    {
+        const QString project = pageProject(page);
+        return project.isEmpty() ? pageTitle(page) : MainWindow::tr("%1 / %2").arg(project, pageTitle(page));
+    }
+
+    // The header of a task dashboard or item page: "Task / Dashboard", then
+    // the project, dimmed.
+    void updatePageHeader(DashboardPage *page) const
+    {
+        if (!page->title)
+            return;
+        page->title->setText(pageTitle(page));
+        page->context->setText(pageProject(page));
+    }
+
     // Task dashboard tabs carry the dashboard icon and item tabs the item's
     // type icon, so they read apart from root dashboard tabs, which have none.
     QIcon pageIcon(const DashboardPage *page) const
@@ -275,6 +314,7 @@ struct MainWindow::Private
             delete old;
             tabBar->setTabText(index, pageTitle(page));
             tabBar->setTabIcon(index, pageIcon(page));
+            tabBar->setTabToolTip(index, pageToolTip(page));
             syncPreview();
         } else {
             preview = page;
@@ -303,7 +343,7 @@ struct MainWindow::Private
         LayoutNode cell;
         cell.ref = CellRef{itemId, QString(), QString()};
         page->view->setTree(cell);
-        page->title->setText(pageTitle(page));
+        updatePageHeader(page);
         stack->addWidget(page);
         return page;
     }
@@ -332,12 +372,14 @@ struct MainWindow::Private
         auto *page = new DashboardPage(services, ref, stack);
         editor->attach(page->view, ref);
         page->view->setSingleViewTracker(tracker);
-        if (const LayoutNode *tree = model->layout(ref))
+        if (const LayoutNode *tree = model->layout(ref)) {
             page->view->setTree(*tree);
+            page->shownLayout = layoutToJson(*tree);
+        }
         const bool unlocked = locks->isUnlocked(ref.dashboardId);
         page->view->setEditMode(unlocked);
         if (page->lock) {
-            page->title->setText(title(ref));
+            updatePageHeader(page);
             showLockState(page->lock, unlocked);
             QObject::connect(page->lock, &QToolButton::clicked, q, [this, id = ref.dashboardId] {
                 locks->setUnlocked(id, !locks->isUnlocked(id));
@@ -352,6 +394,7 @@ struct MainWindow::Private
         pages.insert(pages.begin() + index, page);
         tabBar->insertTab(index, pageTitle(page));
         tabBar->setTabIcon(index, pageIcon(page));
+        tabBar->setTabToolTip(index, pageToolTip(page));
         syncPreview();
         syncCurrent();
     }
@@ -564,24 +607,31 @@ struct MainWindow::Private
             if (gone)
                 removeTab(i);
         }
+        bool previewEdited = false;
         for (std::size_t i = 0; i < pages.size(); ++i) {
             DashboardPage *page = pages[i];
             if (page->ref.taskId != taskId)
                 continue;
             if (page->itemId.isEmpty()) {
-                if (const LayoutNode *tree = model->layout(page->ref))
+                if (const LayoutNode *tree = model->layout(page->ref)) {
                     page->view->setTree(*tree);
+                    QJsonObject shown = layoutToJson(*tree);
+                    if (page == preview && shown != page->shownLayout)
+                        previewEdited = true;
+                    page->shownLayout = std::move(shown);
+                }
             }
             tabBar->setTabText(int(i), pageTitle(page));
-            if (page->title)
-                page->title->setText(pageTitle(page));
+            tabBar->setTabToolTip(int(i), pageToolTip(page));
+            updatePageHeader(page);
         }
         tabBar->updateGeometry();
         syncCurrent();
 
-        // Editing the dashboard in the preview tab pins it (docs/ui.md). The
-        // change may come from the preview's own view, so pin after it returns.
-        if (preview && preview->itemId.isEmpty() && preview->ref.taskId == taskId && currentPage() == preview) {
+        // Editing the dashboard in the preview tab pins it (docs/ui.md). Other
+        // changes to its task, such as a new dashboard, do not. The change may
+        // come from the preview's own view, so pin after it returns.
+        if (previewEdited && currentPage() == preview) {
             const QString dashboardId = preview->ref.dashboardId;
             QTimer::singleShot(0, q, [window = q, taskId, dashboardId] { window->pinTask(taskId, dashboardId); });
         }
@@ -1199,6 +1249,13 @@ MainWindow::MainWindow(Model &model, const ItemTypeRegistry &types, Store &store
     });
     connect(&model, &Model::taskChanged, this, [this](const QString &taskId) { d->onTaskChanged(taskId); });
     connect(&model, &Model::taskRemoved, this, [this](const QString &taskId) { d->onTaskRemoved(taskId); });
+    // Task pages name their project.
+    connect(&model, &Model::projectChanged, this, [this] {
+        for (std::size_t i = 0; i < d->pages.size(); ++i) {
+            d->tabBar->setTabToolTip(int(i), d->pageToolTip(d->pages[i]));
+            d->updatePageHeader(d->pages[i]);
+        }
+    });
     connect(&model, &Model::modelReset, this, [this] {
         d->closeAllTabs();
         d->openInitialTabs();
