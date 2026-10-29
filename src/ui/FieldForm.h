@@ -3,15 +3,19 @@
 #include <mirante/Fields.h>
 #include <mirante/ItemEditor.h>
 
+#include <functional>
 #include <memory>
 #include <vector>
+
+class QDialog;
 
 namespace mirante {
 
 // An ItemEditor built from a list of fields: one row per field, with an editor
 // that fits its type. Folder fields list EditorContext::folders. Image fields
 // show a thumbnail, "Paste" and "Choose file…", and save through
-// EditorContext::saveImage. See the M3 plan, part 5. Implemented in FieldForm.cpp.
+// EditorContext::saveImage. "Paste" opens ImagePasteDialog first. See the
+// M3 plan, part 5. Implemented in FieldForm.cpp.
 class FieldForm : public ItemEditor
 {
     Q_OBJECT
@@ -27,6 +31,9 @@ public:
 
     // The editor widget of a field, for tests. Null for an unknown key.
     QWidget *editorFor(const QString &key) const;
+    // Runs the paste dialog that "Paste" opens, and says whether it was
+    // accepted. The default calls exec(); tests work the dialog instead.
+    void setExec(std::function<bool(QDialog &dialog)> exec);
 
 signals:
     void changed();

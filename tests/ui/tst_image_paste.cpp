@@ -147,6 +147,7 @@ private slots:
     void noImageType();
     void pasteIntoItem();
     void saveFailed();
+    void check();
     void messages();
 };
 
@@ -426,6 +427,40 @@ void TestImagePaste::saveFailed()
     locks.setUnlocked(boardId, true);
     QCOMPARE(paste.paste(redImage(), {taskId, boardId}, NodePath{2}), ImagePaste::Result::SaveFailed);
     QVERIFY(task() == before);
+    // check() knows it before anything is tried.
+    QCOMPARE(paste.checkItem(taskId, pictureId), ImagePaste::Result::SaveFailed);
+    QCOMPARE(paste.check({taskId, boardId}, NodePath{0}), ImagePaste::Result::SaveFailed);
+    QCOMPARE(paste.check({taskId, boardId}, NodePath{2}), ImagePaste::Result::SaveFailed);
+}
+
+// check() says what a paste would do, without saving or changing anything.
+void TestImagePaste::check()
+{
+    ImagePaste paste(model, *store, types, locks);
+    const QStringList filesBefore = savedFiles();
+    const Task before = task();
+
+    QCOMPARE(paste.check({taskId, boardId}, NodePath{0}), ImagePaste::Result::ReplacedImage);
+    QCOMPARE(paste.check({taskId, boardId}, NodePath{2}), ImagePaste::Result::Locked);
+    QCOMPARE(paste.check({taskId, boardId}, std::nullopt), ImagePaste::Result::Locked);
+    QCOMPARE(paste.check({QString(), rootId}, NodePath{0}), ImagePaste::Result::ReplacedImage);
+    QCOMPARE(paste.checkItem(taskId, pictureId), ImagePaste::Result::ReplacedImage);
+    QCOMPARE(paste.checkItem(taskId, noteId), ImagePaste::Result::NoImageType);
+
+    locks.setUnlocked(boardId, true);
+    locks.setUnlocked(rootId, true);
+    QCOMPARE(paste.check({taskId, boardId}, NodePath{1}), ImagePaste::Result::CreatedItem);
+    QCOMPARE(paste.check({taskId, boardId}, NodePath{2}), ImagePaste::Result::CreatedItem);
+    QCOMPARE(paste.check({QString(), rootId}, NodePath{1}), ImagePaste::Result::RootDashboard);
+    QCOMPARE(paste.check({QString(), rootId}, NodePath{1}, taskId), ImagePaste::Result::CreatedItem);
+    QCOMPARE(paste.check({QString(), rootId}, NodePath{1}, QStringLiteral("gone")), ImagePaste::Result::SaveFailed);
+
+    ImagePaste without(model, *store, typesWithoutImages, locks);
+    QCOMPARE(without.check({taskId, boardId}, NodePath{2}), ImagePaste::Result::NoImageType);
+
+    QCOMPARE(savedFiles(), filesBefore);
+    QCOMPARE(task().items.size(), before.items.size());
+    QCOMPARE(pictureFile(), oldFile);
 }
 
 void TestImagePaste::messages()

@@ -43,25 +43,91 @@ struct ImagePaste::Private
         return store.saveFile(bytes, QStringLiteral("png"));
     }
 
+    // The pastedImageField of an item's type, or empty if the item does not
+    // exist or its type has none.
+    QString imageField(const QString &taskId, const QString &itemId) const
+    {
+        const Task *task = model.task(taskId);
+        if (!task)
+            return {};
+        const auto item = std::find_if(task->items.begin(), task->items.end(),
+                                        [&itemId](const Item &i) { return i.id == itemId; });
+        if (item == task->items.end())
+            return {};
+        return types.type(item->type).pastedImageField();
+    }
+
+    // What a paste onto a dashboard does, worked out before anything is saved.
+    struct Target
+    {
+        Result result = Result::NoImageType;
+        const LayoutNode *tree = nullptr;   // the dashboard's layout
+        const LayoutNode *cell = nullptr;   // the focused cell, if the path leads to one
+        QString taskId;                     // the task of the item replaced or made
+        QString itemId;                     // the item replaced, for ReplacedImage
+    };
+
+    // A read-only workspace, such as the sample data, cannot save the image.
+    Target target(const DashboardRef &dashboard, const std::optional<NodePath> &focusedCell,
+                  const QString &rootTaskId) const
+    {
+        Target t = place(dashboard, focusedCell, rootTaskId);
+        if ((t.result == Result::ReplacedImage || t.result == Result::CreatedItem) && store.readOnly())
+            t.result = Result::SaveFailed;
+        return t;
+    }
+
+    Target place(const DashboardRef &dashboard, const std::optional<NodePath> &focusedCell,
+                 const QString &rootTaskId) const
+    {
+        Target t;
+        t.tree = model.layout(dashboard);
+        if (t.tree && focusedCell) {
+            t.cell = layout::nodeAt(*t.tree, *focusedCell);
+            if (t.cell && t.cell->kind != LayoutNode::Kind::Cell)
+                t.cell = nullptr;
+        }
+
+        // An item edit, so it works on a locked dashboard and on a root dashboard.
+        if (t.cell && t.cell->ref && t.cell->ref->isItem()) {
+            const QString taskId = dashboard.isRoot() ? t.cell->ref->task : dashboard.taskId;
+            if (!imageField(taskId, t.cell->ref->item).isEmpty()) {
+                t.result = Result::ReplacedImage;
+                t.taskId = taskId;
+                t.itemId = t.cell->ref->item;
+                return t;
+            }
+        }
+
+        if (!imageType())
+            return t;   // NoImageType
+        if (!locks.isUnlocked(dashboard.dashboardId)) {
+            t.result = Result::Locked;
+            return t;
+        }
+        // A root dashboard has no task of its own, so the caller names one.
+        t.taskId = dashboard.isRoot() ? rootTaskId : dashboard.taskId;
+        if (t.taskId.isEmpty())
+            t.result = Result::RootDashboard;
+        else if (!model.task(t.taskId) || !t.tree)
+            t.result = Result::SaveFailed;      // the task or dashboard is gone; nothing to paste into
+        else
+            t.result = Result::CreatedItem;
+        return t;
+    }
+
     // Replaces the image of an item whose type has a pastedImageField.
     // Returns nullopt if the item does not exist or its type has none.
     std::optional<Result> replace(const QImage &image, const QString &taskId, const QString &itemId)
     {
-        const Task *task = model.task(taskId);
-        if (!task)
-            return std::nullopt;
-        const auto item = std::find_if(task->items.begin(), task->items.end(),
-                                        [&itemId](const Item &i) { return i.id == itemId; });
-        if (item == task->items.end())
-            return std::nullopt;
-        const QString field = types.type(item->type).pastedImageField();
+        const QString field = imageField(taskId, itemId);
         if (field.isEmpty())
             return std::nullopt;
 
         const QString name = save(image);
         if (name.isEmpty())
             return Result::SaveFailed;
-        Task changed = *task;
+        Task changed = *model.task(taskId);
         for (Item &i : changed.items) {
             if (i.id == itemId)
                 i.config.insert(field, name);
@@ -101,35 +167,16 @@ ImagePaste::~ImagePaste() = default;
 ImagePaste::Result ImagePaste::paste(const QImage &image, const DashboardRef &dashboard,
                                      const std::optional<NodePath> &focusedCell, const QString &rootTaskId)
 {
-    // The focused cell, if the path leads to a cell of the dashboard's layout.
-    const LayoutNode *tree = d->model.layout(dashboard);
-    const LayoutNode *cell = nullptr;
-    if (tree && focusedCell) {
-        cell = layout::nodeAt(*tree, *focusedCell);
-        if (cell && cell->kind != LayoutNode::Kind::Cell)
-            cell = nullptr;
-    }
+    const Private::Target target = d->target(dashboard, focusedCell, rootTaskId);
+    if (target.result == Result::ReplacedImage)
+        return d->replace(image, target.taskId, target.itemId).value_or(Result::SaveFailed);
+    if (target.result != Result::CreatedItem)
+        return target.result;
 
-    // An item edit, so it works on a locked dashboard and on a root dashboard.
-    if (cell && cell->ref && cell->ref->isItem()) {
-        const QString taskId = dashboard.isRoot() ? cell->ref->task : dashboard.taskId;
-        if (const std::optional<Result> result = d->replace(image, taskId, cell->ref->item))
-            return *result;
-    }
-
+    const LayoutNode *tree = target.tree;
+    const LayoutNode *cell = target.cell;
+    const Task *task = d->model.task(target.taskId);
     const ItemType *type = d->imageType();
-    if (!type)
-        return Result::NoImageType;
-    if (!d->locks.isUnlocked(dashboard.dashboardId))
-        return Result::Locked;
-    // A root dashboard has no task of its own, so the caller names one.
-    const QString taskId = dashboard.isRoot() ? rootTaskId : dashboard.taskId;
-    if (taskId.isEmpty())
-        return Result::RootDashboard;
-
-    const Task *task = d->model.task(taskId);
-    if (!task || !tree)
-        return Result::SaveFailed;      // the task or dashboard is gone; nothing to paste into
 
     const QString file = d->save(image);
     if (file.isEmpty())
@@ -178,6 +225,19 @@ ImagePaste::Result ImagePaste::pasteIntoItem(const QImage &image, const QString 
     if (const std::optional<Result> result = d->replace(image, taskId, itemId))
         return *result;
     return Result::NoImageType;
+}
+
+ImagePaste::Result ImagePaste::check(const DashboardRef &dashboard, const std::optional<NodePath> &focusedCell,
+                                     const QString &rootTaskId) const
+{
+    return d->target(dashboard, focusedCell, rootTaskId).result;
+}
+
+ImagePaste::Result ImagePaste::checkItem(const QString &taskId, const QString &itemId) const
+{
+    if (d->imageField(taskId, itemId).isEmpty())
+        return Result::NoImageType;
+    return d->store.readOnly() ? Result::SaveFailed : Result::ReplacedImage;
 }
 
 QString ImagePaste::message(Result result)

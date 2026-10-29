@@ -202,6 +202,22 @@ When editing is on:
 
 After each edit, the tree is [normalised](data-model.md#normalisation).
 
+## Pasting images
+
+Every image paste opens the paste dialog first. This covers `Ctrl+V` on a task dashboard, on a root dashboard and in an item tab, and the "Paste" button of an image field in the item dialog. What the paste then does is described under [image](item-types.md#image). See [decision 0045](decisions/0045-preview-and-crop-pasted-images.md).
+
+- The dialog, "Paste Image", shows the image scaled to fit. A small image keeps its own size. Under it, a line gives the image's size in pixels, such as "1920 × 1080 pixels".
+- **Cropping.** Dragging on the image draws a crop rectangle. The image outside it is dimmed. The line under the image then gives both sizes, such as "Crop: 800 × 600 of 1920 × 1080 pixels".
+  - Handles on the corners and the middle of the edges resize the crop. Dragging inside it moves it. The mouse pointer shows which one is under it.
+  - The crop stays within the image and is at least one pixel wide and high. An edge dragged past the opposite edge turns the rectangle over.
+  - Dragging outside the crop draws a new one. A click without a drag removes it.
+  - **Whole Image** removes the crop. It is enabled only while there is a crop.
+- The crop is in the image's own pixels. The pasted image is cut at full resolution, not at the size of the preview.
+- **Paste**, or `Enter`, pastes the cropped image, or the whole image without a crop. **Cancel**, or `Escape`, pastes nothing.
+- The dialog opens only when the paste can happen. On a locked dashboard, in the read-only sample data, in a build without an image type, or on a root dashboard without any active task, the status bar gives the reason at once and no dialog opens.
+- On a root dashboard, the question about the task ([decision 0032](decisions/0032-paste-images-into-root-dashboards.md)) comes after the paste dialog. The user first sees the image, then chooses where it goes. Cancel in either dialog pastes nothing.
+- The preview has a light rounded backdrop, drawn with the text colour mostly transparent, as the [flat controls](#look). The crop border and handles use the palette's highlight colour. Both suit light and dark palettes.
+
 ## Detached windows
 
 A root dashboard tab can be detached into its own operating system window. Nothing else is detached: not cells, not task dashboard tabs, not item tabs. See [decision 0024](decisions/0024-detach-root-dashboard-tabs.md).
@@ -274,7 +290,7 @@ The project is chosen by matching the merge request's GitLab project or the issu
 | `F11` (macOS: `Ctrl+Cmd+F`) | Full screen on or off, as in web browsers. The platform's standard key, `QKeySequence::FullScreen`. |
 | `Ctrl+Shift+M` | Maximise the focused cell, or restore the maximised one. See [a bigger view](#a-bigger-view-of-an-item). |
 | `Ctrl+W` | Close the preview tab or the focused root tab |
-| `Ctrl+V` | With an image on the clipboard: paste it into the focused cell's image item, or as a new image item on an unlocked task dashboard. See [image](item-types.md#image). A text field keeps its own paste. |
+| `Ctrl+V` | With an image on the clipboard: paste it into the focused cell's image item, or as a new image item on an unlocked dashboard, after the [paste dialog](#pasting-images). See [image](item-types.md#image). A text field keeps its own paste. |
 | Global hotkey (configurable) | Bring Mirante to the front |
 
 On macOS, `Cmd` replaces `Ctrl`.

@@ -17,6 +17,7 @@
 #include "ui/EntityActions.h"
 #include "ui/FocusView.h"
 #include "ui/ImagePaste.h"
+#include "ui/ImagePasteDialog.h"
 #include "ui/MainWindow.h"
 #include "ui/RootDashboardsDialog.h"
 #include "ui/RootTabBar.h"
@@ -38,11 +39,13 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QImage>
+#include <QInputDialog>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QLabel>
 #include <QMenu>
 #include <QMenuBar>
+#include <QPainter>
 #include <QPointer>
 #include <QSettings>
 #include <QSignalSpy>
@@ -89,6 +92,34 @@ public:
 };
 
 void registerTestWeb(ModuleRegistrar &registrar) { registrar.addItemType(std::make_unique<TestWebPage>()); }
+
+// The Overview task has an image item, Garden sketch.
+const QString kImageTask = QStringLiteral("d71f3227-79a2-55e9-a0d8-429b99432282");
+const QString kGardenSketch = QStringLiteral("734a1531-d2f6-5ef8-9585-4233708ba49f");
+
+// A stand-in for the image module's image type, which the ui tests do not link.
+class TestImage : public ItemType
+{
+public:
+    QString id() const override { return QStringLiteral("image"); }
+    QString name() const override { return QStringLiteral("Image"); }
+    QIcon icon() const override { return {}; }
+    QString pastedImageField() const override { return QStringLiteral("file"); }
+};
+
+void registerTestImage(ModuleRegistrar &registrar) { registrar.addItemType(std::make_unique<TestImage>()); }
+
+// The paste dialog's exec: crops to crop and accepts. Any other dialog is refused.
+std::function<bool(QDialog &)> cropTo(const QRect &crop)
+{
+    return [crop](QDialog &d) {
+        auto *dialog = qobject_cast<ImagePasteDialog *>(&d);
+        if (!dialog)
+            return false;
+        dialog->setCrop(crop);
+        return true;
+    };
+}
 
 // The registry has no modules, so every item has an unknown type.
 struct Fixture;
@@ -791,13 +822,106 @@ private slots:
 
     // A pasted image that cannot be placed is explained in the status bar.
     // The registry has no type that takes pasted images.
+    // No paste dialog opens for a paste that cannot happen.
     void pasteImageMessage()
     {
         Fixture f;
+        int dialogs = 0;
+        f.window->setExec([&dialogs](QDialog &) {
+            ++dialogs;
+            return true;
+        });
         QImage image(4, 4, QImage::Format_ARGB32);
         image.fill(Qt::red);
         f.window->pasteImage(image);
         QCOMPARE(f.window->statusBar()->currentMessage(), ImagePaste::message(ImagePaste::Result::NoImageType));
+        QCOMPARE(dialogs, 0);
+    }
+
+    // A paste into an item alone in a tab opens the paste dialog first.
+    // Cancel pastes nothing; Paste saves the cropped image, at full size.
+    void pasteImageIntoItemCrops()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        QVERIFY(copyFixtures(dir.path()));
+        Fixture f;
+        f.types.registerModule(QStringLiteral("image"), &registerTestImage);
+        f.window->openWorkspace(dir.path());
+        f.window->openItem(kImageTask, kGardenSketch);
+        const auto file = [&f] { return f.model.item(kImageTask, kGardenSketch)->config.value(QStringLiteral("file")).toString(); };
+        const QString before = file();
+
+        QImage image(300, 200, QImage::Format_RGB32);
+        image.fill(Qt::blue);
+        QPainter(&image).fillRect(QRect(100, 50, 40, 30), Qt::green);
+
+        QStringList dialogs;
+        f.window->setExec([&dialogs](QDialog &dialog) {
+            dialogs << QString::fromLatin1(dialog.metaObject()->className());
+            return false;
+        });
+        f.window->pasteImage(image);
+        QCOMPARE(dialogs, QStringList{QStringLiteral("mirante::ImagePasteDialog")});
+        QCOMPARE(file(), before);
+
+        f.window->setExec(cropTo(QRect(100, 50, 40, 30)));
+        f.window->pasteImage(image);
+        QVERIFY(file() != before);
+        const QImage saved(f.dataStore.filePath(file()));
+        QCOMPARE(saved.size(), QSize(40, 30));
+        QCOMPARE(saved.pixelColor(0, 0), QColor(Qt::green));
+        QCOMPARE(saved.pixelColor(39, 29), QColor(Qt::green));
+    }
+
+    // On a root dashboard the paste dialog comes first, then the task
+    // question. Cancelling either pastes nothing.
+    void pasteImageIntoRootDashboard()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        QVERIFY(copyFixtures(dir.path()));
+        Fixture f;
+        f.types.registerModule(QStringLiteral("image"), &registerTestImage);
+        f.window->openWorkspace(dir.path());
+        f.window->openRootDashboard(kMorning);
+        QToolButton *rootLock = nullptr;
+        for (QToolButton *button : f.window->findChildren<QToolButton *>(QStringLiteral("lockButton")))
+            rootLock = button;
+        QVERIFY(rootLock);
+        rootLock->click();
+        QVERIFY(f.window->currentLayoutView()->editMode());
+        f.window->revealInSidebar(kImageTask);
+        const size_t itemsBefore = f.model.task(kImageTask)->items.size();
+
+        QImage image(300, 200, QImage::Format_RGB32);
+        image.fill(Qt::red);
+
+        // The order of the dialogs, and the answer to the second.
+        QStringList dialogs;
+        bool acceptTask = false;
+        f.window->setExec([&dialogs, &acceptTask](QDialog &dialog) {
+            dialogs << QString::fromLatin1(dialog.metaObject()->className());
+            if (auto *paste = qobject_cast<ImagePasteDialog *>(&dialog)) {
+                paste->setCrop(QRect(0, 0, 50, 20));
+                return true;
+            }
+            return acceptTask;
+        });
+        f.window->pasteImage(image);
+        QCOMPARE(dialogs, (QStringList{QStringLiteral("mirante::ImagePasteDialog"), QStringLiteral("QInputDialog")}));
+        QCOMPARE(f.model.task(kImageTask)->items.size(), itemsBefore);
+
+        dialogs.clear();
+        acceptTask = true;
+        f.window->pasteImage(image);
+        QCOMPARE(dialogs.size(), 2);
+        const Task *task = f.model.task(kImageTask);
+        QCOMPARE(task->items.size(), itemsBefore + 1);
+        const Item &item = task->items.back();
+        QCOMPARE(item.type, QStringLiteral("image"));
+        const QImage saved(f.dataStore.filePath(item.config.value(QStringLiteral("file")).toString()));
+        QCOMPARE(saved.size(), QSize(50, 20));
     }
 
     // A deleted task's tabs close.
