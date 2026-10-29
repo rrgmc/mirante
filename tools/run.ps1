@@ -4,6 +4,8 @@
 #   tools/run.ps1 -Data <folder>        open the workspace in <folder>
 #   tools/run.ps1 -Settings <file>      keep the settings in an INI file, so a
 #                                       test run leaves this device's alone
+#   tools/run.ps1 -Log                  keep the log for Help > Show Log, also
+#                                       in a release build
 #   tools/run.ps1 -Build                build the preset first, without tests
 #   tools/run.ps1 -Preset release       another preset's build
 #
@@ -14,6 +16,7 @@ param(
     [string]$Preset = 'dev',
     [string]$Data,
     [string]$Settings,
+    [switch]$Log,
     [switch]$Build
 )
 
@@ -41,6 +44,7 @@ $AppArgs = @()
 if ($Data) { $AppArgs += '--data', "`"$((Resolve-Path $Data).Path)`"" }
 # The settings file need not exist yet, so its path is not resolved.
 if ($Settings) { $AppArgs += '--settings', "`"$($ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Settings))`"" }
+if ($Log) { $AppArgs += '--log' }
 $Start = @{ FilePath = $Exe }
 if ($AppArgs) { $Start.ArgumentList = $AppArgs }
 Start-Process @Start

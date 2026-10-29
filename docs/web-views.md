@@ -54,6 +54,7 @@ A heavy page such as claude.ai uses a few hundred MB.
 - **Downloads.** Downloads go to the system download folder, after asking.
 - **Toolbar.** Each web cell header has back, reload, the current address, and open in external browser. Back is disabled when there is no history. The address is cut in the middle to fit. A click on it shows the whole address, selected, so it can be copied.
 - **Load failure.** When a page fails to load, a message with the error and a Reload button takes the place of the page. Chromium's own error page is turned off. A server's error page, such as a 404 page, is shown as it is: only network errors, which Chromium gives negative codes, show the message. Every failed load is logged with its error domain and code.
+- **A page that stops.** If a page's process ends, for example because it crashed, the page is replaced by "The page stopped" and a Reload button, and the end is logged. Debug builds use Qt WebEngine's debug libraries, whose extra internal checks end some pages, such as the claude.ai login page, that the release libraries show. Check web pages with a release build.
 
 ## Known risk: logins in embedded browsers
 

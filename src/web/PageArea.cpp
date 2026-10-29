@@ -200,6 +200,17 @@ PageArea::PageArea(QWebEngineProfile *profile, QWidget *parent)
             [this](const QWebEnginePermission &permission) { d->ask(permission); });
     connect(d->page, &QWebEnginePage::loadingChanged, this,
             [this](const QWebEngineLoadingInfo &info) { d->loadingChanged(info); });
+    // A page whose process ended, such as after a crash, would stay blank.
+    connect(d->page, &QWebEnginePage::renderProcessTerminated, this,
+            [this](QWebEnginePage::RenderProcessTerminationStatus status, int exitCode) {
+                if (status == QWebEnginePage::NormalTerminationStatus)
+                    return;
+                qWarning().noquote() << "Page process ended:" << d->page->url().toDisplayString() << "status"
+                                     << status << "exit code" << exitCode;
+                d->failedUrl = d->page->url();
+                d->failureText->setText(tr("The page %1 stopped.").arg(d->failedUrl.toDisplayString()));
+                d->stack->setCurrentWidget(d->failure);
+            });
 }
 
 PageArea::~PageArea() = default;

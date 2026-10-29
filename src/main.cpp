@@ -1,5 +1,6 @@
 #include "Version.h"
 #include "core/DeviceSettings.h"
+#include "core/LogBuffer.h"
 #include "core/Model.h"
 #include "core/Store.h"
 #include "items/EnabledModules.h"
@@ -18,6 +19,12 @@
 
 int main(int argc, char *argv[])
 {
+    // The log messages for Help > Show Log, kept from the start. Debug builds
+    // always keep them; release builds only with --log. The console output
+    // stays as it is.
+    auto logBuffer = std::make_unique<mirante::LogBuffer>();
+    logBuffer->install();
+
     // Qt WebEngine asks for shared OpenGL contexts, set before the application.
     QCoreApplication::setAttribute(Qt::AA_ShareOpenGLContexts);
     QApplication app(argc, argv);
@@ -38,7 +45,15 @@ int main(int argc, char *argv[])
         QStringLiteral("Keep this device's settings in the INI <file> instead, for test runs."),
         QStringLiteral("file"));
     parser.addOption(settingsOption);
+    const QCommandLineOption logOption(QStringLiteral("log"),
+                                       QStringLiteral("Keep the log messages for Help > Show Log. Always on in debug builds."));
+    parser.addOption(logOption);
     parser.process(app);
+#ifdef NDEBUG
+    // Without the buffer, Help has no Show Log and Qt's own handler is back.
+    if (!parser.isSet(logOption))
+        logBuffer.reset();
+#endif
 
     // Created in the order of docs/architecture.md#ownership-and-lifetime, and
     // destroyed in reverse. Services that do not exist yet are left out. The

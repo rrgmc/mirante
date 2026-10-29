@@ -3,9 +3,11 @@
 These are the checks for [milestone M4](../roadmap.md#m4-web-views) that tests cannot make. Run them on Windows:
 
 ```powershell
-tools/build.ps1
-tools/run.ps1 -Data <a test workspace> -Settings <a scratch .ini file>
+tools/build.ps1 -Preset release
+tools/run.ps1 -Preset release -Data <a test workspace> -Settings <a scratch .ini file>
 ```
+
+Use the release build. The debug build loads Qt WebEngine's debug libraries, whose extra internal checks stop some pages, such as the claude.ai login page.
 
 Use a test workspace with at least two groups, A and B, each with a project and a task. Logins are kept in the app's local data folder, not in the workspace, so they are real logins on this device. The scratch settings file keeps your own last workspace and open tabs unchanged.
 

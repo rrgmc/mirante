@@ -305,6 +305,26 @@ private slots:
         QVERIFY(panel->view()->isVisible());
         QVERIFY(!failure->isVisible());
     }
+
+    // A page whose process ends shows a message with Reload, not a blank page.
+    void endedPageProcessShowsMessage()
+    {
+        auto panel = makePanel(QUrl(QStringLiteral("data:text/html,<p>alive</p>")));
+        QSignalSpy loads(panel->view(), &QWebEngineView::loadFinished);
+        QVERIFY(loaded(loads));
+        QSignalSpy ended(panel->view()->page(), &QWebEnginePage::renderProcessTerminated);
+
+        // Chromium's address for ending the page's process on purpose.
+        panel->view()->page()->load(QUrl(QStringLiteral("chrome://kill")));
+        QTRY_VERIFY_WITH_TIMEOUT(!ended.isEmpty(), kTimeout);
+
+        auto *failure = panel->findChild<QWidget *>(QStringLiteral("loadFailure"));
+        auto *failureText = panel->findChild<QLabel *>(QStringLiteral("failureText"));
+        QVERIFY(failure);
+        QVERIFY(failureText);
+        QTRY_VERIFY(failure->isVisible());
+        QVERIFY(failureText->text().contains(QStringLiteral("stopped")));
+    }
 };
 
 int main(int argc, char *argv[])
