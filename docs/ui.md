@@ -68,7 +68,7 @@ The window opens centred on the screen, at the size it had when it was last clos
 The menu bar has three menus.
 
 - **File:** New Workspace… (`Ctrl+N`), Open Workspace… (`Ctrl+O`), Open Recent with the last ten workspaces and Clear Recent, Rename Workspace…, Show Workspace Folder, Open Sample Data, Reload Workspace (`F5`), New Group…, and Quit (`Ctrl+Q`). A workspace is a data folder with a `workspace.mirante` file at its top. Open Workspace… chooses that file. New Workspace… chooses a folder and a name and writes the file. A folder without the file is not opened; from the menus the app offers to make it a workspace. At start the app opens the workspace given with `--data`, otherwise the last one used on this device if it still has its file, otherwise the sample data. The window title and the sidebar header show the workspace's name: the name in its `workspace.mirante`, else the folder's name. Rename Workspace…, or a double click on the name in the sidebar header, renames it, and the Store writes `workspace.mirante`. The sample data cannot be renamed. Show Workspace Folder opens the workspace's folder in Explorer, Finder or the desktop's file manager; it is disabled for the sample data, which has no folder. Reload Workspace opens the workspace again from its files. See decisions [0025](decisions/0025-workspace-file.md) and [0027](decisions/0027-workspace-needs-its-file.md).
-- **View:** Sidebar (show or hide), Expand All Tasks, Collapse All Tasks, Go To… (`Ctrl+K`, the [quick switcher](#keyboard)), All Dashboards…, and New Dashboard.
+- **View:** Sidebar (show or hide), Expand All Tasks, Collapse All Tasks, Full Screen (`F11`, `Ctrl+Cmd+F` on macOS; leaving it brings back the maximized or normal window, and a window closed in full screen opens as it was before), Go To… (`Ctrl+K`, the [quick switcher](#keyboard)), All Dashboards…, and New Dashboard.
 - **Help:** About Mirante, with the version, the author and the project's address, and About Qt.
 
 ## Opening tasks
@@ -214,6 +214,7 @@ The project is chosen by matching the merge request's GitLab project or the issu
 | `Ctrl+Alt+Arrow` | Move focus to the cell in that direction |
 | `Ctrl+Tab`, `Ctrl+Shift+Tab` | Next or previous tab in the focused tab group |
 | `Ctrl+PgDown`, `Ctrl+PgUp` | Next or previous root dashboard tab |
+| `F11` (macOS: `Ctrl+Cmd+F`) | Full screen on or off, as in web browsers. The platform's standard key, `QKeySequence::FullScreen`. |
 | `Ctrl+Shift+M` | Maximise the focused cell, or restore it |
 | `Ctrl+W` | Close the preview tab or the focused root tab |
 | `Ctrl+V` | With an image on the clipboard: paste it into the focused cell's image item, or as a new image item on an unlocked task dashboard. See [image](item-types.md#image). A text field keeps its own paste. |
