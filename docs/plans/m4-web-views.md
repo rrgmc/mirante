@@ -1,6 +1,6 @@
 # M4 code plan: web views
 
-This plan implements [milestone M4](../roadmap.md#m4-web-views). After M4, web items show live pages: a Web page, a Claude session on claude.ai, and the GitLab and Jira page types. Each group logs in once, in its own profile. Root dashboard tabs can be detached into windows.
+This plan implements [milestone M4](../roadmap.md#m4-web-views). After M4, web items show live pages: a Web page, a Claude session on claude.ai, and the GitLab and Jira page types. Each module logs in once in each group, in a profile of its own. Root dashboard tabs can be detached into windows.
 
 Native item types keep their M2 placeholders until M6 and M7. There are still no API calls and no tokens.
 
@@ -8,6 +8,7 @@ Native item types keep their M2 placeholders until M6 and M7. There are still no
 
 - **Qt WebEngine joins the build.** `find_package` adds `WebEngineWidgets`, `WebChannel` and `Network`. `tools/setup-qt.ps1` and `tools/setup-qt.sh` install the `qtwebengine`, `qtwebchannel` and `qtpositioning` add-on modules. CI caches the larger Qt, installs the Linux packages WebEngine needs at run time, and runs the tests with `QT_QPA_PLATFORM=offscreen`. On Linux it also sets `QTWEBENGINE_DISABLE_SANDBOX=1`, because Ubuntu 24.04 runners block the user namespaces Chromium's sandbox needs.
 - **The core makes web views; modules may take the profile instead.** A module's `createView` normally asks its `ItemContext` for a web view of a URL, and gets a plain `QWidget`. The core chooses the profile, and handles popups, permissions, downloads and the toolbar. A module that needs full control of its page can take the profile with `profile(url)` instead, and links Qt WebEngine itself. All five web types of M4 use `createWebView`. See [decision 0037](../decisions/0037-core-makes-web-views.md).
+- **One profile per group and module.** A module's web items in a group share one profile, and no other module's items use it. Module code that takes the profile reaches only its own module's sessions. See [decision 0040](../decisions/0040-profiles-per-group-and-module.md).
 - **Connections are read in M4, without tokens.** The GitLab and Jira page types need the base URL of their connection. M4 adds the [resolution order](../data-model.md#connection) and a minimal connection list in the group dialog: kind, name, base URL and the group default. Tokens, kind-specific fields, testing a connection and project overrides in the project dialog stay in M5. See [decision 0038](../decisions/0038-read-connections-in-m4.md).
 - **A new library, `src/web/`.** It holds `ProfileManager` and `WebPanel`, and links Qt WebEngine. `items` links `web`, as the [architecture](../architecture.md#source-folders) already shows.
 - **Placements arrive.** A `Placement` is the body of a `CellFrame`. It creates the item's view when it first becomes visible, and reports visibility to the `ViewPool`.
@@ -64,12 +65,12 @@ public:
     // The local path of a project folder on this device, or empty.
     virtual QString folderPath(const QString &folderId) const = 0;
 
-    // A live web page of url, in the profile the item's group uses for that
+    // A live web page of url, in the profile the item's group and module use for that
     // host, with the toolbar in the cell header. See docs/web-views.md.
     // The normal way for a web type to show a page.
     virtual QWidget *createWebView(const QUrl &url, QWidget *parent) = 0;
 
-    // The profile the item's group uses for url's host, for a module that
+    // The profile the item's group and module use for url's host, for a module that
     // builds its own QWebEngineView. Declared, not defined, here; the module
     // links Qt WebEngine with QT_LIBS. See docs/decisions/0037-core-makes-web-views.md.
     virtual QWebEngineProfile *profile(const QUrl &url) = 0;
@@ -102,16 +103,18 @@ public:
     explicit ProfileManager(const QString &root, QObject *parent = nullptr);
     ~ProfileManager() override;
 
-    QWebEngineProfile *groupProfile(const QString &groupId);   // "g-<groupId>"
-    QWebEngineProfile *sharedProfile();                        // "shared"
-    QWebEngineProfile *appProfile();                           // "app"; used from M9
+    QWebEngineProfile *groupProfile(const QString &groupId, const QString &moduleId);  // "g-<groupId>-<moduleId>"
+    QWebEngineProfile *sharedProfile(const QString &moduleId);                        // "shared-<moduleId>"
+    QWebEngineProfile *appProfile();                                                  // "app"; used from M9
 
-    // The group's profile, or the shared one if profileOverrides sends the
-    // URL's host there. Hosts match exactly, ignoring case.
-    QWebEngineProfile *profileFor(const Group &group, const QUrl &url);
+    // The module's profile in the group, or the module's shared one if
+    // profileOverrides sends the URL's host there. Hosts match exactly,
+    // ignoring case.
+    QWebEngineProfile *profileFor(const Group &group, const QString &moduleId, const QUrl &url);
 
-    // Clears the group profile's cookies and cache, then removes its folder
-    // once no page uses it. Called when the user deletes a group.
+    // Clears the cookies and cache of every module's profile of the group,
+    // then removes their folders once no page uses them. Called when the
+    // user deletes a group.
     void removeGroup(const QString &groupId);
 
     QString storagePath(const QString &storageName) const;
@@ -124,7 +127,10 @@ public:
 - A profile is deleted only when the user deletes a group in this app, not when a sync removes the group file. A group file that disappears for a moment would otherwise take its logins with it. See [decision 0039](../decisions/0039-profiles-deleted-only-by-local-delete.md).
 - At shutdown `main.cpp` destroys the `MainWindow`, and with it every page, before the `ProfileManager`.
 
-**Tests:** `tst_profile_manager`: the storage names and folders; a cookie set in group A's store is not in group B's; an overridden host goes to the shared profile, another host does not; `removeGroup` removes the folder.
+- The module of an item is the prefix of its type id, before the first dot. The placement's `ItemContext` passes it, so a module never names its own profile.
+- `removeGroup` finds the group's profiles by the `g-<groupId>-` prefix of the folders, so it also removes those of modules missing from this build.
+
+**Tests:** `tst_profile_manager`: the storage names and folders; a cookie set in group A's store is not in group B's; a cookie set for one module is not in another module's profile of the same group; an overridden host goes to the module's shared profile, another host does not; `removeGroup` removes the folders of every module.
 
 ## Part 3: the web panel
 
