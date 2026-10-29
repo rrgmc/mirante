@@ -140,6 +140,7 @@ private slots:
     void createInEmptyCell();
     void splitFilledCell();
     void splitRootWithoutFocus();
+    void fillOnlyEmptyCellWithoutFocus();
     void numberedNames();
     void lockedRefuses();
     void rootDashboard();
@@ -310,6 +311,20 @@ void TestImagePaste::splitRootWithoutFocus()
     const LayoutNode *last = layout::nodeAt(board(), cells.back());
     QVERIFY(last->ref);
     QCOMPARE(last->ref->item, created->id);
+}
+
+void TestImagePaste::fillOnlyEmptyCellWithoutFocus()
+{
+    locks.setUnlocked(boardId, true);
+    model.setTaskDashboardLayout(taskId, boardId, LayoutNode{});
+    ImagePaste paste(model, *store, types, locks);
+    QCOMPARE(paste.paste(redImage(), {taskId, boardId}, std::nullopt), ImagePaste::Result::CreatedItem);
+
+    const Item *created = itemNamed(QStringLiteral("Image 2"));
+    QVERIFY(created);
+    QCOMPARE(board().kind, LayoutNode::Kind::Cell);
+    QVERIFY(board().ref);
+    QCOMPARE(board().ref->item, created->id);
 }
 
 void TestImagePaste::numberedNames()

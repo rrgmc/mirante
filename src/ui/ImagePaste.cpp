@@ -149,6 +149,8 @@ ImagePaste::Result ImagePaste::paste(const QImage &image, const DashboardRef &da
         layout = layout::setRef(taskDashboard->layout, *focusedCell, ref);
     else if (cell)
         layout = layout::splitCell(taskDashboard->layout, *focusedCell, Edge::Right, ref).tree;
+    else if (taskDashboard->layout.kind == LayoutNode::Kind::Cell && !taskDashboard->layout.ref)
+        layout = layout::setRef(taskDashboard->layout, NodePath{}, ref);   // a dashboard of one empty cell
     else
         layout = layout::splitCell(taskDashboard->layout, NodePath{}, Edge::Right, ref).tree;
 
