@@ -7,7 +7,7 @@ Native item types keep their M2 placeholders until M6 and M7. There are still no
 ## Changes to the architecture
 
 - **Qt WebEngine joins the build.** `find_package` adds `WebEngineWidgets`, `WebChannel` and `Network`. `tools/setup-qt.ps1` and `tools/setup-qt.sh` install the `qtwebengine`, `qtwebchannel` and `qtpositioning` add-on modules. CI caches the larger Qt, installs the Linux packages WebEngine needs at run time, and runs the tests with `QT_QPA_PLATFORM=offscreen`. On Linux it also sets `QTWEBENGINE_DISABLE_SANDBOX=1`, because Ubuntu 24.04 runners block the user namespaces Chromium's sandbox needs.
-- **The core makes every web view.** A module's `createView` asks its `ItemContext` for a web view of a URL, and gets a plain `QWidget`. The core chooses the profile, and handles popups, permissions, downloads and the toolbar. Modules do not link Qt WebEngine and never see a profile. This replaces `profile()` in the [item context](../modules.md#item-context). See [decision 0037](../decisions/0037-core-makes-web-views.md).
+- **The core makes web views; modules may take the profile instead.** A module's `createView` normally asks its `ItemContext` for a web view of a URL, and gets a plain `QWidget`. The core chooses the profile, and handles popups, permissions, downloads and the toolbar. A module that needs full control of its page can take the profile with `profile(url)` instead, and links Qt WebEngine itself. All five web types of M4 use `createWebView`. See [decision 0037](../decisions/0037-core-makes-web-views.md).
 - **Connections are read in M4, without tokens.** The GitLab and Jira page types need the base URL of their connection. M4 adds the [resolution order](../data-model.md#connection) and a minimal connection list in the group dialog: kind, name, base URL and the group default. Tokens, kind-specific fields, testing a connection and project overrides in the project dialog stay in M5. See [decision 0038](../decisions/0038-read-connections-in-m4.md).
 - **A new library, `src/web/`.** It holds `ProfileManager` and `WebPanel`, and links Qt WebEngine. `items` links `web`, as the [architecture](../architecture.md#source-folders) already shows.
 - **Placements arrive.** A `Placement` is the body of a `CellFrame`. It creates the item's view when it first becomes visible, and reports visibility to the `ViewPool`.
@@ -66,7 +66,13 @@ public:
 
     // A live web page of url, in the profile the item's group uses for that
     // host, with the toolbar in the cell header. See docs/web-views.md.
+    // The normal way for a web type to show a page.
     virtual QWidget *createWebView(const QUrl &url, QWidget *parent) = 0;
+
+    // The profile the item's group uses for url's host, for a module that
+    // builds its own QWebEngineView. Declared, not defined, here; the module
+    // links Qt WebEngine with QT_LIBS. See docs/decisions/0037-core-makes-web-views.md.
+    virtual QWebEngineProfile *profile(const QUrl &url) = 0;
 
     // A grey message in the middle of the cell, such as "No GitLab connection
     // in this group", in the same style as the core's placeholders.
@@ -81,6 +87,8 @@ public:
 
 - The [item context](../modules.md#item-context) table lists more members: `deviceSetting`, `status`, `gitHead` and `launchTerminal`. They arrive with the milestones that need them.
 - `config()` reads the model each time, so it is current after an external change.
+- `mirante_add_module()` gains a `QT_LIBS` argument, such as `QT_LIBS WebEngineWidgets`, for a module that uses `profile()`. The module-includes check allows Qt headers as before.
+- A view made from `profile()` puts nothing in the cell header, and its module handles popups, permissions and downloads. The memory policy unloads it like any web view.
 
 ## Part 2: profiles
 
@@ -279,7 +287,7 @@ The headers written by T0 are the interfaces. Where they differ in detail from t
 
 | Task | Branch | Work | Owns | Needs |
 |---|---|---|---|---|
-| T0 | `m4-interfaces` | Qt WebEngine in `setup-qt`, CMake and CI, proven on all three platforms. The `src/web/` library. Every header named in this plan, with stubs that compile. The `ItemType` additions and `ItemContext.h`. `DashboardPage` moved out of `MainWindow.cpp`. Updates [modules](../modules.md#item-context) for `createWebView`. | everything it creates; after merging, the headers belong to the orchestrator | none |
+| T0 | `m4-interfaces` | Qt WebEngine in `setup-qt`, CMake and CI, proven on all three platforms. The `src/web/` library. Every header named in this plan, with stubs that compile. The `ItemType` additions and `ItemContext.h`. `DashboardPage` moved out of `MainWindow.cpp`. `QT_LIBS` in `mirante_add_module()`. Updates [modules](../modules.md#item-context) for `createWebView` and `profile(url)`. | everything it creates; after merging, the headers belong to the orchestrator | none |
 | T1 | `m4-profiles` | Part 2: `ProfileManager`. `tst_profile_manager`. Updates [web views](../web-views.md#profiles). | `src/web/ProfileManager.cpp`, its test | T0 |
 | T2 | `m4-web-panel` | Part 3: `WebPanel`, its page class, the popup dialog and the permission bar. `tst_web_panel`. | `src/web/WebPanel.cpp` and new files in `src/web/` other than `ProfileManager.cpp`, its test | T0 |
 | T3 | `m4-view-pool` | `ViewPool`, and the `DeviceSettings` additions of parts 5 and 7. `tst_view_pool`, `tst_device_settings` additions. | `src/items/ViewPool.cpp`, `src/core/DeviceSettings.cpp`, their tests | T0 |

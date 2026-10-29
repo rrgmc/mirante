@@ -41,9 +41,9 @@ Each file records one design decision: what was decided, what else was considere
 | [0033](0033-cell-header-pills.md) | Cell headers show the type and the place as pills | Accepted |
 | [0034](0034-manual-order-in-the-sidebar.md) | The sidebar keeps the manual order; priority is a marker | Accepted |
 | [0036](0036-trash-for-tasks-and-projects.md) | Deleted tasks and projects go to a trash | Accepted |
-| [0037](0037-core-makes-web-views.md) | The core makes every web view | Proposed |
+| [0037](0037-core-makes-web-views.md) | The core makes web views; modules may take the profile instead | Accepted |
 | [0038](0038-read-connections-in-m4.md) | Connections are read in M4, without tokens | Accepted |
-| [0039](0039-profiles-deleted-only-by-local-delete.md) | A group's web profile is deleted only when the group is deleted on this device | Proposed |
+| [0039](0039-profiles-deleted-only-by-local-delete.md) | A group's web profile is deleted only when the group is deleted on this device | Accepted |
 
 ## Template
 

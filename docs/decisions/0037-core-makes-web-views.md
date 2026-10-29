@@ -1,6 +1,6 @@
-# 0037. The core makes every web view
+# 0037. The core makes web views; modules may take the profile instead
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-10-29
 
 ## Context
@@ -9,17 +9,18 @@ The [item context](../modules.md#item-context) gave web item types a `profile()`
 
 ## Decision
 
-- `ItemContext::createWebView(url, parent)` returns a plain `QWidget` holding a core `WebPanel`, in the profile that the item's group uses for that host.
-- `ItemType::rendering()` says whether a type's views are web views, which the memory policy unloads.
-- Modules do not link Qt WebEngine and never see a profile. `profile()` is removed from the item context.
+- `ItemContext::createWebView(url, parent)` returns a plain `QWidget` holding a core `WebPanel`, in the profile that the item's group uses for that host. This is the normal way for a web type to show a page.
+- `ItemContext::profile(url)` stays, for a module that needs full control of its page. Such a module links Qt WebEngine itself, through the new `QT_LIBS` argument of `mirante_add_module()`, and handles popups, permissions and downloads on its own.
+- `ItemType::rendering()` says whether a type's views are web views, which the memory policy unloads. It applies to both kinds of web view.
 
 ## Alternatives
 
-- **`profile()`, as first planned.** Modules get full control of the page, but each one repeats the page behaviour, and all of them depend on Qt WebEngine.
+- **Only `profile()`, as first planned.** Modules get full control of the page, but each one repeats the page behaviour, and all of them depend on Qt WebEngine.
+- **Only `createWebView()`.** Page behaviour stays in one place, but a module that needs more than the core offers has to wait for a new `ItemContext` member.
 - **A URL method instead of `createView` for web types.** The core would make the view from `ItemType::url()`. It is simpler for modules, but a type could not show a message, such as a missing connection, or put anything around the page.
 
 ## Consequences
 
-- Page behaviour lives in one place, `WebPanel`, and is the same for every web type.
-- A module that needs more control of a page asks for a new `ItemContext` member first.
-- Module tests run without Qt WebEngine, with a fake `ItemContext`.
+- Page behaviour lives in one place, `WebPanel`, for every type that uses `createWebView()`. All five web types of M4 do.
+- `profile()` returns a `QWebEngineProfile *` declared but not defined in `ItemContext.h`, so the module interface does not depend on Qt WebEngine. Only a module that calls it links Qt WebEngine.
+- Tests of modules that use only `createWebView()` run without Qt WebEngine, with a fake `ItemContext`.

@@ -1,6 +1,6 @@
 # 0039. A group's web profile is deleted only when the group is deleted on this device
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-10-29
 
 ## Context
