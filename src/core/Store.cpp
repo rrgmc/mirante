@@ -39,6 +39,7 @@ const QString kFiles = QStringLiteral("files");
 const QString kWorkspaceFile = QStringLiteral("workspace.mirante");
 const QString kName = QStringLiteral("name");
 const QString kWebProfiles = QStringLiteral("webProfiles");
+const QString kModuleSettings = QStringLiteral("moduleSettings");
 const QString kJson = QStringLiteral(".json");
 
 // A write can fail for a moment while another program, such as a virus scanner
@@ -265,6 +266,9 @@ QJsonObject withoutName(QJsonObject json)
 {
     json.remove(kName);
     json.remove(kWebProfiles);
+    // A value that is not an object is not read, so it is kept as it is.
+    if (json.value(kModuleSettings).isObject())
+        json.remove(kModuleSettings);
     json.remove(kSchemaVersion);
     return json;
 }
@@ -293,6 +297,7 @@ Loaded loadFolder(const QString &dir, Model &model)
     if (workspace) {
         model.setWorkspaceName(workspace->value(kName).toString());
         model.setWebProfiles(webProfilesOf(*workspace));
+        model.setModuleSettings(workspace->value(kModuleSettings).toObject());
         loaded.workspaceExtra = withoutName(*workspace);
     }
     return loaded;
@@ -320,7 +325,7 @@ std::optional<QJsonObject> fileFor(const Model &model, const QString &relPath)
         return std::nullopt;
     switch (ref->kind) {
     case FileKind::Workspace: {
-        if (model.workspaceName().isEmpty() && model.webProfiles().empty())
+        if (model.workspaceName().isEmpty() && model.webProfiles().empty() && model.moduleSettings().isEmpty())
             return std::nullopt;
         QJsonObject json{{kName, model.workspaceName()}};
         if (!model.webProfiles().empty()) {
@@ -329,6 +334,8 @@ std::optional<QJsonObject> fileFor(const Model &model, const QString &relPath)
                 profiles.append(profile.toJson());
             json.insert(kWebProfiles, profiles);
         }
+        if (!model.moduleSettings().isEmpty())
+            json.insert(kModuleSettings, model.moduleSettings());
         return withSchemaVersion(json);
     }
     case FileKind::Group:
@@ -617,6 +624,7 @@ Store::Private::Reload Store::Private::reloadFile(const QString &path)
         workspaceExtra = withoutName(*json);
         model->setWorkspaceName(json->value(kName).toString());
         model->setWebProfiles(webProfilesOf(*json));
+        model->setModuleSettings(json->value(kModuleSettings).toObject());
         break;
     case FileKind::Group:
         if (const std::optional<Group> group = entityOf<Group>(*json, ref->id, &message))
@@ -887,6 +895,7 @@ Store::Store(Model &model, QObject *parent)
     connect(&model, &Model::rootDashboardRemoved, this, on(kDashboards));
     connect(&model, &Model::workspaceNameChanged, this, [this] { d->workspaceSignal(); });
     connect(&model, &Model::webProfilesChanged, this, [this] { d->workspaceSignal(); });
+    connect(&model, &Model::moduleSettingsChanged, this, [this] { d->workspaceSignal(); });
     // modelReset comes from loading, which writes nothing.
 }
 

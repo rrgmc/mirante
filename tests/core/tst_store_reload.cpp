@@ -8,6 +8,7 @@
 
 #include <QDir>
 #include <QFile>
+#include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QSignalSpy>
@@ -293,6 +294,22 @@ void TestStoreReload::workspaceFile()
     QTRY_VERIFY_WITH_TIMEOUT(model.webProfile(QStringLiteral("w1")), kTimeout);
     QCOMPARE(model.webProfile(QStringLiteral("w1"))->name, QStringLiteral("Work"));
     QCOMPARE(profilesChanged.count(), 1);
+
+    // So do module settings, which are not written back.
+    QSignalSpy settingsChanged(&model, &Model::moduleSettingsChanged);
+    const QByteArray withSettings =
+        R"({"schemaVersion":1,"name":"Mine","futureField":3,"webProfiles":[{"id":"w1","name":"Work"}],)"
+        R"("moduleSettings":{"gitlab":{"general":{"projects":["acme/backend"]}}}})";
+    writeFile(path(QStringLiteral("workspace.mirante")), withSettings);
+    QTRY_COMPARE_WITH_TIMEOUT(settingsChanged.count(), 1, kTimeout);
+    QCOMPARE(model.moduleSettings(QStringLiteral("gitlab"), QStringLiteral("general"))
+                 .value(QStringLiteral("projects"))
+                 .toArray()
+                 .first()
+                 .toString(),
+             QStringLiteral("acme/backend"));
+    store.flush();
+    QCOMPARE(readFile(path(QStringLiteral("workspace.mirante"))), withSettings);
 }
 
 // Only local edits delete image files. A reload that drops a reference leaves

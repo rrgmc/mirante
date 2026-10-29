@@ -56,7 +56,7 @@ Anything else uses the "Open page" button. It opens the matching page type in th
 
 ## GitLab
 
-Module `gitlab`. All GitLab types need a `gitlab` connection.
+Module `gitlab`. All GitLab types need a `gitlab` connection. In the item dialog, every `project` field offers the project paths of Modules > GitLab > General Configuration in an editable list, so a path is chosen instead of typed. Another path can still be typed. See [settings screens](modules.md#settings-screens).
 
 ### GitLab MR (summary)
 

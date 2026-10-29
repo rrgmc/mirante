@@ -1,8 +1,10 @@
 #include "items/FieldValidation.h"
 
 #include <QCoreApplication>
+#include <QJsonArray>
 #include <QUrl>
 
+#include <algorithm>
 #include <cmath>
 #include <limits>
 
@@ -22,17 +24,29 @@ bool holdsText(Field::Type type)
         return true;
     case Field::Type::Integer:
     case Field::Type::Bool:
+    case Field::Type::TextList:
         return false;
     }
     return false;
 }
 
-// A missing or null value, or an empty string for a field that holds text.
+// A missing or null value, an empty string for a field that holds text, or an
+// empty array for a list.
 bool isEmpty(const Field &field, const QJsonValue &value)
 {
     if (value.isUndefined() || value.isNull())
         return true;
+    if (field.type == Field::Type::TextList)
+        return value.isArray() && value.toArray().isEmpty();
     return holdsText(field.type) && value.isString() && value.toString().trimmed().isEmpty();
+}
+
+bool isTextList(const QJsonValue &value)
+{
+    if (!value.isArray())
+        return false;
+    const QJsonArray array = value.toArray();
+    return std::all_of(array.begin(), array.end(), [](const QJsonValue &entry) { return entry.isString(); });
 }
 
 bool isInteger(const QJsonValue &value)
@@ -79,6 +93,10 @@ QString check(const Field &field, const QJsonValue &value)
     case Field::Type::Choice:
         if (!value.isString() || !field.choices.contains(value.toString()))
             message = QT_TRANSLATE_NOOP("FieldValidation", "%1 must be one of the choices offered");
+        break;
+    case Field::Type::TextList:
+        if (!isTextList(value))
+            message = QT_TRANSLATE_NOOP("FieldValidation", "%1 must be a list of texts");
         break;
     }
     return message ? QCoreApplication::translate("FieldValidation", message).arg(field.label) : QString();

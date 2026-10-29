@@ -1,6 +1,8 @@
 // Tests Model: lookups, children, refExists, the layout setters and their signals.
 #include "core/Model.h"
 
+#include <QJsonArray>
+#include <QJsonObject>
 #include <QSignalSpy>
 #include <QTest>
 
@@ -107,6 +109,7 @@ private slots:
     void addRootDashboard();
     void removeRootDashboard();
     void pointersStayValid();
+    void moduleSettings();
 };
 
 void TestModel::emptyModel()
@@ -385,6 +388,36 @@ void TestModel::pointersStayValid()
     QCOMPARE(model.rootDashboard(QStringLiteral("r1")), root);
     QCOMPARE(dashboard->layout.ref->item, QStringLiteral("i2"));
     QCOMPARE(root->layout.ref->item, QStringLiteral("i2"));
+}
+
+// One screen's values replace only that screen. Empty values remove it, and
+// the module once it has no screens. Equal values emit nothing.
+void TestModel::moduleSettings()
+{
+    Model model;
+    QSignalSpy changed(&model, &Model::moduleSettingsChanged);
+    const QJsonObject general{{QStringLiteral("projects"), QJsonArray{QStringLiteral("a/b")}}};
+    const QJsonObject other{{QStringLiteral("x"), 1}};
+
+    model.setModuleSettings(QStringLiteral("gitlab"), QStringLiteral("general"), general);
+    model.setModuleSettings(QStringLiteral("gitlab"), QStringLiteral("other"), other);
+    QCOMPARE(changed.count(), 2);
+    model.setModuleSettings(QStringLiteral("gitlab"), QStringLiteral("general"), general);
+    QCOMPARE(changed.count(), 2);
+    QCOMPARE(model.moduleSettings(QStringLiteral("gitlab"), QStringLiteral("general")), general);
+    QCOMPARE(model.moduleSettings(QStringLiteral("gitlab"), QStringLiteral("other")), other);
+
+    model.setModuleSettings(QStringLiteral("gitlab"), QStringLiteral("general"), {});
+    QVERIFY(model.moduleSettings(QStringLiteral("gitlab"), QStringLiteral("general")).isEmpty());
+    QCOMPARE(model.moduleSettings(QStringLiteral("gitlab"), QStringLiteral("other")), other);
+    model.setModuleSettings(QStringLiteral("gitlab"), QStringLiteral("other"), {});
+    QVERIFY(model.moduleSettings().isEmpty());
+    QCOMPARE(changed.count(), 4);
+
+    // reset() clears them, as it does the workspace's other keys.
+    model.setModuleSettings(QStringLiteral("gitlab"), QStringLiteral("general"), general);
+    model.reset({}, {}, {}, {});
+    QVERIFY(model.moduleSettings().isEmpty());
 }
 
 QTEST_GUILESS_MAIN(TestModel)

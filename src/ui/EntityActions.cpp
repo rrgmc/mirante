@@ -11,6 +11,7 @@
 #include "ui/DashboardDialog.h"
 #include "ui/GroupDialog.h"
 #include "ui/ItemDialog.h"
+#include "ui/ModuleSettingsDialog.h"
 #include "ui/ProjectDialog.h"
 #include "ui/TaskDialog.h"
 #include "ui/WebProfilesDialog.h"
@@ -221,6 +222,17 @@ void EntityActions::editWebProfiles()
         d->editProfiles(dialog);
     else
         dialog.exec();
+}
+
+void EntityActions::editModuleSettings(const QString &moduleId, const QString &screenId)
+{
+    const SettingsScreen *screen = d->types.settingsScreen(moduleId, screenId);
+    if (!screen)
+        return;
+    ModuleSettingsDialog dialog(d->types.moduleName(moduleId), *screen, d->model.moduleSettings(moduleId, screenId),
+                                d->dialogParent);
+    if (d->exec(dialog))
+        d->model.setModuleSettings(moduleId, screenId, dialog.values());
 }
 
 // Creating.

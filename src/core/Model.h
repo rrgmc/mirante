@@ -3,6 +3,7 @@
 #include "core/Entities.h"
 #include "core/LayoutTree.h"
 
+#include <QJsonObject>
 #include <QObject>
 
 #include <memory>
@@ -71,6 +72,20 @@ public:
     const WebProfile *webProfile(const QString &id) const;   // nullptr if not listed
     void setWebProfiles(const std::vector<WebProfile> &profiles);
 
+    // The settings of the modules' configuration screens, from
+    // workspace.mirante: an object of module ids, each an object of screen
+    // ids, each the values of that screen. Entries of modules or screens this
+    // build does not have are kept. reset() clears them. See
+    // docs/decisions/0044-module-settings-in-the-workspace.md.
+    QJsonObject moduleSettings() const;
+    // The values of one screen. Empty if none are stored.
+    QJsonObject moduleSettings(const QString &moduleId, const QString &screenId) const;
+    // Replaces all of them. Used by the Store.
+    void setModuleSettings(const QJsonObject &settings);
+    // Replaces the values of one screen. Empty values remove the screen's
+    // entry, and a module left without screens is removed too.
+    void setModuleSettings(const QString &moduleId, const QString &screenId, const QJsonObject &values);
+
     // Whether a task is in the trash: its own trashedAt is set, or its
     // project's is. See docs/data-model.md#task.
     bool taskInTrash(const Task &task) const;
@@ -108,6 +123,7 @@ signals:
     void modelReset();
     void workspaceNameChanged();
     void webProfilesChanged();
+    void moduleSettingsChanged();
     void groupAdded(const QString &id);
     void groupChanged(const QString &id);
     void groupRemoved(const QString &id);

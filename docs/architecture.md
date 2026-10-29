@@ -41,7 +41,7 @@ No core folder depends on a module. The core reaches modules only through the re
 | Class | Responsibility |
 |---|---|
 | `Group`, `Project`, `Task`, `Item`, `Dashboard`, `Connection`, `Folder`, `WebProfile` | Plain value types matching the [data model](data-model.md), with JSON conversion |
-| `Model` | Holds all entities and the workspace's name and web profiles, looks them up by id, and emits signals such as `taskChanged(id)` and `taskRemoved(id)` |
+| `Model` | Holds all entities and the workspace's name, web profiles and module settings, looks them up by id, and emits signals such as `taskChanged(id)` and `taskRemoved(id)` |
 | `Store` | Loads the data folder into `Model`. It turns each model signal into a write of one file through `FileWriter`, applies the changes `FolderWatcher` reports through the model's setters, deletes image files whose last reference a local edit removed, and lists conflict copies. A resource folder, such as the sample data, opens read-only. See [sync](sync.md). |
 | `FileWriter` | Writes and deletes files in the data folder with `QSaveFile`, debounced by 500 ms, and remembers a hash of what it wrote so its own writes can be told apart |
 | `FolderWatcher` | Watches the top of the data folder and its five subfolders, and reports files added, changed or removed by others, after 300 ms of quiet, and the conflict copies present |
@@ -76,8 +76,8 @@ The same `LayoutView` shows task dashboards and root dashboards. A task cell ins
 | Class | Responsibility |
 |---|---|
 | `ItemType` | Interface: id, name, icon, fields, rendering, connection kind, status, actions, `fromUrl`, `createView`, and the view flags `singleView` and `reparentSafe`. See [the view](item-types.md#the-view). |
-| `ItemTypeRegistry` | Holds all types, finds a type by id, and finds the type that recognises a pasted URL |
-| `ModuleRegistrar` | Receives what each module registers: item types, connection kinds, settings, quick add handlers, related-item finders. See [modules](modules.md#what-a-module-registers). |
+| `ItemTypeRegistry` | Holds all types, finds a type by id, and finds the type that recognises a pasted URL. It also holds each module's name and settings screens, and gives each module a `ModuleSettings` that reads the model through a reader set in `main.cpp`. |
+| `ModuleRegistrar` | Receives what each module registers: item types, its name, settings screens, connection kinds, settings, quick add handlers, related-item finders. See [modules](modules.md#what-a-module-registers). |
 | `ItemContext` | What an item's code can reach: settings, connections, status, profile, folders, terminal. See [modules](modules.md#item-context). |
 | `UnknownItemType` | Placeholder for an item whose module is not in this build. See [missing modules](modules.md#missing-modules). |
 | `Placement` | One shown instance of an item, and the body of its cell. It makes the view with the type's `createView` when it is first shown, and owns it. It makes the view again when the item's type, configuration or web profile changes, and drops it when the item goes. A web view is added to the `ViewPool`, and the placement tells the pool when it is shown or hidden. It reports the view's header widget, such as a web toolbar, with `headerWidgetChanged`. |
@@ -136,7 +136,7 @@ Code that differs per platform lives only here, behind these classes.
 | `QuickAdd` | Creates a task from a pasted link, using the modules' quick add handlers. See [quick add](ui.md#quick-add). |
 | `DashboardPage` | One tab's page: a `LayoutView` of one dashboard with its cell factory, or the Focus list. A detached window holds one too. |
 | `DetachedWindow` | A top-level window holding one detached root dashboard. See [decision 0024](decisions/0024-detach-root-dashboard-tabs.md). |
-| Dialogs | Group, project, task, item, connection and settings editors, and the [web profiles](ui.md#web-profiles) list |
+| Dialogs | Group, project, task, item, connection and settings editors, the [web profiles](ui.md#web-profiles) list, and the dialogs of module [settings screens](ui.md#modules) |
 
 ## Data flow
 

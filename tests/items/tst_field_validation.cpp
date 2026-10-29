@@ -101,6 +101,18 @@ private slots:
         QTest::newRow("folder missing") << folder << missing << false;
         QTest::newRow("image") << image << QJsonValue(QStringLiteral("a.png")) << true;
         QTest::newRow("image not a string") << image << QJsonValue(QJsonArray()) << false;
+
+        const Field list = field(QStringLiteral("paths"), Field::Type::TextList);
+        const Field requiredList = field(QStringLiteral("paths"), Field::Type::TextList, true);
+        QTest::newRow("text list") << list << QJsonValue(QJsonArray{QStringLiteral("a"), QStringLiteral("b")})
+                                   << true;
+        QTest::newRow("optional text list missing") << list << missing << true;
+        QTest::newRow("optional text list empty") << list << QJsonValue(QJsonArray()) << true;
+        QTest::newRow("text list with a number") << list << QJsonValue(QJsonArray{QStringLiteral("a"), 1}) << false;
+        QTest::newRow("text list as string") << list << QJsonValue(QStringLiteral("a")) << false;
+        QTest::newRow("required text list") << requiredList << QJsonValue(QJsonArray{QStringLiteral("a")}) << true;
+        QTest::newRow("required text list empty") << requiredList << QJsonValue(QJsonArray()) << false;
+        QTest::newRow("required text list missing") << requiredList << missing << false;
     }
 
     void values()

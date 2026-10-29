@@ -14,8 +14,10 @@ namespace mirante {
 // An ItemEditor built from a list of fields: one row per field, with an editor
 // that fits its type. Folder fields list EditorContext::folders. Image fields
 // show a thumbnail, "Paste" and "Choose file…", and save through
-// EditorContext::saveImage. "Paste" opens ImagePasteDialog first. See the
-// M3 plan, part 5. Implemented in FieldForm.cpp.
+// EditorContext::saveImage. "Paste" opens ImagePasteDialog first. A text
+// field with suggestions is an editable combo box. A text list is edited one
+// entry per line. See the M3 plan, part 5, and decision 0044. Implemented in
+// FieldForm.cpp.
 class FieldForm : public ItemEditor
 {
     Q_OBJECT
