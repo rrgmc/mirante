@@ -290,13 +290,14 @@ std::optional<Project> Project::fromJson(const QJsonObject &json, QString *error
         return std::nullopt;
     r.object(QStringLiteral("moduleSettings"), &project.moduleSettings);
     r.stringMap(QStringLiteral("connectionOverrides"), &project.connectionOverrides);
+    r.string(QStringLiteral("trashedAt"), &project.trashedAt);
     project.extra = r.extra();
     return project;
 }
 
 QJsonObject Project::toJson() const
 {
-    return withExtra({
+    QJsonObject json{
         {QStringLiteral("id"), id},
         {QStringLiteral("groupId"), groupId},
         {QStringLiteral("name"), name},
@@ -305,7 +306,10 @@ QJsonObject Project::toJson() const
         {QStringLiteral("folders"), listToJson(folders)},
         {QStringLiteral("moduleSettings"), moduleSettings},
         {QStringLiteral("connectionOverrides"), mapToJson(connectionOverrides)},
-    }, extra);
+    };
+    if (!trashedAt.isEmpty())
+        json.insert(QStringLiteral("trashedAt"), trashedAt);
+    return withExtra(json, extra);
 }
 
 std::optional<Item> Item::fromJson(const QJsonObject &json, QString *error)
@@ -397,13 +401,14 @@ std::optional<Task> Task::fromJson(const QJsonObject &json, QString *error)
         || !r.list(QStringLiteral("dashboards"), &task.dashboards, error))
         return std::nullopt;
     r.string(QStringLiteral("defaultDashboardId"), &task.defaultDashboardId);
+    r.string(QStringLiteral("trashedAt"), &task.trashedAt);
     task.extra = r.extra();
     return task;
 }
 
 QJsonObject Task::toJson() const
 {
-    return withExtra({
+    QJsonObject json{
         {QStringLiteral("id"), id},
         {QStringLiteral("projectId"), projectId},
         {QStringLiteral("title"), title},
@@ -413,7 +418,10 @@ QJsonObject Task::toJson() const
         {QStringLiteral("items"), listToJson(items)},
         {QStringLiteral("dashboards"), listToJson(dashboards)},
         {QStringLiteral("defaultDashboardId"), defaultDashboardId},
-    }, extra);
+    };
+    if (!trashedAt.isEmpty())
+        json.insert(QStringLiteral("trashedAt"), trashedAt);
+    return withExtra(json, extra);
 }
 
 // toJson() writes every field and extra, so equal JSON means equal values.

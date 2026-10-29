@@ -248,6 +248,40 @@ private slots:
         QCOMPARE(taskIds(focusOrder(backward, model)), expected);
     }
 
+    // Without the trash filter, entries in the trash are left out; with it,
+    // only tasks in the trash show. Focus leaves out tasks in the trash and
+    // the tasks of projects in the trash.
+    void trash()
+    {
+        Project kept = project("kept", "K");
+        Project gone = project("gone", "G");
+        kept.groupId = gone.groupId = "g";
+        gone.trashedAt = "2026-10-29T10:00:00Z";
+        const std::vector<Project> projects = {kept, gone};
+        SortFilter trashList;
+        trashList.trash = true;
+        QCOMPARE(projectIds(sortedProjects(pointers(projects), SortFilter{})), QStringList({"kept"}));
+        QCOMPARE(projectIds(sortedProjects(pointers(projects), trashList)), QStringList({"gone", "kept"}));
+
+        Task trashed = task("trashed", "T", Priority::Normal, 1, TaskState::Active, "kept");
+        trashed.trashedAt = "2026-10-29T10:00:00Z";
+        const std::vector<Task> tasks = {
+            task("active", "A", Priority::Normal, 0, TaskState::Active, "kept"),
+            trashed,
+            task("in-gone", "B", Priority::Normal, 0, TaskState::Active, "gone"),
+        };
+        QCOMPARE(taskIds(sortedTasks(pointers(tasks), SortFilter{})), QStringList({"active", "in-gone"}));
+        QCOMPARE(taskIds(sortedTasks(pointers(tasks), trashList)), QStringList({"trashed"}));
+        QCOMPARE(taskIds(trashContents(kept, pointers(tasks))), QStringList({"trashed"}));
+        QCOMPARE(taskIds(trashContents(gone, pointers(tasks))), QStringList({"active", "in-gone", "trashed"}));
+
+        Group group;
+        group.id = "g";
+        Model model;
+        model.reset({group}, projects, {}, {});
+        QCOMPARE(taskIds(focusOrder(pointers(tasks), model)), QStringList({"active"}));
+    }
+
     void focusOrderOfNothing()
     {
         const Model model;

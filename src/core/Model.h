@@ -64,7 +64,13 @@ public:
     QString workspaceName() const;
     void setWorkspaceName(const QString &name);
 
+    // Whether a task is in the trash: its own trashedAt is set, or its
+    // project's is. See docs/data-model.md#task.
+    bool taskInTrash(const Task &task) const;
+    bool taskInTrash(const QString &taskId) const;   // false for an unknown task
+
     // Whether a cell reference still refers to something. Used for normalisation.
+    // Entities in the trash still exist, so references to them are kept.
     bool refExists(const CellRef &ref) const;
 
     // Changes from M3. See the M3 plan, part 1. Every UI edit copies an entity,
