@@ -42,8 +42,8 @@ public:
     // pastedImageField, its image is replaced, even when locked. Otherwise, on
     // an unlocked task dashboard, a new item of the first such type is made,
     // named "Image" and numbered if needed: an empty focused cell holds it, any
-    // other focused cell is split to the right, and without a focused cell the
-    // root of the layout is split.
+    // other focused cell is split to the right. Without a focused cell, a
+    // layout of one empty cell holds it, and any other layout's root is split.
     Result paste(const QImage &image, const DashboardRef &dashboard, const std::optional<NodePath> &focusedCell);
 
     // Pastes into an item shown alone in a tab: replaces its image if its type
