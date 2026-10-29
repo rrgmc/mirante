@@ -699,10 +699,28 @@ private slots:
         QCOMPARE(sidebar->hoverHighlight(), kFixLoginTask);
         QVERIFY(delegate->isHoverTinted(sidebar->model()->indexOf(kFixLoginTask)));
 
+        // The task is collapsed, so its row stands in for the hidden item row.
         QCoreApplication::sendEvent(itemCell, &enter);
         QCOMPARE(sidebar->hoverHighlight(), itemId);
-        QVERIFY(delegate->isHoverTinted(sidebar->model()->indexOf(itemId)));
+        QCOMPARE(sidebar->hoverRow(), kFixLoginTask);
+        QVERIFY(delegate->isHoverTinted(sidebar->model()->indexOf(kFixLoginTask)));
+
+        // Once the item row can be seen, the tint moves to it. With the task
+        // open but its Items row closed, the task stands in again.
+        auto *tree = sidebar->findChild<QTreeView *>();
+        const QModelIndex itemIndex = sidebar->model()->indexOf(itemId);
+        tree->expand(itemIndex.parent().parent());
+        tree->expand(itemIndex.parent());
+        QCOMPARE(sidebar->hoverRow(), itemId);
+        QVERIFY(delegate->isHoverTinted(itemIndex));
         QVERIFY(!delegate->isHoverTinted(sidebar->model()->indexOf(kFixLoginTask)));
+        tree->collapse(itemIndex.parent());
+        QCOMPARE(sidebar->hoverRow(), kFixLoginTask);
+        tree->expand(itemIndex.parent());
+
+        // A collapsed project stands in for everything under it.
+        tree->collapse(sidebar->model()->indexOf(f.model.task(kFixLoginTask)->projectId));
+        QCOMPARE(sidebar->hoverRow(), f.model.task(kFixLoginTask)->projectId);
 
         QCoreApplication::sendEvent(itemCell, &leave);
         QCOMPARE(sidebar->hoverHighlight(), kFixLoginTask);

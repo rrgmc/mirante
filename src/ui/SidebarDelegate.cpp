@@ -117,13 +117,15 @@ void SidebarDelegate::setHoverId(const QString &id) { m_hoverId = id; }
 
 QString SidebarDelegate::hoverId() const { return m_hoverId; }
 
-// Only tasks and items: they are what dashboard cells show.
+// Tasks and items, which dashboard cells show, and the groups and projects
+// that stand in for them while collapsed. Not the Dashboards and Items rows.
 bool SidebarDelegate::isHoverTinted(const QModelIndex &index) const
 {
     if (m_hoverId.isEmpty() || index.data(SidebarModel::IdRole).toString() != m_hoverId)
         return false;
     const auto kind = SidebarModel::Kind(index.data(SidebarModel::KindRole).toInt());
-    return kind == SidebarModel::Kind::Task || kind == SidebarModel::Kind::Item;
+    return kind == SidebarModel::Kind::Task || kind == SidebarModel::Kind::Item || kind == SidebarModel::Kind::Project
+        || kind == SidebarModel::Kind::Group;
 }
 
 // The marker takes the place of the icon, which projects and tasks do not have.

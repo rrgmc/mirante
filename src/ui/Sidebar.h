@@ -38,10 +38,12 @@ public:
     void collapseAllTasks();
 
     // Tints the row of a task or item, the one the hovered dashboard cell
-    // shows. Empty removes the tint. The tree does not expand or scroll, so a
-    // row that is not visible stays as it is.
+    // shows. If a collapsed task, project or group hides that row, its row is
+    // tinted instead, and the tint follows as rows expand or collapse. Empty
+    // removes the tint. The tree does not expand or scroll.
     void setHoverHighlight(const QString &id);
-    QString hoverHighlight() const;
+    QString hoverHighlight() const;     // the id given to setHoverHighlight()
+    QString hoverRow() const;           // the id of the row tinted for it, or empty
 
     SidebarModel *model() const;
     // The selected row, or an invalid index.
