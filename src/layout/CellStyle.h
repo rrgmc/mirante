@@ -17,6 +17,10 @@ namespace mirante::cellstyle {
 // it.
 void tintHeader(QWidget *header, qreal strength, const QColor &colour = QColor());
 
+// How much colour goes into an item cell's header: lighter than a task
+// header, which holds cells.
+constexpr qreal itemHeaderStrength = 0.12;
+
 // How strongly task dashboard title bars and task cell headers are tinted
 // with their group's colour. See docs/decisions/0046-group-colours.md.
 constexpr qreal taskHeaderStrength = 0.22;

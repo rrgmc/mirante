@@ -1,7 +1,8 @@
 #include "items/UnknownItemType.h"
 
+#include "items/PaintedIconEngine.h"
+
 #include <QCoreApplication>
-#include <QIconEngine>
 #include <QPainter>
 
 namespace mirante {
@@ -10,7 +11,7 @@ namespace {
 
 // A dashed outline with a question mark, drawn at any size. Drawn in code
 // because mirante_items has no resources of its own.
-class UnknownIconEngine : public QIconEngine
+class UnknownIconEngine : public PaintedIconEngine
 {
 public:
     void paint(QPainter *painter, const QRect &rect, QIcon::Mode mode, QIcon::State) override

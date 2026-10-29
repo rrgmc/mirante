@@ -113,7 +113,8 @@ CellFrame::CellFrame(const std::optional<CellRef> &ref, bool removed, const Item
 
     // Header: type pill, item name, place pill, menu button.
     d->header = new CellHeader(this);
-    cellstyle::tintHeader(d->header, 0.12);
+    d->header->setObjectName(QStringLiteral("cellHeader"));
+    cellstyle::tintHeader(d->header, cellstyle::itemHeaderStrength);
     d->header->onDrag = [this] { emit dragStarted(); };
     auto *headerLayout = new QHBoxLayout(d->header);
     d->headerLayout = headerLayout;
@@ -214,6 +215,11 @@ CellFrame::CellFrame(const std::optional<CellRef> &ref, bool removed, const Item
             [this](const QPoint &pos) { emit menuRequested(mapToGlobal(pos)); });
 
     setEditMode(false);
+}
+
+void CellFrame::setTint(const QColor &colour)
+{
+    cellstyle::tintHeader(d->header, cellstyle::itemHeaderStrength, colour);
 }
 
 CellFrame::~CellFrame()

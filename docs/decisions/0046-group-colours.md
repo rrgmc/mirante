@@ -1,6 +1,6 @@
 # 0046. Each group has a colour
 
-- Status: Accepted
+- Status: Accepted; item cell headers by 0047
 - Date: 2026-10-29
 
 ## Context

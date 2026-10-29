@@ -2,6 +2,7 @@
 
 #include "core/LayoutTree.h"
 
+#include <QColor>
 #include <QFrame>
 
 #include <memory>
@@ -33,6 +34,9 @@ public:
     // such as "backend › Overview". Used for items placed directly in a root
     // dashboard. Empty hides it.
     void setContext(const QString &text);
+    // Tints the header with a colour, such as the group colour of the item's
+    // task. An invalid colour gives the highlight tint.
+    void setTint(const QColor &colour);
 
     // In edit mode the header is a drag handle.
     void setEditMode(bool on);

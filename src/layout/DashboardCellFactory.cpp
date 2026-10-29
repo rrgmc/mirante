@@ -1,5 +1,7 @@
 #include "layout/DashboardCellFactory.h"
 
+#include "core/GroupColours.h"
+#include "core/Model.h"
 #include "items/ItemTypeRegistry.h"
 #include "items/Placement.h"
 #include "layout/CellHoverTracker.h"
@@ -79,6 +81,23 @@ QWidget *DashboardCellFactory::createCell(const std::optional<CellRef> &ref, boo
         frame->setContext(d->origin(*ref));
     if (d->services.hover)
         d->services.hover->watch(frame, ref->item);
+
+    // The header takes a light tint of the group colour of the item's task,
+    // and follows changes to the task, its project and its group. See
+    // docs/decisions/0047-item-headers-in-group-colours.md.
+    {
+        Model *model = d->services.model;
+        const QString taskId = d->dashboard.isRoot() ? ref->task : d->dashboard.taskId;
+        const auto tint = [model, taskId, frame] {
+            const QString colour = groupcolours::ofTask(*model, taskId);
+            frame->setTint(colour.isEmpty() ? QColor() : QColor(colour));
+        };
+        tint();
+        QObject::connect(model, &Model::taskChanged, frame, tint);
+        QObject::connect(model, &Model::projectChanged, frame, tint);
+        QObject::connect(model, &Model::groupChanged, frame, tint);
+        QObject::connect(model, &Model::modelReset, frame, tint);
+    }
 
     // The item's view, made when the cell is first shown.
     if (d->services.placements) {
