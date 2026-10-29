@@ -112,7 +112,7 @@ A root dashboard is a tab in the main tab bar. It has a name and a [layout tree]
 - The `+` button creates an empty root dashboard, with editing on.
 - Closing a root dashboard's tab, with its close button, a middle click or the tab bar's context menu, does not delete it. It can be opened again with the [quick switcher](#keyboard) or the dashboard list.
 - The **dashboard list**, opened with the button after the lock in the tab bar row or with "All dashboards…" in the tab bar's context menu, lists every root dashboard and marks closed ones. It opens a dashboard again, and it is the only place where a root dashboard is deleted, after a confirmation.
-- Right-clicking the tab bar shows "New dashboard", "Close tab" over a tab, "Detach into Window" over a root dashboard tab, and "All dashboards…".
+- Right-clicking the tab bar shows "New dashboard", "Close tab" over a tab, "Rename dashboard…" and "Detach into Window" over a root dashboard tab, and "All dashboards…". "Rename dashboard…" opens the dashboard dialog with the name to edit.
 
 ### Placing tasks and items
 
