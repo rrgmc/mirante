@@ -248,9 +248,8 @@ struct Shortcuts::Private
         maximisedConnections.clear();
     }
 
-    void maximise()
+    void maximise(QWidget *cell)
     {
-        QWidget *cell = focused;
         LayoutView *view = ancestorOf<LayoutView>(cell);
         if (!cell || !view || !content)
             return;
@@ -270,6 +269,8 @@ struct Shortcuts::Private
         layer->show();
         maximised = cell;
         maximisedView = view;
+        if (auto *frame = qobject_cast<CellFrame *>(cell))
+            frame->setMaximised(true);
 
         // The view may delete the cell when it rebuilds. A view that goes
         // first leaves the cell to its new parent, so it goes here.
@@ -294,6 +295,8 @@ struct Shortcuts::Private
         clearMaximisedConnections();
         maximised = nullptr;
         maximisedView = nullptr;
+        if (auto *frame = qobject_cast<CellFrame *>(cell))
+            frame->setMaximised(false);
         if (cell) {
             if (view)
                 view->reattachCell(cell);
@@ -306,12 +309,19 @@ struct Shortcuts::Private
             q->focusCell(cell);
     }
 
-    void toggleMaximise()
+    // Restores the cell if it is the maximised one. Otherwise restores any
+    // other maximised cell first, then maximises this one.
+    void toggleMaximise(QWidget *cell)
     {
-        if (maximised)
+        if (!cell)
+            return;
+        if (cell == maximised) {
             restore(true);
-        else
-            maximise();
+            return;
+        }
+        if (maximised)
+            restore(false);
+        maximise(cell);
     }
 
     void onEvent(QObject *watched, QEvent *event)
@@ -355,7 +365,10 @@ Shortcuts::Shortcuts(MainWindow *window)
     d->add(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_Backtab), [this] { d->switchTab(-1); });
     d->add(QKeySequence(Qt::CTRL | Qt::Key_PageDown), [this] { d->switchRootTab(1); });
     d->add(QKeySequence(Qt::CTRL | Qt::Key_PageUp), [this] { d->switchRootTab(-1); });
-    d->add(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_M), [this] { d->toggleMaximise(); });
+    d->add(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_M), [this] {
+        // The maximised cell may have lost the focus, for example to the tab bar.
+        d->toggleMaximise(d->maximised ? d->maximised.data() : d->focused.data());
+    });
     d->add(QKeySequence(Qt::CTRL | Qt::Key_W), [this] {
         d->restore(false);
         d->window->closeCurrentTab();
@@ -395,9 +408,8 @@ void Shortcuts::focusCell(QWidget *cell)
     d->setFocused(cellOf(cell));
 }
 
-// Stubs from M4 T0. T6 implements them.
-void Shortcuts::toggleMaximised(QWidget *) {}
+void Shortcuts::toggleMaximised(QWidget *cell) { d->toggleMaximise(cell); }
 
-bool Shortcuts::isMaximised(const QWidget *) const { return false; }
+bool Shortcuts::isMaximised(const QWidget *cell) const { return cell && d->maximised == cell; }
 
 } // namespace mirante
