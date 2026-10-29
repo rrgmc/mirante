@@ -13,18 +13,49 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QListWidget>
+#include <QPainter>
 #include <QPushButton>
 #include <QStackedWidget>
+#include <QStyledItemDelegate>
 #include <QVBoxLayout>
 
 namespace mirante {
 
 namespace {
 
-// The type grid: icons of this size, in cells of this size, with up to two
-// lines of name under each icon.
+// The type grid: icons of this size, in cells of this size, with up to three
+// lines of name under each icon. Names such as "GitLab Merge Request (page)"
+// differ only at the end, so they wrap instead of being cut short.
 constexpr int kTypeIconSize = 48;
-constexpr QSize kTypeCellSize(124, 100);
+constexpr QSize kTypeCellSize(140, 120);
+
+// Paints an entry of the type grid as Finder's icon view does: the selected
+// or hovered entry gets a soft rounded fill around its icon and name, and the
+// name keeps the normal text colour.
+class TypeGridDelegate : public QStyledItemDelegate
+{
+public:
+    using QStyledItemDelegate::QStyledItemDelegate;
+
+    void paint(QPainter *painter, const QStyleOptionViewItem &option, const QModelIndex &index) const override
+    {
+        const bool selected = option.state & QStyle::State_Selected;
+        const bool hovered = option.state & QStyle::State_MouseOver;
+        if (selected || hovered) {
+            QColor fill = option.palette.color(QPalette::Highlight);
+            fill.setAlphaF(selected ? 0.22f : 0.08f);
+            painter->save();
+            painter->setRenderHint(QPainter::Antialiasing);
+            painter->setPen(Qt::NoPen);
+            painter->setBrush(fill);
+            painter->drawRoundedRect(QRectF(option.rect).adjusted(4, 2, -4, -2), 8, 8);
+            painter->restore();
+        }
+        QStyleOptionViewItem plain = option;
+        plain.state &= ~(QStyle::State_Selected | QStyle::State_MouseOver | QStyle::State_HasFocus);
+        QStyledItemDelegate::paint(painter, plain, index);
+    }
+};
 
 } // namespace
 
@@ -143,10 +174,13 @@ struct ItemDialog::Private
         typeList->setResizeMode(QListView::Adjust);
         typeList->setWrapping(true);
         typeList->setWordWrap(true);
-        typeList->setUniformItemSizes(true);
+        // Each entry has the cell's size, so the view gives its text room for
+        // three lines. Uniform sizes would take a one-line entry's height.
         typeList->setTextElideMode(Qt::ElideRight);
         typeList->setEditTriggers(QAbstractItemView::NoEditTriggers);
         typeList->setSelectionMode(QAbstractItemView::SingleSelection);
+        typeList->setItemDelegate(new TypeGridDelegate(typeList));
+        typeList->setMouseTracking(true);
         // The registry lists types by name. Names start with their product,
         // such as "GitLab" or "Jira", so the types of a module stay together.
         for (const ItemType *type : types->types()) {
@@ -154,6 +188,7 @@ struct ItemDialog::Private
             entry->setData(Qt::UserRole, type->id());
             entry->setToolTip(type->name());
             entry->setTextAlignment(Qt::AlignHCenter | Qt::AlignTop);
+            entry->setSizeHint(kTypeCellSize);
         }
 
         auto *hint = new QLabel(page);
@@ -187,7 +222,7 @@ ItemDialog::ItemDialog(const Item &item, bool creating, const ItemTypeRegistry &
 
     setWindowTitle(creating ? tr("New item") : tr("Edit item"));
     if (creating)
-        resize(600, 440);
+        resize(660, 480);
     else
         resize(480, 360);
 
