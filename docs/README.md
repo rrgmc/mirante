@@ -53,7 +53,9 @@ Mirante is a personal desktop dashboard for all of one person's work, built with
 
 **Cell.** A layout node that shows one item or one task, or nothing (an empty cell).
 
-**Preview tab.** A temporary tab that shows the last task clicked in the sidebar. The next click replaces it, unless it is pinned.
+**Preview slot.** A fixed place right of the tabs that shows the last task dashboard or item opened, for example from the sidebar. The next one replaces it, unless it is pinned, which moves it to a tab of its own. Older documents call it the preview tab. See [decision 0048](decisions/0048-focus-and-preview-slots.md).
+
+**Focus slot.** A fixed place right of the tabs, before the preview slot, that shows the Focus view. It is always there and cannot be closed.
 
 **Focus view.** A list of active tasks from all projects, sorted by priority.
 

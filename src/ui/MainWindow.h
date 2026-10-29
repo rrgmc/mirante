@@ -21,11 +21,14 @@ class Model;
 class ProfileManager;
 class RootTabBar;
 class Shortcuts;
+class SlotTabBar;
 class ViewPool;
 
-// The sidebar on the left; on the right the root tab bar over the dashboards,
-// a warning bar for the Store's problems and the read-only note, and the
-// conflict bar. It owns the LayoutServices objects and creates Shortcuts,
+// The sidebar on the left; on the right the tab row over the dashboards, a
+// warning bar for the Store's problems and the read-only note, and the
+// conflict bar. The tab row holds the root tab bar on the left and the Focus
+// and preview slots on the right (decision 0048); one page is current across
+// both. It owns the LayoutServices objects and creates Shortcuts,
 // QuickSwitcher, EntityActions and ImagePaste. See the M2 plan, part 5, and
 // the M3 plan, part 7. Implemented in MainWindow.cpp.
 class MainWindow : public QMainWindow
@@ -81,21 +84,25 @@ public:
     // and any can be deleted.
     void showDashboardList();
     void focusItem(const QString &taskId, const QString &itemId);
-    // Opens the item alone in a tab, the preview tab like a task dashboard,
-    // or switches to its tab if it has one.
+    // Opens the item alone in the preview slot, like a task dashboard, or
+    // switches to its tab if it has one.
     void openItem(const QString &taskId, const QString &itemId);
     void revealInSidebar(const QString &id);
     void showQuickSwitcher();
-    void closeCurrentTab();     // the preview tab or the current root tab
-    // Opens the Focus tab at the start of the tab bar, or switches to it.
+    // Closes the preview or the current tab. Focus cannot be closed.
+    void closeCurrentTab();
+    // Makes the Focus slot current.
     void openFocus();
-    // Pastes an image onto the dashboard or into the item of the current tab,
-    // through ImagePaste, and shows its message in the status bar. Ctrl+V calls
-    // it when the clipboard holds an image. If the paste can happen, the paste
-    // dialog shows the image and lets the user crop it first; on a root
-    // dashboard a second dialog then asks for the task.
+    // The next (step 1) or previous (step -1) page, wrapping: the tabs of the
+    // root tab bar in order, then Focus, then the preview if there is one.
+    void switchPage(int step);
+    // Ctrl+V with an image on the clipboard. Replaces the image of the image
+    // item in the focused cell or the current item tab, through ImagePaste,
+    // after the paste dialog. It never adds an item to a dashboard: on any
+    // other cell the status bar points to "Paste Image…" in a task's Items
+    // menu. See docs/decisions/0051-paste-images-from-the-items-menu.md.
     void pasteImage(const QImage &image);
-    // Runs the dialogs of pasteImage() and says whether each was accepted.
+    // Runs the dialog of pasteImage() and says whether it was accepted.
     // The default calls exec(); tests work the dialog and return instead.
     void setExec(std::function<bool(QDialog &dialog)> exec);
     // Saves the open tabs of the open workspace on this device.
@@ -105,10 +112,15 @@ public:
     void setFullScreen(bool on);
 
     RootTabBar *rootTabBar() const;
+    SlotTabBar *slotTabBar() const;
     LayoutView *currentLayoutView() const;
     QWidget *contentArea() const;     // the area a maximised cell fills
     Shortcuts *shortcuts() const;
     EntityActions *entityActions() const;
+
+signals:
+    // The page in the content area changed: another tab or slot is current.
+    void currentPageChanged();
 
 protected:
     // Saves the window's size, whether it is maximized, the sidebar width and

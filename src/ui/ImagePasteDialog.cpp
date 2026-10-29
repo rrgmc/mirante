@@ -46,7 +46,22 @@ ImagePasteDialog::ImagePasteDialog(const QImage &image, QWidget *parent)
     connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
     connect(m_whole, &QPushButton::clicked, m_view, &ImageCropView::clearCrop);
     connect(m_view, &ImageCropView::cropChanged, this, &ImagePasteDialog::updateSize);
+
+    // The size line is as wide as its longest text from the start, so a crop
+    // that lengthens it does not widen the dialog and move the buttons. Moving
+    // buttons left traces of the Paste button's focus ring on macOS.
+    const QSize full = image.size();
+    const QString longest = tr("Crop: %1 × %2 of %3 × %4 pixels")
+                                .arg(full.width())
+                                .arg(full.height())
+                                .arg(full.width())
+                                .arg(full.height());
+    m_size->setMinimumWidth(m_size->fontMetrics().horizontalAdvance(longest));
     updateSize();
+    // The crop view has the focus, so Paste shows no focus ring; Enter still
+    // presses it, as the default button.
+    m_view->setFocusPolicy(Qt::StrongFocus);
+    m_view->setFocus();
 }
 
 ImageCropView *ImagePasteDialog::cropView() const { return m_view; }

@@ -6,7 +6,7 @@ This document describes navigation, dashboards and editing. It was checked with 
 
 ```
 ┌───────────────┬──────────────────────────────────────────────┐
-│ Focus         │ [Preview: Fix login] [Morning] [Release] [+] │
+│ Focus         │ [Morning] [Release] [+] ≡ │ [◎ Focus] [Fix…] 🔒 │
 │               ├──────────────────────────────────────────────┤
 │ ▾ Work        │                                              │
 │   ▾ backend   │        active root dashboard or task         │
@@ -21,8 +21,11 @@ This document describes navigation, dashboards and editing. It was checked with 
 - **Sidebar, on the left:**
   - A **Focus** entry at the top. See [Focus view](#focus-view).
   - A tree of groups, projects and tasks.
-- **Tab bar, on the right:** root dashboards and the preview tab.
-- **Content area:** the dashboard of the selected tab.
+- **Tab row, on the right, above the content:**
+  - On the left, the **tabs**: root dashboards, then pinned task dashboards and pinned items. The `+` button and the dashboard list button follow them.
+  - On the right, after a thin separator, two fixed **slots**: **Focus** and the **preview**, then the lock. They look like tabs. See [decision 0048](decisions/0048-focus-and-preview-slots.md).
+  - One page is current across the tabs and the slots. While a slot is current, no tab shows as selected, and the other way round.
+- **Content area:** the page of the current tab or slot.
 - **Warning bar, above the tab bar:** files that could not be loaded or saved. While the sample data is open, it also says that changes to it are not saved, and points to File > New Workspace…. See [decision 0029](decisions/0029-sample-data-read-only.md).
 - **Conflict bar, under the warning bar:** one line for each conflict copy a sync tool made, such as "Two versions of task Fix login timeout", with "Keep current", "Use other" and "Compare". See [sync](sync.md#conflict-copies).
 
@@ -35,7 +38,7 @@ The sidebar can be collapsed.
 - A coloured marker shows the priority level. Projects have a small rounded square and tasks a circle, so the two levels are easy to tell apart. Low items are dimmed.
 - Each task has two fixed children: **Dashboards**, with its task dashboards, then **Items**, with the task's items. They are there for every task, even when empty.
 - The selected row is a rounded shape in the highlight colour, inset from the sidebar's edges and as wide as the sidebar. It keeps its full colour when the sidebar does not have the focus, so the dashboard on screen stays easy to see.
-- Groups are section headings: small, bold and grey. Each starts with a dot in the [group's colour](data-model.md#group).
+- Groups are headings: bold, a little larger than the rows under them, with the name in a pill of the [group's colour](data-model.md#group). The pill is a light tint of the colour with a thin edge in a stronger tint. On the selected row the selection shows instead.
 - Four tabs at the bottom choose the task list. **Projects** lists active tasks under every project, including projects without any. **Active** lists the same tasks, but leaves out projects without active tasks. **Done** lists done and archived tasks under every project. **Trash** lists what is in the [trash](#trash). The first three lists leave out projects and tasks in the trash. A filter button right of the workspace title opens a menu with a checkbox for each priority. Unchecking one hides the projects and tasks of that priority in the Projects, Active and Done lists. The button looks pressed while it hides something. All priorities are shown at start.
 - A `+` button in the sidebar header opens a menu: New Group…, New Project… in the group of the selected row, and New Task… in the project of the selected row. The last two are disabled when the selection has no group or project.
 - Two buttons in the sidebar header expand or collapse every task at once, with its Dashboards and Items. Groups and projects are left as they are; they open and close by hand only.
@@ -43,7 +46,7 @@ The sidebar can be collapsed.
 - **Drag and drop:**
   - Dragging a group, project or task among its siblings changes its place. It never changes a priority. Nothing is dragged in the Trash list.
   - A task itself is not dragged onto dashboards. Drag one of its items, to show that item, or one of its dashboards, to show the task with that dashboard in a root dashboard. See [placing tasks](#placing-tasks-and-items).
-- The context menu holds new, edit, rename, set priority, set state and delete, and on a task dashboard "Set as default". On a task dashboard or an item it also holds "Open in new root dashboard", which makes a root dashboard showing just that dashboard or item.
+- The context menu holds new, edit, rename, set priority, set state and delete, and on a task dashboard "Set as default". On a task and its Items row it also holds "Paste Image…", after "New item…". See [pasting images](#pasting-images). On a task dashboard or an item it also holds "Open in new root dashboard", which makes a root dashboard showing just that dashboard or item.
 - Project rows have a light tint of their group's colour, a rounded shape like the selection. They stand out between groups and tasks, and show their group while its heading is scrolled away. Task rows have no tint. See [decision 0046](decisions/0046-group-colours.md).
 - While the mouse is over a dashboard cell, the sidebar row of what the cell shows gets a soft tint: the item's row for an item cell, also one inside a task cell, and the task's row for a task cell. The tint goes when the mouse leaves the cell. The tree does not expand or scroll for it. If a collapsed row hides that row, the nearest row that can be seen takes the tint instead: the task of an item whose task or Items row is closed, or the project or group if that is closed. The tint follows as rows open and close.
 - "Delete project…" and "Delete task…" move the project or task to the [trash](#trash), without a question, since it can be undone. Holding `Shift` while choosing them deletes for good, after a confirmation. Every other delete, such as of a group, an item or a task dashboard, asks for confirmation first and cannot be undone.
@@ -56,7 +59,7 @@ Deleted projects and tasks go to the trash first. See [decision 0036](decisions/
 - The context menu of a project or task offers **Restore** and **Delete permanently…**. Delete permanently asks for confirmation first. Restoring a task whose project is in the trash restores the project too, with all its tasks.
 - While the Trash tab is shown, an **Empty Trash…** button at the bottom deletes everything in the trash for good, after one confirmation that names the counts, such as "Permanently delete 1 project and 6 tasks in the trash?". The button is disabled when the trash is empty.
 - A double click in the Trash list only expands or collapses a row. Nothing there opens.
-- A project in the trash takes its tasks with it. They are left out of the other sidebar lists, [Focus](#focus-view), the [quick switcher](#keyboard), and the project and task pickers, such as the task dialog's project list and the task picker for a pasted image.
+- A project in the trash takes its tasks with it. They are left out of the other sidebar lists, [Focus](#focus-view), the [quick switcher](#keyboard), and the project and task pickers, such as the task dialog's project list.
 - Tabs of a task in the trash close, as for a deleted task.
 - A dashboard cell that shows a task in the trash, or an item of one, reads "In trash" instead of its content. It keeps its reference, so a restore brings the content back. A task cell changes at once; an item cell of a root dashboard changes when the dashboard is next built, such as when its tab opens.
 
@@ -104,6 +107,10 @@ Tokens, the fields of each kind and testing a connection come in M5.
 1. **Choose a type.** A grid of large icons, 48 pixels, with each type's name under its icon, like the icon view of a file manager. Names wrap onto up to three lines, so types that differ only at the end, such as "GitLab MR (page)" and "GitLab MR (summary)", stay apart. The selected type has a soft rounded fill around its icon and name, and the type under the mouse a lighter one. The grid wraps, so many types show at once. It lists the [item types](item-types.md) of the build, by name; types of missing modules are not offered. A tooltip repeats the name. A double click on a type, or Enter, or **Next**, goes on with the selected type.
 2. **Edit the item.** The chosen type, shown with its icon, then the name, the profile for a type that uses one, and the configuration. A type uses a profile when its views are web views, it uses connections, or its module has settings screens. The profile list starts with "The group's profile (<name>)". The configuration uses the type's own editor if it has one, or else a form built from the type's fields for the profile the item would use, such as GitLab's project paths of that profile. Choosing another profile builds the form again and keeps what was entered. **Back** returns to the grid. Choosing another type starts from that type's defaults; choosing the same type keeps what was entered. OK is refused while the name is empty or the configuration has problems, and a message under the page says why.
 
+**From a link.** Above the grid, a field says "Paste a link to create an item from it". While it holds an `http` or `https` address, the grid shows only the types that can show it, best first: the types of modules, then Web page. The first is selected, so Enter goes on with it. Choosing a type fills its configuration from the link, and the name too, unless one was typed. If the link is on the server of one of the connections of the group's profile, the item uses that connection. If another profile is chosen for the item, the item uses that profile's connection of the same kind and base URL, if it has one. A note under the grid says when no type can show the link, or when the text is not a web address; every type is shown then. Clearing the field shows every type again. Which types take which links is listed in [item types](item-types.md#items-from-a-link). See [decision 0049](decisions/0049-items-from-a-pasted-link.md).
+
+**Paste URL….** The context menu of a task and of its Items row has "Paste URL…" after "New item…". It opens the item dialog with the link from the clipboard in the field. It is disabled while the clipboard holds no web address.
+
 "Edit item…" opens the second page only. The type of an existing item cannot change. An item whose module is missing shows its name only, and keeps the rest unchanged.
 
 ## Modules
@@ -125,10 +132,12 @@ The window opens centred on the screen, at the size it had when it was last clos
 Standard controls, such as buttons, menus, lists and dialogs, keep the platform's own look. Mirante draws a few controls itself, in the same way on every platform, so the app looks calm on macOS as well as on Windows and Linux. See [decision 0041](decisions/0041-own-look-for-tabs-and-tool-buttons.md).
 
 - **Tool buttons** outside a toolbar, such as the sidebar buttons, the cell header buttons and the web toolbar, are flat. A light rounded fill shows when the mouse is over one, and a stronger one while it is pressed or on.
-- **Tabs**, in the root tab bar, in tab groups and at the foot of the sidebar, are rounded fills. The current tab has a light grey fill and keeps the normal text colour. The tab under the mouse has a lighter fill.
+- **Tabs**, in the root tab bar, in the Focus and preview slots, in tab groups and at the foot of the sidebar, are rounded fills. The current tab has a light grey fill and keeps the normal text colour. The tab under the mouse has a lighter fill.
 - **Close buttons on tabs** are on the right. They show on the current tab and on the tab under the mouse only.
 - **Cell borders** are a thin, light line with rounded corners.
 - **The warning bar** has a tinted background and no frame.
+- **Dialogs on macOS** are attached to the main window or the detached window they belong to, as child windows. They stay directly above that window and come forward with it, so no other app's window can come between them. A dialog opened from another dialog follows its parent dialog. On Windows and Linux nothing changes. Sheets, which slide down from the title bar, were tried first, but Qt decides whether a dialog is a sheet before an app-wide hook can see that it is modal. The code is in `src/platform/AttachedDialogs.cpp` and `AttachedDialogsMac.mm`.
+- **Forms** in dialogs fill the dialog's width and start at its top left on every platform. On macOS, Qt would otherwise keep each field at its natural width and centre the form, which cuts long values, such as addresses, short.
 - **The sidebar** has a light grey background, a little darker than the window, with rounded row shapes, as in macOS sidebars. See [sidebar tree](#sidebar-tree).
 - **Header tints.** Cell headers and title bars have a light tint, mixed into the window colour, so text stays readable in light and dark palettes. The title bars of task dashboard and item tabs, and task cell headers, have a 22% tint of the task's [group colour](data-model.md#group). Item cell headers have a lighter 12% tint of the group colour of the item's task, in every dashboard, so an item placed on a root dashboard shows its group too. Empty and removed cells keep the highlight colour. See [decision 0046](decisions/0046-group-colours.md) and [decision 0047](decisions/0047-item-headers-in-group-colours.md).
 
@@ -145,13 +154,14 @@ The menu bar has four menus. The Modules menu is left out when no module in the 
 
 - **Single click:** selects a row. It opens nothing.
 - **Double click** (or `Enter`) on a task: expands or collapses it. Tasks are opened through their dashboards.
-- **Double click** on a task dashboard: opens it in the **preview tab**. The preview tab shows its title in italics. The next dashboard opened this way replaces it. Task dashboard titles name the task and the dashboard: "Task / Dashboard". The title bar below the tab shows them in pills, as cell headers do: the task in bold, the dashboard in a grey pill with the dashboard icon, and the task's project in a grey pill. An item tab's title bar shows the item in a pill with its type's icon and colour instead of the dashboard. A task cell's header uses the same pills. The title bar and the task cell header are tinted with the task's group colour, so they show which group the task is from. The tint follows at once when the group's colour changes or the task moves to another group. The tab's tooltip reads "Project / Task / Dashboard".
-- **Double click** on an item: opens the item alone in a tab, the preview tab like a task dashboard, titled "Task / Item" with the item type's icon. It is read-only and can be pinned. See [decision 0023](decisions/0023-item-tabs.md).
-- **Pin:** editing the dashboard's layout, or the pin button, keeps the preview open as a task tab, so the next dashboard opens in a new tab. Other changes to its task, such as a new dashboard or a new title, do not pin it. A task tab is never a root dashboard. Task tabs carry the dashboard icon, come after the root dashboard tabs, and have a title bar with the task and dashboard pills and their own lock. The lock at the end of the tab bar row is for root dashboards, and hides while a task tab is in front. See [decision 0022](decisions/0022-task-dashboard-tabs.md).
-- When a task tab comes to the front, the sidebar selects its dashboard under its task.
-- Opening a task dashboard that already has a tab switches to that tab instead of opening a preview.
+- **Double click** on a task dashboard: opens it in the **preview slot**, right of the tabs. The slot shows the dashboard's icon and its title in italics, with a pin button and a close button. The next dashboard opened this way replaces it. Every preview opens there: task dashboards and items from the sidebar, "Open Alone", the quick switcher, Focus and new task dashboards. With no preview, the slot is hidden. A middle click on the slot closes it, and its context menu holds "Pin" and "Close preview". Task dashboard titles name the task and the dashboard: "Task / Dashboard". The title bar below the tab shows them in pills, as cell headers do: the task in bold, the dashboard in a grey pill with the dashboard icon, and the task's project in a grey pill. An item tab's title bar shows the item in a pill with its type's icon and colour instead of the dashboard. A task cell's header uses the same pills. The title bar and the task cell header are tinted with the task's group colour, so they show which group the task is from. The tint follows at once when the group's colour changes or the task moves to another group. The tab's tooltip reads "Project / Task / Dashboard".
+- **Double click** on an item: opens the item alone in the preview slot, like a task dashboard, titled "Task / Item" with the item type's icon. It is read-only and can be pinned. See [decision 0023](decisions/0023-item-tabs.md).
+- **Pin:** editing the dashboard's layout, or the pin button, moves the preview to a new task tab at the end of the tabs, so the next dashboard opens in the preview slot again. Other changes to its task, such as a new dashboard or a new title, do not pin it. A task tab is never a root dashboard. Task tabs carry the dashboard icon, come after the root dashboard tabs, and have a title bar with the task and dashboard pills and their own lock. The lock at the end of the tab row is for root dashboards, and hides while a task tab or a task dashboard preview is in front. See [decision 0022](decisions/0022-task-dashboard-tabs.md).
+- When a task tab or the preview comes to the front, the sidebar selects its dashboard or item under its task.
+- Opening a task dashboard or an item that already has a tab switches to that tab instead of opening a preview.
+- Closing the last tab, or closing the preview while there is no tab, shows Focus.
 
-The open tabs are stored on each device for each workspace, not synced: the root dashboard tabs and the Focus tab in order, the current tab, and the [detached](#detached-windows) root dashboards. The preview tab is not kept; if it was current, the first tab is current next time. They are saved when another workspace opens and when the window closes, and come back when the workspace opens again. Pinned task tabs and item tabs are not kept either. The first time a workspace opens on a device, every root dashboard opens.
+The open tabs are stored on each device for each workspace, not synced: the root dashboard tabs in order, the current tab, and the [detached](#detached-windows) root dashboards. If the Focus slot was current, it is current next time. The preview is not kept; if it was current, the first tab is current next time. They are saved when another workspace opens and when the window closes, and come back when the workspace opens again. Pinned task tabs and item tabs are not kept either. The first time a workspace opens on a device, every root dashboard opens.
 
 ## Root dashboards
 
@@ -187,7 +197,7 @@ Each cell has a small header containing:
 Some work, such as signing in to a site, is easier on a large page than in a small cell. An item cell offers two bigger views. Both work on locked dashboards, and in task dashboards shown inside root dashboards, because neither changes a layout. Empty and "Removed" cells, and task cells, offer neither. See the [M4 plan](plans/m4-web-views.md#part-6-a-bigger-view-of-an-item).
 
 - **Maximise.** The button after the menu button in the cell header, the cell menu entry "Maximise", or `Ctrl+Shift+M` for the focused cell, shows the cell over the whole dashboard area and gives it the focus. The button's tooltip names the shortcut. The same cell moves, so a web page keeps its state, including a login in progress. The button, the menu entry "Restore" or the shortcut again puts the cell back in its place. Maximising another cell puts the first one back. Changing the root tab or closing the tab also puts it back.
-- **Open Alone.** The cell menu entry "Open Alone" opens the item alone in the preview tab, as a double click on the item in the sidebar does. See [decision 0023](decisions/0023-item-tabs.md). The tab has a view of its own, in the same web profile, so a login made there reaches the cell when its page reloads. An item tab already shows its item alone, so it does not offer "Open Alone".
+- **Open Alone.** The cell menu entry "Open Alone" opens the item alone in the preview slot, as a double click on the item in the sidebar does. See [decision 0023](decisions/0023-item-tabs.md). The preview has a view of its own, in the same web profile, so a login made there reaches the cell when its page reloads. An item tab already shows its item alone, so it does not offer "Open Alone".
 - **Changing the item from its cell.** The menu of an item cell also offers two entries that change the item, not the layout, so they work on a locked dashboard and in an item tab too:
   - "Edit Item…" opens the item dialog.
   - "Use Current Address" is there for a cell that shows a web page, when the item's type has an address field. It saves the address the page shows now in that field, such as the Address of a Web page item. It is disabled when the two are already the same, and its tooltip shows the address.
@@ -196,7 +206,7 @@ On a locked dashboard the cell menu of an item cell holds only these entries. On
 
 ### Layout presets
 
-"New dashboard" and "Apply preset" offer starting layouts. A task dashboard made with "New dashboard…" in the sidebar opens in the preview tab.
+"New dashboard" and "Apply preset" offer starting layouts. A task dashboard made with "New dashboard…" in the sidebar opens in the preview slot.
 
 - Full: one cell.
 - Two side by side.
@@ -237,7 +247,13 @@ After each edit, the tree is [normalised](data-model.md#normalisation).
 
 ## Pasting images
 
-Every image paste opens the paste dialog first. This covers `Ctrl+V` on a task dashboard, on a root dashboard and in an item tab, and the "Paste" button of an image field in the item dialog. What the paste then does is described under [image](item-types.md#image). See [decision 0045](decisions/0045-preview-and-crop-pasted-images.md).
+A pasted image becomes an item of a task. It is never added straight to a dashboard. See [decision 0051](decisions/0051-paste-images-from-the-items-menu.md).
+
+- **Paste Image…**, in the context menu of a task's Items row or of the task row, adds the clipboard's image to that task as a new Image item. It is enabled only while the clipboard holds an image. No dashboard changes: the item shows in the sidebar, and the user drags it onto a dashboard if wanted.
+- `Ctrl+V` replaces the image of the Image item in the focused cell, or in the current item tab. It adds nothing. Anywhere else on a dashboard, the status bar says "To add an image, use Paste Image… in a task's Items menu."
+- The "Paste" button of an image field in the item dialog fills that field.
+
+Each of these opens the paste dialog first. What the paste then does is described under [image](item-types.md#image). See [decision 0045](decisions/0045-preview-and-crop-pasted-images.md).
 
 - The dialog, "Paste Image", shows the image scaled to fit. A small image keeps its own size. Under it, a line gives the image's size in pixels, such as "1920 × 1080 pixels".
 - **Cropping.** Dragging on the image draws a crop rectangle. The image outside it is dimmed. The line under the image then gives both sizes, such as "Crop: 800 × 600 of 1920 × 1080 pixels".
@@ -247,8 +263,7 @@ Every image paste opens the paste dialog first. This covers `Ctrl+V` on a task d
   - **Whole Image** removes the crop. It is enabled only while there is a crop.
 - The crop is in the image's own pixels. The pasted image is cut at full resolution, not at the size of the preview.
 - **Paste**, or `Enter`, pastes the cropped image, or the whole image without a crop. **Cancel**, or `Escape`, pastes nothing.
-- The dialog opens only when the paste can happen. On a locked dashboard, in the read-only sample data, in a build without an image type, or on a root dashboard without any active task, the status bar gives the reason at once and no dialog opens.
-- On a root dashboard, the question about the task ([decision 0032](decisions/0032-paste-images-into-root-dashboards.md)) comes after the paste dialog. The user first sees the image, then chooses where it goes. Cancel in either dialog pastes nothing.
+- The dialog opens only when the paste can happen. In the read-only sample data, in a build without an image type, or for `Ctrl+V` without a focused Image item, the status bar gives the reason at once and no dialog opens.
 - The preview has a light rounded backdrop, drawn with the text colour mostly transparent, as the [flat controls](#look). The crop border and handles use the palette's highlight colour. Both suit light and dark palettes.
 
 ## Detached windows
@@ -258,14 +273,14 @@ A root dashboard tab can be detached into its own operating system window. Nothi
 - "Detach into Window" in the context menu of a root dashboard tab takes the tab out of the tab bar and moves its dashboard into a new window. The dashboard is moved, not made again, so its web pages keep their state. Only cells whose item type cannot move to another window are made again.
 - The window's title is the dashboard's name. A rename changes it.
 - A small toolbar holds "Put Back" and the dashboard's own lock. The lock works as the lock of the main window does.
-- Closing the window, or "Put Back", puts the tab back at the end of the tab bar, before the preview tab, and makes it current.
+- Closing the window, or "Put Back", puts the tab back at the end of the tabs and makes it current.
 - Opening a detached root dashboard from the sidebar, the quick switcher or the dashboard list brings its window to the front instead of opening a tab.
 - Deleting a root dashboard closes its window.
 - The window's position and size are stored on each device when it closes. A new window opens at the stored position and size, or at a default size.
 - The detached root dashboards are saved with the [open tabs](#opening-tasks). When the workspace opens again, they open again in their windows.
 - Opening another workspace closes the detached windows, after saving them. Closing the main window puts them back, after saving them, so they open detached next time.
 - The keyboard shortcuts of the main window, such as moving the focus between cells and maximising a cell, work in the main window only.
-- The maximise button and the cell menu entries "Maximise" and "Restore" work in a detached window too. The cell is maximised over the window's dashboard, below its toolbar, and stays in that window. Changing the main window's tab leaves it maximised. "Open Alone" opens the item in the main window's preview tab and brings the main window to the front.
+- The maximise button and the cell menu entries "Maximise" and "Restore" work in a detached window too. The cell is maximised over the window's dashboard, below its toolbar, and stays in that window. Changing the main window's tab leaves it maximised. "Open Alone" opens the item in the main window's preview slot and brings the main window to the front.
 
 If the same item is shown in two places, each place has its own live view. See [decision 0003](decisions/0003-view-per-placement.md).
 
@@ -273,7 +288,7 @@ If the same item is shown in two places, each place has its own live view. See [
 
 Focus answers "what should I work on now?", across all projects.
 
-- The Focus entry in the sidebar opens Focus in a "Focus" tab at the start of the root tab bar. The entry and the tab carry a target icon, since Focus is a list and not a dashboard. There is at most one Focus tab. It can be closed like any other tab.
+- Focus has a fixed slot right of the tabs, before the preview slot. The Focus entry in the sidebar selects it, and so does a click on the slot. The entry and the slot carry a target icon, since Focus is a list and not a dashboard. The slot is always there and cannot be closed. See [decision 0048](decisions/0048-focus-and-preview-slots.md).
 - It lists active tasks from all projects, or from one group, chosen in a combo box. Tasks in the [trash](#trash), and the tasks of projects in the trash, are left out. The combo box holds "All groups", then the groups in manual order.
 - Each row shows the task title, then its project and group, dimmed, and the [priority](data-model.md#priority) marker of the sidebar, a circle as for every task. Low tasks are dimmed.
 - A right click on a task opens the task's menu from the sidebar: edit, set priority, set state, delete and the rest.
@@ -282,7 +297,7 @@ Focus answers "what should I work on now?", across all projects.
   2. project priority, to break ties;
   3. manual order.
 - The list follows changes to groups, projects and tasks as they happen.
-- A double click or `Enter` opens the task's default dashboard in the preview tab.
+- A double click or `Enter` opens the task's default dashboard in the preview slot.
 - A toggle, "Needs attention first", moves tasks with attention badges to the top. It arrives with attention in M5.
 
 ## Attention
@@ -319,11 +334,11 @@ The project is chosen by matching the merge request's GitLab project or the issu
 | `Ctrl+Shift+N` | Quick add |
 | `Ctrl+Alt+Arrow` | Move focus to the cell in that direction |
 | `Ctrl+Tab`, `Ctrl+Shift+Tab` | Next or previous tab in the focused tab group |
-| `Ctrl+PgDown`, `Ctrl+PgUp` | Next or previous root dashboard tab |
+| `Ctrl+PgDown`, `Ctrl+PgUp` | Next or previous tab of the tab row: the tabs in order, then Focus, then the preview, wrapping around |
 | `F11` (macOS: `Ctrl+Cmd+F`) | Full screen on or off, as in web browsers. The platform's standard key, `QKeySequence::FullScreen`. |
 | `Ctrl+Shift+M` | Maximise the focused cell, or restore the maximised one. See [a bigger view](#a-bigger-view-of-an-item). |
-| `Ctrl+W` | Close the preview tab or the focused root tab |
-| `Ctrl+V` | With an image on the clipboard: paste it into the focused cell's image item, or as a new image item on an unlocked dashboard, after the [paste dialog](#pasting-images). See [image](item-types.md#image). A text field keeps its own paste. |
+| `Ctrl+W` | Close the preview or the current tab. Focus cannot be closed. |
+| `Ctrl+V` | With an image on the clipboard: replace the image of the Image item in the focused cell or the current item tab, after the [paste dialog](#pasting-images). It never adds an item to a dashboard; a new image item comes from "Paste Image…" in a task's Items menu. See [image](item-types.md#image). A text field keeps its own paste. |
 | Global hotkey (configurable) | Bring Mirante to the front |
 
 On macOS, `Cmd` replaces `Ctrl`.

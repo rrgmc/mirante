@@ -20,7 +20,7 @@ Since M3 the type declares its configuration fields, so items can be created and
 | `link` | URL | Optional address that a click on the image opens. |
 | `memo` | multi-line text | Optional plain text shown under the image. |
 
-The type returns `file` from `pastedImageField()`, so pasting an image onto a task dashboard creates an Image item with the pasted image in `file`.
+The type returns `file` from `pastedImageField()`, so "Paste Image…" in a task's Items menu creates an Image item with the pasted image in `file`, and `Ctrl+V` on a focused Image item replaces it.
 
 ## Connection kinds
 

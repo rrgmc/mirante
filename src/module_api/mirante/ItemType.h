@@ -1,11 +1,15 @@
 #pragma once
 
 #include <mirante/Fields.h>
+#include <mirante/UrlMatch.h>
 
 #include <QIcon>
+#include <QList>
 #include <QString>
 #include <QStringList>
+#include <QUrl>
 
+#include <optional>
 #include <vector>
 
 class QWidget;
@@ -72,6 +76,20 @@ public:
     // image onto a task dashboard creates an item of this type. See
     // docs/item-types.md#image.
     virtual QString pastedImageField() const { return {}; }
+
+    // Recognises a web address that the user pasted, such as a merge
+    // request's page, and returns the configuration that shows it. Null if
+    // the type does not take the address, the default. baseUrls are the base
+    // URLs of the connections of connectionKinds() in the profile of the new
+    // item's group,
+    // so a type can recognise a self-hosted server. See
+    // docs/modules.md#items-from-a-link.
+    virtual std::optional<UrlMatch> fromUrl(const QUrl &url, const QList<QUrl> &baseUrls) const
+    {
+        Q_UNUSED(url)
+        Q_UNUSED(baseUrls)
+        return std::nullopt;
+    }
 
     virtual Rendering rendering() const { return Rendering::Native; }
 

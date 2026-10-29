@@ -81,7 +81,7 @@ See [the M4 plan](plans/m4-web-views.md).
 - [ ] GitLab MR (summary), MR List, CI Pipeline, Issue (summary) and Issue List.
 - [ ] Jira Issue (summary) and Jira List.
 - [ ] Light actions: approve, retry, cancel, change Jira status, comment.
-- [ ] Pasting a URL into the item dialog picks the right type and fills its fields.
+- [x] Pasting a URL into the item dialog picks the right type and fills its fields. See [decision 0049](decisions/0049-items-from-a-pasted-link.md).
 - [ ] Tests cover URL recognition and the attention rules.
 
 ## M7: Quick add, Claude local, folders and notes

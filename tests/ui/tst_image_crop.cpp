@@ -190,7 +190,13 @@ private slots:
         QCOMPARE(size->text(), QStringLiteral("300 × 200 pixels"));
         QVERIFY(!whole->isEnabled());
         QCOMPARE(dialog.croppedImage().size(), QSize(300, 200));
+        // A longer size text does not make the dialog wider.
+        const int width = dialog.minimumSizeHint().width();
 
+        dialog.setCrop(QRect(250, 150, 40, 30));
+        QCOMPARE(dialog.minimumSizeHint().width(), width);
+        dialog.setCrop(QRect(10, 10, 280, 180));
+        QCOMPARE(dialog.minimumSizeHint().width(), width);
         dialog.setCrop(QRect(250, 150, 40, 30));
         QCOMPARE(size->text(), QStringLiteral("Crop: 40 × 30 of 300 × 200 pixels"));
         QVERIFY(whole->isEnabled());

@@ -9,6 +9,7 @@
 #include "ui/MainWindow.h"
 #include "ui/RootTabBar.h"
 #include "ui/Shortcuts.h"
+#include "ui/SlotTabBar.h"
 
 #include <QApplication>
 #include <QSettings>
@@ -64,6 +65,7 @@ struct Fixture
 
     Shortcuts *shortcuts() const { return window->shortcuts(); }
     RootTabBar *bar() const { return window->rootTabBar(); }
+    SlotTabBar *slotBar() const { return window->slotTabBar(); }
 
     // The visible cell of the item in the current tab.
     CellFrame *cell(const QString &itemId) const
@@ -193,25 +195,34 @@ private slots:
         QCOMPARE(tabs->currentIndex(), 1);
     }
 
+    // Ctrl+PgDown and Ctrl+PgUp go through the root tabs, then Focus, then
+    // the preview, and wrap.
     void changeRootTab()
     {
         Fixture f;
         SHOW_ACTIVE(f);
         f.window->openTaskPreview(kFixLoginTask);
-        QCOMPARE(f.bar()->count(), 3);
-        QCOMPARE(f.bar()->currentIndex(), 2);
+        QCOMPARE(f.bar()->count(), 2);
+        QCOMPARE(f.slotBar()->currentSlot(), int(SlotTabBar::PreviewSlot));
 
         f.key(Qt::Key_PageDown, Qt::ControlModifier);     // wraps
+        QCOMPARE(f.slotBar()->currentSlot(), -1);
         QCOMPARE(f.bar()->currentIndex(), 0);
         f.key(Qt::Key_PageDown, Qt::ControlModifier);
         QCOMPARE(f.bar()->currentIndex(), 1);
+        f.key(Qt::Key_PageDown, Qt::ControlModifier);
+        QCOMPARE(f.slotBar()->currentSlot(), int(SlotTabBar::FocusSlot));
+        f.key(Qt::Key_PageUp, Qt::ControlModifier);
+        QCOMPARE(f.slotBar()->currentSlot(), -1);
+        QCOMPARE(f.bar()->currentIndex(), 1);
         f.key(Qt::Key_PageUp, Qt::ControlModifier);
         f.key(Qt::Key_PageUp, Qt::ControlModifier);     // wraps back
-        QCOMPARE(f.bar()->currentIndex(), 2);
+        QCOMPARE(f.slotBar()->currentSlot(), int(SlotTabBar::PreviewSlot));
 
         // A hidden tab is skipped.
         f.bar()->setTabVisible(0, false);
         f.key(Qt::Key_PageDown, Qt::ControlModifier);
+        QCOMPARE(f.slotBar()->currentSlot(), -1);
         QCOMPARE(f.bar()->currentIndex(), 1);
     }
 
@@ -333,7 +344,7 @@ private slots:
         // maximised in another tab.
         f.key(Qt::Key_W, Qt::ControlModifier);
         QCOMPARE(f.bar()->count(), 2);
-        QCOMPARE(f.bar()->previewIndex(), -1);
+        QVERIFY(!f.slotBar()->hasPreview());
 
         f.window->openTaskPreview(kFixLoginTask);
         f.shortcuts()->focusCell(f.cell(kMergeRequest));
@@ -347,10 +358,18 @@ private slots:
         Fixture f;
         SHOW_ACTIVE(f);
         f.window->openTaskPreview(kFixLoginTask);
-        QCOMPARE(f.bar()->count(), 3);
+        QVERIFY(f.slotBar()->hasPreview());
         f.key(Qt::Key_W, Qt::ControlModifier);
         QCOMPARE(f.bar()->count(), 2);
-        QCOMPARE(f.bar()->previewIndex(), -1);
+        QVERIFY(!f.slotBar()->hasPreview());
+        QCOMPARE(f.bar()->currentIndex(), 0);
+        QCOMPARE(f.slotBar()->currentSlot(), -1);
+
+        // Focus cannot be closed.
+        f.window->openFocus();
+        f.key(Qt::Key_W, Qt::ControlModifier);
+        QCOMPARE(f.bar()->count(), 2);
+        QCOMPARE(f.slotBar()->currentSlot(), int(SlotTabBar::FocusSlot));
     }
 };
 

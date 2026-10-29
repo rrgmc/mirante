@@ -1,6 +1,6 @@
 # 0022. Task dashboards open in their own kind of tab
 
-- Status: Accepted
+- Status: Accepted; place of the preview superseded by 0048
 - Date: 2026-10-28
 
 ## Context

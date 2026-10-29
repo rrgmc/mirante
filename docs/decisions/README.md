@@ -27,8 +27,8 @@ Each file records one design decision: what was decided, what else was considere
 | [0019](0019-fixed-task-cells-and-item-windows.md) | Task cells show one dashboard, and items open alone | Accepted |
 | [0020](0020-edit-task-dashboards-alone.md) | Task dashboards are edited only on their own | Accepted |
 | [0021](0021-image-items-as-files.md) | Image items, with images stored as files | Accepted |
-| [0022](0022-task-dashboard-tabs.md) | Task dashboards open in their own kind of tab | Accepted |
-| [0023](0023-item-tabs.md) | Items open alone in a tab | Accepted |
+| [0022](0022-task-dashboard-tabs.md) | Task dashboards open in their own kind of tab | Accepted; place of the preview by 0048 |
+| [0023](0023-item-tabs.md) | Items open alone in a tab | Accepted; place of the preview by 0048 |
 | [0024](0024-detach-root-dashboard-tabs.md) | Only root dashboard tabs can be detached | Accepted |
 | [0025](0025-workspace-file.md) | A workspace file holds the workspace's name | Superseded by 0026 |
 | [0026](0026-workspace-file-name.md) | The workspace file is `workspace.mirante` | Superseded by 0027 |
@@ -37,7 +37,7 @@ Each file records one design decision: what was decided, what else was considere
 | [0029](0029-sample-data-read-only.md) | The sample data is read-only | Accepted |
 | [0030](0030-deleting-image-files.md) | Image files are deleted only when this device drops the last reference | Accepted |
 | [0031](0031-conflict-copies-by-id-prefix.md) | Conflict copies are recognised by the id at the start of their name | Accepted |
-| [0032](0032-paste-images-into-root-dashboards.md) | Pasting an image into a root dashboard asks for its task | Accepted |
+| [0032](0032-paste-images-into-root-dashboards.md) | Pasting an image into a root dashboard asks for its task | Superseded by 0051 |
 | [0033](0033-cell-header-pills.md) | Cell headers show the type and the place as pills | Accepted |
 | [0034](0034-manual-order-in-the-sidebar.md) | The sidebar keeps the manual order; priority is a marker | Accepted |
 | [0036](0036-trash-for-tasks-and-projects.md) | Deleted tasks and projects go to a trash | Accepted |
@@ -49,10 +49,13 @@ Each file records one design decision: what was decided, what else was considere
 | [0042](0042-user-managed-web-profiles.md) | Web profiles are a list the user manages | Accepted; in part superseded by 0050 |
 | [0043](0043-pick-the-item-type-first.md) | A new item starts by picking its type in an icon grid | Accepted |
 | [0044](0044-module-settings-in-the-workspace.md) | Modules have settings screens, stored in the workspace | Accepted; in part superseded by 0050 |
-| [0045](0045-preview-and-crop-pasted-images.md) | Pasted images open a preview with a crop first | Accepted |
+| [0045](0045-preview-and-crop-pasted-images.md) | Pasted images open a preview with a crop first | Accepted; pasting onto dashboards by 0051 |
 | [0046](0046-group-colours.md) | Each group has a colour | Accepted; item cell headers by 0047 |
 | [0047](0047-item-headers-in-group-colours.md) | Item cell headers take their group's colour | Accepted |
+| [0048](0048-focus-and-preview-slots.md) | Focus and the preview have fixed slots right of the tabs | Accepted |
+| [0049](0049-items-from-a-pasted-link.md) | Item types read a pasted link, and the item dialog offers the types that take it | Accepted; connections of the profile by 0050 |
 | [0050](0050-profiles-hold-logins-connections-and-settings.md) | Profiles hold logins, connections and module settings | Accepted |
+| [0051](0051-paste-images-from-the-items-menu.md) | Pasted images become items of a task, not cells of a dashboard | Accepted |
 
 ## Template
 

@@ -1,4 +1,4 @@
-// Tests MainWindow on the fixtures: the root tabs, the preview tab, pinning,
+// Tests MainWindow on the fixtures: the root tabs, the preview and Focus slots, pinning,
 // new root dashboards, closing and reopening tabs, the warning bar, focusing an
 // item, views following the model, detached windows, and the web views of
 // item cells.
@@ -22,6 +22,7 @@
 #include "ui/MainWindow.h"
 #include "ui/RootDashboardsDialog.h"
 #include "ui/RootTabBar.h"
+#include "ui/SlotTabBar.h"
 #include "ui/Sidebar.h"
 #include "ui/SidebarDelegate.h"
 #include "ui/SidebarModel.h"
@@ -203,6 +204,8 @@ struct Fixture
 
     RootTabBar *bar() const { return window->rootTabBar(); }
     QString tabText(int index) const { return bar()->tabText(index); }
+    SlotTabBar *slotBar() const { return window->slotTabBar(); }
+    QString previewText() const { return slotBar()->tabText(SlotTabBar::PreviewSlot); }
 
     // The group of a task.
     QString groupOf(const QString &taskId) const
@@ -283,7 +286,9 @@ private slots:
         QCOMPARE(f.bar()->count(), 2);
         QCOMPARE(f.tabText(0), QStringLiteral("Morning"));
         QCOMPARE(f.tabText(1), QStringLiteral("Release"));
-        QCOMPARE(f.bar()->previewIndex(), -1);
+        QVERIFY(!f.slotBar()->hasPreview());
+        QCOMPARE(f.slotBar()->currentSlot(), -1);
+        QVERIFY(f.bar()->selectionShown());
         QCOMPARE(f.bar()->currentIndex(), 0);
         QVERIFY(f.window->currentLayoutView());
         QCOMPARE(f.window->currentLayoutView()->tree().kind, LayoutNode::Kind::Split);
@@ -291,19 +296,27 @@ private slots:
         QVERIFY(f.window->shortcuts());
     }
 
-    void previewTab()
+    // The preview opens in its slot right of the tabs, not as a tab
+    // (decision 0048).
+    void previewSlot()
     {
         Fixture f;
         f.window->openTaskPreview(kFixLoginTask);
-        QCOMPARE(f.bar()->count(), 3);
-        QCOMPARE(f.bar()->previewIndex(), 2);
-        QCOMPARE(f.bar()->currentIndex(), 2);
-        QCOMPARE(f.tabText(2), QStringLiteral("Fix login timeout / Work"));
-        QVERIFY(f.bar()->findChild<QToolButton *>(QStringLiteral("pinButton")));
+        QCOMPARE(f.bar()->count(), 2);
+        QVERIFY(f.slotBar()->hasPreview());
+        QCOMPARE(f.slotBar()->currentSlot(), int(SlotTabBar::PreviewSlot));
+        QVERIFY(!f.bar()->selectionShown());
+        QCOMPARE(f.previewText(), QStringLiteral("Fix login timeout / Work"));
+        QVERIFY(!f.slotBar()->tabIcon(SlotTabBar::PreviewSlot).isNull());
+        QVERIFY(f.slotBar()->findChild<QToolButton *>(QStringLiteral("pinButton")));
+        QVERIFY(!f.bar()->findChild<QToolButton *>(QStringLiteral("pinButton")));
         f.window->show();
         QVERIFY(QTest::qWaitForWindowExposed(f.window.get()));
-        QTRY_VERIFY(f.bar()->height() > 0);
-        QVERIFY(!f.bar()->grab().isNull());     // paints the italic tab
+        QTRY_VERIFY(f.slotBar()->height() > 0);
+        QVERIFY(!f.slotBar()->grab().isNull());     // paints the italic slot
+        QVERIFY(!f.bar()->grab().isNull());         // paints no selection
+        // The slots are on the right of the tabs.
+        QVERIFY(f.slotBar()->mapTo(f.window.get(), QPoint()).x() > f.bar()->mapTo(f.window.get(), QPoint()).x());
 
         const LayoutNode *expected = f.model.layout(DashboardRef{kFixLoginTask, kFixLoginDashboard});
         QVERIFY(expected);
@@ -311,38 +324,80 @@ private slots:
 
         // A second preview replaces the first.
         f.window->openTaskPreview(kOverviewTask);
-        QCOMPARE(f.bar()->count(), 3);
-        QCOMPARE(f.bar()->previewIndex(), 2);
-        QCOMPARE(f.tabText(2), overviewTitle(f));
+        QCOMPARE(f.bar()->count(), 2);
+        QCOMPARE(f.previewText(), overviewTitle(f));
 
-        // Closing the preview removes its tab.
+        // Closing the preview hides its slot, and the root tab is current again.
         f.window->closeCurrentTab();
         QCOMPARE(f.bar()->count(), 2);
-        QCOMPARE(f.bar()->previewIndex(), -1);
+        QVERIFY(!f.slotBar()->hasPreview());
+        QCOMPARE(f.slotBar()->currentSlot(), -1);
+        QVERIFY(f.bar()->selectionShown());
+        QCOMPARE(f.window->currentLayoutView()->tree().kind, LayoutNode::Kind::Split);
+    }
+
+    // Clicks on the tabs and the slots move the one current page between the
+    // two bars.
+    void clickingTabsAndSlots()
+    {
+        Fixture f;
+        f.window->show();
+        QVERIFY(QTest::qWaitForWindowExposed(f.window.get()));
+        f.window->openTaskPreview(kFixLoginTask);
+        QTRY_VERIFY(f.slotBar()->tabRect(SlotTabBar::PreviewSlot).width() > 0);
+        LayoutView *preview = f.window->currentLayoutView();
+
+        // The current root tab, clicked again, comes back.
+        QTest::mouseClick(f.bar(), Qt::LeftButton, {}, f.bar()->tabRect(0).center());
+        QCOMPARE(f.slotBar()->currentSlot(), -1);
+        QVERIFY(f.bar()->selectionShown());
+        QVERIFY(f.window->currentLayoutView() != preview);
+
+        QTest::mouseClick(f.slotBar(), Qt::LeftButton, {}, f.slotBar()->tabRect(SlotTabBar::PreviewSlot).center());
+        QCOMPARE(f.slotBar()->currentSlot(), int(SlotTabBar::PreviewSlot));
+        QCOMPARE(f.window->currentLayoutView(), preview);
+
+        QTest::mouseClick(f.slotBar(), Qt::LeftButton, {}, f.slotBar()->tabRect(SlotTabBar::FocusSlot).center());
+        QCOMPARE(f.slotBar()->currentSlot(), int(SlotTabBar::FocusSlot));
+        QVERIFY(!f.window->currentLayoutView());
+        QVERIFY(f.window->findChild<FocusView *>()->isVisible());
+
+        // Another root tab.
+        QTest::mouseClick(f.bar(), Qt::LeftButton, {}, f.bar()->tabRect(1).center());
+        QCOMPARE(f.slotBar()->currentSlot(), -1);
+        QCOMPARE(f.bar()->currentIndex(), 1);
+
+        // A middle click closes the preview.
+        QTest::mouseClick(f.slotBar(), Qt::MiddleButton, {}, f.slotBar()->tabRect(SlotTabBar::PreviewSlot).center());
+        QVERIFY(!f.slotBar()->hasPreview());
+        QCOMPARE(f.bar()->currentIndex(), 1);
     }
 
     void previewOfAChosenDashboard()
     {
         Fixture f;
-        // A chosen dashboard replaces the default one in the same preview tab,
+        // A chosen dashboard replaces the default one in the same preview slot,
         // and pinning it pins that dashboard.
         const QString review = QStringLiteral("ece7e850-6e0f-51ef-ad23-4ee948afdd66");
         f.window->openTaskPreview(kFixLoginTask);
         f.window->openTaskPreview(kFixLoginTask, review);
-        QCOMPARE(f.bar()->count(), 3);
-        QCOMPARE(f.bar()->previewIndex(), 2);
+        QCOMPARE(f.bar()->count(), 2);
+        QVERIFY(f.slotBar()->hasPreview());
         const LayoutNode *reviewTree = f.model.layout(DashboardRef{kFixLoginTask, review});
         QVERIFY(reviewTree);
         QVERIFY(layout::sameShape(f.window->currentLayoutView()->tree(), *reviewTree));
         f.window->pinTask(kFixLoginTask, review);
-        QCOMPARE(f.bar()->previewIndex(), -1);
+        QVERIFY(!f.slotBar()->hasPreview());
+        QCOMPARE(f.bar()->count(), 3);
         QVERIFY(layout::sameShape(f.window->currentLayoutView()->tree(), *reviewTree));
         f.window->openTaskPreview(kFixLoginTask);
-        QCOMPARE(f.bar()->previewIndex(), 3);      // the default dashboard is not pinned yet
+        QVERIFY(f.slotBar()->hasPreview());     // the default dashboard is not pinned yet
+        QCOMPARE(f.bar()->count(), 3);
     }
 
-    // Pinning keeps a task dashboard in its own tab. It does not make a root
-    // dashboard: a task dashboard in a root dashboard is read-only.
+    // Pinning moves a task dashboard from the preview slot to a tab of its
+    // own. It does not make a root dashboard: a task dashboard in a root
+    // dashboard is read-only.
     void pinTask()
     {
         Fixture f;
@@ -351,8 +406,10 @@ private slots:
 
         QCOMPARE(int(f.model.rootDashboards().size()), 2);
         QCOMPARE(f.bar()->count(), 3);
-        QCOMPARE(f.bar()->previewIndex(), -1);
+        QVERIFY(!f.slotBar()->hasPreview());
+        QCOMPARE(f.slotBar()->currentSlot(), -1);
         QCOMPARE(f.bar()->currentIndex(), 2);
+        QVERIFY(f.bar()->selectionShown());
         QCOMPARE(f.tabText(2), QStringLiteral("Fix login timeout / Work"));
         QVERIFY(!f.bar()->tabIcon(2).isNull());    // a task dashboard tab
         QVERIFY(f.bar()->tabIcon(0).isNull());     // a root dashboard tab
@@ -365,12 +422,13 @@ private slots:
         f.window->openTaskPreview(kFixLoginTask);
         QCOMPARE(f.bar()->currentIndex(), 2);
         QCOMPARE(f.bar()->count(), 3);
-        QCOMPARE(f.bar()->previewIndex(), -1);
+        QVERIFY(!f.slotBar()->hasPreview());
 
-        // The next preview opens in a new tab after it.
+        // The next preview opens in the slot again.
         f.window->openTaskPreview(kOverviewTask);
-        QCOMPARE(f.bar()->count(), 4);
-        QCOMPARE(f.bar()->previewIndex(), 3);
+        QCOMPARE(f.bar()->count(), 3);
+        QVERIFY(f.slotBar()->hasPreview());
+        QCOMPARE(f.slotBar()->currentSlot(), int(SlotTabBar::PreviewSlot));
     }
 
     // A task dashboard tab has its own lock in its title bar. The lock at the
@@ -435,7 +493,7 @@ private slots:
     {
         Fixture f;
         f.window->openTaskPreview(kFixLoginTask);
-        QCOMPARE(f.bar()->previewIndex(), 2);
+        QVERIFY(f.slotBar()->hasPreview());
 
         // An edit of the previewed task dashboard pins the preview.
         const DashboardRef ref{kFixLoginTask, kFixLoginDashboard};
@@ -443,9 +501,10 @@ private slots:
         QVERIFY(tree);
         f.model.setLayout(ref, layout::splitCell(*tree, {}, Edge::Right, std::nullopt).tree);
 
-        QTRY_COMPARE(f.bar()->previewIndex(), -1);
+        QTRY_VERIFY(!f.slotBar()->hasPreview());
         QCOMPARE(int(f.model.rootDashboards().size()), 2);
         QCOMPARE(f.bar()->count(), 3);
+        QCOMPARE(f.slotBar()->currentSlot(), -1);
         QCOMPARE(f.tabText(f.bar()->currentIndex()), QStringLiteral("Fix login timeout / Work"));
     }
 
@@ -454,8 +513,8 @@ private slots:
         Fixture f;
         const QString review = QStringLiteral("ece7e850-6e0f-51ef-ad23-4ee948afdd66");
         emit f.window->entityActions()->dashboardCreated(kFixLoginTask, review);
-        QCOMPARE(f.bar()->previewIndex(), 2);
-        QCOMPARE(f.bar()->currentIndex(), 2);
+        QVERIFY(f.slotBar()->hasPreview());
+        QCOMPARE(f.slotBar()->currentSlot(), int(SlotTabBar::PreviewSlot));
         const LayoutNode *reviewTree = f.model.layout(DashboardRef{kFixLoginTask, review});
         QVERIFY(reviewTree);
         QVERIFY(layout::sameShape(f.window->currentLayoutView()->tree(), *reviewTree));
@@ -465,9 +524,9 @@ private slots:
     {
         Fixture f;
         f.window->openTaskPreview(kFixLoginTask);
-        QCOMPARE(f.bar()->previewIndex(), 2);
-        // The tooltip names the project, which the tab title leaves out.
-        QCOMPARE(f.bar()->tabToolTip(2), QStringLiteral("backend / Fix login timeout / Work"));
+        QVERIFY(f.slotBar()->hasPreview());
+        // The tooltip names the project, which the title leaves out.
+        QCOMPARE(f.slotBar()->tabToolTip(SlotTabBar::PreviewSlot), QStringLiteral("backend / Fix login timeout / Work"));
 
         // A change to the task that leaves this dashboard's layout as it is,
         // such as a new title or a new dashboard, does not pin the preview.
@@ -475,8 +534,9 @@ private slots:
         task.title = QStringLiteral("Login timeout");
         f.model.setTask(task);
         QTest::qWait(20);
-        QCOMPARE(f.bar()->previewIndex(), 2);
-        QCOMPARE(f.bar()->tabToolTip(2), QStringLiteral("backend / Login timeout / Work"));
+        QVERIFY(f.slotBar()->hasPreview());
+        QCOMPARE(f.previewText(), QStringLiteral("Login timeout / Work"));
+        QCOMPARE(f.slotBar()->tabToolTip(SlotTabBar::PreviewSlot), QStringLiteral("backend / Login timeout / Work"));
     }
 
     // View > Full Screen uses the platform's key, and leaving full screen
@@ -510,27 +570,38 @@ private slots:
         QVERIFY(f.window->menuBar()->isVisible());
     }
 
-    // The Focus tab has an icon, so it reads apart from dashboard tabs.
-    void focusTabIcon()
+    // The Focus slot is always there, with an icon, and cannot be closed.
+    void focusSlot()
     {
         Fixture f;
+        QVERIFY(f.slotBar()->isTabVisible(SlotTabBar::FocusSlot));
+        QVERIFY(!f.slotBar()->tabIcon(SlotTabBar::FocusSlot).isNull());
+        QCOMPARE(f.slotBar()->tabText(SlotTabBar::FocusSlot), QStringLiteral("Focus"));
+        const auto closeSide = QTabBar::ButtonPosition(
+            f.slotBar()->style()->styleHint(QStyle::SH_TabBar_CloseButtonPosition, nullptr, f.slotBar()));
+        QVERIFY(!f.slotBar()->tabButton(SlotTabBar::FocusSlot, closeSide));
+        QVERIFY(f.slotBar()->tabButton(SlotTabBar::PreviewSlot, closeSide));
+
         f.window->openFocus();
-        QVERIFY(!f.bar()->tabIcon(0).isNull());
-        QVERIFY(f.bar()->tabIcon(1).isNull());     // Morning, a root dashboard
+        QCOMPARE(f.bar()->count(), 2);      // no Focus tab
+        QCOMPARE(f.slotBar()->currentSlot(), int(SlotTabBar::FocusSlot));
+        f.window->closeCurrentTab();
+        QCOMPARE(f.slotBar()->currentSlot(), int(SlotTabBar::FocusSlot));
+        QVERIFY(f.window->findChild<FocusView *>());
     }
 
     void pinButton()
     {
         Fixture f;
         f.window->openTaskPreview(kOverviewTask);
-        auto *pin = f.bar()->findChild<QToolButton *>(QStringLiteral("pinButton"));
+        auto *pin = f.slotBar()->findChild<QToolButton *>(QStringLiteral("pinButton"));
         QVERIFY(pin);
-        QSignalSpy spy(f.bar(), &RootTabBar::pinRequested);
+        QSignalSpy spy(f.slotBar(), &SlotTabBar::pinRequested);
         pin->click();
         QCOMPARE(spy.count(), 1);
-        QCOMPARE(spy.at(0).at(0).toInt(), 2);
-        QCOMPARE(f.bar()->previewIndex(), -1);
+        QVERIFY(!f.slotBar()->hasPreview());
         QCOMPARE(f.bar()->count(), 3);
+        QCOMPARE(f.bar()->currentIndex(), 2);
         QCOMPARE(f.tabText(2), overviewTitle(f));
         QCOMPARE(int(f.model.rootDashboards().size()), 2);
     }
@@ -541,10 +612,10 @@ private slots:
         f.window->openTaskPreview(kFixLoginTask);
         f.window->newRootDashboard();
         QCOMPARE(int(f.model.rootDashboards().size()), 3);
-        QCOMPARE(f.bar()->count(), 4);
-        // Root tabs come before the preview.
+        QCOMPARE(f.bar()->count(), 3);
         QCOMPARE(f.bar()->currentIndex(), 2);
-        QCOMPARE(f.bar()->previewIndex(), 3);
+        QCOMPARE(f.slotBar()->currentSlot(), -1);
+        QVERIFY(f.slotBar()->hasPreview());     // the preview stays in its slot
         QCOMPARE(f.tabText(2), QStringLiteral("New dashboard"));
 
         LayoutView *view = f.window->currentLayoutView();
@@ -747,8 +818,8 @@ private slots:
     }
 
     // The open tabs of a workspace are saved when another one opens, and come
-    // back when it opens again: root dashboards and Focus in order, and the
-    // current tab. The preview tab is not kept.
+    // back when it opens again: root dashboards in order, and the current tab,
+    // or Focus if its slot was current. The preview is not kept.
     void openTabsRestored()
     {
         QTemporaryDir dir;
@@ -758,64 +829,91 @@ private slots:
         Fixture f;
         f.window->openWorkspace(dir.path());
         QCOMPARE(f.bar()->count(), 2);      // nothing saved yet: every root dashboard
-        f.window->openFocus();
         f.window->openRootDashboard(kRelease);
         f.window->closeCurrentTab();
         f.window->openTaskPreview(kFixLoginTask);
-        QCOMPARE(f.bar()->count(), 3);
+        QCOMPARE(f.bar()->count(), 1);
 
         // The preview was current, so the first tab is current now.
         f.window->openSampleData();
         f.window->openWorkspace(dir.path());
-        QCOMPARE(f.bar()->count(), 2);
-        QCOMPARE(f.tabText(0), QStringLiteral("Focus"));
-        QCOMPARE(f.tabText(1), QStringLiteral("Morning"));
-        QCOMPARE(f.bar()->previewIndex(), -1);
+        QCOMPARE(f.bar()->count(), 1);
+        QCOMPARE(f.tabText(0), QStringLiteral("Morning"));
+        QVERIFY(!f.slotBar()->hasPreview());
+        QCOMPARE(f.slotBar()->currentSlot(), -1);
         QCOMPARE(f.bar()->currentIndex(), 0);
 
         // Reloading keeps them, and so does a new window on the same settings.
-        f.window->openRootDashboard(kMorning);
+        f.window->openRootDashboard(kRelease);
         f.window->reloadWorkspace();
         QCOMPARE(f.bar()->count(), 2);
         QCOMPARE(f.bar()->currentIndex(), 1);
+        f.window->openFocus();
         f.window->close();
         f.window.reset();
         f.dataStore.close();    // as at start: nothing is open yet
         f.window = std::make_unique<MainWindow>(f.model, f.types, f.dataStore, f.settings);
         f.window->openWorkspace(dir.path());
         QCOMPARE(f.bar()->count(), 2);
-        QCOMPARE(f.tabText(0), QStringLiteral("Focus"));
-        QCOMPARE(f.bar()->currentIndex(), 1);
+        QCOMPARE(f.tabText(0), QStringLiteral("Morning"));
+        // Focus was current, so it is current again; Focus is not a saved tab.
+        QCOMPARE(f.slotBar()->currentSlot(), int(SlotTabBar::FocusSlot));
+        const DeviceSettings::Tabs saved = f.settings.openTabs(f.dataStore.dir());
+        QCOMPARE(saved.ids, (QStringList{kMorning, kRelease}));
+        QCOMPARE(saved.current, QStringLiteral("focus"));
     }
 
-    // The Focus entry opens one Focus tab, at the start of the tab bar.
-    void focusTab()
+    // A "focus" id saved as a tab by earlier versions is skipped, and still
+    // makes the Focus slot current.
+    void oldFocusTabRestored()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        QVERIFY(copyFixtures(dir.path()));
+
+        Fixture f;
+        DeviceSettings::Tabs tabs;
+        tabs.saved = true;
+        tabs.ids = QStringList{QStringLiteral("focus"), kRelease};
+        tabs.current = kRelease;
+        f.settings.setOpenTabs(QDir(dir.path()).absolutePath(), tabs);
+        f.window->openWorkspace(dir.path());
+        QCOMPARE(f.bar()->count(), 1);
+        QCOMPARE(f.tabText(0), QStringLiteral("Release"));
+        QCOMPARE(f.slotBar()->currentSlot(), -1);
+    }
+
+    // The Focus entry selects the Focus slot, which is not a tab.
+    void focusEntrySelectsSlot()
     {
         Fixture f;
         auto *sidebar = f.window->findChild<Sidebar *>();
         emit sidebar->focusRequested();
-        QCOMPARE(f.bar()->count(), 3);
-        QCOMPARE(f.tabText(0), QStringLiteral("Focus"));
-        QCOMPARE(f.bar()->currentIndex(), 0);
+        QCOMPARE(f.bar()->count(), 2);
+        QCOMPARE(f.slotBar()->currentSlot(), int(SlotTabBar::FocusSlot));
+        QVERIFY(!f.bar()->selectionShown());
         QVERIFY(!f.window->currentLayoutView());
 
         f.window->openRootDashboard(kRelease);
+        QCOMPARE(f.slotBar()->currentSlot(), -1);
         emit sidebar->focusRequested();
-        QCOMPARE(f.bar()->count(), 3);
-        QCOMPARE(f.bar()->currentIndex(), 0);
+        QCOMPARE(f.slotBar()->currentSlot(), int(SlotTabBar::FocusSlot));
+        QCOMPARE(f.window->findChildren<FocusView *>().size(), 1);
 
-        // A task opened from it goes to the preview tab.
+        // A task opened from it goes to the preview slot.
         auto *focus = f.window->findChild<FocusView *>();
         QVERIFY(focus);
         emit focus->taskOpened(kFixLoginTask);
-        QCOMPARE(f.bar()->count(), 4);
-        QCOMPARE(f.bar()->previewIndex(), 3);
-        QCOMPARE(f.tabText(3), QStringLiteral("Fix login timeout / Work"));
+        QCOMPARE(f.bar()->count(), 2);
+        QCOMPARE(f.slotBar()->currentSlot(), int(SlotTabBar::PreviewSlot));
+        QCOMPARE(f.previewText(), QStringLiteral("Fix login timeout / Work"));
 
-        // It closes like any other tab.
+        // Closing the last tab shows Focus.
+        f.window->openRootDashboard(kRelease);
+        emit f.bar()->tabCloseRequested(1);
         emit f.bar()->tabCloseRequested(0);
-        QCOMPARE(f.bar()->count(), 3);
-        QVERIFY(!f.window->findChild<FocusView *>());
+        QCOMPARE(f.bar()->count(), 0);
+        QCOMPARE(f.slotBar()->currentSlot(), int(SlotTabBar::FocusSlot));
     }
 
     // The sample data is read-only, and the warning bar says so.
@@ -910,9 +1008,10 @@ private slots:
         QCOMPARE(saved.pixelColor(39, 29), QColor(Qt::green));
     }
 
-    // On a root dashboard the paste dialog comes first, then the task
-    // question. Cancelling either pastes nothing.
-    void pasteImageIntoRootDashboard()
+    // Ctrl+V never adds an image to a dashboard. On an unlocked root or task
+    // dashboard without a focused image item, the status bar points to the
+    // Items menu, no dialog opens, and nothing changes.
+    void pasteImageNeverAddsToDashboard()
     {
         QTemporaryDir dir;
         QVERIFY(dir.isValid());
@@ -920,6 +1019,16 @@ private slots:
         Fixture f;
         f.types.registerModule(QStringLiteral("image"), &registerTestImage);
         f.window->openWorkspace(dir.path());
+        int dialogs = 0;
+        f.window->setExec([&dialogs](QDialog &) {
+            ++dialogs;
+            return true;
+        });
+        const Task taskBefore = *f.model.task(kImageTask);
+        const RootDashboard rootBefore = *f.model.rootDashboard(kMorning);
+        QImage image(30, 20, QImage::Format_RGB32);
+        image.fill(Qt::red);
+
         f.window->openRootDashboard(kMorning);
         QToolButton *rootLock = nullptr;
         for (QToolButton *button : f.window->findChildren<QToolButton *>(QStringLiteral("lockButton")))
@@ -927,70 +1036,139 @@ private slots:
         QVERIFY(rootLock);
         rootLock->click();
         QVERIFY(f.window->currentLayoutView()->editMode());
-        f.window->revealInSidebar(kImageTask);
-        const size_t itemsBefore = f.model.task(kImageTask)->items.size();
+        f.window->pasteImage(image);
+        QCOMPARE(f.window->statusBar()->currentMessage(), ImagePaste::message(ImagePaste::Result::NoImageItem));
 
+        f.window->openTaskPreview(kImageTask);
+        f.window->pasteImage(image);
+        QCOMPARE(f.window->statusBar()->currentMessage(), ImagePaste::message(ImagePaste::Result::NoImageItem));
+
+        QCOMPARE(dialogs, 0);
+        QVERIFY(*f.model.task(kImageTask) == taskBefore);
+        QVERIFY(*f.model.rootDashboard(kMorning) == rootBefore);
+    }
+
+    // "Paste Image…" in a task's Items menu opens the paste dialog, then adds
+    // the cropped image to the task as a new Image item. No dashboard
+    // changes. Cancel adds nothing.
+    void pasteImageFromItemsMenu()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        QVERIFY(copyFixtures(dir.path()));
+        Fixture f;
+        f.types.registerModule(QStringLiteral("image"), &registerTestImage);
+        f.window->openWorkspace(dir.path());
+        EntityActions *actions = f.window->entityActions();
         QImage image(300, 200, QImage::Format_RGB32);
-        image.fill(Qt::red);
+        image.fill(Qt::blue);
+        QPainter(&image).fillRect(QRect(100, 50, 40, 30), Qt::green);
+        actions->setClipboardImage([&image] { return image; });
 
-        // The order of the dialogs, and the answer to the second.
-        QStringList dialogs;
-        bool acceptTask = false;
-        f.window->setExec([&dialogs, &acceptTask](QDialog &dialog) {
-            dialogs << QString::fromLatin1(dialog.metaObject()->className());
-            if (auto *paste = qobject_cast<ImagePasteDialog *>(&dialog)) {
-                paste->setCrop(QRect(0, 0, 50, 20));
-                return true;
+        const Task before = *f.model.task(kImageTask);
+        const auto roots = [&f] {
+            std::vector<RootDashboard> values;
+            for (const RootDashboard *root : f.model.rootDashboards())
+                values.push_back(*root);
+            return values;
+        };
+        const std::vector<RootDashboard> rootsBefore = roots();
+        const auto trigger = [actions] {
+            QMenu menu;
+            actions->fillMenu(&menu, SidebarModel::Kind::ItemList, QString(), kImageTask);
+            QAction *paste = nullptr;
+            for (QAction *action : menu.actions()) {
+                if (action->text() == QStringLiteral("Paste Image…"))
+                    paste = action;
             }
-            return acceptTask;
-        });
-        f.window->pasteImage(image);
-        QCOMPARE(dialogs, (QStringList{QStringLiteral("mirante::ImagePasteDialog"), QStringLiteral("QInputDialog")}));
-        QCOMPARE(f.model.task(kImageTask)->items.size(), itemsBefore);
+            QVERIFY(paste && paste->isEnabled());
+            paste->trigger();
+        };
 
-        dialogs.clear();
-        acceptTask = true;
-        f.window->pasteImage(image);
-        QCOMPARE(dialogs.size(), 2);
+        QStringList dialogs;
+        actions->setExec([&dialogs](QDialog &dialog) {
+            dialogs << QString::fromLatin1(dialog.metaObject()->className());
+            return false;
+        });
+        trigger();
+        QCOMPARE(dialogs, QStringList{QStringLiteral("mirante::ImagePasteDialog")});
+        QVERIFY(*f.model.task(kImageTask) == before);
+
+        actions->setExec(cropTo(QRect(100, 50, 40, 30)));
+        trigger();
         const Task *task = f.model.task(kImageTask);
-        QCOMPARE(task->items.size(), itemsBefore + 1);
+        QCOMPARE(task->items.size(), before.items.size() + 1);
         const Item &item = task->items.back();
         QCOMPARE(item.type, QStringLiteral("image"));
         const QImage saved(f.dataStore.filePath(item.config.value(QStringLiteral("file")).toString()));
-        QCOMPARE(saved.size(), QSize(50, 20));
+        QCOMPARE(saved.size(), QSize(40, 30));
+        QCOMPARE(saved.pixelColor(0, 0), QColor(Qt::green));
+        // The item is on no dashboard: the task's dashboards and the root
+        // dashboards are unchanged.
+        QVERIFY(task->dashboards == before.dashboards);
+        QVERIFY(roots() == rootsBefore);
     }
 
-    // A deleted task's tabs close.
+    // In read-only data, such as the sample data, "Paste Image…" says why in
+    // the status bar and opens no dialog.
+    void pasteImageFromItemsMenuReadOnly()
+    {
+        Fixture f;
+        f.types.registerModule(QStringLiteral("image"), &registerTestImage);
+        QVERIFY(f.dataStore.readOnly());
+        EntityActions *actions = f.window->entityActions();
+        QImage image(30, 20, QImage::Format_RGB32);
+        image.fill(Qt::red);
+        actions->setClipboardImage([&image] { return image; });
+        int dialogs = 0;
+        actions->setExec([&dialogs](QDialog &) {
+            ++dialogs;
+            return true;
+        });
+        const size_t itemsBefore = f.model.task(kImageTask)->items.size();
+        QVERIFY(actions->pasteImage(kImageTask).isEmpty());
+        QCOMPARE(dialogs, 0);
+        QCOMPARE(f.window->statusBar()->currentMessage(), ImagePaste::message(ImagePaste::Result::SaveFailed));
+        QCOMPARE(f.model.task(kImageTask)->items.size(), itemsBefore);
+    }
+
+    // A deleted task's tabs and preview close.
     void removedTaskClosesItsTabs()
     {
         Fixture f;
         f.window->openTaskPreview(kFixLoginTask);
+        f.window->pinTask(kFixLoginTask);
+        f.window->openTaskPreview(kFixLoginTask, QStringLiteral("ece7e850-6e0f-51ef-ad23-4ee948afdd66"));
         QCOMPARE(f.bar()->count(), 3);
+        QVERIFY(f.slotBar()->hasPreview());
         f.model.removeTask(kFixLoginTask);
         QCOMPARE(f.bar()->count(), 2);
+        QVERIFY(!f.slotBar()->hasPreview());
+        QCOMPARE(f.slotBar()->currentSlot(), -1);
     }
 
-    // A task moved to the trash, alone or with its project, closes its tabs
-    // and does not open again until restored.
+    // A task moved to the trash, alone or with its project, closes its
+    // preview and does not open again until restored.
     void trashedTaskClosesItsTabs()
     {
         Fixture f;
         f.window->openTaskPreview(kFixLoginTask);
-        QCOMPARE(f.bar()->count(), 3);
+        QVERIFY(f.slotBar()->hasPreview());
         Task task = *f.model.task(kFixLoginTask);
         task.trashedAt = QStringLiteral("2026-10-29T10:00:00Z");
         f.model.setTask(task);
-        QCOMPARE(f.bar()->count(), 2);
+        QVERIFY(!f.slotBar()->hasPreview());
         f.window->openTaskPreview(kFixLoginTask);
-        QCOMPARE(f.bar()->count(), 2);
+        QVERIFY(!f.slotBar()->hasPreview());
 
         task.trashedAt.clear();
         f.model.setTask(task);
         f.window->openTaskPreview(kFixLoginTask);
-        QCOMPARE(f.bar()->count(), 3);
+        QVERIFY(f.slotBar()->hasPreview());
         Project project = *f.model.project(task.projectId);
         project.trashedAt = QStringLiteral("2026-10-29T10:00:00Z");
         f.model.setProject(project);
+        QVERIFY(!f.slotBar()->hasPreview());
         QCOMPARE(f.bar()->count(), 2);
     }
 
@@ -1114,17 +1292,18 @@ private slots:
         QCOMPARE(list->ids(), QStringList{kRelease});
     }
 
-    // An item opens alone in a tab, like a task dashboard: in the preview tab,
-    // with its type icon and a "Task / Item" title bar, and it can be pinned.
+    // An item opens alone like a task dashboard: in the preview slot, with
+    // its type icon and a "Task / Item" title bar, and it can be pinned.
     void itemTab()
     {
         Fixture f;
         f.window->openItem(kOverviewTask, kReviewsItem);
-        QCOMPARE(f.bar()->count(), 3);
-        QCOMPARE(f.bar()->previewIndex(), 2);
-        QVERIFY(!f.bar()->tabIcon(2).isNull());
+        QCOMPARE(f.bar()->count(), 2);
+        QCOMPARE(f.slotBar()->currentSlot(), int(SlotTabBar::PreviewSlot));
+        QVERIFY(!f.slotBar()->tabIcon(SlotTabBar::PreviewSlot).isNull());
         const Item *item = f.model.item(kOverviewTask, kReviewsItem);
-        QCOMPARE(f.tabText(2), QStringLiteral("%1 / %2").arg(f.model.task(kOverviewTask)->title, item->name));
+        const QString title = QStringLiteral("%1 / %2").arg(f.model.task(kOverviewTask)->title, item->name);
+        QCOMPARE(f.previewText(), title);
 
         // The page shows only the item, read-only, with no lock.
         LayoutView *view = f.window->currentLayoutView();
@@ -1136,22 +1315,30 @@ private slots:
         const auto frames = view->findChildren<CellFrame *>();
         QCOMPARE(frames.size(), 1);
 
-        // Opening it again switches to its tab. A task dashboard replaces it in
-        // the preview tab, unless it is pinned.
+        // Opening it again switches to the preview. Pinned, it moves to a tab
+        // of its own, and a task dashboard opens in the preview slot.
         f.window->openRootDashboard(kMorning);
         f.window->openItem(kOverviewTask, kReviewsItem);
-        QCOMPARE(f.bar()->currentIndex(), 2);
-        auto *pin = f.bar()->findChild<QToolButton *>(QStringLiteral("pinButton"));
+        QCOMPARE(f.slotBar()->currentSlot(), int(SlotTabBar::PreviewSlot));
+        QCOMPARE(f.window->currentLayoutView(), view);
+        auto *pin = f.slotBar()->findChild<QToolButton *>(QStringLiteral("pinButton"));
         QVERIFY(pin);
         pin->click();
-        QCOMPARE(f.bar()->previewIndex(), -1);
+        QVERIFY(!f.slotBar()->hasPreview());
+        QCOMPARE(f.bar()->count(), 3);
+        QCOMPARE(f.tabText(2), title);
+        QVERIFY(!f.bar()->tabIcon(2).isNull());
         f.window->openTaskPreview(kFixLoginTask);
-        QCOMPARE(f.bar()->count(), 4);
-        QCOMPARE(f.bar()->previewIndex(), 3);
+        QCOMPARE(f.bar()->count(), 3);
+        QVERIFY(f.slotBar()->hasPreview());
+        f.window->openItem(kOverviewTask, kReviewsItem);
+        QCOMPARE(f.bar()->currentIndex(), 2);
+        QCOMPARE(f.slotBar()->currentSlot(), -1);
 
-        // The tab closes when its item is gone.
+        // The tabs and the preview close when their items and tasks are gone.
         QVERIFY(store::load(QStringLiteral(MIRANTE_FIXTURES_DIR "/no-such-folder"), f.model).empty());
         QCOMPARE(f.bar()->count(), 0);
+        QVERIFY(!f.slotBar()->hasPreview());
     }
 
     void focusItem()
@@ -1163,7 +1350,7 @@ private slots:
             QSKIP("The window cannot be activated on this platform.");
 
         f.window->focusItem(kOverviewTask, kReviewsItem);
-        QCOMPARE(f.bar()->previewIndex(), 2);
+        QCOMPARE(f.slotBar()->currentSlot(), int(SlotTabBar::PreviewSlot));
         QWidget *focused = QApplication::focusWidget();
         QVERIFY(focused);
         auto *frame = qobject_cast<CellFrame *>(focused);
@@ -1214,22 +1401,20 @@ private slots:
         f.model.setRootDashboard(renamed);
         QCOMPARE(window->windowTitle(), QStringLiteral("Mornings"));
 
-        // Only root dashboard tabs can be detached: not Focus, the preview or
-        // item tabs.
-        f.window->openFocus();
+        // Only root dashboard tabs can be detached: not pinned task tabs or
+        // item tabs. Focus and the preview are not tabs.
         f.window->openTaskPreview(kFixLoginTask);
-        QCOMPARE(f.bar()->count(), 3);
-        QVERIFY(!f.bar()->tabData(0).toBool());
-        QVERIFY(f.bar()->tabData(1).toBool());
-        QVERIFY(!f.bar()->tabData(2).toBool());
-        emit f.bar()->detachRequested(0);
-        emit f.bar()->detachRequested(2);
-        QCOMPARE(f.bar()->count(), 3);
+        f.window->pinTask(kFixLoginTask);
+        QCOMPARE(f.bar()->count(), 2);
+        QVERIFY(f.bar()->tabData(0).toBool());
+        QVERIFY(!f.bar()->tabData(1).toBool());
+        emit f.bar()->detachRequested(1);
+        QCOMPARE(f.bar()->count(), 2);
         QCOMPARE(detachedWindows().size(), 1);
     }
 
     // Closing the window, or "Put Back", returns the page to the end of the
-    // tab bar, before the preview tab, and makes it current.
+    // tab bar and makes it current.
     void closingPutsBack()
     {
         Fixture f;
@@ -1254,9 +1439,10 @@ private slots:
         auto *putBack = window->findChild<QToolButton *>(QStringLiteral("putBackButton"));
         QVERIFY(putBack);
         putBack->click();
-        QCOMPARE(f.bar()->count(), 3);
+        QCOMPARE(f.bar()->count(), 2);
         QCOMPARE(f.tabText(1), QStringLiteral("Release"));
-        QCOMPARE(f.bar()->previewIndex(), 2);
+        QVERIFY(f.slotBar()->hasPreview());
+        QCOMPARE(f.slotBar()->currentSlot(), -1);
         QCOMPARE(f.bar()->currentIndex(), 1);
         QTRY_VERIFY(!window);
     }
@@ -1402,8 +1588,8 @@ private slots:
         QVERIFY(!f.window->shortcuts()->isMaximised(cell));
 
         chooseInCellMenu(*view, *path, QStringLiteral("Open Alone"));
-        QTRY_COMPARE(f.bar()->previewIndex(), 2);
-        QCOMPARE(f.bar()->currentIndex(), 2);
+        QTRY_COMPARE(f.slotBar()->currentSlot(), int(SlotTabBar::PreviewSlot));
+        QCOMPARE(f.bar()->count(), 2);
         const LayoutNode &tree = f.window->currentLayoutView()->tree();
         QVERIFY(tree.ref);
         QCOMPARE(tree.ref->item, itemId);

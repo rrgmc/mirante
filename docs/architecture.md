@@ -126,16 +126,16 @@ Code that differs per platform lives only here, behind these classes.
 
 | Class | Responsibility |
 |---|---|
-| `MainWindow` | Sidebar, root tab bar, preview tab, the Focus tab, warning and conflict bars, toolbar, shortcuts. It opens workspaces through the `Store`, and saves and restores each workspace's open tabs through `DeviceSettings`. |
+| `MainWindow` | Sidebar, root tab bar, the Focus and preview slots (`SlotTabBar`), warning and conflict bars, toolbar, shortcuts. It opens workspaces through the `Store`, and saves and restores each workspace's open tabs through `DeviceSettings`. |
 | `Sidebar` | Tree model and view of groups, projects and tasks, with drag and drop |
 | `EntityActions` | Every create, edit, move and delete command for groups, projects, tasks, items and task dashboards, shared by the sidebar menus, the menu bar and sidebar drops |
 | `FocusView` | The [Focus](ui.md#focus-view) list |
 | `ConflictBar` | One line for each conflict copy, with "Keep current", "Use other" and "Compare". See [sync](sync.md#conflict-copies). |
-| `ImagePaste` | Pastes an image from the clipboard into an image item, or as a new one. See [image](item-types.md#image). |
+| `ImagePaste` | Pastes an image from the clipboard into an image item, or as a new item of a task, on no dashboard. See [image](item-types.md#image). |
 | `ImagePasteDialog` | The paste dialog: a preview of a pasted image, with an `ImageCropView` to crop it. See [pasting images](ui.md#pasting-images). |
 | `QuickSwitcher` | `Ctrl+K` fuzzy search |
 | `QuickAdd` | Creates a task from a pasted link, using the modules' quick add handlers. See [quick add](ui.md#quick-add). |
-| `DashboardPage` | One tab's page: a `LayoutView` of one dashboard with its cell factory, or the Focus list. A detached window holds one too. |
+| `DashboardPage` | One tab's or slot's page: a `LayoutView` of one dashboard with its cell factory, or the Focus list. A detached window holds one too. |
 | `DetachedWindow` | A top-level window holding one detached root dashboard. See [decision 0024](decisions/0024-detach-root-dashboard-tabs.md). |
 | Dialogs | Group, project, task, item, connection and settings editors, the [profiles](ui.md#profiles) list and its connections dialog, and the dialogs of module [settings screens](ui.md#modules) |
 

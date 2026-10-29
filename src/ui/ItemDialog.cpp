@@ -2,6 +2,7 @@
 
 #include "items/FieldValidation.h"
 #include "items/ItemTypeRegistry.h"
+#include "items/UrlMatches.h"
 #include "ui/FieldForm.h"
 
 #include <mirante/ItemType.h>
@@ -88,6 +89,83 @@ struct ItemDialog::Private
     QPushButton *next = nullptr;        // only when creating
     QPushButton *ok = nullptr;
 
+    // Making an item from a pasted link. See decision 0049.
+    QLineEdit *urlEdit = nullptr;       // only when creating
+    QLabel *typeHint = nullptr;         // only when creating
+    std::vector<Connection> connections;
+    QUrl url;                           // the link in urlEdit, if it is a web address
+    std::vector<urlmatches::TypeMatch> matches;     // the types that take url, best first
+    QUrl editorUrl;                     // the link the editor was filled from, if any
+    QString filledName;                 // the name last filled from a link
+    QString urlConnectionId;            // the chosen type's connection from the link
+
+    const urlmatches::TypeMatch *matchFor(const QString &id) const
+    {
+        for (const urlmatches::TypeMatch &entry : matches) {
+            if (entry.type->id() == id)
+                return &entry;
+        }
+        return nullptr;
+    }
+
+    // Fills the grid: every type, or the types that take the link, best
+    // first. The selected type stays selected if it is still listed.
+    void fillTypeList()
+    {
+        const QListWidgetItem *current = typeList->currentItem();
+        const QString selected = current ? current->data(Qt::UserRole).toString() : QString();
+
+        url = urlmatches::webAddress(urlEdit->text());
+        matches = urlmatches::match(*types, url, connections);
+        std::vector<const ItemType *> shown;
+        if (url.isEmpty()) {
+            shown = types->types();
+        } else {
+            for (const urlmatches::TypeMatch &entry : matches)
+                shown.push_back(entry.type);
+        }
+
+        typeList->clear();
+        int row = 0;
+        // The registry lists types by name. Names start with their product,
+        // such as "GitLab" or "Jira", so the types of a module stay together.
+        for (const ItemType *type : shown) {
+            auto *entry = new QListWidgetItem(type->icon(), type->name(), typeList);
+            entry->setData(Qt::UserRole, type->id());
+            entry->setToolTip(type->name());
+            entry->setTextAlignment(Qt::AlignHCenter | Qt::AlignTop);
+            entry->setSizeHint(kTypeCellSize);
+            if (type->id() == selected && !url.isEmpty())
+                row = typeList->count() - 1;
+        }
+        // With a link, the best match is selected first.
+        if (url.isEmpty()) {
+            for (int i = 0; i < typeList->count(); ++i) {
+                if (typeList->item(i)->data(Qt::UserRole).toString() == selected)
+                    row = i;
+            }
+        } else {
+            row = 0;
+        }
+        if (typeList->count() > 0)
+            typeList->setCurrentRow(row);
+        if (next)
+            next->setEnabled(typeList->count() > 0);
+
+        const QString text = urlEdit->text().trimmed();
+        if (types->types().empty())
+            typeHint->setText(tr("This build has no item types."));
+        else if (!text.isEmpty() && url.isEmpty())
+            typeHint->setText(tr("This is not a web address, so every type is shown."));
+        else if (!url.isEmpty() && matches.empty())
+            typeHint->setText(tr("No item type can show this link."));
+        else if (!url.isEmpty())
+            typeHint->setText(tr("These types can show the link, best first. "
+                                 "Double-click one, or select it and choose Next."));
+        else
+            typeHint->setText(tr("Double-click a type, or select it and choose Next."));
+    }
+
     // Replaces the editor with one for the type of item, showing config.
     void makeEditor(const QJsonObject &config)
     {
@@ -160,10 +238,33 @@ struct ItemDialog::Private
         if (!types->contains(id))
             return;
         item.type = id;
-        if (id != editorType) {
-            // The configuration given with the item belongs to its own type.
-            const bool given = id == original.type && !original.config.isEmpty();
-            makeEditor(given ? original.config : defaultConfig(types->type(id).fields()));
+        if (const urlmatches::TypeMatch *found = matchFor(id)) {
+            // The type's defaults, with what it made of the link over them.
+            // The same type from the same link keeps what was entered.
+            if (id != editorType || url != editorUrl) {
+                QJsonObject config = defaultConfig(types->type(id).fields());
+                const QJsonObject &filled = found->match.config;
+                for (auto it = filled.begin(); it != filled.end(); ++it)
+                    config.insert(it.key(), it.value());
+                makeEditor(config);
+                editorUrl = url;
+            }
+            // A name the user typed is kept.
+            const QString suggested = found->match.name;
+            const QString current = name->text().trimmed();
+            if (!suggested.isEmpty() && (current.isEmpty() || current == filledName)) {
+                name->setText(suggested);
+                filledName = suggested;
+            }
+            urlConnectionId = found->connectionId;
+        } else {
+            if (id != editorType || !editorUrl.isEmpty()) {
+                // The configuration given with the item belongs to its own type.
+                const bool given = id == original.type && !original.config.isEmpty();
+                makeEditor(given ? original.config : defaultConfig(types->type(id).fields()));
+                editorUrl.clear();
+            }
+            urlConnectionId.clear();
         }
         showTypeName();
         showProfile();
@@ -179,6 +280,14 @@ struct ItemDialog::Private
     QWidget *makeTypePage()
     {
         auto *page = new QWidget;
+
+        auto *urlLabel = new QLabel(tr("Paste a link to create an item from it:"), page);
+        urlEdit = new QLineEdit(page);
+        urlEdit->setObjectName(QStringLiteral("url"));
+        urlEdit->setPlaceholderText(QStringLiteral("https://"));
+        urlEdit->setClearButtonEnabled(true);
+        urlLabel->setBuddy(urlEdit);
+
         auto *heading = new QLabel(tr("Choose the type of the new item."), page);
 
         typeList = new QListWidget(page);
@@ -197,29 +306,21 @@ struct ItemDialog::Private
         typeList->setSelectionMode(QAbstractItemView::SingleSelection);
         typeList->setItemDelegate(new TypeGridDelegate(typeList));
         typeList->setMouseTracking(true);
-        // The registry lists types by name. Names start with their product,
-        // such as "GitLab" or "Jira", so the types of a module stay together.
-        for (const ItemType *type : types->types()) {
-            auto *entry = new QListWidgetItem(type->icon(), type->name(), typeList);
-            entry->setData(Qt::UserRole, type->id());
-            entry->setToolTip(type->name());
-            entry->setTextAlignment(Qt::AlignHCenter | Qt::AlignTop);
-            entry->setSizeHint(kTypeCellSize);
-        }
 
-        auto *hint = new QLabel(page);
-        hint->setObjectName(QStringLiteral("typeHint"));
-        hint->setWordWrap(true);
-        hint->setForegroundRole(QPalette::PlaceholderText);
-        hint->setText(typeList->count() > 0
-                          ? tr("Double-click a type, or select it and choose Next.")
-                          : tr("This build has no item types."));
+        typeHint = new QLabel(page);
+        typeHint->setObjectName(QStringLiteral("typeHint"));
+        typeHint->setWordWrap(true);
+        typeHint->setForegroundRole(QPalette::PlaceholderText);
+        fillTypeList();
 
         auto *layout = new QVBoxLayout(page);
         layout->setContentsMargins(0, 0, 0, 0);
+        layout->addWidget(urlLabel);
+        layout->addWidget(urlEdit);
+        layout->addSpacing(6);
         layout->addWidget(heading);
         layout->addWidget(typeList, 1);
-        layout->addWidget(hint);
+        layout->addWidget(typeHint);
         return page;
     }
 };
@@ -336,6 +437,7 @@ ItemDialog::ItemDialog(const Item &item, bool creating, const ItemTypeRegistry &
             d->chooseSelected();
         });
         connect(list, &QListWidget::currentRowChanged, this, [this](int current) { d->next->setEnabled(current >= 0); });
+        connect(d->urlEdit, &QLineEdit::textChanged, this, [this] { d->fillTypeList(); });
         d->showPage(true);
     } else {
         d->makeEditor(item.config);
@@ -351,7 +453,24 @@ ItemDialog::~ItemDialog()
     // The type list outlives d, so its signals must not reach it.
     if (d->typeList)
         d->typeList->disconnect(this);
+    if (d->urlEdit)
+        d->urlEdit->disconnect(this);
 }
+
+void ItemDialog::setConnections(const std::vector<Connection> &connections)
+{
+    d->connections = connections;
+    if (d->urlEdit)
+        d->fillTypeList();
+}
+
+void ItemDialog::setUrl(const QString &text)
+{
+    if (d->urlEdit)
+        d->urlEdit->setText(text.trimmed());
+}
+
+QString ItemDialog::urlConnectionId() const { return d->urlConnectionId; }
 
 Item ItemDialog::value() const
 {
