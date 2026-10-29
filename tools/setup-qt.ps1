@@ -15,6 +15,11 @@ $QtArchDir = 'msvc2022_64'
 
 $Repo = Split-Path -Parent $PSScriptRoot
 $QtRoot = if ($env:MIRANTE_QT_ROOT) { $env:MIRANTE_QT_ROOT } else { Join-Path $Repo '.qt' }
+# A path such as F:Qt is relative to the current folder on drive F, so Qt
+# would land in whatever folder the shell is in.
+if ($env:MIRANTE_QT_ROOT -and $env:MIRANTE_QT_ROOT -notmatch '^([A-Za-z]:[\\/]|[\\/]{2})') {
+    throw "MIRANTE_QT_ROOT must be a full path such as F:\Qt, but it is '$env:MIRANTE_QT_ROOT'."
+}
 $QtDir = Join-Path $QtRoot "$QtVersion\$QtArchDir"
 
 # qtsvg provides the plugin that loads the SVG icons of item types.

@@ -13,6 +13,7 @@ On Windows, with Visual Studio 2022 and its C++ tools installed:
 ```powershell
 tools/build.ps1                  # downloads Qt if needed, builds and tests the dev preset
 tools/build.ps1 -Preset release
+tools/run.ps1                    # starts the dev build; -Data <folder> opens that workspace, -Build builds first
 ```
 
 On macOS and Linux:
