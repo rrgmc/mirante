@@ -2,6 +2,7 @@
 
 #include "Version.h"
 #include "core/DeviceSettings.h"
+#include "core/GroupColours.h"
 #include "core/LayoutTree.h"
 #include "core/LogBuffer.h"
 #include "core/Model.h"
@@ -247,6 +248,11 @@ struct MainWindow::Private
         page->title->setToolTip(page->title->text());
         page->context->setText(pageProject(page));
         page->headerRow->refresh();
+        // The light tint of the task's group colour. See
+        // docs/decisions/0046-group-colours.md.
+        const QString colour = groupcolours::ofTask(*model, page->ref.taskId);
+        cellstyle::tintHeader(page->header, cellstyle::taskHeaderStrength,
+                              colour.isEmpty() ? QColor() : QColor(colour));
     }
 
     // Task dashboard tabs carry the dashboard icon and item tabs the item's
@@ -1537,6 +1543,11 @@ MainWindow::MainWindow(Model &model, const ItemTypeRegistry &types, Store &store
             d->tabBar->setTabToolTip(int(i), d->pageToolTip(d->pages[i]));
             d->updatePageHeader(d->pages[i]);
         }
+    });
+    // Task pages take their group's colour.
+    connect(&model, &Model::groupChanged, this, [this] {
+        for (DashboardPage *page : d->pages)
+            d->updatePageHeader(page);
     });
     // The pages are made again on a reset. Detached root dashboards that still
     // exist are detached again.

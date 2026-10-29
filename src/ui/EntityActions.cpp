@@ -2,6 +2,7 @@
 
 #include "core/DeviceSettings.h"
 #include "core/Edits.h"
+#include "core/GroupColours.h"
 #include "core/Model.h"
 #include "core/Store.h"
 #include "core/WebProfiles.h"
@@ -229,6 +230,8 @@ QString EntityActions::newGroup()
     Group group;
     group.id = edits::newId();
     group.order = orderAfterLast(d->model.groups());
+    // A new group takes the next palette colour no group uses, and stores it.
+    group.colour = groupcolours::next(d->model);
     GroupDialog dialog(group, d->dialogParent);
     d->offerProfiles(dialog);
     if (!d->exec(dialog))

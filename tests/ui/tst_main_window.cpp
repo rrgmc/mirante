@@ -3,6 +3,7 @@
 // item, views following the model, detached windows, and the web views of
 // item cells.
 #include "core/DeviceSettings.h"
+#include "core/GroupColours.h"
 #include "core/Model.h"
 #include "core/Store.h"
 #include "core/WebProfiles.h"
@@ -123,6 +124,17 @@ std::function<bool(QDialog &)> cropTo(const QRect &crop)
 
 // The registry has no modules, so every item has an unknown type.
 struct Fixture;
+// The colour cellstyle::tintHeader gives a title bar for colour, as a name.
+QString tinted(const QWidget &page, const QColor &colour)
+{
+    const QColor window = page.palette().color(QPalette::Window);
+    const qreal amount = 0.22;
+    return QColor::fromRgbF(float(window.redF() + (colour.redF() - window.redF()) * amount),
+                            float(window.greenF() + (colour.greenF() - window.greenF()) * amount),
+                            float(window.blueF() + (colour.blueF() - window.blueF()) * amount))
+        .name();
+}
+
 QString overviewTitle(const Fixture &f);
 
 // Copies the fixtures into a folder, so a test can open them as a workspace
@@ -393,6 +405,30 @@ private slots:
         f.window->openRootDashboard(kMorning);
         QVERIFY(rootLock->isVisible());
         QVERIFY(!f.window->currentLayoutView()->editMode());
+    }
+
+    // The title bar of a task tab is tinted with the task's group colour, and
+    // follows a new colour and a move to another group at once.
+    void taskTitleBarTintFollowsGroup()
+    {
+        Fixture f;
+        f.window->openTaskPreview(kFixLoginTask);
+        QWidget *page = f.window->currentLayoutView()->parentWidget();
+        auto *header = page->findChild<QWidget *>(QStringLiteral("taskDashboardHeader"));
+        QVERIFY(header);
+        const auto headerColour = [&] { return header->palette().color(QPalette::Window).name(); };
+        QCOMPARE(headerColour(), tinted(*page, QColor(groupcolours::ofTask(f.model, kFixLoginTask))));
+
+        Group group = *f.model.group(f.groupOf(kFixLoginTask));
+        group.colour = QStringLiteral("#ff0000");
+        f.model.setGroup(group);
+        QCOMPARE(headerColour(), tinted(*page, Qt::red));
+
+        // The task moves to a project of the Personal group, which stores #22c55e.
+        Task moved = *f.model.task(kFixLoginTask);
+        moved.projectId = QStringLiteral("d7740958-1656-52ae-bb9d-6b6285694e19");
+        f.model.setTask(moved);
+        QCOMPARE(headerColour(), tinted(*page, QColor(QStringLiteral("#22c55e"))));
     }
 
     void editingPreviewPinsIt()

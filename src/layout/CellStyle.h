@@ -11,8 +11,15 @@ class QWidget;
 namespace mirante::cellstyle {
 
 // Gives a cell header a background that stands out from the cell body.
-// strength is how much of the highlight colour is mixed into the window colour.
-void tintHeader(QWidget *header, qreal strength);
+// strength is how much of colour is mixed into the window colour; an invalid
+// colour means the highlight colour. The window colour comes from the
+// header's parent, so calling it again replaces the tint instead of adding to
+// it.
+void tintHeader(QWidget *header, qreal strength, const QColor &colour = QColor());
+
+// How strongly task dashboard title bars and task cell headers are tinted
+// with their group's colour. See docs/decisions/0046-group-colours.md.
+constexpr qreal taskHeaderStrength = 0.22;
 
 // The style sheet border of a cell: dashed in the highlight colour in edit
 // mode, solid and thicker when the cell has the focus, and a thin, light line

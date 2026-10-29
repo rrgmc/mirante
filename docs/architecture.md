@@ -51,6 +51,7 @@ No core folder depends on a module. The core reaches modules only through the re
 | `WebProfiles` | Finds the web profile of an item by the [resolution order](web-views.md#profiles), lists the profiles to offer, and removes one from the list |
 | `Edits` | Changes to entities as pure functions, such as removing an item from a task and clearing its cells, for the `Model`'s setters |
 | `DeviceSettings` | Typed access to the `QSettings` values listed in [sync](sync.md#device-settings) |
+| `GroupColours` | The colour of each group: its own, or a palette colour chosen by its id, and the colour for a new group. See [decision 0046](decisions/0046-group-colours.md). |
 | `Sorting` | Priority and order sorting, used by the sidebar and Focus |
 | `LayoutTree` | The [layout tree](data-model.md#layout-tree): split, tabs and cell nodes, with JSON conversion, edit operations and normalisation. It lives in `core` because `Dashboard` holds one. |
 | `FuzzyMatch` | Scores text against a query for the quick switcher |
