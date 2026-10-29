@@ -912,6 +912,8 @@ struct MainWindow::Private
 
     QString workspace;              // the open data folder; empty for the sample data
     QAction *showSidebarAction = nullptr;
+    QAction *fullScreenAction = nullptr;
+    bool maximizedBeforeFullScreen = false;     // the state full screen returns to
 
     // The workspace's name, else its folder's name, else "Sample data".
     QString workspaceDisplayName() const
@@ -1055,6 +1057,13 @@ struct MainWindow::Private
         QObject::connect(expand, &QAction::triggered, sidebar, &Sidebar::expandAllTasks);
         QAction *collapse = view->addAction(MainWindow::tr("&Collapse All Tasks"));
         QObject::connect(collapse, &QAction::triggered, sidebar, &Sidebar::collapseAllTasks);
+        view->addSeparator();
+        // The platform's full screen key, as in web browsers: F11 on Windows
+        // and Linux, Ctrl+Cmd+F on macOS.
+        fullScreenAction = view->addAction(MainWindow::tr("&Full Screen"));
+        fullScreenAction->setCheckable(true);
+        fullScreenAction->setShortcut(QKeySequence::FullScreen);
+        QObject::connect(fullScreenAction, &QAction::triggered, q, [this](bool on) { q->setFullScreen(on); });
         view->addSeparator();
         QAction *switcherAction = view->addAction(MainWindow::tr("&Go To…"));
         switcherAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_K));
@@ -1366,12 +1375,36 @@ MainWindow::~MainWindow()
 
 void MainWindow::closeEvent(QCloseEvent *event)
 {
-    // The size of the normal, not maximized, window is kept.
+    // The size of the normal, not maximized, window is kept. A full screen
+    // window is saved as the window it came from.
     d->settings->setWindowSize(normalGeometry().size());
-    d->settings->setWindowMaximized(isMaximized());
+    d->settings->setWindowMaximized(isFullScreen() ? d->maximizedBeforeFullScreen : isMaximized());
     d->settings->setSidebarSplitterState(d->splitter->saveState());
     d->saveOpenTabs();
     QMainWindow::closeEvent(event);
+}
+
+void MainWindow::setFullScreen(bool on)
+{
+    if (on == isFullScreen())
+        return;
+    if (on) {
+        d->maximizedBeforeFullScreen = isMaximized();
+        showFullScreen();
+    } else if (d->maximizedBeforeFullScreen) {
+        showMaximized();
+    } else {
+        showNormal();
+    }
+}
+
+void MainWindow::changeEvent(QEvent *event)
+{
+    // The window can also leave full screen without the action, for example
+    // through the macOS title bar.
+    if (event->type() == QEvent::WindowStateChange && d->fullScreenAction)
+        d->fullScreenAction->setChecked(isFullScreen());
+    QMainWindow::changeEvent(event);
 }
 
 void MainWindow::setLoadProblems(const std::vector<LoadProblem> &problems)

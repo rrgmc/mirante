@@ -89,6 +89,9 @@ public:
     void pasteImage(const QImage &image);
     // Saves the open tabs of the open workspace on this device.
     void saveOpenTabs();
+    // Full screen, as in web browsers: View > Full Screen, F11, or Ctrl+Cmd+F
+    // on macOS. Leaving it brings back the maximized or normal window.
+    void setFullScreen(bool on);
 
     RootTabBar *rootTabBar() const;
     LayoutView *currentLayoutView() const;
@@ -100,6 +103,8 @@ protected:
     // Saves the window's size, whether it is maximized, the sidebar width and
     // the open tabs on this device. The window always opens centred.
     void closeEvent(QCloseEvent *event) override;
+    // Keeps View > Full Screen checked while the window is full screen.
+    void changeEvent(QEvent *event) override;
 
 private:
     struct Private;

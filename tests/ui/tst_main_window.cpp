@@ -293,6 +293,32 @@ private slots:
         QCOMPARE(f.bar()->tabToolTip(2), QStringLiteral("backend / Login timeout / Work"));
     }
 
+    // View > Full Screen uses the platform's key, and leaving full screen
+    // brings back the window state from before.
+    void fullScreen()
+    {
+        Fixture f;
+        QAction *action = nullptr;
+        for (QAction *candidate : f.window->findChildren<QAction *>()) {
+            if (candidate->text() == QStringLiteral("&Full Screen"))
+                action = candidate;
+        }
+        QVERIFY(action);
+        QCOMPARE(action->shortcut(), QKeySequence(QKeySequence::FullScreen));
+        QVERIFY(action->isCheckable());
+
+        f.window->show();
+        QVERIFY(QTest::qWaitForWindowExposed(f.window.get()));
+        f.window->showMaximized();
+        action->trigger();
+        QTRY_VERIFY(f.window->windowState().testFlag(Qt::WindowFullScreen));
+        QVERIFY(action->isChecked());
+        action->trigger();
+        QTRY_VERIFY(!f.window->windowState().testFlag(Qt::WindowFullScreen));
+        QVERIFY(f.window->windowState().testFlag(Qt::WindowMaximized));
+        QVERIFY(!action->isChecked());
+    }
+
     void pinButton()
     {
         Fixture f;
