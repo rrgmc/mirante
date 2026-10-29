@@ -1,5 +1,6 @@
 #include "ui/EntityActions.h"
 
+#include "core/Connections.h"
 #include "core/DeviceSettings.h"
 #include "core/Edits.h"
 #include "core/GroupColours.h"
@@ -7,6 +8,7 @@
 #include "core/Store.h"
 #include "core/WebProfiles.h"
 #include "items/ItemTypeRegistry.h"
+#include "items/UrlMatches.h"
 #include "layout/Presets.h"
 #include "ui/DashboardDialog.h"
 #include "ui/GroupDialog.h"
@@ -19,12 +21,14 @@
 
 #include <QActionGroup>
 #include <QBuffer>
+#include <QClipboard>
 #include <QDateTime>
 #include <QDialog>
 #include <QGuiApplication>
 #include <QImage>
 #include <QMenu>
 #include <QMessageBox>
+#include <QMimeData>
 #include <QTimer>
 
 #include <algorithm>
@@ -276,7 +280,7 @@ QString EntityActions::newTask(const QString &projectId)
     return task.id;
 }
 
-QString EntityActions::newItem(const QString &taskId)
+QString EntityActions::newItem(const QString &taskId, const QString &url)
 {
     if (!d->model.task(taskId))
         return {};
@@ -284,13 +288,54 @@ QString EntityActions::newItem(const QString &taskId)
     item.id = edits::newId();
     ItemDialog dialog(item, true, d->types, d->editorContext(taskId), d->dialogParent);
     d->offerProfiles(dialog, taskId);
+    const Task *task = d->model.task(taskId);
+    const Project *project = task ? d->model.project(task->projectId) : nullptr;
+    if (const Group *group = project ? d->model.group(project->groupId) : nullptr)
+        dialog.setConnections(group->connections);
+    dialog.setUrl(url);
     if (!d->exec(dialog))
         return {};
-    const Task *task = d->model.task(taskId);
+    task = d->model.task(taskId);
     if (!task)
         return {};
-    d->model.setTask(edits::addItem(*task, dialog.value()));
+    Item value = dialog.value();
+    // The server of the link decides the connection, if the group has one
+    // for it. The item names it only if it would otherwise use another.
+    const QString linked = dialog.urlConnectionId();
+    if (!linked.isEmpty()) {
+        Item unnamed = value;
+        unnamed.connectionId.clear();
+        const Connection *resolved =
+            connections::resolve(d->model, taskId, unnamed, d->types.type(value.type).connectionKinds());
+        if (!resolved || resolved->id != linked)
+            value.connectionId = linked;
+    }
+    d->model.setTask(edits::addItem(*task, value));
     return item.id;
+}
+
+QString EntityActions::pasteUrl(const QString &taskId)
+{
+    const QUrl url = clipboardUrl();
+    if (url.isEmpty())
+        return {};
+    return newItem(taskId, url.toString());
+}
+
+QUrl EntityActions::clipboardUrl()
+{
+    const QClipboard *clipboard = QGuiApplication::clipboard();
+    const QMimeData *data = clipboard ? clipboard->mimeData() : nullptr;
+    if (!data)
+        return {};
+    if (data->hasUrls()) {
+        for (const QUrl &url : data->urls()) {
+            const QUrl address = urlmatches::webAddress(url.toString());
+            if (!address.isEmpty())
+                return address;
+        }
+    }
+    return data->hasText() ? urlmatches::webAddress(data->text()) : QUrl();
 }
 
 QString EntityActions::newDashboard(const QString &taskId)
@@ -703,6 +748,7 @@ void EntityActions::fillMenu(QMenu *menu, SidebarModel::Kind kind, const QString
         if (!task)
             return;
         menu->addAction(tr("New item…"), this, [this, id] { newItem(id); });
+        menu->addAction(tr("Paste URL…"), this, [this, id] { pasteUrl(id); })->setEnabled(!clipboardUrl().isEmpty());
         menu->addAction(tr("New dashboard…"), this, [this, id] { newDashboard(id); });
         menu->addSeparator();
         menu->addAction(tr("Edit task…"), this, [this, id] { editTask(id); });
@@ -721,6 +767,8 @@ void EntityActions::fillMenu(QMenu *menu, SidebarModel::Kind kind, const QString
         if (!model.task(taskId))
             return;
         menu->addAction(tr("New item…"), this, [this, taskId] { newItem(taskId); });
+        menu->addAction(tr("Paste URL…"), this, [this, taskId] { pasteUrl(taskId); })
+            ->setEnabled(!clipboardUrl().isEmpty());
         break;
     case SidebarModel::Kind::DashboardList:
         if (!model.task(taskId))

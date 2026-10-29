@@ -4,6 +4,7 @@
 #include "ui/SidebarModel.h"
 
 #include <QObject>
+#include <QUrl>
 
 #include <functional>
 #include <memory>
@@ -64,7 +65,17 @@ public:
     QString newGroup();
     QString newProject(const QString &groupId);
     QString newTask(const QString &projectId);
-    QString newItem(const QString &taskId);
+    // url fills the link field of the item dialog's type page. An item made
+    // from a link on a server of one of the group's connections uses that
+    // connection, unless it is already the one the item would use. See
+    // decision 0049.
+    QString newItem(const QString &taskId, const QString &url = QString());
+    // "Paste URL…": newItem() with the web address on the clipboard. Nothing
+    // happens, and an empty string is returned, if the clipboard holds none.
+    QString pasteUrl(const QString &taskId);
+    // The web address on the clipboard: its first http or https URL, else its
+    // text if that is one. Empty if it holds none.
+    static QUrl clipboardUrl();
     QString newDashboard(const QString &taskId);
 
     // Editing, through the entity's dialog.
