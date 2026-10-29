@@ -3,7 +3,10 @@
 #include <QStringList>
 #include <QWidget>
 
+#include <functional>
 #include <memory>
+
+class QMenu;
 
 namespace mirante {
 
@@ -28,6 +31,11 @@ public:
 
     // The task ids listed, in order. For tests.
     QStringList taskIds() const;
+
+    // Fills the menu a right click on a task opens, with the same commands as
+    // the task's menu in the sidebar.
+    using MenuFiller = std::function<void(QMenu *menu, const QString &taskId)>;
+    void setMenuFiller(MenuFiller filler);
 
 signals:
     // A double click or Enter on a task.

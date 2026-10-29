@@ -662,6 +662,9 @@ struct MainWindow::Private
     {
         auto *view = new FocusView(*model);
         QObject::connect(view, &FocusView::taskOpened, q, [this](const QString &taskId) { q->openTaskPreview(taskId); });
+        view->setMenuFiller([this](QMenu *menu, const QString &taskId) {
+            actions->fillMenu(menu, SidebarModel::Kind::Task, taskId, taskId);
+        });
         auto *page = new DashboardPage(view, stack);
         stack->addWidget(page);
         return page;
