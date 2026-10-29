@@ -48,10 +48,12 @@ DashboardCellFactory::~DashboardCellFactory() = default;
 
 QWidget *DashboardCellFactory::createCell(const std::optional<CellRef> &ref, bool removed, QWidget *parent)
 {
-    if (!ref)
-        return new CellFrame(std::nullopt, false, nullptr, QString(), parent);
+    // Normalisation drops the reference of a removed cell, so removed is
+    // checked first.
     if (removed)
         return new CellFrame(ref, true, nullptr, QString(), parent);
+    if (!ref)
+        return new CellFrame(std::nullopt, false, nullptr, QString(), parent);
     if (d->dashboard.isRoot() && ref->isTask())
         return new TaskCell(d->services, d->dashboard, *ref, parent);
 
