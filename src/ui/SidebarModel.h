@@ -30,6 +30,7 @@ public:
         IdRole,                         // the entity id
         TaskIdRole,                     // for a task and everything under it: the task id
         PriorityRole,                   // for projects and tasks: Priority, as int
+        GroupColourRole,                // for groups and projects: the group's colour, as QColor
     };
 
     SidebarModel(const Model &model, const ItemTypeRegistry &types, QObject *parent = nullptr);

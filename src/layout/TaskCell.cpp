@@ -1,5 +1,7 @@
 #include "layout/TaskCell.h"
 
+#include "core/GroupColours.h"
+
 #include "layout/CellStyle.h"
 #include "layout/DashboardCellFactory.h"
 #include "layout/HeaderPill.h"
@@ -122,6 +124,7 @@ struct TaskCell::Private
     const Task *task() const { return services.model ? services.model->task(taskId) : nullptr; }
 
     void refresh();
+    void tint();
     void showMenu(const QPoint &globalPos, const NodePath *path = nullptr);
     void buildView();
     void dropView();
@@ -140,6 +143,7 @@ void TaskCell::Private::refresh()
     removedLabel->setText(trashed ? TaskCell::tr("In trash") : TaskCell::tr("Removed"));
     removedLabel->setVisible(removed);
     openButton->setVisible(!removed && services.openTaskAlone);
+    tint();
     if (removed) {
         title->setText(trashed ? current->title : TaskCell::tr("Removed task"));
         title->setToolTip(QString());
@@ -177,6 +181,15 @@ void TaskCell::Private::refresh()
     } else {
         showTree();
     }
+}
+
+// The header takes a light tint of the task's group colour, so the cell shows
+// which group the task belongs to. A removed task has no group, and keeps the
+// highlight tint. See docs/decisions/0046-group-colours.md.
+void TaskCell::Private::tint()
+{
+    const QString colour = !removed && services.model ? groupcolours::ofTask(*services.model, taskId) : QString();
+    cellstyle::tintHeader(header, cellstyle::taskHeaderStrength, colour.isEmpty() ? QColor() : QColor(colour));
 }
 
 // The menu of a task cell while the root dashboard is locked, and of the cells
@@ -299,7 +312,9 @@ TaskCell::TaskCell(const LayoutServices &services, const DashboardRef &rootDashb
 
     d->header = new TaskHeader(this);
     d->header->setObjectName(QStringLiteral("taskHeader"));
-    cellstyle::tintHeader(d->header, 0.22);    // stronger than an item header, since it holds cells
+    // The tint is stronger than an item header's, since the cell holds cells.
+    // refresh() gives it the group's colour.
+    cellstyle::tintHeader(d->header, cellstyle::taskHeaderStrength);
     d->header->onDrag = [this] { emit dragStarted(); };
     // In the root dashboard's edit mode the header has the root cell menu,
     // which offers editing the task dashboard too. Otherwise it has the short
@@ -366,6 +381,13 @@ TaskCell::TaskCell(const LayoutServices &services, const DashboardRef &rootDashb
             const Task *task = d->task();
             if (task && task->projectId == projectId)
                 d->refresh();
+        });
+        // A new group colour changes only the header's tint.
+        connect(services.model, &Model::groupChanged, this, [this](const QString &groupId) {
+            const Task *task = d->task();
+            const Project *project = task ? d->services.model->project(task->projectId) : nullptr;
+            if (project && project->groupId == groupId)
+                d->tint();
         });
         connect(services.model, &Model::modelReset, this, [this] { d->refresh(); });
     }

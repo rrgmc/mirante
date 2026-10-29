@@ -4,6 +4,7 @@
 // type's own editor, an item of a missing module), the item's web profile, and
 // creating, renaming and deleting web profiles.
 #include "core/DeviceSettings.h"
+#include "core/GroupColours.h"
 #include "core/Model.h"
 #include "core/Store.h"
 #include "core/WebProfiles.h"
@@ -30,6 +31,7 @@
 #include <QStandardItemModel>
 #include <QTableWidget>
 #include <QTemporaryDir>
+#include <QToolButton>
 #include <QTest>
 
 #include <memory>
@@ -171,6 +173,7 @@ private slots:
     void groupConnectionsWithoutKinds();
     void groupConnections();
     void groupWebProfile();
+    void groupColour();
     void project();
     void projectFolders();
     void projectMainFolder();
@@ -222,6 +225,57 @@ void TestDialogs::group()
     Group expected = original;
     expected.name = QStringLiteral("Office");
     QCOMPARE(dialog.value(), expected);
+}
+
+void TestDialogs::groupColour()
+{
+    // Work has no colour of its own, so its palette colour is shown as chosen.
+    const Group original = *model.group(workGroup);
+    QVERIFY(original.colour.isEmpty());
+    GroupDialog dialog(original);
+    const QString fallback = groupcolours::fallback(original.id);
+    const int fallbackIndex = int(groupcolours::palette().indexOf(fallback));
+    QCOMPARE(dialog.colour(), fallback);
+    const auto swatch = [&](int i) {
+        return dialog.findChild<QToolButton *>(QStringLiteral("colourSwatch%1").arg(i));
+    };
+    auto *custom = dialog.findChild<QToolButton *>(QStringLiteral("customColour"));
+    QVERIFY(swatch(fallbackIndex));
+    QVERIFY(custom);
+    QVERIFY(dialog.findChild<QToolButton *>(QStringLiteral("otherColour")));
+    QVERIFY(swatch(fallbackIndex)->isChecked());
+    QVERIFY(!custom->isVisibleTo(&dialog));
+    // Nothing chosen: the group stays without a colour of its own.
+    QCOMPARE(dialog.value(), original);
+
+    // A palette swatch.
+    const int other = (fallbackIndex + 1) % int(groupcolours::palette().size());
+    swatch(other)->click();
+    QVERIFY(swatch(other)->isChecked());
+    QVERIFY(!swatch(fallbackIndex)->isChecked());
+    QCOMPARE(dialog.value().colour, groupcolours::palette().at(other));
+
+    // A colour outside the palette, as from "Other…", gets its own swatch.
+    dialog.setColour(QStringLiteral("#ABCDEF"));
+    QCOMPARE(dialog.value().colour, QStringLiteral("#abcdef"));
+    QVERIFY(custom->isVisibleTo(&dialog));
+    QVERIFY(custom->isChecked());
+    QVERIFY(!swatch(other)->isChecked());
+
+    // Back to the palette, the custom swatch hides.
+    swatch(0)->click();
+    QCOMPARE(dialog.value().colour, groupcolours::palette().at(0));
+    QVERIFY(!custom->isVisibleTo(&dialog));
+
+    // A group with a colour outside the palette opens with the custom swatch.
+    Group coloured = original;
+    coloured.colour = QStringLiteral("#123456");
+    GroupDialog second(coloured);
+    QCOMPARE(second.colour(), QStringLiteral("#123456"));
+    auto *secondCustom = second.findChild<QToolButton *>(QStringLiteral("customColour"));
+    QVERIFY(secondCustom->isVisibleTo(&second));
+    QVERIFY(secondCustom->isChecked());
+    QCOMPARE(second.value(), coloured);
 }
 
 void TestDialogs::groupConnectionsWithoutKinds()

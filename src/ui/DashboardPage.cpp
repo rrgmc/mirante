@@ -34,9 +34,10 @@ DashboardPage::DashboardPage(const LayoutServices &services, const DashboardRef 
     layout->setContentsMargins(0, 0, 0, 0);
     layout->setSpacing(0);
     if (!dashboard.isRoot()) {
-        auto *header = new QWidget(this);
+        header = new QWidget(this);
         header->setObjectName(QStringLiteral("taskDashboardHeader"));
-        cellstyle::tintHeader(header, 0.22);
+        // MainWindow tints it again with the task's group colour.
+        cellstyle::tintHeader(header, cellstyle::taskHeaderStrength);
         auto *headerLayout = new QHBoxLayout(header);
         headerLayout->setContentsMargins(6, 3, 2, 3);
         headerLayout->setSpacing(4);
