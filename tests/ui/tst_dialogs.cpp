@@ -1,6 +1,7 @@
 // Tests the group, project, task, item and dashboard dialogs: values read back,
-// refusal of an empty name, the one main folder, and the item editor paths: a
-// form from fields, a type's own editor, and an item of a missing module.
+// refusal of an empty name, the group's connections and shared sites, the one
+// main folder, and the item editor paths: a form from fields, a type's own
+// editor, and an item of a missing module.
 #include "core/DeviceSettings.h"
 #include "core/Model.h"
 #include "core/Store.h"
@@ -19,6 +20,7 @@
 #include <QComboBox>
 #include <QLabel>
 #include <QLineEdit>
+#include <QListWidget>
 #include <QPushButton>
 #include <QSettings>
 #include <QStandardItemModel>
@@ -142,6 +144,8 @@ private slots:
     void cleanup();
 
     void group();
+    void groupConnectionsWithoutKinds();
+    void groupSharedSites();
     void project();
     void projectFolders();
     void projectMainFolder();
@@ -190,6 +194,64 @@ void TestDialogs::group()
     QCOMPARE(dialog.result(), int(QDialog::Accepted));
     Group expected = original;
     expected.name = QStringLiteral("Office");
+    QCOMPARE(dialog.value(), expected);
+}
+
+void TestDialogs::groupConnectionsWithoutKinds()
+{
+    // No kinds are offered, so every connection is shown read-only and kept.
+    const Group original = *model.group(workGroup);
+    GroupDialog dialog(original);
+    auto *table = dialog.findChild<QTableWidget *>(QStringLiteral("connections"));
+    QCOMPARE(table->rowCount(), 5);
+    QCOMPARE(table->item(4, 0)->text(), QStringLiteral("timetrack"));
+    QVERIFY(!(table->item(0, 1)->flags() & Qt::ItemIsEditable));
+    QVERIFY(!(table->item(0, 3)->flags() & Qt::ItemIsEnabled));
+    QCOMPARE(table->item(0, 3)->checkState(), Qt::Checked);   // the gitlab default
+    QCOMPARE(table->item(1, 3)->checkState(), Qt::Unchecked);
+    QVERIFY(!dialog.findChild<QPushButton *>(QStringLiteral("addConnection"))->isEnabled());
+    auto *remove = dialog.findChild<QPushButton *>(QStringLiteral("removeConnection"));
+    table->setCurrentCell(1, 1);
+    QVERIFY(!remove->isEnabled());
+    remove->click();
+
+    // Their fields and extra survive, and OK is not refused for them.
+    dialog.accept();
+    QCOMPARE(dialog.result(), int(QDialog::Accepted));
+    QCOMPARE(dialog.value(), original);
+}
+
+void TestDialogs::groupSharedSites()
+{
+    Group original = *model.group(workGroup);
+    original.profileOverrides.insert(QStringLiteral("own.example"), QStringLiteral("group"));
+    GroupDialog dialog(original);
+    QCOMPARE(dialog.value(), original);
+
+    auto *list = dialog.findChild<QListWidget *>(QStringLiteral("sharedSites"));
+    QCOMPARE(list->count(), 2);   // the override that is not "shared" is not listed
+    QCOMPARE(list->item(0)->text(), QStringLiteral("figma.com"));
+    QCOMPARE(list->item(1)->text(), QStringLiteral("www.w3.org"));
+
+    // Remove one, add two: a host in capitals and a pasted URL. A blank one
+    // and a repeat are dropped.
+    list->setCurrentRow(0);
+    dialog.findChild<QPushButton *>(QStringLiteral("removeSite"))->click();
+    auto *add = dialog.findChild<QPushButton *>(QStringLiteral("addSite"));
+    add->click();
+    list->item(list->count() - 1)->setText(QStringLiteral(" Acme.Atlassian.net "));
+    add->click();
+    list->item(list->count() - 1)->setText(QStringLiteral("https://gitlab.com/acme/api/-/merge_requests"));
+    add->click();
+    add->click();
+    list->item(list->count() - 1)->setText(QStringLiteral("www.w3.org"));
+
+    // The other override is kept as it is.
+    Group expected = original;
+    expected.profileOverrides.remove(QStringLiteral("figma.com"));
+    expected.profileOverrides.insert(QStringLiteral("acme.atlassian.net"), QStringLiteral("shared"));
+    expected.profileOverrides.insert(QStringLiteral("gitlab.com"), QStringLiteral("shared"));
+    QCOMPARE(dialog.value().profileOverrides, expected.profileOverrides);
     QCOMPARE(dialog.value(), expected);
 }
 
