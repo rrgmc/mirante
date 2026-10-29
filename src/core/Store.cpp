@@ -659,6 +659,17 @@ int reloadRank(const QString &path)
 
 } // namespace
 
+namespace {
+
+bool hasRemovedCell(const LayoutNode &node)
+{
+    if (node.removed)
+        return true;
+    return std::any_of(node.children.begin(), node.children.end(), hasRemovedCell);
+}
+
+} // namespace
+
 void Store::Private::reloadFiles(QStringList paths)
 {
     std::stable_sort(paths.begin(), paths.end(),
@@ -666,6 +677,18 @@ void Store::Private::reloadFiles(QStringList paths)
     for (const QString &path : std::as_const(paths))
         reloadFile(path);
     retryOrphans();
+
+    // A root dashboard that synced before the tasks it shows lost those cells
+    // to normalisation. Its file still has them, so read it again: the cells
+    // come back once their tasks exist. Such dashboards are rare and small.
+    QStringList again;
+    for (const RootDashboard *dashboard : model->rootDashboards()) {
+        const QString path = pathOf(kDashboards, dashboard->id);
+        if (!paths.contains(path) && hasRemovedCell(dashboard->layout))
+            again << path;
+    }
+    for (const QString &path : std::as_const(again))
+        reloadFile(path);
     // A reload never deletes files; it only moves the baseline.
     referenced = referencedNames();
     notifyProblems();
