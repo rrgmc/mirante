@@ -33,6 +33,10 @@ Each file records one design decision: what was decided, what else was considere
 | [0025](0025-workspace-file.md) | A workspace file holds the workspace's name | Superseded by 0026 |
 | [0026](0026-workspace-file-name.md) | The workspace file is `workspace.mirante` | Superseded by 0027 |
 | [0027](0027-workspace-needs-its-file.md) | A workspace is a folder with `workspace.mirante` | Accepted |
+| [0028](0028-item-fields-in-m3.md) | Item types declare their fields from M3 | Proposed |
+| [0029](0029-sample-data-read-only.md) | The sample data is read-only | Proposed |
+| [0030](0030-deleting-image-files.md) | Image files are deleted only when this device drops the last reference | Proposed |
+| [0031](0031-conflict-copies-by-id-prefix.md) | Conflict copies are recognised by the id at the start of their name | Proposed |
 
 ## Template
 
