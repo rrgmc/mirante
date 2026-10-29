@@ -147,7 +147,8 @@ void TestTaskCell::showsChosenDashboard()
     QVERIFY(cell.view());
     QCOMPARE(toJson(cell.view()->tree()), toJson(*m_model->layout({kFixLoginTask, kReviewDashboard})));
     QCOMPARE(cellCount(cell.view()), 4);
-    QCOMPARE(cell.findChild<QLabel *>(QStringLiteral("taskTitle"))->text(), QStringLiteral("Fix login timeout / Review"));
+    QCOMPARE(cell.findChild<QLabel *>(QStringLiteral("taskTitle"))->text(), QStringLiteral("Fix login timeout"));
+    QCOMPARE(cell.findChild<QLabel *>(QStringLiteral("taskDashboard"))->text(), QStringLiteral("Review"));
     QVERIFY(!cell.view()->editMode());
 }
 
@@ -162,15 +163,16 @@ void TestTaskCell::fallsBackToDefaultDashboard()
     QCOMPARE(unknown.dashboardId(), kWorkDashboard);
 }
 
-// A task cell shows one task dashboard and has no picker: its title names both.
+// A task cell shows one task dashboard and has no picker: its header names
+// both, the dashboard in a pill of its own.
 void TestTaskCell::titleNamesTaskAndDashboard()
 {
     TaskCell cell(m_services, {QString(), kReleaseRoot}, taskRef(kRateLimitTask, kRateLimitDashboard));
     const Task *task = m_model->task(kRateLimitTask);
     const Dashboard *dashboard = m_model->taskDashboard(kRateLimitTask, kRateLimitDashboard);
     QVERIFY(task && dashboard);
-    QCOMPARE(cell.findChild<QLabel *>(QStringLiteral("taskTitle"))->text(),
-             QStringLiteral("%1 / %2").arg(task->title, dashboard->name));
+    QCOMPARE(cell.findChild<QLabel *>(QStringLiteral("taskTitle"))->text(), task->title);
+    QCOMPARE(cell.findChild<QLabel *>(QStringLiteral("taskDashboard"))->text(), dashboard->name);
     QVERIFY(!cell.findChild<QComboBox *>());
     QCOMPARE(cellCount(cell.view()), int(layout::cellPaths(*m_model->layout({kRateLimitTask, kRateLimitDashboard})).size()));
 

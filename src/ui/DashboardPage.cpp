@@ -2,6 +2,7 @@
 
 #include "layout/CellStyle.h"
 #include "layout/DashboardCellFactory.h"
+#include "layout/HeaderPill.h"
 #include "layout/LayoutView.h"
 #include "ui/FocusView.h"
 
@@ -37,21 +38,25 @@ DashboardPage::DashboardPage(const LayoutServices &services, const DashboardRef 
         header->setObjectName(QStringLiteral("taskDashboardHeader"));
         cellstyle::tintHeader(header, 0.22);
         auto *headerLayout = new QHBoxLayout(header);
-        headerLayout->setContentsMargins(6, 2, 2, 2);
-        title = new QLabel(header);
+        headerLayout->setContentsMargins(6, 3, 2, 3);
+        headerLayout->setSpacing(4);
+        title = new HeaderPill;
+        title->setObjectName(QStringLiteral("taskDashboardTitle"));
         QFont font = title->font();
         font.setBold(true);
         title->setFont(font);
-        title->setMinimumWidth(1);
-        headerLayout->addWidget(title);
-        // The task's project, dimmed after the title, as in a task cell.
-        context = new QLabel(header);
+        part = new HeaderPill;
+        part->setObjectName(QStringLiteral("taskDashboardPart"));
+        // The task's project, in the grey pill of task cells. It gives way
+        // first when the bar is narrow, then the dashboard or item.
+        context = new HeaderPill;
         context->setObjectName(QStringLiteral("taskDashboardContext"));
-        context->setTextFormat(Qt::PlainText);
+        context->setFill(HeaderPill::Fill::Neutral);
         context->setForegroundRole(QPalette::PlaceholderText);
-        context->setMinimumWidth(1);
-        context->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
-        headerLayout->addWidget(context, 1);
+        headerRow = new HeaderRow(header);
+        headerRow->setParts({title, part, context});
+        headerRow->setShrinkOrder({context, part, title});
+        headerLayout->addWidget(headerRow, 1);
         if (item.isEmpty()) {
             lock = new QToolButton(header);
             lock->setObjectName(QStringLiteral("taskLockButton"));
