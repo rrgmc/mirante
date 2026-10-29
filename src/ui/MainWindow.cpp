@@ -18,6 +18,7 @@
 #include "layout/TaskCell.h"
 #include "ui/ConflictBar.h"
 #include "ui/DashboardPage.h"
+#include "ui/DetachedWindow.h"
 #include "ui/EntityActions.h"
 #include "ui/FocusView.h"
 #include "ui/ImagePaste.h"
@@ -137,6 +138,9 @@ struct MainWindow::Private
 
     std::vector<DashboardPage *> pages;     // in tab order
     DashboardPage *preview = nullptr;       // also in pages, always last
+    // The windows of detached root dashboards, in the order they were
+    // detached. Their pages are not in pages. See docs/ui.md#detached-windows.
+    std::vector<DetachedWindow *> detached;
 
     int indexOf(const DashboardPage *page) const
     {
@@ -319,23 +323,32 @@ struct MainWindow::Private
         tabBar->insertTab(index, pageTitle(page));
         tabBar->setTabIcon(index, pageIcon(page));
         tabBar->setTabToolTip(index, pageToolTip(page));
+        // Only root dashboard tabs can be detached (decision 0024).
+        tabBar->setTabData(index, page->isRoot());
         syncPreview();
         syncCurrent();
     }
 
-    void removeTab(int index)
+    // Takes a page out of the tab bar without deleting it.
+    DashboardPage *takeTab(DashboardPage *page)
     {
-        if (index < 0 || index >= int(pages.size()))
-            return;
-        DashboardPage *page = pages[std::size_t(index)];
+        const int index = indexOf(page);
+        if (index < 0)
+            return page;
         pages.erase(pages.begin() + index);
         if (preview == page)
             preview = nullptr;
         stack->removeWidget(page);
         tabBar->removeTab(index);
-        delete page;
         syncPreview();
         syncCurrent();
+        return page;
+    }
+
+    void removeTab(int index)
+    {
+        if (index >= 0 && index < int(pages.size()))
+            delete takeTab(pages[std::size_t(index)]);
     }
 
     void setCurrent(const DashboardPage *page)
@@ -391,6 +404,98 @@ struct MainWindow::Private
                 showLockState(page->lock, unlocked);
         }
         updateLockButton();
+    }
+
+    DetachedWindow *detachedWindow(const QString &dashboardId) const
+    {
+        for (DetachedWindow *window : detached) {
+            if (window->dashboardId() == dashboardId)
+                return window;
+        }
+        return nullptr;
+    }
+
+    QStringList detachedIds() const
+    {
+        QStringList ids;
+        for (const DetachedWindow *window : detached)
+            ids << window->dashboardId();
+        return ids;
+    }
+
+    // Moves the page of a root dashboard into a new window of its own. The
+    // page is moved, not made again, so its web pages keep their state. Only
+    // the cells that cannot move are made again.
+    DetachedWindow *openInWindow(DashboardPage *page)
+    {
+        stack->removeWidget(page);
+        auto *window = new DetachedWindow(page, locks, *settings);
+        window->setTitle(title(page->ref));
+        QObject::connect(window, &DetachedWindow::putBackRequested, q, [this](const QString &id) { putBack(id); });
+        detached.push_back(window);
+        window->show();
+        page->view->remakeUnsafeCells();
+        return window;
+    }
+
+    // "Detach into Window" on a root dashboard tab: the tab leaves the tab bar
+    // and its page moves into a new window.
+    void detach(int index)
+    {
+        if (index < 0 || index >= int(pages.size()) || !pages[std::size_t(index)]->isRoot())
+            return;
+        DetachedWindow *window = openInWindow(takeTab(pages[std::size_t(index)]));
+        window->raise();
+        window->activateWindow();
+    }
+
+    // The window was closed or "Put Back" was clicked: its page goes back to
+    // the end of the tab bar, before the preview tab, and becomes current.
+    void putBack(const QString &dashboardId)
+    {
+        DetachedWindow *window = detachedWindow(dashboardId);
+        if (!window)
+            return;
+        detached.erase(std::find(detached.begin(), detached.end(), window));
+        window->disconnect(q);
+        DashboardPage *page = window->takePage();
+        // This may run inside the window's own close event.
+        window->hide();
+        window->deleteLater();
+        if (!page)
+            return;
+        stack->addWidget(page);
+        insertTab(preview ? indexOf(preview) : int(pages.size()), page);
+        page->view->remakeUnsafeCells();
+        setCurrent(page);
+    }
+
+    // Puts every detached root dashboard back in the tab bar.
+    void putBackAll()
+    {
+        const std::vector<DetachedWindow *> windows = detached;
+        for (DetachedWindow *window : windows)
+            window->close();    // stores its geometry, then asks to be put back
+    }
+
+    // Deletes a detached window with its page.
+    void deleteWindow(DetachedWindow *window)
+    {
+        detached.erase(std::find(detached.begin(), detached.end(), window));
+        window->disconnect(q);
+        delete window;
+    }
+
+    // Closes the detached windows without putting them back, as when another
+    // workspace opens. Each stores its geometry first.
+    void closeDetachedWindows()
+    {
+        while (!detached.empty()) {
+            DetachedWindow *window = detached.back();
+            window->disconnect(q);
+            window->close();
+            deleteWindow(window);
+        }
     }
 
     // Where a root tab with this order goes: before the first open root tab
@@ -514,6 +619,11 @@ struct MainWindow::Private
                 page->view->setTree(*tree);
             tabBar->setTabText(int(i), title(page->ref));
         }
+        if (DetachedWindow *window = detachedWindow(id)) {
+            if (const LayoutNode *tree = model->layout(window->page()->ref))
+                window->page()->view->setTree(*tree);
+            window->setTitle(title(window->page()->ref));
+        }
         tabBar->updateGeometry();
         syncCurrent();
     }
@@ -609,8 +719,8 @@ struct MainWindow::Private
     }
 
     // The open tabs, as DeviceSettings keeps them: root dashboards and Focus in
-    // tab order, and the current one. The preview tab, pinned task tabs and
-    // item tabs are not kept.
+    // tab order, the current one, and the detached root dashboards. The preview
+    // tab, pinned task tabs and item tabs are not kept.
     DeviceSettings::Tabs openTabs() const
     {
         DeviceSettings::Tabs tabs;
@@ -629,13 +739,16 @@ struct MainWindow::Private
             tabs.current = current->ref.dashboardId;
         else if (!tabs.ids.isEmpty())
             tabs.current = tabs.ids.front();
+        tabs.detached = detachedIds();
         return tabs;
     }
 
-    // Replaces the open tabs with saved ones. Ids that no longer exist are
-    // skipped.
+    // Replaces the open tabs and detached windows with saved ones. Ids that
+    // no longer exist are skipped. A detached window opens at its stored
+    // geometry.
     void restoreTabs(const DeviceSettings::Tabs &tabs)
     {
+        closeDetachedWindows();
         closeAllTabs();
         for (const QString &id : tabs.ids) {
             if (id == focusTabId) {
@@ -644,6 +757,10 @@ struct MainWindow::Private
             } else if (model->rootDashboard(id) && !rootPage(id)) {
                 insertTab(int(pages.size()), makePage(DashboardRef{QString(), id}));
             }
+        }
+        for (const QString &id : tabs.detached) {
+            if (model->rootDashboard(id) && !rootPage(id) && !detachedWindow(id))
+                openInWindow(makePage(DashboardRef{QString(), id}));
         }
         const DashboardPage *current = nullptr;
         if (tabs.current == focusTabId)
@@ -706,7 +823,10 @@ struct MainWindow::Private
     // tabs of the one before.
     void openThroughStore(const QString &dir)
     {
+        // The detached windows close after their state is saved. The saved
+        // tabs of the next workspace bring back its own.
         saveOpenTabs();
+        closeDetachedWindows();
         ownProblems.clear();
         store->open(dir);
         restoreOpenTabs();
@@ -1263,6 +1383,7 @@ MainWindow::MainWindow(Model &model, const ItemTypeRegistry &types, Store &store
     });
     connect(d->tabBar, &RootTabBar::newDashboardRequested, this, &MainWindow::newRootDashboard);
     connect(d->tabBar, &RootTabBar::dashboardListRequested, this, &MainWindow::showDashboardList);
+    connect(d->tabBar, &RootTabBar::detachRequested, this, [this](int index) { d->detach(index); });
     connect(d->listButton, &QToolButton::clicked, this, &MainWindow::showDashboardList);
 
     // Locks.
@@ -1276,10 +1397,13 @@ MainWindow::MainWindow(Model &model, const ItemTypeRegistry &types, Store &store
 
     // The model.
     connect(&model, &Model::rootDashboardChanged, this, [this](const QString &id) { d->onRootDashboardChanged(id); });
-    // A deleted root dashboard loses its tab. Closing a tab does not delete it.
+    // A deleted root dashboard loses its tab, or its detached window. Closing
+    // a tab does not delete it.
     connect(&model, &Model::rootDashboardRemoved, this, [this](const QString &id) {
         if (DashboardPage *page = d->rootPage(id))
             d->removeTab(d->indexOf(page));
+        if (DetachedWindow *window = d->detachedWindow(id))
+            d->deleteWindow(window);
     });
     connect(&model, &Model::taskChanged, this, [this](const QString &taskId) { d->onTaskChanged(taskId); });
     connect(&model, &Model::taskRemoved, this, [this](const QString &taskId) { d->onTaskRemoved(taskId); });
@@ -1291,9 +1415,17 @@ MainWindow::MainWindow(Model &model, const ItemTypeRegistry &types, Store &store
             d->updatePageHeader(d->pages[i]);
         }
     });
+    // The pages are made again on a reset. Detached root dashboards that still
+    // exist are detached again.
     connect(&model, &Model::modelReset, this, [this] {
+        const QStringList detached = d->detachedIds();
+        d->closeDetachedWindows();
         d->closeAllTabs();
         d->openInitialTabs();
+        for (const QString &id : detached) {
+            if (DashboardPage *page = d->rootPage(id))
+                d->openInWindow(d->takeTab(page));
+        }
     });
 
     // The Store: its problems and the read-only note go to the warning bar.
@@ -1335,6 +1467,14 @@ MainWindow::~MainWindow()
     for (QObject *child : children)
         child->disconnect(this);
 
+    // The detached windows are not children. They go first, with their pages,
+    // while the services their pages use still exist.
+    for (DetachedWindow *window : d->detached) {
+        window->disconnect(this);
+        delete window;
+    }
+    d->detached.clear();
+
     // The pages go next, while the services they use still exist.
     d->pages.clear();
     d->preview = nullptr;
@@ -1352,6 +1492,8 @@ void MainWindow::closeEvent(QCloseEvent *event)
     d->settings->setWindowMaximized(isFullScreen() ? d->maximizedBeforeFullScreen : isMaximized());
     d->settings->setSidebarSplitterState(d->splitter->saveState());
     d->saveOpenTabs();
+    // After the open tabs are saved, so the windows open again next time.
+    d->putBackAll();
     QMainWindow::closeEvent(event);
 }
 
@@ -1508,6 +1650,15 @@ void MainWindow::openRootDashboard(const QString &id)
     const RootDashboard *dashboard = d->model->rootDashboard(id);
     if (!dashboard)
         return;
+    // A detached root dashboard is shown in its window.
+    if (DetachedWindow *window = d->detachedWindow(id)) {
+        if (window->isMinimized())
+            window->showNormal();
+        window->show();
+        window->raise();
+        window->activateWindow();
+        return;
+    }
     DashboardPage *page = d->rootPage(id);
     if (!page) {
         const int index = d->rootInsertIndex(dashboard->order);
@@ -1533,7 +1684,7 @@ void MainWindow::showDashboardList()
 {
     if (!d->dashboardList) {
         d->dashboardList = new RootDashboardsDialog(
-            *d->model, [this](const QString &id) { return d->rootPage(id) != nullptr; }, this);
+            *d->model, [this](const QString &id) { return d->rootPage(id) || d->detachedWindow(id); }, this);
         d->dashboardList->setAttribute(Qt::WA_DeleteOnClose);
         connect(d->dashboardList, &RootDashboardsDialog::openRequested, this, &MainWindow::openRootDashboard);
     }

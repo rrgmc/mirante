@@ -91,7 +91,7 @@ The menu bar has three menus.
 - When a task tab comes to the front, the sidebar selects its dashboard under its task.
 - Opening a task dashboard that already has a tab switches to that tab instead of opening a preview.
 
-The open tabs are stored on each device for each workspace, not synced: the root dashboard tabs and the Focus tab in order, and the current tab. The preview tab is not kept; if it was current, the first tab is current next time. They are saved when another workspace opens and when the window closes, and come back when the workspace opens again. Pinned task tabs and item tabs are not kept either. The first time a workspace opens on a device, every root dashboard opens.
+The open tabs are stored on each device for each workspace, not synced: the root dashboard tabs and the Focus tab in order, the current tab, and the [detached](#detached-windows) root dashboards. The preview tab is not kept; if it was current, the first tab is current next time. They are saved when another workspace opens and when the window closes, and come back when the workspace opens again. Pinned task tabs and item tabs are not kept either. The first time a workspace opens on a device, every root dashboard opens.
 
 ## Root dashboards
 
@@ -102,7 +102,7 @@ A root dashboard is a tab in the main tab bar. It has a name and a [layout tree]
 - The `+` button creates an empty root dashboard, with editing on.
 - Closing a root dashboard's tab, with its close button, a middle click or the tab bar's context menu, does not delete it. It can be opened again with the [quick switcher](#keyboard) or the dashboard list.
 - The **dashboard list**, opened with the button after the lock in the tab bar row or with "All dashboards…" in the tab bar's context menu, lists every root dashboard and marks closed ones. It opens a dashboard again, and it is the only place where a root dashboard is deleted, after a confirmation.
-- Right-clicking the tab bar shows "New dashboard", "Close tab" over a tab, and "All dashboards…".
+- Right-clicking the tab bar shows "New dashboard", "Close tab" over a tab, "Detach into Window" over a root dashboard tab, and "All dashboards…".
 
 ### Placing tasks and items
 
@@ -176,9 +176,16 @@ After each edit, the tree is [normalised](data-model.md#normalisation).
 
 A root dashboard tab can be detached into its own operating system window. Nothing else is detached: not cells, not task dashboard tabs, not item tabs. See [decision 0024](decisions/0024-detach-root-dashboard-tabs.md).
 
-- The detached window shows the root dashboard, with its own lock.
-- Closing the window puts the tab back in the main window.
-- The window's position and size are stored on each device.
+- "Detach into Window" in the context menu of a root dashboard tab takes the tab out of the tab bar and moves its dashboard into a new window. The dashboard is moved, not made again, so its web pages keep their state. Only cells whose item type cannot move to another window are made again.
+- The window's title is the dashboard's name. A rename changes it.
+- A small toolbar holds "Put Back" and the dashboard's own lock. The lock works as the lock of the main window does.
+- Closing the window, or "Put Back", puts the tab back at the end of the tab bar, before the preview tab, and makes it current.
+- Opening a detached root dashboard from the sidebar, the quick switcher or the dashboard list brings its window to the front instead of opening a tab.
+- Deleting a root dashboard closes its window.
+- The window's position and size are stored on each device when it closes. A new window opens at the stored position and size, or at a default size.
+- The detached root dashboards are saved with the [open tabs](#opening-tasks). When the workspace opens again, they open again in their windows.
+- Opening another workspace closes the detached windows, after saving them. Closing the main window puts them back, after saving them, so they open detached next time.
+- The keyboard shortcuts of the main window, such as moving the focus between cells and maximising a cell, work in the main window only.
 
 If the same item is shown in two places, each place has its own live view. See [decision 0003](decisions/0003-view-per-placement.md).
 

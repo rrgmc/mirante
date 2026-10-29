@@ -1,6 +1,6 @@
 // Tests MainWindow on the fixtures: the root tabs, the preview tab, pinning,
 // new root dashboards, closing and reopening tabs, the warning bar, focusing an
-// item, and views following the model.
+// item, views following the model, and detached windows.
 #include "core/DeviceSettings.h"
 #include "core/Model.h"
 #include "core/Store.h"
@@ -8,6 +8,8 @@
 #include "layout/CellFrame.h"
 #include "layout/LayoutView.h"
 #include "layout/TaskCell.h"
+#include "ui/DashboardPage.h"
+#include "ui/DetachedWindow.h"
 #include "ui/EntityActions.h"
 #include "ui/FocusView.h"
 #include "ui/ImagePaste.h"
@@ -892,6 +894,188 @@ private slots:
         QVERIFY(frame);
         QVERIFY(frame->ref());
         QCOMPARE(frame->ref()->item, kReviewsItem);
+    }
+
+    // Detaching a root dashboard tab moves its page into a window of its own.
+    // The page keeps its LayoutView and its cells. The window's lock is the
+    // dashboard's lock.
+    void detachMovesPage()
+    {
+        Fixture f;
+        LayoutView *view = f.window->currentLayoutView();
+        QVERIFY(view);
+        const std::vector<QWidget *> cells = view->visibleCells();
+        QVERIFY(!cells.empty());
+        QVERIFY(f.bar()->tabData(0).toBool());
+
+        emit f.bar()->detachRequested(0);
+        QCOMPARE(f.bar()->count(), 1);
+        QCOMPARE(f.tabText(0), QStringLiteral("Release"));
+        const auto windows = detachedWindows();
+        QCOMPARE(windows.size(), 1);
+        DetachedWindow *window = windows.front();
+        QCOMPARE(window->dashboardId(), kMorning);
+        QCOMPARE(window->windowTitle(), QStringLiteral("Morning"));
+        QVERIFY(window->isVisible());
+        QVERIFY(window->page());
+        QCOMPARE(window->page()->view, view);
+        QVERIFY(view->window() == window);
+        QCOMPARE(view->visibleCells(), cells);
+
+        // The window's lock unlocks the dashboard and turns on edit mode.
+        auto *lock = window->findChild<QToolButton *>(QStringLiteral("lockButton"));
+        QVERIFY(lock);
+        QVERIFY(!view->editMode());
+        lock->click();
+        QVERIFY(view->editMode());
+        QCOMPARE(lock->text(), QStringLiteral("Editing"));
+        lock->click();
+        QVERIFY(!view->editMode());
+
+        // A rename changes its title.
+        RootDashboard renamed = *f.model.rootDashboard(kMorning);
+        renamed.name = QStringLiteral("Mornings");
+        f.model.setRootDashboard(renamed);
+        QCOMPARE(window->windowTitle(), QStringLiteral("Mornings"));
+
+        // Only root dashboard tabs can be detached: not Focus, the preview or
+        // item tabs.
+        f.window->openFocus();
+        f.window->openTaskPreview(kFixLoginTask);
+        QCOMPARE(f.bar()->count(), 3);
+        QVERIFY(!f.bar()->tabData(0).toBool());
+        QVERIFY(f.bar()->tabData(1).toBool());
+        QVERIFY(!f.bar()->tabData(2).toBool());
+        emit f.bar()->detachRequested(0);
+        emit f.bar()->detachRequested(2);
+        QCOMPARE(f.bar()->count(), 3);
+        QCOMPARE(detachedWindows().size(), 1);
+    }
+
+    // Closing the window, or "Put Back", returns the page to the end of the
+    // tab bar, before the preview tab, and makes it current.
+    void closingPutsBack()
+    {
+        Fixture f;
+        LayoutView *view = f.window->currentLayoutView();
+        emit f.bar()->detachRequested(0);
+        QPointer<DetachedWindow> window = detachedWindows().value(0);
+        QVERIFY(window);
+        window->close();
+        QCOMPARE(f.bar()->count(), 2);
+        QCOMPARE(f.tabText(1), QStringLiteral("Morning"));
+        QCOMPARE(f.bar()->currentIndex(), 1);
+        QCOMPARE(f.window->currentLayoutView(), view);
+        QVERIFY(view->window() == f.window.get());
+        QTRY_VERIFY(!window);
+        QVERIFY(!f.settings.detachedGeometry(kMorning).isEmpty());
+
+        f.window->openTaskPreview(kFixLoginTask);
+        f.window->openRootDashboard(kRelease);
+        emit f.bar()->detachRequested(0);
+        window = detachedWindows().value(0);
+        QVERIFY(window);
+        auto *putBack = window->findChild<QToolButton *>(QStringLiteral("putBackButton"));
+        QVERIFY(putBack);
+        putBack->click();
+        QCOMPARE(f.bar()->count(), 3);
+        QCOMPARE(f.tabText(1), QStringLiteral("Release"));
+        QCOMPARE(f.bar()->previewIndex(), 2);
+        QCOMPARE(f.bar()->currentIndex(), 1);
+        QTRY_VERIFY(!window);
+    }
+
+    // Opening a detached root dashboard, from the sidebar, the switcher or
+    // the dashboard list, shows its window instead of a tab.
+    void openingDetachedRaisesWindow()
+    {
+        Fixture f;
+        emit f.bar()->detachRequested(0);
+        QCOMPARE(f.bar()->count(), 1);
+        DetachedWindow *window = detachedWindows().value(0);
+        QVERIFY(window);
+        window->hide();
+        f.window->openRootDashboard(kMorning);
+        QCOMPARE(f.bar()->count(), 1);
+        QCOMPARE(detachedWindows().size(), 1);
+        QVERIFY(window->isVisible());
+    }
+
+    // Deleting a root dashboard closes its window.
+    void removingClosesWindow()
+    {
+        Fixture f;
+        emit f.bar()->detachRequested(0);
+        QPointer<DetachedWindow> window = detachedWindows().value(0);
+        QVERIFY(window);
+        f.model.removeRootDashboard(kMorning);
+        QVERIFY(!window);
+        QCOMPARE(f.bar()->count(), 1);
+        QCOMPARE(detachedWindows().size(), 0);
+    }
+
+    // The detached root dashboards are saved with the open tabs, and come
+    // back in their windows at their stored geometry.
+    void detachedRestored()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        QVERIFY(copyFixtures(dir.path()));
+
+        Fixture f;
+        f.window->openWorkspace(dir.path());
+        emit f.bar()->detachRequested(0);
+        DetachedWindow *window = detachedWindows().value(0);
+        QVERIFY(window);
+        window->resize(640, 480);
+        f.window->saveOpenTabs();
+        const DeviceSettings::Tabs tabs = f.settings.openTabs(QDir(dir.path()).absolutePath());
+        QCOMPARE(tabs.detached, QStringList{kMorning});
+        QCOMPARE(tabs.ids, QStringList{kRelease});
+
+        // Another workspace closes the window, which keeps its geometry.
+        f.window->openSampleData();
+        QCOMPARE(detachedWindows().size(), 0);
+        QVERIFY(!f.settings.detachedGeometry(kMorning).isEmpty());
+
+        f.window->openWorkspace(dir.path());
+        QCOMPARE(f.bar()->count(), 1);
+        QCOMPARE(f.tabText(0), QStringLiteral("Release"));
+        window = detachedWindows().value(0);
+        QVERIFY(window);
+        QCOMPARE(window->dashboardId(), kMorning);
+        QCOMPARE(window->size(), QSize(640, 480));
+
+        // Reloading keeps it detached.
+        f.window->reloadWorkspace();
+        QCOMPARE(f.bar()->count(), 1);
+        QCOMPARE(detachedWindows().size(), 1);
+
+        // Closing the main window puts it back, after saving it as detached,
+        // so a new window opens it detached again.
+        f.window->close();
+        QCOMPARE(f.bar()->count(), 2);
+        QCOMPARE(detachedWindows().size(), 0);
+        f.window.reset();
+        f.dataStore.close();
+        f.window = std::make_unique<MainWindow>(f.model, f.types, f.dataStore, f.settings);
+        f.window->openWorkspace(dir.path());
+        QCOMPARE(f.bar()->count(), 1);
+        QCOMPARE(detachedWindows().size(), 1);
+        QCOMPARE(detachedWindows().front()->size(), QSize(640, 480));
+    }
+
+private:
+    // The visible detached windows, ignoring those already put back.
+    static QList<DetachedWindow *> detachedWindows()
+    {
+        QList<DetachedWindow *> windows;
+        for (QWidget *widget : QApplication::topLevelWidgets()) {
+            auto *window = qobject_cast<DetachedWindow *>(widget);
+            if (window && window->page())
+                windows << window;
+        }
+        return windows;
     }
 };
 
