@@ -29,6 +29,7 @@
 #include <QJsonObject>
 #include <QLabel>
 #include <QMenu>
+#include <QMenuBar>
 #include <QPointer>
 #include <QSettings>
 #include <QSignalSpy>
@@ -313,10 +314,24 @@ private slots:
         action->trigger();
         QTRY_VERIFY(f.window->windowState().testFlag(Qt::WindowFullScreen));
         QVERIFY(action->isChecked());
-        action->trigger();
+        // The menu bar hides, but the menus' shortcuts still work: the key
+        // leaves full screen.
+        QTRY_VERIFY(!f.window->menuBar()->isVisible());
+        QVERIFY(f.window->actions().contains(action));
+        QTest::keySequence(f.window.get(), action->shortcut());
         QTRY_VERIFY(!f.window->windowState().testFlag(Qt::WindowFullScreen));
         QVERIFY(f.window->windowState().testFlag(Qt::WindowMaximized));
         QVERIFY(!action->isChecked());
+        QVERIFY(f.window->menuBar()->isVisible());
+    }
+
+    // The Focus tab has an icon, so it reads apart from dashboard tabs.
+    void focusTabIcon()
+    {
+        Fixture f;
+        f.window->openFocus();
+        QVERIFY(!f.bar()->tabIcon(0).isNull());
+        QVERIFY(f.bar()->tabIcon(1).isNull());     // Morning, a root dashboard
     }
 
     void pinButton()
