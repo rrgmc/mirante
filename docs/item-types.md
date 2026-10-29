@@ -18,8 +18,8 @@ A module registers each of its types in the `ItemTypeRegistry` with:
 | `fields` | The configuration fields: key, label, type, default, whether it is required, and for a choice its values and labels. The core builds the item dialog's form from them and checks the values. See [decision 0028](decisions/0028-item-fields-in-m3.md). |
 | `createEditor` | Optional: an editor of the type's own for the configuration, used instead of the form built from `fields`. It receives the project's folders and a way to save an image into `files/`. |
 | `pastedImageField` | Optional: the key of an image field that a pasted image fills. If set, pasting an image onto a task dashboard creates an item of this type. See [Image](#image). |
-| `rendering` | `native` (a Qt widget) or `web` (a [web view](web-views.md)) |
-| `connectionKind` | The kind of [connection](data-model.md#connection) it needs, if any |
+| `rendering` | `native` (a Qt widget) or `web` (a [web view](web-views.md)). The [memory policy](web-views.md#memory-policy) unloads web views. |
+| `connectionKinds` | The kinds of [connection](data-model.md#connection) it can use, in order of preference, such as `jira.cloud` then `jira.dc`. Empty if it needs none. |
 | `status` | Optional: how to fetch status and attention from the [status cache](integrations.md#polling-and-caching) |
 | `actions` | Optional: the light actions it offers |
 | `fromUrl` | Optional: recognises a pasted URL and returns a configuration |
@@ -76,6 +76,10 @@ Module `gitlab`. All GitLab types need a `gitlab` connection.
 
 `gitlab.mr.page`, web. The merge request's web page, using the group's [profile](web-views.md#profiles). Its configuration is the summary's: `project` and `iid`.
 
+- **Address:** `<baseUrl>/<project>/-/merge_requests/<iid>`, where `baseUrl` is the connection's base URL. An empty `project` uses the project's `gitlab.project` setting.
+- **Without a `gitlab` connection,** the cell says "No GitLab connection in this group."
+- **Without a project or a number,** the cell says "Set the project and number in the item's settings."
+
 ### GitLab MR List
 
 `gitlab.mr.list`, native.
@@ -111,6 +115,7 @@ Module `gitlab`. All GitLab types need a `gitlab` connection.
 - **The summary shows:** title, state, assignees, labels, milestone, due date and the latest comments.
 - **Configuration:** the summary and the page have `project` and `iid`, the issue number. The list has `scope`, `project`, `group`, `preset` and `filter`, as for merge requests.
 - **The list presets are:** `assignedToMe` ("Assigned to me"), `createdByMe` ("Created by me") and `allOpen` ("All open"). Custom filters work the same way as for merge requests.
+- **The page's address** is `<baseUrl>/<project>/-/issues/<iid>`. Its messages are those of the merge request page.
 - **Actions:** add comment, close and reopen.
 
 ## Jira
@@ -135,6 +140,10 @@ Module `jira`. Jira types need a `jira.cloud` or `jira.dc` connection.
 
 `jira.issue.page`, web. The issue's web page. Its configuration is the summary's: `key`.
 
+- **Address:** `<baseUrl>/browse/<key>`, where `baseUrl` is the connection's base URL. A `jira.cloud` connection is used first, then a `jira.dc` one.
+- **Without a Jira connection,** the cell says "No Jira connection in this group."
+- **Without an issue key,** the cell says "Set the issue key in the item's settings."
+
 ### Jira List
 
 `jira.list`, native.
@@ -155,7 +164,7 @@ Module `claude`.
 `claude.session.web`, web.
 
 - **Configuration:** `url`, a claude.ai URL, such as a Remote Control or cloud session link, required.
-- **Shows:** the claude.ai page, using the group's profile.
+- **Shows:** the claude.ai page, using the group's profile. If `url` is empty or is not an `http` or `https` address, the cell says "Set the address in the item's settings."
 
 There is no public API for these sessions, so the app has no status or summary for them. See [decision 0008](decisions/0008-claude-sessions.md).
 
@@ -179,7 +188,7 @@ Local sessions exist on one device only. On other devices the panel shows the de
 `web.page`, web, module `web`.
 
 - **Configuration:** `url`, the page's address, required.
-- **Shows:** the page, using the group's profile, or the shared profile if the host is overridden.
+- **Shows:** the page, using the group's profile, or the shared profile if the host is overridden. If `url` is empty or is not an `http` or `https` address, the cell says "Set the address in the item's settings."
 
 ### Notes
 

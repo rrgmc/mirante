@@ -98,6 +98,18 @@ private slots:
             QCOMPARE(reported, missing);
         }
     }
+
+    // A native type that needs no connection.
+    void renderingAndConnection()
+    {
+        mirante::ItemTypeRegistry registry;
+        registry.registerModule(QStringLiteral("image"), &mirante::modules::image::registerModule);
+
+        for (const mirante::ItemType *type : registry.types()) {
+            QVERIFY2(type->rendering() == mirante::Rendering::Native, qPrintable(type->id()));
+            QVERIFY2(type->connectionKinds().isEmpty(), qPrintable(type->id()));
+        }
+    }
 };
 
 QTEST_MAIN(TestRegister)
