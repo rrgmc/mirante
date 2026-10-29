@@ -110,6 +110,7 @@ struct TaskCell::Private
     QVBoxLayout *layout = nullptr;
     TaskHeader *header = nullptr;
     QLabel *title = nullptr;
+    QLabel *context = nullptr;
     QToolButton *openButton = nullptr;
     QLabel *removedLabel = nullptr;
     LayoutView *view = nullptr;
@@ -134,6 +135,7 @@ void TaskCell::Private::refresh()
     openButton->setVisible(!removed && services.openTaskAlone);
     if (removed) {
         title->setText(TaskCell::tr("Removed task"));
+        context->clear();
         dropView();
         return;
     }
@@ -149,6 +151,10 @@ void TaskCell::Private::refresh()
     }
     title->setText(dashboardName.isEmpty() ? current->title
                                            : TaskCell::tr("%1 / %2").arg(current->title, dashboardName));
+    // Tasks from any project share a root dashboard, so the header names the
+    // task's project after the title, as item cells name where they come from.
+    const Project *project = services.model->project(current->projectId);
+    context->setText(project ? project->name : QString());
     if (rebuild) {
         buildView();
     } else {
@@ -250,8 +256,17 @@ TaskCell::TaskCell(const LayoutServices &services, const DashboardRef &rootDashb
     QFont font = d->title->font();
     font.setBold(true);
     d->title->setFont(font);
-    headerLayout->addWidget(d->title, 1);
+    d->title->setMinimumWidth(1);
+    headerLayout->addWidget(d->title);
 
+    // It takes the free space and is the first to be cut when the header is narrow.
+    d->context = new QLabel(d->header);
+    d->context->setObjectName(QStringLiteral("taskContext"));
+    d->context->setTextFormat(Qt::PlainText);
+    d->context->setForegroundRole(QPalette::PlaceholderText);
+    d->context->setMinimumWidth(1);
+    d->context->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
+    headerLayout->addWidget(d->context, 1);
 
     d->openButton = new QToolButton(d->header);
     d->openButton->setObjectName(QStringLiteral("openAloneButton"));
@@ -273,6 +288,11 @@ TaskCell::TaskCell(const LayoutServices &services, const DashboardRef &rootDashb
     if (services.model) {
         connect(services.model, &Model::taskChanged, this, [this](const QString &taskId) {
             if (taskId == d->taskId)
+                d->refresh();
+        });
+        connect(services.model, &Model::projectChanged, this, [this](const QString &projectId) {
+            const Task *task = d->task();
+            if (task && task->projectId == projectId)
                 d->refresh();
         });
         connect(services.model, &Model::modelReset, this, [this] { d->refresh(); });
