@@ -105,7 +105,14 @@ std::vector<const ItemType *> ItemTypeRegistry::types() const
     return result;
 }
 
-// Stub from M4 T0. T4 implements it.
-QStringList ItemTypeRegistry::connectionKinds() const { return {}; }
+QStringList ItemTypeRegistry::connectionKinds() const
+{
+    QStringList kinds;
+    for (const auto &type : d->types)
+        kinds << type->connectionKinds();
+    kinds.removeDuplicates();
+    kinds.sort();
+    return kinds;
+}
 
 } // namespace mirante

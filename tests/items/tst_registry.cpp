@@ -19,11 +19,29 @@ public:
     QString id() const override { return m_id; }
     QString name() const override { return m_name; }
     QIcon icon() const override { return {}; }
+    QStringList connectionKinds() const override { return m_kinds; }
+
+    QStringList m_kinds;
 
 private:
     QString m_id;
     QString m_name;
 };
+
+std::unique_ptr<FakeType> withKinds(const QString &id, const QStringList &kinds)
+{
+    auto type = std::make_unique<FakeType>(id, id);
+    type->m_kinds = kinds;
+    return type;
+}
+
+void registerKinds(mirante::ModuleRegistrar &registrar)
+{
+    registrar.addItemType(withKinds(QStringLiteral("kinds.jira"), {QStringLiteral("jira.dc"), QStringLiteral("jira.cloud")}));
+    registrar.addItemType(withKinds(QStringLiteral("kinds.mr"), {QStringLiteral("gitlab")}));
+    registrar.addItemType(withKinds(QStringLiteral("kinds.issue"), {QStringLiteral("jira.cloud")}));
+    registrar.addItemType(withKinds(QStringLiteral("kinds.none"), {}));
+}
 
 void registerAlpha(mirante::ModuleRegistrar &registrar)
 {
@@ -118,10 +136,21 @@ private slots:
         QCOMPARE(names, expected);
     }
 
+    void connectionKinds()
+    {
+        mirante::ItemTypeRegistry registry;
+        registry.registerModule(QStringLiteral("alpha"), &registerAlpha);
+        registry.registerModule(QStringLiteral("kinds"), &registerKinds);
+        // Each kind once, sorted, whatever order the types list them in.
+        const QStringList expected{QStringLiteral("gitlab"), QStringLiteral("jira.cloud"), QStringLiteral("jira.dc")};
+        QCOMPARE(registry.connectionKinds(), expected);
+    }
+
     void emptyRegistry()
     {
         const mirante::ItemTypeRegistry registry;
         QVERIFY(registry.types().empty());
+        QVERIFY(registry.connectionKinds().isEmpty());
         QVERIFY(!registry.contains(QStringLiteral("web.page")));
     }
 
