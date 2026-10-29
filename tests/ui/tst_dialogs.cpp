@@ -1,7 +1,8 @@
 // Tests the group, project, task, item, dashboard and web profiles dialogs:
 // values read back, refusal of an empty name, the group's connections and web
 // profile, the one main folder, the item editor paths (a form from fields, a
-// type's own editor, an item of a missing module), the item's web profile, and
+// type's own editor, an item of a missing module), the type grid of a new
+// item, the item's web profile, and
 // creating, renaming and deleting web profiles.
 #include "core/DeviceSettings.h"
 #include "core/GroupColours.h"
@@ -22,6 +23,7 @@
 #include <mirante/Module.h>
 
 #include <QComboBox>
+#include <QDialogButtonBox>
 #include <QLabel>
 #include <QLineEdit>
 #include <QListWidget>
@@ -181,7 +183,8 @@ private slots:
     void task();
     void itemWithForm();
     void itemWithOwnEditor();
-    void itemChangingType();
+    void itemChoosingType();
+    void itemTypeGridStart();
     void itemOfMissingModule();
     void itemWebProfile();
     void webProfiles();
@@ -815,32 +818,110 @@ void TestDialogs::itemWithOwnEditor()
     QCOMPARE(dialog.value(), expected);
 }
 
-void TestDialogs::itemChangingType()
+void TestDialogs::itemChoosingType()
 {
-    // A new item with no type gets the first type by name: "Form type".
+    // A new item starts on the type grid, with the first type by name chosen.
     Item item;
     item.id = QStringLiteral("i3");
     ItemDialog dialog(item, true, types, {});
-    auto *combo = dialog.findChild<QComboBox *>(QStringLiteral("type"));
-    QVERIFY(combo);
-    QCOMPARE(combo->count(), 3);
+    dialog.show();     // the default button presses only while it shows
+    QVERIFY(dialog.choosingType());
+    QVERIFY(!dialog.findChild<QComboBox *>(QStringLiteral("type")));
+    auto *list = dialog.findChild<QListWidget *>(QStringLiteral("types"));
+    QVERIFY(list);
+    QCOMPARE(list->viewMode(), QListView::IconMode);
+    QCOMPARE(list->count(), 3);
+    QCOMPARE(list->item(0)->text(), QStringLiteral("Form type"));
+    QCOMPARE(list->item(1)->text(), QStringLiteral("Own editor"));
+    QCOMPARE(list->item(2)->text(), QStringLiteral("Web type"));
+    QCOMPARE(list->currentRow(), 0);
+    QVERIFY(!dialog.editor());
+    QVERIFY(dialog.value().type.isEmpty());
+
+    auto *next = dialog.findChild<QPushButton *>(QStringLiteral("next"));
+    auto *back = dialog.findChild<QPushButton *>(QStringLiteral("back"));
+    QVERIFY(next);
+    QVERIFY(back);
+    QVERIFY(next->isDefault());
+
+    // Accepting on the type grid goes on with the selected type instead.
+    list->setCurrentRow(1);
+    dialog.accept();
+    QCOMPARE(dialog.result(), int(QDialog::Rejected));
+    QVERIFY(!dialog.choosingType());
+    QCOMPARE(dialog.value().type, editorType);
+    QCOMPARE(dialog.findChild<QLabel *>(QStringLiteral("typeName"))->text(), QStringLiteral("Own editor"));
+    auto *editor = dynamic_cast<TestEditor *>(dialog.editor());
+    QVERIFY(editor);
+    QCOMPARE(dialog.value().config, (QJsonObject{{QStringLiteral("text"), QString()}}));
+    QVERIFY(!next->isDefault());
+    QVERIFY(dialog.findChild<QDialogButtonBox *>()->button(QDialogButtonBox::Ok)->isDefault());
+
+    // Back, then the same type again, keeps what was entered.
+    dialog.setName(QStringLiteral("New"));
+    editor->line->setText(QStringLiteral("kept"));
+    back->click();
+    QVERIFY(dialog.choosingType());
+    QCOMPARE(list->currentRow(), 1);
+    next->click();
+    QVERIFY(!dialog.choosingType());
+    QCOMPARE(dialog.editor(), editor);
+    QCOMPARE(dialog.value().config.value(QStringLiteral("text")).toString(), QStringLiteral("kept"));
+
+    // Another type replaces the editor and starts from its defaults.
+    dialog.back();
+    emit list->itemDoubleClicked(list->item(0));
+    QVERIFY(!dialog.choosingType());
     QCOMPARE(dialog.value().type, formType);
     QVERIFY(qobject_cast<FieldForm *>(dialog.editor()));
-    QCOMPARE(dialog.value().config,
-             (QJsonObject{{QStringLiteral("url"), QStringLiteral("https://example.com")}}));
-
-    dialog.setName(QStringLiteral("New"));
-    dialog.setType(editorType);
-    QCOMPARE(dialog.value().type, editorType);
-    QVERIFY(dynamic_cast<TestEditor *>(dialog.editor()));
-    QCOMPARE(dialog.value().config, (QJsonObject{{QStringLiteral("text"), QString()}}));
     QCOMPARE(dialog.findChildren<QWidget *>(QStringLiteral("editor")).size(), 1);
-
-    dialog.setType(formType);
-    QVERIFY(qobject_cast<FieldForm *>(dialog.editor()));
     QCOMPARE(dialog.value().config,
              (QJsonObject{{QStringLiteral("url"), QStringLiteral("https://example.com")}}));
     QCOMPARE(dialog.value().name, QStringLiteral("New"));
+
+    // setType chooses as the grid does.
+    dialog.setType(editorType);
+    QVERIFY(dynamic_cast<TestEditor *>(dialog.editor()));
+    QCOMPARE(list->currentRow(), 1);
+
+    // Enter on the grid presses Next.
+    dialog.back();
+    list->setCurrentRow(2);
+    QTest::keyClick(list, Qt::Key_Return);
+    QVERIFY(!dialog.choosingType());
+    QCOMPARE(dialog.value().type, webType);
+}
+
+void TestDialogs::itemTypeGridStart()
+{
+    // A new item with a type starts with that type selected.
+    Item item;
+    item.id = QStringLiteral("i8");
+    item.type = webType;
+    ItemDialog dialog(item, true, types, {});
+    auto *list = dialog.findChild<QListWidget *>(QStringLiteral("types"));
+    QCOMPARE(list->currentRow(), 2);
+
+    // An empty registry offers no type, and Next is disabled.
+    ItemTypeRegistry none;
+    ItemDialog empty(Item{}, true, none, {});
+    QCOMPARE(empty.findChild<QListWidget *>(QStringLiteral("types"))->count(), 0);
+    QVERIFY(!empty.findChild<QPushButton *>(QStringLiteral("next"))->isEnabled());
+    empty.accept();
+    QVERIFY(empty.choosingType());
+    QCOMPARE(empty.result(), int(QDialog::Rejected));
+
+    // Editing an item has no type page and no Back.
+    Item existing;
+    existing.id = QStringLiteral("i9");
+    existing.type = formType;
+    existing.name = QStringLiteral("Paths");
+    ItemDialog editing(existing, false, types, {});
+    QVERIFY(!editing.choosingType());
+    QVERIFY(!editing.findChild<QListWidget *>(QStringLiteral("types")));
+    QVERIFY(!editing.findChild<QPushButton *>(QStringLiteral("back")));
+    editing.setType(editorType);
+    QCOMPARE(editing.value().type, formType);
 }
 
 void TestDialogs::itemOfMissingModule()
