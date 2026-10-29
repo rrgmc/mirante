@@ -140,6 +140,10 @@ Module `jira`. Jira types need a `jira.cloud` or `jira.dc` connection.
 
 `jira.issue.page`, web. The issue's web page. Its configuration is the summary's: `key`.
 
+- **Address:** `<baseUrl>/browse/<key>`, where `baseUrl` is the connection's base URL. A `jira.cloud` connection is used first, then a `jira.dc` one.
+- **Without a Jira connection,** the cell says "No Jira connection in this group."
+- **Without an issue key,** the cell says "Set the issue key in the item's settings."
+
 ### Jira List
 
 `jira.list`, native.
