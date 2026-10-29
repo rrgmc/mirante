@@ -29,6 +29,7 @@
 #include "ui/EntityActions.h"
 #include "ui/FocusView.h"
 #include "ui/LogWindow.h"
+#include "ui/ModulesDialog.h"
 #include "ui/ImagePaste.h"
 #include "ui/ImagePasteDialog.h"
 #include "ui/QuickSwitcher.h"
@@ -179,6 +180,7 @@ struct MainWindow::Private
     QPointer<RootDashboardsDialog> dashboardList;
     QPointer<LogWindow> logWindow;
     QPointer<SettingsDialog> settingsDialog;
+    QPointer<ModulesDialog> modulesDialog;
     // Whether the sidebar tints the row of the hovered cell, from the device
     // settings. See applyDeviceSettings().
     bool sidebarHoverTint = true;
@@ -1269,7 +1271,7 @@ struct MainWindow::Private
         }
     }
 
-    // The File, View, Profiles and Help menus.    // The File, View, Modules and Help menus.
+    // The File, View, Profiles, Tools and Help menus.
     void buildMenus()
     {
         QMenuBar *bar = q->menuBar();
@@ -1385,6 +1387,11 @@ struct MainWindow::Private
         QMenu *help = bar->addMenu(MainWindow::tr("&Help"));
         if (macos)
             help->addAction(settingsAction);
+        QAction *modules = help->addAction(MainWindow::tr("&Modules…"));
+        modules->setObjectName(QStringLiteral("modulesAction"));
+        // Keeps macOS from moving it to the application menu by its text.
+        modules->setMenuRole(QAction::NoRole);
+        QObject::connect(modules, &QAction::triggered, q, &MainWindow::showModules);
         QAction *about = help->addAction(MainWindow::tr("&About Mirante"));
         about->setMenuRole(QAction::AboutRole);
         QObject::connect(about, &QAction::triggered, q, &MainWindow::showAbout);
@@ -2138,6 +2145,17 @@ void MainWindow::showSettings()
     d->settingsDialog->show();
     d->settingsDialog->raise();
     d->settingsDialog->activateWindow();
+}
+
+void MainWindow::showModules()
+{
+    if (!d->modulesDialog) {
+        d->modulesDialog = new ModulesDialog(*d->types, this);
+        d->modulesDialog->setAttribute(Qt::WA_DeleteOnClose);
+    }
+    d->modulesDialog->show();
+    d->modulesDialog->raise();
+    d->modulesDialog->activateWindow();
 }
 
 void MainWindow::setExec(std::function<bool(QDialog &dialog)> exec) { d->exec = std::move(exec); }

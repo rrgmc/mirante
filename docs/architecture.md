@@ -135,6 +135,7 @@ Code that differs per platform lives only here, behind these classes.
 | `DashboardPage` | One tab's or slot's page: a `LayoutView` of one dashboard with its cell factory, or the Focus list. A detached window holds one too. |
 | `DetachedWindow` | A top-level window holding one detached root dashboard. See [decision 0024](decisions/0024-detach-root-dashboard-tabs.md). |
 | `SettingsDialog` | The [settings window](ui.md#settings): options of this device, kept in `DeviceSettings`, in sections. Each change is saved at once and reported with `changed()`. |
+| `ModulesDialog` | The [Modules window](ui.md#modules-window), from Help > Modules…: the modules of the build and their item types, with their descriptions, read from `ItemTypeRegistry`. Read-only. |
 | Dialogs | Group, project, task, item and settings editors, the [profiles](ui.md#profiles) list, and the dialogs of module [settings screens](ui.md#modules) |
 
 ## Data flow
