@@ -4,9 +4,11 @@
 
 #include <QApplication>
 #include <QDir>
+#include <QEventLoop>
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QHash>
+#include <QSet>
 #include <QPointer>
 #include <QRegularExpression>
 #include <QStandardPaths>
@@ -26,6 +28,8 @@ namespace {
 // How often, and how long apart, a locked profile folder is tried again.
 constexpr int kRemoveAttempts = 40;
 constexpr int kRemoveIntervalMs = 250;
+// How long the destructor waits for cache clears still running.
+constexpr int kClearWaitMs = 5000;
 
 // Chromium's user agent with the "QtWebEngine/<version>" token removed, so
 // sites see an ordinary Chromium. Some identity providers refuse a browser
@@ -96,6 +100,10 @@ struct ProfileManager::Private
     // Profiles of removed groups, waiting for deleteLater. Their folders are
     // removed once they are gone.
     std::vector<QPointer<QWebEngineProfile>> released;
+    // Released profiles whose HTTP cache is still being cleared. Deleting a
+    // profile while that runs corrupts memory, so they are deleted only
+    // after clearHttpCacheCompleted.
+    QSet<QWebEngineProfile *> clearing;
     // Folders still to remove when the manager is destroyed.
     QStringList pendingFolders;
 };
@@ -114,6 +122,19 @@ ProfileManager::~ProfileManager()
     for (QWebEngineProfile *profile : std::as_const(d->profiles))
         delete profile;
     d->profiles.clear();
+    // Released profiles still clearing their cache cannot be deleted safely
+    // yet, so wait a little for the clears to end.
+    if (!d->clearing.isEmpty()) {
+        QEventLoop loop;
+        QTimer::singleShot(kClearWaitMs, &loop, &QEventLoop::quit);
+        for (QWebEngineProfile *profile : std::as_const(d->clearing))
+            connect(profile, &QWebEngineProfile::clearHttpCacheCompleted, &loop, [this, &loop] {
+                if (d->clearing.isEmpty())
+                    loop.quit();
+            });
+        if (!d->clearing.isEmpty())
+            loop.exec();
+    }
     for (const QPointer<QWebEngineProfile> &profile : d->released) {
         if (profile) {
             disconnect(profile.data(), nullptr, this, nullptr);
@@ -201,14 +222,19 @@ void ProfileManager::removeGroup(const QString &groupId)
         const QString path = storagePath(it.key());
         it = d->profiles.erase(it);
 
-        profile->cookieStore()->deleteAllCookies();
-        profile->clearHttpCache();
         d->pendingFolders.append(path);
         connect(profile, &QObject::destroyed, this, [this, path] {
             removeFolderSoon(this, path, kRemoveAttempts);
         });
         d->released.emplace_back(profile);
-        profile->deleteLater();
+        // The profile is deleted only once its cache is cleared; see clearing.
+        d->clearing.insert(profile);
+        connect(profile, &QWebEngineProfile::clearHttpCacheCompleted, this, [this, profile] {
+            d->clearing.remove(profile);
+            profile->deleteLater();
+        }, Qt::SingleShotConnection);
+        profile->cookieStore()->deleteAllCookies();
+        profile->clearHttpCache();
     }
 
     // Folders of profiles that are not loaded, including those of modules

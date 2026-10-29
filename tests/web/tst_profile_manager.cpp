@@ -238,6 +238,20 @@ private slots:
         QVERIFY(QDir(similar).exists());
     }
 
+    // The manager is destroyed right after removeGroup, while the released
+    // profile still clears its cache. It must wait for that, not crash.
+    void managerGoesRightAfterRemoveGroup()
+    {
+        QPointer<QWebEngineProfile> profile = manager->groupProfile(QStringLiteral("A"), QStringLiteral("web"));
+        {
+            CookieNames inWeb(profile);
+            QVERIFY(inWeb.load());
+        }
+        manager->removeGroup(QStringLiteral("A"));
+        manager.reset();
+        QVERIFY(profile.isNull());
+    }
+
     void profilesGoWithTheManager()
     {
         QPointer<QWebEngineProfile> profile = manager->groupProfile(QStringLiteral("A"), QStringLiteral("web"));
