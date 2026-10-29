@@ -303,8 +303,8 @@ void TestTaskCell::removedTask()
     DashboardCellFactory factory(m_services, {QString(), kMorningRoot});
     std::unique_ptr<QWidget> normalised(factory.createCell(std::nullopt, true, nullptr));
     QStringList texts;
-    for (const QLabel *label : normalised->findChildren<QLabel *>())
-        texts.append(label->text());
+    for (const QLabel *text : normalised->findChildren<QLabel *>())
+        texts.append(text->text());
     QVERIFY(texts.contains(QStringLiteral("Removed")));
     QVERIFY(!texts.contains(QStringLiteral("Empty")));
 }
