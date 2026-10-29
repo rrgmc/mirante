@@ -260,6 +260,7 @@ std::optional<Group> Group::fromJson(const QJsonObject &json, QString *error)
         return std::nullopt;
     r.stringMap(QStringLiteral("defaultConnections"), &group.defaultConnections);
     r.string(QStringLiteral("webProfile"), &group.webProfile);
+    r.string(QStringLiteral("colour"), &group.colour);
     group.extra = r.extra();
     return group;
 }
@@ -275,6 +276,8 @@ QJsonObject Group::toJson() const
     };
     if (!webProfile.isEmpty())
         json.insert(QStringLiteral("webProfile"), webProfile);
+    if (!colour.isEmpty())
+        json.insert(QStringLiteral("colour"), colour);
     return withExtra(json, extra);
 }
 

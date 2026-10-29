@@ -1,4 +1,5 @@
 {
+    "colour": "#22c55e",
     "connections": [
         {
             "baseUrl": "https://gitlab.com",

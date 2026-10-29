@@ -142,10 +142,30 @@ private slots:
         QCOMPARE(group->connections[1].kind, QStringLiteral("timetrack"));
         QCOMPARE(group->defaultConnections.value(QStringLiteral("gitlab")), QStringLiteral("c-1"));
         QCOMPARE(group->webProfile, QStringLiteral("w-1"));
+        QVERIFY(group->colour.isEmpty());
         // profileOverrides is from before decision 0042. It is kept as an
         // unknown key.
         QCOMPARE(group->extra.value(QStringLiteral("profileOverrides")).toObject().value(QStringLiteral("github.com")).toString(),
                  QStringLiteral("shared"));
+    }
+
+    void groupColour()
+    {
+        // The colour is read and written as stored, with the case it has.
+        QJsonObject json = parse(R"({ "id": "g-1", "name": "Work", "order": 0, "connections": [],
+            "defaultConnections": {} })");
+        json.insert(QStringLiteral("colour"), QStringLiteral("#3B82F6"));
+        const auto group = Group::fromJson(json);
+        QVERIFY(group);
+        QCOMPARE(group->colour, QStringLiteral("#3B82F6"));
+        QVERIFY(group->extra.isEmpty());
+        QCOMPARE(group->toJson(), json);
+
+        // A colour that is not a string falls back to none and is kept in extra.
+        const auto wrong = Group::fromJson(parse(R"({ "id": "g-1", "colour": 5 })"));
+        QVERIFY(wrong);
+        QVERIFY(wrong->colour.isEmpty());
+        QCOMPARE(wrong->toJson().value(QStringLiteral("colour")).toInt(), 5);
     }
 
     // Project
