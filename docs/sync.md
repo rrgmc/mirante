@@ -93,6 +93,8 @@ Settings that only make sense on one device are stored with `QSettings`, outside
 - the global hotkey;
 - the device name, shown on local Claude session items.
 
+Started with `--settings <file>`, the app keeps these settings in that INI file instead, and leaves the device's own settings alone. Test runs use it, so they do not change the last workspace, the recent list or the open tabs of the person using the app.
+
 ## Secrets
 
 - Tokens are stored in the operating system keychain through the qtkeychain library:

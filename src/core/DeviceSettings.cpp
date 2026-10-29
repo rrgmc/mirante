@@ -37,7 +37,7 @@ QString tabsGroup(const QString &workspace)
 
 struct DeviceSettings::Private
 {
-    std::unique_ptr<QSettings> owned;   // set when no settings were given
+    std::unique_ptr<QSettings> owned;   // set when no QSettings were given
     QSettings *settings = nullptr;
 };
 
@@ -49,6 +49,13 @@ DeviceSettings::DeviceSettings(QSettings *settings)
         settings = d->owned.get();
     }
     d->settings = settings;
+}
+
+DeviceSettings::DeviceSettings(const QString &iniFile)
+    : d(std::make_unique<Private>())
+{
+    d->owned = std::make_unique<QSettings>(iniFile, QSettings::IniFormat);
+    d->settings = d->owned.get();
 }
 
 DeviceSettings::~DeviceSettings() = default;
