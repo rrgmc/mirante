@@ -72,6 +72,37 @@ struct Sidebar::Private
     QSet<QString> collapsed;
     QSet<QString> expandedTasks;
     QString currentId;
+    QString hoverId;                    // what the hovered dashboard cell shows
+
+    // Tints the row of hoverId or, if a collapsed row hides it, that row: the
+    // nearest row the user can see. Nothing if it is not in the tree.
+    void applyHover()
+    {
+        auto *delegate = qobject_cast<SidebarDelegate *>(tree->itemDelegate());
+        if (!delegate)
+            return;
+        QString row;
+        const QModelIndex index = hoverId.isEmpty() ? QModelIndex() : model->indexOf(hoverId);
+        if (index.isValid()) {
+            std::vector<QModelIndex> ancestors;
+            for (QModelIndex parent = index.parent(); parent.isValid(); parent = parent.parent())
+                ancestors.push_back(parent);
+            row = hoverId;
+            for (auto it = ancestors.rbegin(); it != ancestors.rend(); ++it) {
+                if (!tree->isExpanded(*it)) {
+                    // A collapsed Dashboards or Items row stands for its task.
+                    const SidebarModel::Kind k = kind(*it);
+                    const bool list = k == SidebarModel::Kind::ItemList || k == SidebarModel::Kind::DashboardList;
+                    row = id(list ? it->parent() : *it);
+                    break;
+                }
+            }
+        }
+        if (delegate->hoverId() == row)
+            return;
+        delegate->setHoverId(row);
+        tree->viewport()->update();
+    }
 
     SidebarModel::Kind kind(const QModelIndex &index) const
     {
@@ -285,12 +316,14 @@ Sidebar::Sidebar(const Model &model, const ItemTypeRegistry &types, QWidget *par
             d->expandedTasks.remove(d->id(index));
         else
             d->collapsed.insert(d->id(index));
+        d->applyHover();
     });
     connect(d->tree, &QTreeView::expanded, this, [this](const QModelIndex &index) {
         if (d->kind(index) == SidebarModel::Kind::Task)
             d->expandedTasks.insert(d->id(index));
         else
             d->collapsed.remove(d->id(index));
+        d->applyHover();
     });
     connect(d->model, &QAbstractItemModel::modelAboutToBeReset, this,
             [this] { d->currentId = d->id(d->tree->currentIndex()); });
@@ -300,6 +333,7 @@ Sidebar::Sidebar(const Model &model, const ItemTypeRegistry &types, QWidget *par
         const QModelIndex current = d->model->indexOf(d->currentId);
         if (current.isValid())
             d->tree->setCurrentIndex(current);
+        d->applyHover();
     });
     d->restoreExpansion({});
 
@@ -422,14 +456,15 @@ bool Sidebar::showsTrash() const { return d->stateTabs->currentIndex() == TrashL
 // The delegate paints the tint. See SidebarDelegate::isHoverTinted().
 void Sidebar::setHoverHighlight(const QString &id)
 {
-    auto *delegate = qobject_cast<SidebarDelegate *>(d->tree->itemDelegate());
-    if (!delegate || delegate->hoverId() == id)
+    if (d->hoverId == id)
         return;
-    delegate->setHoverId(id);
-    d->tree->viewport()->update();
+    d->hoverId = id;
+    d->applyHover();
 }
 
-QString Sidebar::hoverHighlight() const
+QString Sidebar::hoverHighlight() const { return d->hoverId; }
+
+QString Sidebar::hoverRow() const
 {
     const auto *delegate = qobject_cast<const SidebarDelegate *>(d->tree->itemDelegate());
     return delegate ? delegate->hoverId() : QString();
