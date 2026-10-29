@@ -173,8 +173,6 @@ private slots:
         DeviceSettings::Tabs tabs;
         tabs.ids = {QStringLiteral("d1"), QStringLiteral("focus"), QStringLiteral("d2")};
         tabs.current = QStringLiteral("focus");
-        tabs.previewTask = QStringLiteral("t1");
-        tabs.previewDashboard = QStringLiteral("td1");
         {
             DeviceSettings device(settings.get());
             device.setOpenTabs(one, tabs);
@@ -185,13 +183,31 @@ private slots:
         QVERIFY(read.saved);
         QCOMPARE(read.ids, tabs.ids);
         QCOMPARE(read.current, tabs.current);
-        QCOMPARE(read.previewTask, tabs.previewTask);
-        QCOMPARE(read.previewDashboard, tabs.previewDashboard);
         // Another workspace has its own tabs.
         QVERIFY(!device.openTabs(two).saved);
         // The same folder written another way finds the same tabs.
         QVERIFY(device.openTabs(one + QStringLiteral("/sub/..")).saved);
         QVERIFY(device.openTabs(one + QStringLiteral("/")).saved);
+    }
+
+    // Earlier versions kept the preview tab. Saving the tabs drops those keys.
+    void oldPreviewKeysAreDropped()
+    {
+        const QString one = dir->filePath(QStringLiteral("one"));
+        DeviceSettings device(settings.get());
+        device.setOpenTabs(one, DeviceSettings::Tabs{{QStringLiteral("d1")}, QStringLiteral("d1"), true});
+        QString group;
+        for (const QString &key : settings->allKeys()) {
+            if (key.endsWith(QStringLiteral("/ids")))
+                group = key.chopped(4);
+        }
+        QVERIFY(!group.isEmpty());
+        settings->setValue(group + QStringLiteral("/previewTask"), QStringLiteral("t1"));
+        settings->setValue(group + QStringLiteral("/previewDashboard"), QStringLiteral("td1"));
+
+        device.setOpenTabs(one, DeviceSettings::Tabs{{QStringLiteral("d1")}, QStringLiteral("d1"), true});
+        for (const QString &key : settings->allKeys())
+            QVERIFY2(!key.contains(QStringLiteral("preview")), qPrintable(key));
     }
 
     // Saving no tabs still counts as saved, and replaces what was there.
