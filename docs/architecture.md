@@ -88,6 +88,10 @@ Native views are ordinary widgets. Lists use `QTableView` with a model fed from 
 |---|---|
 | `ProfileManager` | Creates and owns the profiles: one per group and module, one shared per module, and the app profile. It resolves which profile a URL uses. See [profiles](web-views.md#profiles) and [decision 0040](decisions/0040-profiles-per-group-and-module.md). |
 | `WebPanel` | `QWebEngineView` with a toolbar, popup handling and permission handling |
+| `WebPage` | The page of a web panel or login dialog: new windows and permissions |
+| `PageArea` | A page with the permission bar and the load failure message |
+| `LoginDialog` | The dialog for a login popup, in the opener's profile |
+| `AddressField` | The elided, selectable address in the web toolbar |
 | `DashSchemeHandler` | Serves `dash://` from resources with the security headers |
 | `DashBridge` | The `QWebChannel` object `dash` used by built-in panels |
 
