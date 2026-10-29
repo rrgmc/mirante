@@ -13,6 +13,7 @@ namespace {
 const QString lastWorkspaceKey = QStringLiteral("workspace/last");
 const QString recentWorkspacesKey = QStringLiteral("workspace/recent");
 const QString windowSizeKey = QStringLiteral("window/size");
+const QString windowGeometryKey = QStringLiteral("window/geometry");
 const QString windowMaximizedKey = QStringLiteral("window/maximized");
 const QString windowSplitterKey = QStringLiteral("window/splitter");
 const QString hiddenViewLimitKey = QStringLiteral("webViews/hiddenLimit");
@@ -161,6 +162,16 @@ QSize DeviceSettings::windowSize() const
 void DeviceSettings::setWindowSize(const QSize &size)
 {
     d->settings->setValue(windowSizeKey, size);
+}
+
+QRect DeviceSettings::windowGeometry() const
+{
+    return d->settings->value(windowGeometryKey).toRect();
+}
+
+void DeviceSettings::setWindowGeometry(const QRect &geometry)
+{
+    d->settings->setValue(windowGeometryKey, geometry);
 }
 
 bool DeviceSettings::windowMaximized() const

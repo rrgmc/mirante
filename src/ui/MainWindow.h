@@ -125,8 +125,9 @@ signals:
     void currentPageChanged();
 
 protected:
-    // Saves the window's size, whether it is maximized, the sidebar width and
-    // the open tabs on this device. The window always opens centred.
+    // Saves the window's place and size, whether it is maximized, the sidebar
+    // width and the open tabs on this device. The window opens at the saved
+    // place only while that is still visible on a screen.
     void closeEvent(QCloseEvent *event) override;
     // Keeps View > Full Screen checked while the window is full screen.
     void changeEvent(QEvent *event) override;

@@ -49,6 +49,7 @@
 #include <QMenuBar>
 #include <QPainter>
 #include <QPointer>
+#include <QScreen>
 #include <QSettings>
 #include <QSignalSpy>
 #include <QStatusBar>
@@ -568,6 +569,32 @@ private slots:
         QVERIFY(f.window->windowState().testFlag(Qt::WindowMaximized));
         QVERIFY(!action->isChecked());
         QVERIFY(f.window->menuBar()->isVisible());
+    }
+
+    // The window's place and size are saved on close. The next window opens
+    // there while it is visible on a screen, and centred on the primary
+    // screen when it is not, such as on a monitor that was unplugged.
+    void windowPlace()
+    {
+        Fixture f;
+        const QRect available = QGuiApplication::primaryScreen()->availableGeometry();
+        // The smallest window, with room for the title bar above it.
+        const QSize size = f.window->minimumSize();
+        QVERIFY(available.width() >= size.width() + 20 && available.height() >= size.height() + 60);
+        const QRect visible(QPoint(available.left() + 20, available.top() + 60), size);
+        f.window->setGeometry(visible);
+        f.window->close();
+        QCOMPARE(f.settings.windowGeometry(), visible);
+        QCOMPARE(f.settings.windowSize(), visible.size());
+
+        f.window = std::make_unique<MainWindow>(f.model, f.types, f.dataStore, f.settings);
+        QCOMPARE(f.window->geometry(), visible);
+
+        // A place on no screen is not used; the saved size is.
+        f.settings.setWindowGeometry(QRect(QPoint(available.right() + 5000, 100), size));
+        f.window = std::make_unique<MainWindow>(f.model, f.types, f.dataStore, f.settings);
+        QCOMPARE(f.window->geometry().size(), size);
+        QVERIFY(available.contains(f.window->geometry()));
     }
 
     // The Focus slot is always there, with an icon, and cannot be closed.

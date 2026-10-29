@@ -114,7 +114,14 @@ A module can have settings screens for values that belong to the whole module, s
 
 ## Window
 
-The window opens centred on the screen, at the size it had when it was last closed on this device, maximized if it was. The sidebar width is kept too. The app's icon, a temporary one, is a blue square with three dashboard panes.
+When the window closes, its place and size are saved on this device, and whether it is maximized. The sidebar width is kept too. The place and size are those of the normal window, also when it was maximized or full screen.
+
+At start, the window opens at the saved place and size, maximized if it was. The saved place is used only while it is still visible on a connected screen:
+
+- the title bar lies wholly on the screens, so the window can be moved, and
+- at least half of the window is on them.
+
+Otherwise, as after a monitor was unplugged or a resolution shrank, the window opens centred on the primary screen, at the saved size made to fit that screen. Without a saved place, as from earlier versions, it opens centred too. The check works on the screens' available areas, without the menu bar and task bar, and is a pure function in `core/WindowPlacement`. The app's icon, a temporary one, is a blue square with three dashboard panes.
 
 ## Look
 

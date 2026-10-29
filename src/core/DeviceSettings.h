@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QByteArray>
+#include <QRect>
 #include <QSize>
 #include <QString>
 #include <QStringList>
@@ -57,6 +58,11 @@ public:
     // The main window. An invalid size means none was saved.
     QSize windowSize() const;
     void setWindowSize(const QSize &size);
+    // The main window's client area when it is neither maximized nor full
+    // screen, in screen coordinates: its position and size. An invalid
+    // rectangle means none was saved, as by versions before it was kept.
+    QRect windowGeometry() const;
+    void setWindowGeometry(const QRect &geometry);
     bool windowMaximized() const;
     void setWindowMaximized(bool maximized);
     QByteArray sidebarSplitterState() const;

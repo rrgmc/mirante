@@ -5,6 +5,7 @@
 #include "core/GroupColours.h"
 #include "core/LayoutTree.h"
 #include "core/LogBuffer.h"
+#include "core/WindowPlacement.h"
 #include "core/Model.h"
 #include "items/ItemTypeRegistry.h"
 #include "items/Placement.h"
@@ -1568,16 +1569,17 @@ MainWindow::MainWindow(Model &model, const ItemTypeRegistry &types, Store &store
     d->splitter->setStretchFactor(1, 1);
     d->splitter->setSizes({260, 1020});
 
-    // The window's size and sidebar width from the last session on this
-    // device. The window always opens centred on the screen.
-    const QSize size = settings.windowSize();
-    if (size.isValid())
-        resize(size);
-    if (const QScreen *screen = QGuiApplication::primaryScreen()) {
-        QRect frame(QPoint(0, 0), this->size());
-        frame.moveCenter(screen->availableGeometry().center());
-        move(frame.topLeft());
-    }
+    // The window's place, size and sidebar width from the last session on
+    // this device. The saved place is used only while it is still visible on
+    // a connected screen; otherwise the window is centred on the primary one.
+    // See docs/ui.md#window.
+    QList<QRect> screens;
+    for (const QScreen *screen : QGuiApplication::screens())
+        screens << screen->availableGeometry();
+    const QScreen *primary = QGuiApplication::primaryScreen();
+    const QSize savedSize = settings.windowSize();
+    setGeometry(windowplacement::place(settings.windowGeometry(), savedSize.isValid() ? savedSize : size(), screens,
+                                       primary ? primary->availableGeometry() : QRect()));
     if (settings.windowMaximized())
         setWindowState(windowState() | Qt::WindowMaximized);
     d->splitter->restoreState(settings.sidebarSplitterState());
@@ -1758,9 +1760,10 @@ MainWindow::~MainWindow()
 
 void MainWindow::closeEvent(QCloseEvent *event)
 {
-    // The size of the normal, not maximized, window is kept. A full screen
-    // window is saved as the window it came from.
+    // The place and size of the normal, not maximized, window are kept. A
+    // full screen window is saved as the window it came from.
     d->settings->setWindowSize(normalGeometry().size());
+    d->settings->setWindowGeometry(normalGeometry());
     d->settings->setWindowMaximized(isFullScreen() ? d->maximizedBeforeFullScreen : isMaximized());
     d->settings->setSidebarSplitterState(d->splitter->saveState());
     d->saveOpenTabs();
