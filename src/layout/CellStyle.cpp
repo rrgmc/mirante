@@ -1,5 +1,6 @@
 #include "layout/CellStyle.h"
 
+#include <QApplication>
 #include <QPalette>
 #include <QWidget>
 
@@ -16,11 +17,12 @@ QColor mix(const QColor &a, const QColor &b, qreal amount)
 
 } // namespace
 
-void tintHeader(QWidget *header, qreal strength)
+void tintHeader(QWidget *header, qreal strength, const QColor &colour)
 {
+    const QPalette base = header->parentWidget() ? header->parentWidget()->palette() : QApplication::palette();
+    const QColor tint = colour.isValid() ? colour : base.color(QPalette::Highlight);
     QPalette palette = header->palette();
-    palette.setColor(QPalette::Window,
-                     mix(palette.color(QPalette::Window), palette.color(QPalette::Highlight), strength));
+    palette.setColor(QPalette::Window, mix(base.color(QPalette::Window), tint, strength));
     header->setPalette(palette);
     header->setBackgroundRole(QPalette::Window);
     header->setAutoFillBackground(true);

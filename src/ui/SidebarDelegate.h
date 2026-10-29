@@ -7,8 +7,9 @@
 
 namespace mirante {
 
-// Paints the sidebar rows: a coloured priority marker before projects and
-// tasks, and Low projects and tasks dimmed. The marker is a rounded square for
+// Paints the sidebar rows: a dot in the group's colour before group headings,
+// a coloured priority marker before projects and tasks, and Low projects and
+// tasks dimmed. The marker is a rounded square for
 // projects and a circle for tasks. Row backgrounds are painted by
 // SidebarTree. Implemented in SidebarDelegate.cpp.
 class SidebarDelegate : public QStyledItemDelegate

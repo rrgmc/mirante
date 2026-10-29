@@ -124,6 +124,16 @@ void SidebarDelegate::initStyleOption(QStyleOptionViewItem *option, const QModel
 {
     QStyledItemDelegate::initStyleOption(option, index);
     const auto kind = SidebarModel::Kind(index.data(SidebarModel::KindRole).toInt());
+    // A group heading starts with a dot in the group's colour. See
+    // docs/decisions/0046-group-colours.md.
+    if (kind == SidebarModel::Kind::Group) {
+        const QColor colour = index.data(SidebarModel::GroupColourRole).value<QColor>();
+        if (colour.isValid()) {
+            option->icon = QIcon(new MarkerIconEngine(colour, MarkerShape::Circle));
+            option->features |= QStyleOptionViewItem::HasDecoration;
+        }
+        return;
+    }
     if (kind != SidebarModel::Kind::Project && kind != SidebarModel::Kind::Task)
         return;
 

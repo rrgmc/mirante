@@ -12,6 +12,10 @@ namespace {
 constexpr int inset = 6;
 constexpr qreal radius = 5.0;
 
+// How much of the group colour is mixed into a project row. A little more than
+// the old highlight tint, since some group colours are lighter.
+constexpr qreal projectTint = 0.10;
+
 QColor mix(const QColor &a, const QColor &b, qreal amount)
 {
     return QColor::fromRgbF(float(a.redF() + (b.redF() - a.redF()) * amount),
@@ -43,10 +47,15 @@ void SidebarTree::drawRow(QPainter *painter, const QStyleOptionViewItem &option,
     if (selected) {
         fill = option.palette.color(QPalette::Active, QPalette::Highlight);
     } else {
-        // Projects get a light tint of the highlight colour, so they stand out
-        // between groups and tasks.
-        if (kind == SidebarModel::Kind::Project)
-            fill = mix(option.palette.color(QPalette::Base), option.palette.color(QPalette::Highlight), 0.07);
+        // Projects get a light tint of their group's colour, so they stand out
+        // between groups and tasks and show their group while its heading is
+        // scrolled away. See docs/decisions/0046-group-colours.md.
+        if (kind == SidebarModel::Kind::Project) {
+            QColor tint = index.data(SidebarModel::GroupColourRole).value<QColor>();
+            if (!tint.isValid())
+                tint = option.palette.color(QPalette::Highlight);
+            fill = mix(option.palette.color(QPalette::Base), tint, projectTint);
+        }
         // The row of what the hovered dashboard cell shows.
         if (delegate && delegate->isHoverTinted(index)) {
             const QColor base = fill.isValid() ? fill : option.palette.color(QPalette::Base);

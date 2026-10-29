@@ -46,8 +46,11 @@ public:
     const std::unique_ptr<DashboardCellFactory> factory;
     FocusView *focus = nullptr;     // set for the Focus page
     LayoutView *view = nullptr;     // null for the Focus page
-    // The title bar of task dashboards and items, in pills as in cell
-    // headers: the task, the dashboard or the item, and the project.
+    // The title bar of task dashboards and items, tinted with the task's
+    // group colour by MainWindow. Null for root dashboards and Focus.
+    QWidget *header = nullptr;
+    // The title bar's parts, in pills as in cell headers: the task, the
+    // dashboard or the item, and the project.
     HeaderRow *headerRow = nullptr;
     HeaderPill *title = nullptr;    // the task, bold
     HeaderPill *part = nullptr;     // the dashboard, or the item with its type's colour

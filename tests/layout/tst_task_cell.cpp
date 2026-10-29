@@ -1,5 +1,6 @@
 // Tests LockState, and TaskCell on the fixtures: the nested view, the title,
 // the lock button, the "open alone" button, and the header's menu and drag.
+#include "core/GroupColours.h"
 #include "core/Model.h"
 #include "core/Store.h"
 #include "items/ItemTypeRegistry.h"
@@ -50,6 +51,17 @@ int cellCount(const LayoutView *view)
     return count;
 }
 
+// The header colour that cellstyle::tintHeader gives for colour, as a name.
+QString tinted(const QWidget &cell, const QColor &colour)
+{
+    const QColor window = cell.palette().color(QPalette::Window);
+    const qreal amount = 0.22;
+    return QColor::fromRgbF(float(window.redF() + (colour.redF() - window.redF()) * amount),
+                            float(window.greenF() + (colour.greenF() - window.greenF()) * amount),
+                            float(window.blueF() + (colour.blueF() - window.blueF()) * amount))
+        .name();
+}
+
 QWidget *header(const TaskCell &cell) { return cell.findChild<QWidget *>(QStringLiteral("taskHeader")); }
 
 // Presses the left button on widget and moves it by distance.
@@ -78,6 +90,7 @@ private slots:
     void showsChosenDashboard();
     void fallsBackToDefaultDashboard();
     void titleNamesTaskAndDashboard();
+    void headerTintFollowsGroup();
     void followsModelChanges();
     void nestedViewIsReadOnly();
     void rootItemsNameTheirTask();
@@ -165,6 +178,39 @@ void TestTaskCell::fallsBackToDefaultDashboard()
 
 // A task cell shows one task dashboard and has no picker: its header names
 // both, the dashboard in a pill of its own.
+// The header is tinted with the task's group colour, and follows a new group
+// colour and a move to a project of another group at once.
+void TestTaskCell::headerTintFollowsGroup()
+{
+    TaskCell cell(m_services, {QString(), kMorningRoot}, taskRef(kFixLoginTask));
+    const auto headerColour = [&] { return header(cell)->palette().color(QPalette::Window).name(); };
+    const Task *task = m_model->task(kFixLoginTask);
+    QVERIFY(task);
+    const Project *project = m_model->project(task->projectId);
+    QVERIFY(project);
+    QCOMPARE(headerColour(), tinted(cell, QColor(groupcolours::ofTask(*m_model, kFixLoginTask))));
+
+    Group group = *m_model->group(project->groupId);
+    group.colour = QStringLiteral("#ff0000");
+    m_model->setGroup(group);
+    QCOMPARE(headerColour(), tinted(cell, Qt::red));
+    // A second tint replaces the first instead of adding to it.
+    group.colour = QStringLiteral("#00ff00");
+    m_model->setGroup(group);
+    QCOMPARE(headerColour(), tinted(cell, Qt::green));
+
+    // The task moves to a project of the Personal group, which stores #22c55e.
+    Task moved = *task;
+    moved.projectId = QStringLiteral("d7740958-1656-52ae-bb9d-6b6285694e19");
+    m_model->setTask(moved);
+    QCOMPARE(headerColour(), tinted(cell, QColor(QStringLiteral("#22c55e"))));
+
+    // A removed task belongs to no group and has the highlight tint.
+    TaskCell removed(m_services, {QString(), kMorningRoot}, taskRef(QStringLiteral("no-such-task")));
+    QCOMPARE(header(removed)->palette().color(QPalette::Window).name(),
+             tinted(removed, removed.palette().color(QPalette::Highlight)));
+}
+
 void TestTaskCell::titleNamesTaskAndDashboard()
 {
     TaskCell cell(m_services, {QString(), kReleaseRoot}, taskRef(kRateLimitTask, kRateLimitDashboard));
