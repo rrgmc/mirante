@@ -6,7 +6,7 @@
 #include "core/GroupColours.h"
 #include "core/Model.h"
 #include "core/Store.h"
-#include "core/WebProfiles.h"
+#include "core/Profiles.h"
 #include "items/ItemTypeRegistry.h"
 #include "items/Placement.h"
 #include "items/ViewPool.h"
@@ -27,7 +27,7 @@
 #include "ui/SidebarDelegate.h"
 #include "ui/SidebarModel.h"
 #include "ui/Shortcuts.h"
-#include "ui/WebProfilesDialog.h"
+#include "ui/ProfilesDialog.h"
 #include "web/ProfileManager.h"
 #include "web/WebPanel.h"
 
@@ -1627,12 +1627,12 @@ private slots:
         QTRY_VERIFY(qobject_cast<WebPanel *>(placement->view()));
         auto *panel = qobject_cast<WebPanel *>(placement->view());
         QCOMPARE(panel->view()->url(), kTestPage);
-        const QString profileId = webprofiles::effective(f.model, kAuditTask, kAuditPage);
+        const QString profileId = profiles::effective(f.model, kAuditTask, kAuditPage);
         QCOMPARE(panel->view()->page()->profile(), f.profiles->profile(profileId));
         QCOMPARE(placement->headerWidget(), panel->toolbar());
     }
 
-    // Deleting a web profile in the web profiles dialog deletes its logins,
+    // Deleting a profile in the profiles dialog deletes its logins,
     // after the pages that used it: here a preview tab and a detached window.
     // Those pages are made again in the profile they fall back to. Deleting a
     // group deletes no profile.
@@ -1645,14 +1645,12 @@ private slots:
             QVERIFY(QTest::qWaitForWindowExposed(f.window.get()));
 
             // The task's group uses its own profile.
-            WebProfile audit;
+            Profile audit;
             audit.id = QStringLiteral("audit-profile");
             audit.name = QStringLiteral("Audit");
-            std::vector<WebProfile> profiles = f.model.webProfiles();
-            profiles.push_back(audit);
-            f.model.setWebProfiles(profiles);
+            f.model.setProfile(audit);
             Group group = *f.model.group(f.groupOf(kAuditTask));
-            group.webProfile = audit.id;
+            group.profile = audit.id;
             f.model.setGroup(group);
 
             emit f.window->findChild<Sidebar *>()->openItemInNewRootDashboard(kAuditTask, kAuditPage);
@@ -1676,12 +1674,12 @@ private slots:
             QTRY_VERIFY(QFileInfo::exists(folder));
 
             f.window->entityActions()->setConfirm([](const QString &) { return true; });
-            f.window->entityActions()->setEditProfiles([&audit](WebProfilesDialog &dialog) {
+            f.window->entityActions()->setEditProfiles([&audit](ProfilesDialog &dialog) {
                 dialog.select(audit.id);
                 dialog.deleteSelected();
             });
-            f.window->entityActions()->editWebProfiles();
-            QVERIFY(!f.model.webProfile(audit.id));
+            f.window->entityActions()->editProfiles();
+            QVERIFY(!f.model.profile(audit.id));
             QTRY_VERIFY(!previewView);
             QTRY_VERIFY(!detachedView);
             QTRY_VERIFY_WITH_TIMEOUT(!QFileInfo::exists(folder), 15000);
@@ -1689,10 +1687,10 @@ private slots:
             // The new pages use Default.
             auto *panel = qobject_cast<WebPanel *>(previewPlacement->view());
             QVERIFY(panel);
-            QCOMPARE(panel->view()->page()->profile(), f.profiles->profile(kDefaultWebProfile));
+            QCOMPARE(panel->view()->page()->profile(), f.profiles->profile(kDefaultProfile));
 
             // Deleting the group leaves Default's logins alone.
-            const QString defaultFolder = f.profiles->storagePath(ProfileManager::storageName(kDefaultWebProfile));
+            const QString defaultFolder = f.profiles->storagePath(ProfileManager::storageName(kDefaultProfile));
             QVERIFY(QFileInfo::exists(defaultFolder));
             f.window->entityActions()->removeGroup(group.id);
             QVERIFY(!f.model.group(group.id));

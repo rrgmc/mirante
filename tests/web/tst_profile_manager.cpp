@@ -131,7 +131,7 @@ private slots:
 
     void storageNamesAndFolders()
     {
-        QWebEngineProfile *standard = manager->profile(kDefaultWebProfile);
+        QWebEngineProfile *standard = manager->profile(kDefaultProfile);
         QWebEngineProfile *work = manager->profile(QStringLiteral("work-id"));
         QWebEngineProfile *app = manager->appProfile();
         QVERIFY(standard && work && app);
@@ -141,7 +141,7 @@ private slots:
         QCOMPARE(app->storageName(), QStringLiteral("app"));
 
         // Made once, then reused. An empty id means Default.
-        QCOMPARE(manager->profile(kDefaultWebProfile), standard);
+        QCOMPARE(manager->profile(kDefaultProfile), standard);
         QCOMPARE(manager->profile(QString()), standard);
         QCOMPARE(manager->profile(QStringLiteral("work-id")), work);
         QCOMPARE(manager->appProfile(), app);
@@ -169,7 +169,7 @@ private slots:
         QCOMPARE(ProfileManager::storageName(QStringLiteral("../x")), QStringLiteral("p-default"));
         QCOMPARE(ProfileManager::storageName(QStringLiteral("a/b")), QStringLiteral("p-default"));
         QCOMPARE(ProfileManager::storageName(QStringLiteral("0b4c-9A_z")), QStringLiteral("p-0b4c-9A_z"));
-        QCOMPARE(manager->profile(QStringLiteral("..")), manager->profile(kDefaultWebProfile));
+        QCOMPARE(manager->profile(QStringLiteral("..")), manager->profile(kDefaultProfile));
     }
 
     void cookiesStayInTheirProfile()
@@ -184,7 +184,7 @@ private slots:
     {
         QWebEngineProfile *work = manager->profile(QStringLiteral("work"));
         manager->profile(QStringLiteral("workshop"));
-        manager->profile(kDefaultWebProfile);
+        manager->profile(kDefaultProfile);
 
         // Write a cookie to disk in the loaded profile. The page goes before
         // the profile is removed, as the app's views go first.
@@ -203,7 +203,7 @@ private slots:
         manager->removeProfile(QStringLiteral("work"));
         manager->removeProfile(QStringLiteral("unloaded"));
         // Default is never removed.
-        manager->removeProfile(kDefaultWebProfile);
+        manager->removeProfile(kDefaultProfile);
         manager->removeProfile(QString());
 
         QTRY_VERIFY_WITH_TIMEOUT(released.isNull(), 5000);
@@ -212,7 +212,7 @@ private slots:
 
         QVERIFY(QDir(manager->storagePath(QStringLiteral("p-workshop"))).exists());
         QVERIFY(QDir(manager->storagePath(QStringLiteral("p-default"))).exists());
-        QCOMPARE(manager->profile(kDefaultWebProfile)->storageName(), QStringLiteral("p-default"));
+        QCOMPARE(manager->profile(kDefaultProfile)->storageName(), QStringLiteral("p-default"));
     }
 
     // Clearing a profile deletes its data and keeps the profile: views are
@@ -220,7 +220,7 @@ private slots:
     // Meanwhile the profile is a temporary one that keeps nothing.
     void clearProfileEmptiesItsFolder()
     {
-        QWebEngineProfile *defaultProfile = manager->profile(kDefaultWebProfile);
+        QWebEngineProfile *defaultProfile = manager->profile(kDefaultProfile);
         {
             CookieNames before(defaultProfile);
             QVERIFY(before.load());
@@ -235,20 +235,20 @@ private slots:
         QPointer<QWebEngineProfile> released(defaultProfile);
         manager->clearProfile(QString());
         QCOMPARE(clearing.count(), 1);
-        QCOMPARE(clearing.at(0).at(0).toString(), kDefaultWebProfile);
-        QVERIFY(manager->isClearing(kDefaultWebProfile));
-        QVERIFY(manager->profile(kDefaultWebProfile)->isOffTheRecord());
+        QCOMPARE(clearing.at(0).at(0).toString(), kDefaultProfile);
+        QVERIFY(manager->isClearing(kDefaultProfile));
+        QVERIFY(manager->profile(kDefaultProfile)->isOffTheRecord());
         // A second request while it runs does nothing more.
-        manager->clearProfile(kDefaultWebProfile);
+        manager->clearProfile(kDefaultProfile);
         QCOMPARE(clearing.count(), 1);
 
         QTRY_COMPARE_WITH_TIMEOUT(cleared.count(), 1, 15000);
         QVERIFY(released.isNull());
         QVERIFY(!QDir(folder).exists());
-        QVERIFY(!manager->isClearing(kDefaultWebProfile));
+        QVERIFY(!manager->isClearing(kDefaultProfile));
 
         // The profile comes back empty, in its own folder, and can be cleared again.
-        QWebEngineProfile *again = manager->profile(kDefaultWebProfile);
+        QWebEngineProfile *again = manager->profile(kDefaultProfile);
         QVERIFY(!again->isOffTheRecord());
         QCOMPARE(again->storageName(), QStringLiteral("p-default"));
         {
@@ -259,7 +259,7 @@ private slots:
             QVERIFY(after.waitFor(QStringLiteral("fresh")));
             QVERIFY2(!after.names.contains(QStringLiteral("session")), qPrintable(joined(after.names)));
         }
-        manager->clearProfile(kDefaultWebProfile);
+        manager->clearProfile(kDefaultProfile);
         QTRY_COMPARE_WITH_TIMEOUT(cleared.count(), 2, 15000);
     }
 

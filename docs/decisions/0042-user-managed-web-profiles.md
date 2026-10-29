@@ -1,6 +1,6 @@
 # 0042. Web profiles are a list the user manages
 
-- Status: Accepted
+- Status: Accepted; superseded in part by [0050](0050-profiles-hold-logins-connections-and-settings.md): profiles also hold connections and module settings
 - Date: 2026-10-29
 
 ## Context

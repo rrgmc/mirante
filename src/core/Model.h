@@ -65,26 +65,27 @@ public:
     QString workspaceName() const;
     void setWorkspaceName(const QString &name);
 
-    // The workspace's web profiles, from workspace.mirante, in their stored
-    // order. The Default profile is not among them; see core/WebProfiles.h.
-    // reset() clears them.
-    const std::vector<WebProfile> &webProfiles() const;
-    const WebProfile *webProfile(const QString &id) const;   // nullptr if not listed
-    void setWebProfiles(const std::vector<WebProfile> &profiles);
+    // The workspace's profiles, from workspace.mirante: Default first, which
+    // always exists, then the others in their stored order. See
+    // core/Profiles.h for lookups by the resolution order. reset() leaves only
+    // an empty Default.
+    const std::vector<Profile> &profiles() const;
+    const Profile *profile(const QString &id) const;   // nullptr if not listed
+    // Replaces the list. Default is added if missing, and moved first. Its
+    // name is not stored, so it is cleared.
+    void setProfiles(std::vector<Profile> profiles);
+    // Adds the profile, or replaces the one with its id.
+    void setProfile(const Profile &profile);
 
-    // The settings of the modules' configuration screens, from
-    // workspace.mirante: an object of module ids, each an object of screen
-    // ids, each the values of that screen. Entries of modules or screens this
-    // build does not have are kept. reset() clears them. See
-    // docs/decisions/0044-module-settings-in-the-workspace.md.
-    QJsonObject moduleSettings() const;
-    // The values of one screen. Empty if none are stored.
-    QJsonObject moduleSettings(const QString &moduleId, const QString &screenId) const;
-    // Replaces all of them. Used by the Store.
-    void setModuleSettings(const QJsonObject &settings);
-    // Replaces the values of one screen. Empty values remove the screen's
-    // entry, and a module left without screens is removed too.
-    void setModuleSettings(const QString &moduleId, const QString &screenId, const QJsonObject &values);
+    // The values of one module settings screen in a profile. Empty if none
+    // are stored or the profile is unknown. See
+    // docs/decisions/0050-profiles-hold-logins-connections-and-settings.md.
+    QJsonObject moduleSettings(const QString &profileId, const QString &moduleId, const QString &screenId) const;
+    // Replaces the values of one screen in a profile. Empty values remove the
+    // screen's entry, and a module left without screens is removed too.
+    // Nothing happens for an unknown profile.
+    void setModuleSettings(const QString &profileId, const QString &moduleId, const QString &screenId,
+                           const QJsonObject &values);
 
     // Whether a task is in the trash: its own trashedAt is set, or its
     // project's is. See docs/data-model.md#task.
@@ -122,8 +123,7 @@ public:
 signals:
     void modelReset();
     void workspaceNameChanged();
-    void webProfilesChanged();
-    void moduleSettingsChanged();
+    void profilesChanged();
     void groupAdded(const QString &id);
     void groupChanged(const QString &id);
     void groupRemoved(const QString &id);

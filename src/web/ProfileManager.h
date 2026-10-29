@@ -10,9 +10,9 @@ class QWebEngineProfile;
 
 namespace mirante {
 
-// Creates and owns the web login profiles: one for each web profile of the
-// workspace, by its id, and the app profile. See docs/web-views.md#profiles
-// and docs/decisions/0042-user-managed-web-profiles.md.
+// Creates and owns the QWebEngineProfiles that keep web logins: one for each
+// profile of the workspace, by its id, and the app profile. See
+// docs/web-views.md#profiles and decisions 0042 and 0050 in docs/decisions/.
 // Implemented in ProfileManager.cpp.
 //
 // A profile must outlive every page that uses it, so the manager is destroyed
@@ -27,13 +27,13 @@ public:
     explicit ProfileManager(const QString &root, QObject *parent = nullptr);
     ~ProfileManager() override;
 
-    // The storage name of a web profile: "p-<id>". An id that is not made of
+    // The storage name of a profile's web logins: "p-<id>". An id that is not made of
     // letters, digits, "-" and "_" gives the name of Default.
     static QString storageName(const QString &profileId);
 
     // The profile with this id, made when first asked for. An empty id means
     // Default. The manager does not check that the workspace lists the id;
-    // webprofiles::effective() does that.
+    // profiles::effective() does that.
     QWebEngineProfile *profile(const QString &profileId);
     // "app", for built-in panels from M9.
     QWebEngineProfile *appProfile();

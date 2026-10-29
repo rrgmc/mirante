@@ -6,6 +6,7 @@
 #include "core/FolderWatcher.h"
 #include "core/Migrations.h"
 #include "core/Model.h"
+#include "core/ProfileMigration.h"
 
 #include <QDir>
 #include <QFile>
@@ -38,8 +39,11 @@ const QString kDashboards = QStringLiteral("dashboards");
 const QString kFiles = QStringLiteral("files");
 const QString kWorkspaceFile = QStringLiteral("workspace.mirante");
 const QString kName = QStringLiteral("name");
-const QString kWebProfiles = QStringLiteral("webProfiles");
-const QString kModuleSettings = QStringLiteral("moduleSettings");
+const QString kProfiles = QStringLiteral("profiles");
+// Keys of workspace.mirante from before decision 0050: the list of profiles,
+// and module settings for the whole workspace.
+const QString kOldWebProfiles = QStringLiteral("webProfiles");
+const QString kOldModuleSettings = QStringLiteral("moduleSettings");
 const QString kJson = QStringLiteral(".json");
 
 // A write can fail for a moment while another program, such as a virus scanner
@@ -136,6 +140,9 @@ struct Loaded
     QSet<QString> newer;          // files written by a newer version of the app
     QSet<QString> orphans;        // files skipped because their parent is missing
     QJsonObject workspaceExtra;   // the keys of workspace.mirante other than name
+    // What the profile migration of decision 0050 changed: these files are
+    // written once the Store opens the folder.
+    profilemigration::Changes migrated;
 };
 
 // One file of a subfolder: its path relative to the data folder, its id as
@@ -245,30 +252,53 @@ std::optional<QJsonObject> readWorkspaceFile(const QString &dir, Loaded *loaded)
     return json;
 }
 
-// The web profiles listed in workspace.mirante. An entry that cannot be used,
-// one that repeats an id, and one with the id of Default, are skipped.
-std::vector<WebProfile> webProfilesOf(const QJsonObject &workspace)
+// The profiles listed in workspace.mirante, under "profiles", or under
+// "webProfiles" before decision 0050. An entry that cannot be used, and one
+// that repeats an id, are skipped. Default's entry holds its data; its name
+// is not used. *old tells whether the old key was read.
+std::vector<Profile> profilesOf(const QJsonObject &workspace, bool *old = nullptr)
 {
-    std::vector<WebProfile> profiles;
+    const bool useOld = !workspace.value(kProfiles).isArray() && workspace.value(kOldWebProfiles).isArray();
+    if (old)
+        *old = useOld && !workspace.value(kOldWebProfiles).toArray().isEmpty();
+    std::vector<Profile> profiles;
     QSet<QString> ids;
-    for (const QJsonValue &value : workspace.value(kWebProfiles).toArray()) {
-        std::optional<WebProfile> profile = WebProfile::fromJson(value.toObject());
-        if (!profile || profile->id == kDefaultWebProfile || ids.contains(profile->id))
+    for (const QJsonValue &value : workspace.value(useOld ? kOldWebProfiles : kProfiles).toArray()) {
+        std::optional<Profile> profile = Profile::fromJson(value.toObject());
+        if (!profile || ids.contains(profile->id))
             continue;
+        if (profile->id == kDefaultProfile)
+            profile->name.clear();
         ids.insert(profile->id);
         profiles.push_back(std::move(*profile));
     }
     return profiles;
 }
 
-// The keys of workspace.mirante that the model does not hold.
+// The profiles of workspace.mirante, with the module settings from before
+// decision 0050 moved into Default. *changed tells whether the old keys gave
+// anything that should be written in the new form.
+std::vector<Profile> migratedProfilesOf(const QJsonObject &workspace, bool *changed)
+{
+    bool old = false;
+    std::vector<Profile> profiles = profilesOf(workspace, &old);
+    // A value that is not an object is not read.
+    const bool moved =
+        profilemigration::moveModuleSettings(workspace.value(kOldModuleSettings).toObject(), profiles);
+    *changed = old || moved;
+    return profiles;
+}
+
+// The keys of workspace.mirante that the model does not hold. The keys from
+// before decision 0050 are read into profiles, so they are dropped too.
 QJsonObject withoutName(QJsonObject json)
 {
     json.remove(kName);
-    json.remove(kWebProfiles);
+    json.remove(kProfiles);
+    json.remove(kOldWebProfiles);
     // A value that is not an object is not read, so it is kept as it is.
-    if (json.value(kModuleSettings).isObject())
-        json.remove(kModuleSettings);
+    if (json.value(kOldModuleSettings).isObject())
+        json.remove(kOldModuleSettings);
     json.remove(kSchemaVersion);
     return json;
 }
@@ -289,6 +319,18 @@ Loaded loadFolder(const QString &dir, Model &model)
                        kTasks, QStringLiteral("project"), &loaded);
 
     const std::optional<QJsonObject> workspace = readWorkspaceFile(dir, &loaded);
+
+    // Decision 0050: groups' connections and the workspace's module settings
+    // move into profiles. Not while workspace.mirante cannot be written over.
+    std::vector<Profile> profiles;
+    if (!loaded.newer.contains(kWorkspaceFile)) {
+        bool workspaceMigrated = false;
+        if (workspace)
+            profiles = migratedProfilesOf(*workspace, &workspaceMigrated);
+        loaded.migrated = profilemigration::moveConnections(groups, projects, profiles);
+        loaded.migrated.profiles = loaded.migrated.profiles || workspaceMigrated;
+    }
+
     std::sort(loaded.problems.begin(), loaded.problems.end(), [](const LoadProblem &a, const LoadProblem &b) {
         return a.file < b.file || (a.file == b.file && a.message < b.message);
     });
@@ -296,10 +338,9 @@ Loaded loadFolder(const QString &dir, Model &model)
     model.reset(std::move(groups), std::move(projects), std::move(tasks), std::move(dashboards));
     if (workspace) {
         model.setWorkspaceName(workspace->value(kName).toString());
-        model.setWebProfiles(webProfilesOf(*workspace));
-        model.setModuleSettings(workspace->value(kModuleSettings).toObject());
         loaded.workspaceExtra = withoutName(*workspace);
     }
+    model.setProfiles(std::move(profiles));
     return loaded;
 }
 
@@ -325,17 +366,22 @@ std::optional<QJsonObject> fileFor(const Model &model, const QString &relPath)
         return std::nullopt;
     switch (ref->kind) {
     case FileKind::Workspace: {
-        if (model.workspaceName().isEmpty() && model.webProfiles().empty() && model.moduleSettings().isEmpty())
+        // Default is listed only when it holds data, and without a name.
+        QJsonArray profiles;
+        for (const Profile &profile : model.profiles()) {
+            if (profile.id != kDefaultProfile) {
+                profiles.append(profile.toJson());
+            } else if (profile.hasData()) {
+                QJsonObject standard = profile.toJson();
+                standard.remove(kName);
+                profiles.append(standard);
+            }
+        }
+        if (model.workspaceName().isEmpty() && profiles.isEmpty())
             return std::nullopt;
         QJsonObject json{{kName, model.workspaceName()}};
-        if (!model.webProfiles().empty()) {
-            QJsonArray profiles;
-            for (const WebProfile &profile : model.webProfiles())
-                profiles.append(profile.toJson());
-            json.insert(kWebProfiles, profiles);
-        }
-        if (!model.moduleSettings().isEmpty())
-            json.insert(kModuleSettings, model.moduleSettings());
+        if (!profiles.isEmpty())
+            json.insert(kProfiles, profiles);
         return withSchemaVersion(json);
     }
     case FileKind::Group:
@@ -481,6 +527,9 @@ struct Store::Private
 
     void entitySignal(const QString &subfolder, const QString &id);
     void workspaceSignal();
+    void writeMigrated(const profilemigration::Changes &changes);
+    void migrateGroup(Group group);
+    profilemigration::Changes pendingMigration;   // written once a reload is applied
 
     enum class Reload { Applied, Problem, Orphan };
     Reload reloadFile(const QString &path);
@@ -587,6 +636,48 @@ void Store::Private::workspaceSignal()
     writer->schedule(kWorkspaceFile, store::toBytes(json));
 }
 
+// Writes the files a profile migration changed: workspace.mirante first, at
+// once, so the connections are stored in a profile before the groups lose
+// them. If it cannot be written yet, the groups keep their old keys on disk,
+// and the next load moves them again without repeating anything.
+void Store::Private::writeMigrated(const profilemigration::Changes &changes)
+{
+    if (!writer || !changes.any() || newer.contains(kWorkspaceFile))
+        return;
+    if (changes.profiles) {
+        workspaceSignal();
+        flushWriter();
+        if (writer->pending())
+            return;
+    }
+    for (const QString &id : changes.groups)
+        entitySignal(kGroups, id);
+    for (const QString &id : changes.projects)
+        entitySignal(kProjects, id);
+}
+
+// A reloaded group that still has connections from before decision 0050, for
+// example from a device with an older version: they move to its profile, as
+// on load. Called while applying; reloadFiles() writes the changes after.
+void Store::Private::migrateGroup(Group group)
+{
+    std::vector<Group> groups{std::move(group)};
+    std::vector<Project> projects;
+    for (const Project *project : model->projectsOfGroup(groups.front().id))
+        projects.push_back(*project);
+    std::vector<Profile> profiles = model->profiles();
+    const profilemigration::Changes changes = profilemigration::moveConnections(groups, projects, profiles);
+    model->setProfiles(std::move(profiles));
+    model->setGroup(groups.front());
+    for (const Project &project : projects) {
+        if (changes.projects.contains(project.id))
+            model->setProject(project);
+    }
+    pendingMigration.profiles = pendingMigration.profiles || changes.profiles;
+    pendingMigration.groups << changes.groups;
+    pendingMigration.projects << changes.projects;
+}
+
 Store::Private::Reload Store::Private::reloadFile(const QString &path)
 {
     const std::optional<FileRef> ref = refOf(path);
@@ -623,13 +714,20 @@ Store::Private::Reload Store::Private::reloadFile(const QString &path)
     case FileKind::Workspace:
         workspaceExtra = withoutName(*json);
         model->setWorkspaceName(json->value(kName).toString());
-        model->setWebProfiles(webProfilesOf(*json));
-        model->setModuleSettings(json->value(kModuleSettings).toObject());
+        // Old keys are migrated in the model only: a reload is never written
+        // back. The next write of the file drops them.
+        {
+            bool changed = false;
+            model->setProfiles(migratedProfilesOf(*json, &changed));
+        }
         break;
     case FileKind::Group:
-        if (const std::optional<Group> group = entityOf<Group>(*json, ref->id, &message))
-            model->setGroup(*group);
-        else
+        if (std::optional<Group> group = entityOf<Group>(*json, ref->id, &message)) {
+            if (profilemigration::hasOldConnections(*group) && !newer.contains(kWorkspaceFile))
+                migrateGroup(std::move(*group));
+            else
+                model->setGroup(*group);
+        } else
             result = Reload::Problem;
         break;
     case FileKind::Project:
@@ -729,6 +827,8 @@ void Store::Private::reloadFiles(QStringList paths)
         reloadFile(path);
     // A reload never deletes files; it only moves the baseline.
     referenced = referencedNames();
+    // Groups from before decision 0050 are written once, migrated.
+    writeMigrated(std::exchange(pendingMigration, {}));
     notifyProblems();
 }
 
@@ -894,8 +994,7 @@ Store::Store(Model &model, QObject *parent)
     connect(&model, &Model::rootDashboardChanged, this, on(kDashboards));
     connect(&model, &Model::rootDashboardRemoved, this, on(kDashboards));
     connect(&model, &Model::workspaceNameChanged, this, [this] { d->workspaceSignal(); });
-    connect(&model, &Model::webProfilesChanged, this, [this] { d->workspaceSignal(); });
-    connect(&model, &Model::moduleSettingsChanged, this, [this] { d->workspaceSignal(); });
+    connect(&model, &Model::profilesChanged, this, [this] { d->workspaceSignal(); });
     // modelReset comes from loading, which writes nothing.
 }
 
@@ -949,6 +1048,8 @@ std::vector<LoadProblem> Store::open(const QString &dir)
         connect(d->watcher, &FolderWatcher::conflictCopiesChanged, this,
                 [this](const QStringList &relPaths) { d->onConflictCopies(relPaths); });
         d->watcher->start();
+        // The profile migration of decision 0050 is written once.
+        d->writeMigrated(loaded.migrated);
     }
 
     d->problemsDirty = false;

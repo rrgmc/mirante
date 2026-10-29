@@ -23,9 +23,9 @@ public:
     {
     }
 
-    QJsonObject values(const QString &screenId) const override
+    QJsonObject values(const QString &profileId, const QString &screenId) const override
     {
-        return *m_reader ? (*m_reader)(m_moduleId, screenId) : QJsonObject();
+        return *m_reader ? (*m_reader)(profileId, m_moduleId, screenId) : QJsonObject();
     }
 
 private:
@@ -172,6 +172,15 @@ std::vector<const ItemType *> ItemTypeRegistry::types() const
         return a->id() < b->id();
     });
     return result;
+}
+
+bool ItemTypeRegistry::usesProfile(const QString &typeId) const
+{
+    if (!contains(typeId))
+        return false;
+    const ItemType &itemType = type(typeId);
+    return itemType.rendering() == Rendering::Web || !itemType.connectionKinds().isEmpty()
+        || !settingsScreens(typeId.section(QLatin1Char('.'), 0, 0)).empty();
 }
 
 QStringList ItemTypeRegistry::connectionKinds() const

@@ -21,7 +21,7 @@ Mirante is a personal desktop dashboard for all of one person's work, built with
 
 ## Glossary
 
-**Group.** The top level, such as "Personal" or "Work". A group holds projects, [connections](data-model.md#connection) and web login settings. It has a colour, which tints the title bars of its task dashboards.
+**Group.** The top level, such as "Personal" or "Work". A group holds projects and chooses a default [profile](data-model.md#profile). It has a colour, which tints the title bars of its task dashboards.
 
 **Project.** A unit of work inside a group, usually one repository. A project has a main folder, optional extra folders and a priority.
 
@@ -35,7 +35,7 @@ Mirante is a personal desktop dashboard for all of one person's work, built with
 
 **Module.** A folder of item types and the code they share, such as connection kinds and API clients. Each module can be included or left out when building. See [modules](modules.md).
 
-**Settings screen.** A configuration screen of a whole module, such as GitLab's "General Configuration", opened from the Modules menu. Its values are the module's settings, kept in the workspace and synced. See [settings screens](modules.md#settings-screens).
+**Settings screen.** A configuration screen of a whole module, such as GitLab's "General Configuration", opened from the Modules menu. Its values are the module's settings. Each profile has its own, kept in the workspace and synced. See [settings screens](modules.md#settings-screens).
 
 **Connection kind.** The type of a connection, such as `gitlab` or `jira.cloud`. A module registers it and decides how requests are signed.
 
@@ -63,9 +63,9 @@ Mirante is a personal desktop dashboard for all of one person's work, built with
 
 **Attention.** A live reason to act now, such as a failed pipeline. Shown as a badge. It is not a priority.
 
-**Connection.** The details for calling one API: kind, base URL and the kind's own fields, such as an email for Jira Cloud. The token is kept in the keychain. Connections belong to a group.
+**Connection.** The details for calling one API: kind, base URL and the kind's own fields, such as an email for Jira Cloud. The token is kept in the keychain. Connections belong to a profile.
 
-**Profile.** A web login storage (cookies and site data), also called a web profile. The workspace holds a list of them, with Default always there. Each group chooses a default profile, and a web item can choose its own. Logins stay on each device.
+**Profile.** A named set of what belongs to one account or context, such as "Work" or "Personal": web logins (cookies and site data), connections with their tokens, and module settings. The workspace holds a list of them, with Default always there. Each group chooses a default profile, and an item can choose its own. Items in one profile share all of it. Logins and tokens stay on each device; the rest is synced. See [decision 0050](decisions/0050-profiles-hold-logins-connections-and-settings.md).
 
 **Status cache.** The part of the app that polls GitLab and Jira, keeps the results and computes attention.
 

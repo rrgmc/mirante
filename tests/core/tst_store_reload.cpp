@@ -287,29 +287,47 @@ void TestStoreReload::workspaceFile()
     QCOMPARE(json.value(QStringLiteral("name")).toString(), QStringLiteral("Mine"));
     QCOMPARE(json.value(QStringLiteral("futureField")).toInt(), 3);
 
-    // Web profiles from another device arrive with the file.
-    QSignalSpy profilesChanged(&model, &Model::webProfilesChanged);
+    // Profiles from another device arrive with the file.
+    QSignalSpy profilesChanged(&model, &Model::profilesChanged);
     writeFile(path(QStringLiteral("workspace.mirante")),
-              R"({"schemaVersion":1,"name":"Mine","futureField":3,"webProfiles":[{"id":"w1","name":"Work"}]})");
-    QTRY_VERIFY_WITH_TIMEOUT(model.webProfile(QStringLiteral("w1")), kTimeout);
-    QCOMPARE(model.webProfile(QStringLiteral("w1"))->name, QStringLiteral("Work"));
+              R"({"schemaVersion":1,"name":"Mine","futureField":3,"profiles":[{"id":"w1","name":"Work"}]})");
+    QTRY_VERIFY_WITH_TIMEOUT(model.profile(QStringLiteral("w1")), kTimeout);
+    QCOMPARE(model.profile(QStringLiteral("w1"))->name, QStringLiteral("Work"));
     QCOMPARE(profilesChanged.count(), 1);
 
-    // So do module settings, which are not written back.
-    QSignalSpy settingsChanged(&model, &Model::moduleSettingsChanged);
+    // So do their module settings and connections, which are not written back.
     const QByteArray withSettings =
-        R"({"schemaVersion":1,"name":"Mine","futureField":3,"webProfiles":[{"id":"w1","name":"Work"}],)"
-        R"("moduleSettings":{"gitlab":{"general":{"projects":["acme/backend"]}}}})";
+        R"({"schemaVersion":1,"name":"Mine","futureField":3,"profiles":[{"id":"w1","name":"Work",)"
+        R"("connections":[{"id":"c1","kind":"gitlab","name":"G","baseUrl":"https:\/\/g.example","fields":{}}],)"
+        R"("moduleSettings":{"gitlab":{"general":{"projects":["acme/backend"]}}}}]})";
     writeFile(path(QStringLiteral("workspace.mirante")), withSettings);
-    QTRY_COMPARE_WITH_TIMEOUT(settingsChanged.count(), 1, kTimeout);
-    QCOMPARE(model.moduleSettings(QStringLiteral("gitlab"), QStringLiteral("general"))
+    QTRY_COMPARE_WITH_TIMEOUT(profilesChanged.count(), 2, kTimeout);
+    QCOMPARE(model.moduleSettings(QStringLiteral("w1"), QStringLiteral("gitlab"), QStringLiteral("general"))
                  .value(QStringLiteral("projects"))
                  .toArray()
                  .first()
                  .toString(),
              QStringLiteral("acme/backend"));
+    QCOMPARE(model.profile(QStringLiteral("w1"))->connections.size(), std::size_t(1));
     store.flush();
     QCOMPARE(readFile(path(QStringLiteral("workspace.mirante"))), withSettings);
+
+    // A file from an older version, with the old keys, is read into
+    // profiles, but not written back either.
+    const QByteArray old =
+        R"({"schemaVersion":1,"name":"Mine","webProfiles":[{"id":"w1","name":"Work"}],)"
+        R"("moduleSettings":{"gitlab":{"general":{"projects":["acme/old"]}}}})";
+    writeFile(path(QStringLiteral("workspace.mirante")), old);
+    QTRY_COMPARE_WITH_TIMEOUT(profilesChanged.count(), 3, kTimeout);
+    QCOMPARE(model.moduleSettings(kDefaultProfile, QStringLiteral("gitlab"), QStringLiteral("general"))
+                 .value(QStringLiteral("projects"))
+                 .toArray()
+                 .first()
+                 .toString(),
+             QStringLiteral("acme/old"));
+    QCOMPARE(model.profile(QStringLiteral("w1"))->name, QStringLiteral("Work"));
+    store.flush();
+    QCOMPARE(readFile(path(QStringLiteral("workspace.mirante"))), old);
 }
 
 // Only local edits delete image files. A reload that drops a reference leaves

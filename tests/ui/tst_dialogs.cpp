@@ -1,23 +1,25 @@
-// Tests the group, project, task, item, dashboard and web profiles dialogs:
-// values read back, refusal of an empty name, the group's connections and web
-// profile, the one main folder, the item editor paths (a form from fields, a
-// type's own editor, an item of a missing module), the type grid of a new
-// item, the item's web profile, and
-// creating, renaming and deleting web profiles.
+// Tests the group, project, task, item, dashboard, profiles and connections
+// dialogs: values read back, refusal of an empty name, the group's profile,
+// the one main folder, the item editor paths (a form from fields, a type's own
+// editor, an item of a missing module), the type grid of a new item, the
+// item's profile and the form fields of that profile, creating, renaming and
+// deleting profiles, and a profile's connections.
 #include "core/DeviceSettings.h"
 #include "core/GroupColours.h"
 #include "core/Model.h"
 #include "core/Store.h"
-#include "core/WebProfiles.h"
+#include "core/Profiles.h"
 #include "items/ItemTypeRegistry.h"
 #include "layout/Presets.h"
+#include "ui/ConnectionEditor.h"
+#include "ui/ConnectionsDialog.h"
 #include "ui/DashboardDialog.h"
 #include "ui/FieldForm.h"
 #include "ui/GroupDialog.h"
 #include "ui/ItemDialog.h"
+#include "ui/ProfilesDialog.h"
 #include "ui/ProjectDialog.h"
 #include "ui/TaskDialog.h"
-#include "ui/WebProfilesDialog.h"
 
 #include <mirante/ItemEditor.h>
 #include <mirante/Module.h>
@@ -134,13 +136,40 @@ public:
     Rendering rendering() const override { return Rendering::Web; }
 };
 
-WebProfile profile(const QString &id, const QString &name)
+Profile profile(const QString &id, const QString &name)
 {
-    WebProfile result;
+    Profile result;
     result.id = id;
     result.name = name;
     return result;
 }
+
+// A type whose form offers the id of the profile the item would use, as the
+// suggestions of its "project" field. It uses a connection, so it uses a
+// profile.
+class ProfileFieldsType : public ItemType
+{
+public:
+    QString id() const override { return QStringLiteral("sugg.thing"); }
+    QString name() const override { return QStringLiteral("Suggesting"); }
+    QIcon icon() const override { return {}; }
+    QStringList connectionKinds() const override { return {QStringLiteral("gitlab")}; }
+
+    std::vector<Field> fields() const override
+    {
+        Field project;
+        project.key = QStringLiteral("project");
+        project.label = QStringLiteral("Project");
+        return {project};
+    }
+
+    std::vector<Field> fieldsForProfile(const QString &profileId) const override
+    {
+        std::vector<Field> result = fields();
+        result.front().suggestions = {profileId + QStringLiteral("/app")};
+        return result;
+    }
+};
 
 void registerTestModule(ModuleRegistrar &registrar)
 {
@@ -172,9 +201,9 @@ private slots:
     void cleanup();
 
     void group();
-    void groupConnectionsWithoutKinds();
-    void groupConnections();
-    void groupWebProfile();
+    void connectionsWithoutKinds();
+    void connections();
+    void groupProfile();
     void groupColour();
     void project();
     void projectFolders();
@@ -186,8 +215,10 @@ private slots:
     void itemChoosingType();
     void itemTypeGridStart();
     void itemOfMissingModule();
-    void itemWebProfile();
-    void webProfiles();
+    void itemProfile();
+    void itemFieldsOfTheProfile();
+    void profilesDialog();
+    void profileConnections();
     void dashboard();
 };
 
@@ -228,6 +259,9 @@ void TestDialogs::group()
     Group expected = original;
     expected.name = QStringLiteral("Office");
     QCOMPARE(dialog.value(), expected);
+
+    // Connections belong to profiles now, not to groups.
+    QVERIFY(!dialog.findChild<QTableWidget *>(QStringLiteral("connections")));
 }
 
 void TestDialogs::groupColour()
@@ -281,12 +315,12 @@ void TestDialogs::groupColour()
     QCOMPARE(second.value(), coloured);
 }
 
-void TestDialogs::groupConnectionsWithoutKinds()
+void TestDialogs::connectionsWithoutKinds()
 {
     // No kinds are offered, so every connection is shown read-only and kept.
-    const Group original = *model.group(workGroup);
-    GroupDialog dialog(original);
-    auto *table = dialog.findChild<QTableWidget *>(QStringLiteral("connections"));
+    const Profile original = *model.profile(QStringLiteral("3f6c2a8e-5d1b-4c7a-9e2f-8b0d4a6c1e93"));
+    ConnectionsDialog dialog(original, QStringLiteral("Work"));
+    auto *table = dialog.editor()->table();
     QCOMPARE(table->rowCount(), 5);
     QCOMPARE(table->item(4, 0)->text(), QStringLiteral("timetrack"));
     QVERIFY(!(table->item(0, 1)->flags() & Qt::ItemIsEditable));
@@ -294,6 +328,7 @@ void TestDialogs::groupConnectionsWithoutKinds()
     QCOMPARE(table->item(0, 3)->checkState(), Qt::Checked);   // the gitlab default
     QCOMPARE(table->item(1, 3)->checkState(), Qt::Unchecked);
     QVERIFY(!dialog.findChild<QPushButton *>(QStringLiteral("addConnection"))->isEnabled());
+    QVERIFY(dialog.findChild<QLabel *>(QStringLiteral("noKinds"))->isVisibleTo(&dialog));
     auto *remove = dialog.findChild<QPushButton *>(QStringLiteral("removeConnection"));
     table->setCurrentCell(1, 1);
     QVERIFY(!remove->isEnabled());
@@ -303,20 +338,26 @@ void TestDialogs::groupConnectionsWithoutKinds()
     dialog.accept();
     QCOMPARE(dialog.result(), int(QDialog::Accepted));
     QCOMPARE(dialog.value(), original);
+
+    // The help names the profile and says where tokens are kept.
+    auto *help = dialog.findChild<QLabel *>(QStringLiteral("help"));
+    QVERIFY(help->text().contains(QStringLiteral("\"Work\"")));
+    QVERIFY(help->text().contains(QStringLiteral("keychain")));
+    QCOMPARE(dialog.windowTitle(), QStringLiteral("Connections of Work"));
 }
 
-void TestDialogs::groupConnections()
+void TestDialogs::connections()
 {
-    const Group original = *model.group(workGroup);
+    const Profile original = *model.profile(QStringLiteral("3f6c2a8e-5d1b-4c7a-9e2f-8b0d4a6c1e93"));
     const QString gitlab = QStringLiteral("gitlab");
     const QString cloud = QStringLiteral("jira.cloud");
     const QString dc = QStringLiteral("jira.dc");
-    GroupDialog dialog(original);
+    ConnectionsDialog dialog(original, QStringLiteral("Work"));
     dialog.setConnectionKinds({gitlab, cloud, dc});
     QCOMPARE(dialog.value(), original);
 
     // Rows: gitlab.com, Acme self-hosted, Jira Cloud, Jira DC, time tracking.
-    auto *table = dialog.findChild<QTableWidget *>(QStringLiteral("connections"));
+    auto *table = dialog.editor()->table();
     const auto kindBox = [table](int row) { return qobject_cast<QComboBox *>(table->cellWidget(row, 0)); };
     const auto check = [table](int row) { return table->item(row, 3); };
     QVERIFY(kindBox(0));
@@ -329,7 +370,7 @@ void TestDialogs::groupConnections()
     // Edit in place.
     table->item(1, 1)->setText(QStringLiteral(" Acme GitLab "));
     table->item(1, 2)->setText(QStringLiteral("https://git.acme.example"));
-    Group expected = original;
+    Profile expected = original;
     expected.connections[1].name = QStringLiteral("Acme GitLab");
     expected.connections[1].baseUrl = QStringLiteral("https://git.acme.example");
     QCOMPARE(dialog.value(), expected);
@@ -368,9 +409,9 @@ void TestDialogs::groupConnections()
     QCOMPARE(dialog.value().defaultConnections.value(gitlab), added.id);
 
     // It needs a name and a web base URL.
-    dialog.setName(QStringLiteral("Work"));
     dialog.accept();
     QCOMPARE(dialog.result(), int(QDialog::Rejected));
+    QVERIFY(dialog.findChild<QLabel *>(QStringLiteral("message"))->text().contains(QStringLiteral("name")));
     table->item(4, 1)->setText(QStringLiteral("GitLab (new)"));
     table->item(4, 2)->setText(QStringLiteral("gitlab.example"));
     dialog.accept();
@@ -393,104 +434,162 @@ void TestDialogs::groupConnections()
     QCOMPARE(dialog.value(), expected);   // time tracking and its default unchanged
 }
 
-void TestDialogs::groupWebProfile()
+void TestDialogs::groupProfile()
 {
     Model local;
-    local.setWebProfiles({profile(QStringLiteral("work"), QStringLiteral("Work")),
-                          profile(QStringLiteral("bank"), QStringLiteral("Bank"))});
+    local.setProfiles({profile(QStringLiteral("work"), QStringLiteral("Work")),
+                       profile(QStringLiteral("bank"), QStringLiteral("Bank"))});
     Group original = *model.group(personalGroup);
-    QVERIFY(original.webProfile.isEmpty());
+    QVERIFY(original.profile.isEmpty());
     GroupDialog dialog(original);
-    dialog.setWebProfiles(webprofiles::all(local));
+    dialog.setProfiles(profiles::all(local));
     QCOMPARE(dialog.value(), original);
 
     // Default first, then by name.
-    auto *combo = dialog.findChild<QComboBox *>(QStringLiteral("webProfile"));
+    auto *combo = dialog.findChild<QComboBox *>(QStringLiteral("profile"));
     QVERIFY(combo);
     QCOMPARE(combo->count(), 3);
     QCOMPARE(combo->itemText(0), QStringLiteral("Default"));
     QCOMPARE(combo->itemText(1), QStringLiteral("Bank"));
     QCOMPARE(combo->currentIndex(), 0);
 
-    dialog.setWebProfile(QStringLiteral("work"));
-    QCOMPARE(dialog.value().webProfile, QStringLiteral("work"));
+    dialog.setProfile(QStringLiteral("work"));
+    QCOMPARE(dialog.value().profile, QStringLiteral("work"));
     // Default is stored as no profile.
-    dialog.setWebProfile(kDefaultWebProfile);
-    QVERIFY(dialog.value().webProfile.isEmpty());
+    dialog.setProfile(kDefaultProfile);
+    QVERIFY(dialog.value().profile.isEmpty());
 
     // A profile that is not listed is kept until another is chosen.
-    original.webProfile = QStringLiteral("gone");
+    original.profile = QStringLiteral("gone");
     GroupDialog missing(original);
-    missing.setWebProfiles(webprofiles::all(local));
-    auto *missingCombo = missing.findChild<QComboBox *>(QStringLiteral("webProfile"));
+    missing.setProfiles(profiles::all(local));
+    auto *missingCombo = missing.findChild<QComboBox *>(QStringLiteral("profile"));
     QCOMPARE(missingCombo->count(), 4);
     QCOMPARE(missingCombo->currentData().toString(), QStringLiteral("gone"));
     QCOMPARE(missing.value(), original);
 }
 
-void TestDialogs::itemWebProfile()
+void TestDialogs::itemProfile()
 {
     Model local;
-    local.setWebProfiles({profile(QStringLiteral("work"), QStringLiteral("Work"))});
+    local.setProfiles({profile(QStringLiteral("work"), QStringLiteral("Work"))});
 
-    // A web item offers the group's profile first, then every profile.
+    // An item that uses a profile offers the group's profile first, then
+    // every profile.
     Item item;
     item.id = QStringLiteral("i5");
     item.type = webType;
     item.name = QStringLiteral("Page");
     ItemDialog dialog(item, false, types, {});
-    dialog.setWebProfiles(webprofiles::all(local), QStringLiteral("Work"));
-    QVERIFY(dialog.showsWebProfile());
-    auto *combo = dialog.findChild<QComboBox *>(QStringLiteral("webProfile"));
+    dialog.setProfiles(profiles::all(local), QStringLiteral("work"), QStringLiteral("Work"));
+    QVERIFY(dialog.showsProfile());
+    auto *combo = dialog.findChild<QComboBox *>(QStringLiteral("profile"));
     QVERIFY(combo);
     QCOMPARE(combo->count(), 3);
     QCOMPARE(combo->itemText(0), QStringLiteral("The group's profile (Work)"));
     QCOMPARE(combo->itemText(1), QStringLiteral("Default"));
     QCOMPARE(dialog.value(), item);
+    QCOMPARE(dialog.effectiveProfile(), QStringLiteral("work"));
 
-    dialog.setWebProfile(kDefaultWebProfile);
-    QCOMPARE(dialog.value().webProfile, kDefaultWebProfile);
-    dialog.setWebProfile(QStringLiteral("work"));
-    QCOMPARE(dialog.value().webProfile, QStringLiteral("work"));
-    dialog.setWebProfile(QString());
-    QVERIFY(dialog.value().webProfile.isEmpty());
+    dialog.setProfile(kDefaultProfile);
+    QCOMPARE(dialog.value().profile, kDefaultProfile);
+    QCOMPARE(dialog.effectiveProfile(), kDefaultProfile);
+    dialog.setProfile(QStringLiteral("work"));
+    QCOMPARE(dialog.value().profile, QStringLiteral("work"));
+    dialog.setProfile(QString());
+    QVERIFY(dialog.value().profile.isEmpty());
 
-    // A type whose views are not web views has no profile, and keeps what it had.
+    // A type that uses no profile has no row, and keeps what it had.
     Item native;
     native.id = QStringLiteral("i6");
     native.type = editorType;
     native.name = QStringLiteral("Own");
-    native.webProfile = QStringLiteral("work");
+    native.profile = QStringLiteral("work");
     ItemDialog nativeDialog(native, false, types, {});
-    nativeDialog.setWebProfiles(webprofiles::all(local), QStringLiteral("Default"));
-    QVERIFY(!nativeDialog.showsWebProfile());
-    QCOMPARE(nativeDialog.value().webProfile, QStringLiteral("work"));
+    nativeDialog.setProfiles(profiles::all(local), kDefaultProfile, QStringLiteral("Default"));
+    QVERIFY(!nativeDialog.showsProfile());
+    QCOMPARE(nativeDialog.value().profile, QStringLiteral("work"));
 
-    // A new item shows the row only while a web type is chosen.
+    // A new item shows the row only while a type that uses one is chosen.
     Item fresh;
     fresh.id = QStringLiteral("i7");
     ItemDialog creating(fresh, true, types, {});
-    creating.setWebProfiles(webprofiles::all(local), QStringLiteral("Default"));
-    QVERIFY(!creating.showsWebProfile());
+    creating.setProfiles(profiles::all(local), kDefaultProfile, QStringLiteral("Default"));
+    QVERIFY(!creating.showsProfile());
     creating.setType(webType);
-    QVERIFY(creating.showsWebProfile());
-    creating.setWebProfile(QStringLiteral("work"));
-    QCOMPARE(creating.value().webProfile, QStringLiteral("work"));
+    QVERIFY(creating.showsProfile());
+    creating.setProfile(QStringLiteral("work"));
+    QCOMPARE(creating.value().profile, QStringLiteral("work"));
     creating.setType(formType);
-    QVERIFY(!creating.showsWebProfile());
-    QVERIFY(creating.value().webProfile.isEmpty());
+    QVERIFY(!creating.showsProfile());
+    QVERIFY(creating.value().profile.isEmpty());
+
+    // An unknown profile is kept, and the item uses its group's.
+    Item lost = item;
+    lost.profile = QStringLiteral("gone");
+    ItemDialog lostDialog(lost, false, types, {});
+    lostDialog.setProfiles(profiles::all(local), QStringLiteral("work"), QStringLiteral("Work"));
+    QCOMPARE(lostDialog.value().profile, QStringLiteral("gone"));
+    QCOMPARE(lostDialog.effectiveProfile(), QStringLiteral("work"));
 }
 
-void TestDialogs::webProfiles()
+// The form is built from the fields of the profile the item would use, and
+// built again when another profile is chosen, keeping what was entered.
+void TestDialogs::itemFieldsOfTheProfile()
+{
+    ItemTypeRegistry local;
+    local.registerModule(QStringLiteral("sugg"), [](ModuleRegistrar &registrar) {
+        registrar.addItemType(std::make_unique<ProfileFieldsType>());
+    });
+    Model profilesModel;
+    profilesModel.setProfiles({profile(QStringLiteral("work"), QStringLiteral("Work"))});
+
+    Item item;
+    item.id = QStringLiteral("i8");
+    item.type = QStringLiteral("sugg.thing");
+    item.name = QStringLiteral("Thing");
+    ItemDialog dialog(item, false, local, {});
+    dialog.setProfiles(profiles::all(profilesModel), QStringLiteral("work"), QStringLiteral("Work"));
+    const auto suggestions = [&dialog] {
+        auto *form = qobject_cast<FieldForm *>(dialog.editor());
+        auto *combo = form ? qobject_cast<QComboBox *>(form->editorFor(QStringLiteral("project"))) : nullptr;
+        QStringList result;
+        for (int i = 0; combo && i < combo->count(); ++i)
+            result << combo->itemText(i);
+        return result;
+    };
+    QCOMPARE(suggestions(), QStringList{QStringLiteral("work/app")});
+
+    auto *form = qobject_cast<FieldForm *>(dialog.editor());
+    auto *combo = qobject_cast<QComboBox *>(form->editorFor(QStringLiteral("project")));
+    combo->lineEdit()->setText(QStringLiteral("typed/path"));
+    dialog.setProfile(kDefaultProfile);
+    QCOMPARE(suggestions(), QStringList{QStringLiteral("default/app")});
+    QCOMPARE(dialog.value().config.value(QStringLiteral("project")).toString(), QStringLiteral("typed/path"));
+    QCOMPARE(dialog.value().profile, kDefaultProfile);
+
+    // A new item gets the fields of the group's profile.
+    Item fresh;
+    fresh.id = QStringLiteral("i9");
+    ItemDialog creating(fresh, true, local, {});
+    creating.setProfiles(profiles::all(profilesModel), QStringLiteral("work"), QStringLiteral("Work"));
+    creating.setType(QStringLiteral("sugg.thing"));
+    auto *newForm = qobject_cast<FieldForm *>(creating.editor());
+    auto *newCombo = qobject_cast<QComboBox *>(newForm->editorFor(QStringLiteral("project")));
+    QVERIFY(newCombo);
+    QCOMPARE(newCombo->itemText(0), QStringLiteral("work/app"));
+}
+
+void TestDialogs::profilesDialog()
 {
     Model local;
-    local.setWebProfiles({profile(QStringLiteral("work"), QStringLiteral("Work"))});
+    local.setProfiles({profile(QStringLiteral("work"), QStringLiteral("Work"))});
     Group group;
     group.id = QStringLiteral("g1");
-    group.webProfile = QStringLiteral("work");
+    group.profile = QStringLiteral("work");
     local.setGroup(group);
 
-    WebProfilesDialog dialog(local);
+    ProfilesDialog dialog(local);
     QString answer;
     dialog.setAskName([&answer](const QString &, const QString &) { return answer; });
     QStringList questions;
@@ -499,64 +598,71 @@ void TestDialogs::webProfiles()
         questions << question;
         return yes;
     });
-    QSignalSpy deleted(&dialog, &WebProfilesDialog::profileDeleted);
+    QSignalSpy deleted(&dialog, &ProfilesDialog::profileDeleted);
+    QCOMPARE(dialog.windowTitle(), QStringLiteral("Profiles"));
 
-    // The warning is shown.
+    // The warning is shown: items in one profile share its logins,
+    // connections and tokens.
     auto *warning = dialog.findChild<QLabel *>(QStringLiteral("warning"));
     QVERIFY(warning);
     QVERIFY(warning->text().contains(QStringLiteral("can read the logins and data of all sites")));
+    QVERIFY(warning->text().contains(QStringLiteral("share its logins, connections and tokens")));
 
     // Default is first, and cannot be renamed or deleted.
-    QCOMPARE(dialog.ids(), (QStringList{kDefaultWebProfile, QStringLiteral("work")}));
-    dialog.select(kDefaultWebProfile);
+    QCOMPARE(dialog.ids(), (QStringList{kDefaultProfile, QStringLiteral("work")}));
+    dialog.select(kDefaultProfile);
     QVERIFY(!dialog.findChild<QPushButton *>(QStringLiteral("renameProfile"))->isEnabled());
     QVERIFY(!dialog.findChild<QPushButton *>(QStringLiteral("deleteProfile"))->isEnabled());
+    QVERIFY(dialog.findChild<QPushButton *>(QStringLiteral("profileConnections"))->isEnabled());
     answer = QStringLiteral("Other");
     dialog.renameSelected();
     dialog.deleteSelected();
-    QCOMPARE(local.webProfiles().size(), std::size_t(1));
+    QCOMPARE(local.profiles().size(), std::size_t(2));
+    QVERIFY(local.profile(kDefaultProfile)->name.isEmpty());
     QVERIFY(questions.isEmpty());
 
     // New: a blank name, or one in use, is refused.
     answer = QStringLiteral("  ");
     dialog.addProfile();
-    QCOMPARE(local.webProfiles().size(), std::size_t(1));
+    QCOMPARE(local.profiles().size(), std::size_t(2));
     answer = QStringLiteral("default");
     dialog.addProfile();
-    QCOMPARE(local.webProfiles().size(), std::size_t(1));
+    QCOMPARE(local.profiles().size(), std::size_t(2));
     QVERIFY(dialog.findChild<QLabel *>(QStringLiteral("message"))->isVisibleTo(&dialog));
     answer = QStringLiteral(" Bank ");
     dialog.addProfile();
-    QCOMPARE(local.webProfiles().size(), std::size_t(2));
-    const QString bank = local.webProfiles().back().id;
-    QCOMPARE(local.webProfiles().back().name, QStringLiteral("Bank"));
-    QCOMPARE(dialog.ids(), (QStringList{kDefaultWebProfile, bank, QStringLiteral("work")}));
+    QCOMPARE(local.profiles().size(), std::size_t(3));
+    const QString bank = local.profiles().back().id;
+    QCOMPARE(local.profiles().back().name, QStringLiteral("Bank"));
+    QCOMPARE(dialog.ids(), (QStringList{kDefaultProfile, bank, QStringLiteral("work")}));
 
     // Rename.
     dialog.select(bank);
     answer = QStringLiteral("work");
     dialog.renameSelected();
-    QCOMPARE(local.webProfile(bank)->name, QStringLiteral("Bank"));
+    QCOMPARE(local.profile(bank)->name, QStringLiteral("Bank"));
     answer = QStringLiteral("Banking");
     dialog.renameSelected();
-    QCOMPARE(local.webProfile(bank)->name, QStringLiteral("Banking"));
+    QCOMPARE(local.profile(bank)->name, QStringLiteral("Banking"));
 
-    // Delete asks first, and names who uses the profile.
+    // Delete asks first, and names who uses the profile and what goes.
     dialog.select(QStringLiteral("work"));
     dialog.deleteSelected();
     QCOMPARE(questions.size(), 1);
     QVERIFY2(questions.front().contains(QStringLiteral("used by 1 group")), qPrintable(questions.front()));
-    QVERIFY(local.webProfile(QStringLiteral("work")));
+    QVERIFY2(questions.front().contains(QStringLiteral("connections and module settings")),
+             qPrintable(questions.front()));
+    QVERIFY(local.profile(QStringLiteral("work")));
     QCOMPARE(deleted.count(), 0);
     yes = true;
     dialog.deleteSelected();
-    QVERIFY(!local.webProfile(QStringLiteral("work")));
+    QVERIFY(!local.profile(QStringLiteral("work")));
     QCOMPARE(deleted.count(), 1);
     QCOMPARE(deleted.at(0).at(0).toString(), QStringLiteral("work"));
     // The group still names it, and falls back to Default.
-    QCOMPARE(local.group(QStringLiteral("g1"))->webProfile, QStringLiteral("work"));
-    QCOMPARE(webprofiles::groupDefault(local, *local.group(QStringLiteral("g1"))), kDefaultWebProfile);
-    QCOMPARE(dialog.ids(), (QStringList{kDefaultWebProfile, bank}));
+    QCOMPARE(local.group(QStringLiteral("g1"))->profile, QStringLiteral("work"));
+    QCOMPARE(profiles::groupDefault(local, *local.group(QStringLiteral("g1"))), kDefaultProfile);
+    QCOMPARE(dialog.ids(), (QStringList{kDefaultProfile, bank}));
 
     // Clear Data works on any profile, Default too, and asks first.
     QStringList clearAsked;
@@ -565,8 +671,8 @@ void TestDialogs::webProfiles()
         clearAsked << name;
         return clearYes;
     });
-    QSignalSpy clearRequested(&dialog, &WebProfilesDialog::profileClearRequested);
-    dialog.select(kDefaultWebProfile);
+    QSignalSpy clearRequested(&dialog, &ProfilesDialog::profileClearRequested);
+    dialog.select(kDefaultProfile);
     QVERIFY(dialog.findChild<QPushButton *>(QStringLiteral("clearProfile"))->isEnabled());
     dialog.clearSelected();
     QCOMPARE(clearAsked, QStringList{QStringLiteral("Default")});
@@ -574,8 +680,51 @@ void TestDialogs::webProfiles()
     clearYes = true;
     dialog.clearSelected();
     QCOMPARE(clearRequested.count(), 1);
-    QCOMPARE(clearRequested.at(0).at(0).toString(), kDefaultWebProfile);
-    QCOMPARE(dialog.ids(), (QStringList{kDefaultWebProfile, bank}));
+    QCOMPARE(clearRequested.at(0).at(0).toString(), kDefaultProfile);
+    QCOMPARE(dialog.ids(), (QStringList{kDefaultProfile, bank}));
+}
+
+// Connections… edits the selected profile's connections in their own
+// dialog. OK stores them in the model; Cancel changes nothing.
+void TestDialogs::profileConnections()
+{
+    Model local;
+    local.setProfiles({profile(QStringLiteral("work"), QStringLiteral("Work"))});
+    ProfilesDialog dialog(local);
+    dialog.setConnectionKinds({QStringLiteral("gitlab")});
+    auto *details = dialog.findChild<QLabel *>(QStringLiteral("details"));
+    dialog.select(QStringLiteral("work"));
+    QCOMPARE(details->text(), QStringLiteral("No connections."));
+
+    QString title;
+    bool accept = false;
+    dialog.setEditConnections([&](ConnectionsDialog &connections) {
+        title = connections.windowTitle();
+        connections.editor()->addConnection();
+        QTableWidget *table = connections.editor()->table();
+        table->item(0, 1)->setText(QStringLiteral("gitlab.com"));
+        table->item(0, 2)->setText(QStringLiteral("https://gitlab.com"));
+        return accept;
+    });
+    dialog.editConnectionsOfSelected();
+    QCOMPARE(title, QStringLiteral("Connections of Work"));
+    QVERIFY(local.profile(QStringLiteral("work"))->connections.empty());
+
+    accept = true;
+    dialog.editConnectionsOfSelected();
+    const Profile *work = local.profile(QStringLiteral("work"));
+    QCOMPARE(work->connections.size(), std::size_t(1));
+    QCOMPARE(work->connections[0].name, QStringLiteral("gitlab.com"));
+    QCOMPARE(work->defaultConnections.value(QStringLiteral("gitlab")), work->connections[0].id);
+    QCOMPARE(work->name, QStringLiteral("Work"));
+    QCOMPARE(details->text(), QStringLiteral("Connections: gitlab.com."));
+
+    // Default has connections too.
+    dialog.select(kDefaultProfile);
+    dialog.editConnectionsOfSelected();
+    QCOMPARE(title, QStringLiteral("Connections of Default"));
+    QCOMPARE(local.profile(kDefaultProfile)->connections.size(), std::size_t(1));
+    QVERIFY(local.profile(kDefaultProfile)->name.isEmpty());
 }
 
 void TestDialogs::project()

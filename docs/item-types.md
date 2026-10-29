@@ -16,6 +16,7 @@ A module registers each of its types in the `ItemTypeRegistry` with:
 | `name`, `icon` | Shown in menus and cell headers |
 | `shortName` | Optional: a short label, one word if possible, such as "MR" or "Jira". Cell headers show it with the icon in the type pill. Defaults to `name`. See [decision 0033](decisions/0033-cell-header-pills.md). |
 | `fields` | The configuration fields: key, label, type, default, whether it is required, and for a choice its values and labels. The core builds the item dialog's form from them and checks the values. See [decision 0028](decisions/0028-item-fields-in-m3.md). |
+| `fieldsForProfile` | Optional: the fields for an item that uses a given [profile](data-model.md#profile), such as a field whose suggestions come from that profile's module settings. The item dialog builds its form from it. Defaults to `fields`. See [decision 0050](decisions/0050-profiles-hold-logins-connections-and-settings.md). |
 | `createEditor` | Optional: an editor of the type's own for the configuration, used instead of the form built from `fields`. It receives the project's folders and a way to save an image into `files/`. |
 | `pastedImageField` | Optional: the key of an image field that a pasted image fills. If set, "Paste Image…" in a task's Items menu creates an item of this type, and `Ctrl+V` replaces the image of such an item. See [Image](#image). |
 | `rendering` | `native` (a Qt widget) or `web` (a [web view](web-views.md)). The [memory policy](web-views.md#memory-policy) unloads web views. |
@@ -27,7 +28,7 @@ A module registers each of its types in the `ItemTypeRegistry` with:
 | `singleView` | Optional, off by default: the item can have only one view at a time |
 | `reparentSafe` | Optional, on by default: the view can be moved to another cell without being created again |
 
-A new item starts with a grid of the registered types, where the user picks one, then edits the item of that type; see [the item dialog](ui.md#item-dialog). The item dialog keeps the configuration keys that its form or editor does not show. For a type whose `rendering` is web, the dialog also offers a **Web profile** choice: "The group's profile (<name>)", which is the default, or any profile of the list. It is stored in the item's `webProfile`, not in its configuration. See [web views](web-views.md#profiles). An item whose module is missing has neither fields nor an editor; its dialog edits the name only and keeps the configuration unchanged.
+A new item starts with a grid of the registered types, where the user picks one, then edits the item of that type; see [the item dialog](ui.md#item-dialog). The item dialog keeps the configuration keys that its form or editor does not show. For a type that uses a [profile](data-model.md#profile), the dialog also offers a **Profile** choice: "The group's profile (<name>)", which is the default, or any profile of the list. A type uses a profile when its `rendering` is web, it lists `connectionKinds`, or its module has settings screens. The choice is stored in the item's `profile`, not in its configuration. See [web views](web-views.md#profiles). An item whose module is missing has neither fields nor an editor; its dialog edits the name only and keeps the configuration unchanged.
 
 New types are added by registering a class in a module. No core code changes. See [adding a module](modules.md#adding-a-module).
 
@@ -35,7 +36,7 @@ When a field has a project default, the type uses it when the field is empty. Fo
 
 ## Items from a link
 
-A pasted web address can make an item. The new item dialog asks every type's `fromUrl` about it, and offers the types that take it: types of modules first, then Web page. Choosing one fills its configuration and name. If the address is on the server of one of the group's connections, the item uses that connection. See [decision 0049](decisions/0049-items-from-a-pasted-link.md), [the item dialog](ui.md#item-dialog) and [modules](modules.md#items-from-a-link).
+A pasted web address can make an item. The new item dialog asks every type's `fromUrl` about it, and offers the types that take it: types of modules first, then Web page. Choosing one fills its configuration and name. If the address is on the server of one of the connections of the group's profile, the item uses that connection. See [decision 0049](decisions/0049-items-from-a-pasted-link.md), [the item dialog](ui.md#item-dialog) and [modules](modules.md#items-from-a-link).
 
 | Address | Types that take it | Configuration filled | Name |
 |---|---|---|---|
@@ -92,10 +93,10 @@ Module `gitlab`. All GitLab types need a `gitlab` connection. In the item dialog
 
 ### GitLab MR (page)
 
-`gitlab.mr.page`, web. The merge request's web page, in the item's [web profile](web-views.md#profiles). Its configuration is the summary's: `project` and `iid`.
+`gitlab.mr.page`, web. The merge request's web page, in the item's [profile](web-views.md#profiles). Its configuration is the summary's: `project` and `iid`.
 
 - **Address:** `<baseUrl>/<project>/-/merge_requests/<iid>`, where `baseUrl` is the connection's base URL. An empty `project` uses the project's `gitlab.project` setting.
-- **Without a `gitlab` connection,** the cell says "No GitLab connection in this group."
+- **Without a `gitlab` connection,** the cell says "No GitLab connection in this profile."
 - **Without a project or a number,** the cell says "Set the project and number in the item's settings."
 
 ### GitLab MR List
@@ -159,7 +160,7 @@ Module `jira`. Jira types need a `jira.cloud` or `jira.dc` connection.
 `jira.issue.page`, web. The issue's web page. Its configuration is the summary's: `key`.
 
 - **Address:** `<baseUrl>/browse/<key>`, where `baseUrl` is the connection's base URL. A `jira.cloud` connection is used first, then a `jira.dc` one.
-- **Without a Jira connection,** the cell says "No Jira connection in this group."
+- **Without a Jira connection,** the cell says "No Jira connection in this profile."
 - **Without an issue key,** the cell says "Set the issue key in the item's settings."
 
 ### Jira List
@@ -182,7 +183,7 @@ Module `claude`.
 `claude.session.web`, web.
 
 - **Configuration:** `url`, a claude.ai URL, such as a Remote Control or cloud session link, required.
-- **Shows:** the claude.ai page, in the item's [web profile](web-views.md#profiles). If `url` is empty or is not an `http` or `https` address, the cell says "Set the address in the item's settings."
+- **Shows:** the claude.ai page, in the item's [profile](web-views.md#profiles). If `url` is empty or is not an `http` or `https` address, the cell says "Set the address in the item's settings."
 
 There is no public API for these sessions, so the app has no status or summary for them. See [decision 0008](decisions/0008-claude-sessions.md).
 
@@ -206,7 +207,7 @@ Local sessions exist on one device only. On other devices the panel shows the de
 `web.page`, web, module `web`.
 
 - **Configuration:** `url`, the page's address, required.
-- **Shows:** the page, in the item's [web profile](web-views.md#profiles). If `url` is empty or is not an `http` or `https` address, the cell says "Set the address in the item's settings."
+- **Shows:** the page, in the item's [profile](web-views.md#profiles). If `url` is empty or is not an `http` or `https` address, the cell says "Set the address in the item's settings."
 
 ### Notes
 

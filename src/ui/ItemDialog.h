@@ -25,9 +25,11 @@ class ItemTypeRegistry;
 // one, the grid shows only the types whose fromUrl() takes it, and choosing
 // one starts from the configuration and name it made. See decision 0049.
 //
-// The second page holds the name, the web profile (only for a type whose views
-// are web views), and the configuration, edited by the type's own editor or
-// else a FieldForm. An item of a missing module shows its name only and keeps
+// The second page holds the name, the profile (only for a type that uses one,
+// see ItemTypeRegistry::usesProfile()), and the configuration, edited by the
+// type's own editor or else a FieldForm built from the type's
+// fieldsForProfile() for the profile the item would use. Choosing another
+// profile builds the form again, keeping what was entered. An item of a missing module shows its name only and keeps
 // its configuration. OK is refused while the name is empty or the editor
 // reports problems. See docs/ui.md#item-dialog and decision 0043.
 // Implemented in ItemDialog.cpp.
@@ -46,27 +48,31 @@ public:
     // The item with the edited fields; every other field as given.
     Item value() const;
 
-    // The web profiles offered, from webprofiles::all(), after the first
-    // entry, "The group's profile", which names groupProfileName. Only that
-    // entry by default.
-    void setWebProfiles(const std::vector<WebProfile> &profiles, const QString &groupProfileName);
+    // The profiles offered, from profiles::all(), after the first entry,
+    // "The group's profile", which names groupProfileName. groupProfileId is
+    // the id of that profile. Only that entry, for Default, by default.
+    void setProfiles(const std::vector<Profile> &profiles, const QString &groupProfileId,
+                     const QString &groupProfileName);
 
-    // The connections of the new item's group. A pasted link is read with
-    // the base URLs of those of each type's kinds, and an item made from a
-    // link uses the connection of its server. None by default.
+    // The profile the item would use with the chosen entry.
+    QString effectiveProfile() const;
+
+    // The connections of the profile of the new item's group. A pasted link
+    // is read with the base URLs of those of each type's kinds, and an item
+    // made from a link uses the connection of its server. None by default.
     void setConnections(const std::vector<Connection> &connections);
     // Fills the link field of the type page, as pasting into it does. The
     // grid then shows only the types that take the link, best first, and
     // choosing one fills its configuration and name. See decision 0049.
     void setUrl(const QString &text);
-    // The id of the group's connection whose base URL the chosen type's link
-    // names. Empty when the type was not chosen from a link, or no connection
-    // of the group matches.
+    // The id of the connection, of those given, whose base URL the chosen
+    // type's link names. Empty when the type was not chosen from a link, or no
+    // connection matches.
     QString urlConnectionId() const;
 
     // For tests.
-    void setWebProfile(const QString &id);   // empty for the group's profile
-    bool showsWebProfile() const;
+    void setProfile(const QString &id);   // empty for the group's profile
+    bool showsProfile() const;
     // Chooses a registered type while creating, as the type page does, and
     // shows the item's page. Does nothing while editing.
     void setType(const QString &typeId);

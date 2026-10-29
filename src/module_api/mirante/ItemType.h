@@ -54,6 +54,15 @@ public:
     // core builds a form, or an editor of the type's own. See
     // docs/decisions/0028-item-fields-in-m3.md.
     virtual std::vector<Field> fields() const { return {}; }
+    // The fields for an item that uses the profile with this id, such as a
+    // field whose suggestions come from that profile's module settings. The
+    // item dialog calls it with the profile the edited item would use.
+    // Defaults to fields(). See decision 0050.
+    virtual std::vector<Field> fieldsForProfile(const QString &profileId) const
+    {
+        Q_UNUSED(profileId)
+        return fields();
+    }
     // An editor of the type's own, or null to use a form built from fields().
     // Include <mirante/ItemEditor.h> to implement it.
     virtual ItemEditor *createEditor(const EditorContext &context, QWidget *parent) const
@@ -71,7 +80,8 @@ public:
     // Recognises a web address that the user pasted, such as a merge
     // request's page, and returns the configuration that shows it. Null if
     // the type does not take the address, the default. baseUrls are the base
-    // URLs of the connections of connectionKinds() in the new item's group,
+    // URLs of the connections of connectionKinds() in the profile of the new
+    // item's group,
     // so a type can recognise a self-hosted server. See
     // docs/modules.md#items-from-a-link.
     virtual std::optional<UrlMatch> fromUrl(const QUrl &url, const QList<QUrl> &baseUrls) const

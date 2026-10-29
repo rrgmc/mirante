@@ -33,7 +33,7 @@ public:
     // letters and digits, unique within the module, and its name not empty.
     virtual void addSettingsScreen(std::unique_ptr<SettingsScreen> screen) = 0;
 
-    // The stored values of this module's screens. It outlives the module's
+    // The stored values of this module's screens, in each profile. It outlives the module's
     // item types, so they may keep a pointer to it, for example to offer
     // configured values in their fields().
     virtual const ModuleSettings &settings() const = 0;

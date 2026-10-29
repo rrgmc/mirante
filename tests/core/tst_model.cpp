@@ -390,34 +390,36 @@ void TestModel::pointersStayValid()
     QCOMPARE(root->layout.ref->item, QStringLiteral("i2"));
 }
 
-// One screen's values replace only that screen. Empty values remove it, and
-// the module once it has no screens. Equal values emit nothing.
+// One screen's values in Default replace only that screen. Empty values
+// remove it, and the module once it has no screens. Equal values emit
+// nothing. More cases are in tst_profiles.
 void TestModel::moduleSettings()
 {
     Model model;
-    QSignalSpy changed(&model, &Model::moduleSettingsChanged);
+    QSignalSpy changed(&model, &Model::profilesChanged);
     const QJsonObject general{{QStringLiteral("projects"), QJsonArray{QStringLiteral("a/b")}}};
     const QJsonObject other{{QStringLiteral("x"), 1}};
+    const QString gitlab = QStringLiteral("gitlab");
 
-    model.setModuleSettings(QStringLiteral("gitlab"), QStringLiteral("general"), general);
-    model.setModuleSettings(QStringLiteral("gitlab"), QStringLiteral("other"), other);
+    model.setModuleSettings(kDefaultProfile, gitlab, QStringLiteral("general"), general);
+    model.setModuleSettings(kDefaultProfile, gitlab, QStringLiteral("other"), other);
     QCOMPARE(changed.count(), 2);
-    model.setModuleSettings(QStringLiteral("gitlab"), QStringLiteral("general"), general);
+    model.setModuleSettings(kDefaultProfile, gitlab, QStringLiteral("general"), general);
     QCOMPARE(changed.count(), 2);
-    QCOMPARE(model.moduleSettings(QStringLiteral("gitlab"), QStringLiteral("general")), general);
-    QCOMPARE(model.moduleSettings(QStringLiteral("gitlab"), QStringLiteral("other")), other);
+    QCOMPARE(model.moduleSettings(kDefaultProfile, gitlab, QStringLiteral("general")), general);
+    QCOMPARE(model.moduleSettings(kDefaultProfile, gitlab, QStringLiteral("other")), other);
 
-    model.setModuleSettings(QStringLiteral("gitlab"), QStringLiteral("general"), {});
-    QVERIFY(model.moduleSettings(QStringLiteral("gitlab"), QStringLiteral("general")).isEmpty());
-    QCOMPARE(model.moduleSettings(QStringLiteral("gitlab"), QStringLiteral("other")), other);
-    model.setModuleSettings(QStringLiteral("gitlab"), QStringLiteral("other"), {});
-    QVERIFY(model.moduleSettings().isEmpty());
+    model.setModuleSettings(kDefaultProfile, gitlab, QStringLiteral("general"), {});
+    QVERIFY(model.moduleSettings(kDefaultProfile, gitlab, QStringLiteral("general")).isEmpty());
+    QCOMPARE(model.moduleSettings(kDefaultProfile, gitlab, QStringLiteral("other")), other);
+    model.setModuleSettings(kDefaultProfile, gitlab, QStringLiteral("other"), {});
+    QVERIFY(model.profile(kDefaultProfile)->moduleSettings.isEmpty());
     QCOMPARE(changed.count(), 4);
 
     // reset() clears them, as it does the workspace's other keys.
-    model.setModuleSettings(QStringLiteral("gitlab"), QStringLiteral("general"), general);
+    model.setModuleSettings(kDefaultProfile, gitlab, QStringLiteral("general"), general);
     model.reset({}, {}, {}, {});
-    QVERIFY(model.moduleSettings().isEmpty());
+    QVERIFY(model.profile(kDefaultProfile)->moduleSettings.isEmpty());
 }
 
 QTEST_GUILESS_MAIN(TestModel)

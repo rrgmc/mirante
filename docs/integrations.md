@@ -1,6 +1,6 @@
 # Integrations
 
-This document describes how Mirante talks to GitLab, Jira and Claude, and how it starts terminals. Which connection an item uses is defined in the [data model](data-model.md#connection).
+This document describes how Mirante talks to GitLab, Jira and Claude, and how it starts terminals. Which connection an item uses is defined in the [data model](data-model.md#connection): one of its [profile](data-model.md#profile)'s connections.
 
 The GitLab, Jira and Claude code lives in the `gitlab`, `jira` and `claude` [modules](modules.md). Polling, caching, errors and terminal launch are core services that all modules use.
 
@@ -69,7 +69,7 @@ If Anthropic publishes an API for sessions later, a new decision record will cov
 
 The `StatusCache` owns all API data.
 
-- **Cache key:** connection id plus request. Two groups that use the same server with different tokens never share data.
+- **Cache key:** connection id plus request. Two profiles that use the same server with different tokens never share data.
 - **What it polls:**
   - items in visible cells;
   - items in tasks opened in the last 30 minutes;
