@@ -172,6 +172,15 @@ void TestTaskCell::titleNamesTaskAndDashboard()
              QStringLiteral("%1 / %2").arg(task->title, dashboard->name));
     QVERIFY(!cell.findChild<QComboBox *>());
     QCOMPARE(cellCount(cell.view()), int(layout::cellPaths(*m_model->layout({kRateLimitTask, kRateLimitDashboard})).size()));
+
+    // The project follows the title, and follows a rename.
+    auto *context = cell.findChild<QLabel *>(QStringLiteral("taskContext"));
+    QVERIFY(context);
+    Project project = *m_model->project(task->projectId);
+    QCOMPARE(context->text(), project.name);
+    project.name = QStringLiteral("Renamed project");
+    m_model->setProject(project);
+    QCOMPARE(context->text(), QStringLiteral("Renamed project"));
 }
 
 void TestTaskCell::followsModelChanges()

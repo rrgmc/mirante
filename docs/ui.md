@@ -76,7 +76,7 @@ The open tabs are stored on each device for each workspace, not synced: the root
 A root dashboard is a tab in the main tab bar. It has a name and a [layout tree](data-model.md#layout-tree).
 
 - A cell can hold a task, showing one of the task's dashboards, or a single item from any task.
-- A task dashboard inside a root dashboard shows a thin header with the task and dashboard names, its lock, and a button to open it alone. It has no picker: to show another dashboard of the task, drop that dashboard from the sidebar.
+- A task dashboard inside a root dashboard shows a thin header with the task and dashboard names, its project in dimmed text after them, such as "Rotate TLS certificates / Main infra", and a button to open it alone. It has no picker: to show another dashboard of the task, drop that dashboard from the sidebar.
 - The `+` button creates an empty root dashboard, with editing on.
 - Closing a root dashboard's tab, with its close button, a middle click or the tab bar's context menu, does not delete it. It can be opened again with the [quick switcher](#keyboard) or the dashboard list.
 - The **dashboard list**, opened with the button after the lock in the tab bar row or with "All dashboards…" in the tab bar's context menu, lists every root dashboard and marks closed ones. It opens a dashboard again, and it is the only place where a root dashboard is deleted, after a confirmation.
