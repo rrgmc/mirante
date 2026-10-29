@@ -17,12 +17,17 @@ param(
 $ErrorActionPreference = 'Stop'
 
 $Repo = Split-Path -Parent $PSScriptRoot
+$Exe = Join-Path $Repo "build\$Preset\mirante.exe"
 
 if ($Build) {
+    # Windows locks a running program's file, so the link would fail.
+    $running = Get-Process mirante -ErrorAction SilentlyContinue | Where-Object { $_.Path -eq $Exe }
+    if ($running) {
+        throw "Mirante is still running from $Exe (process $($running.Id -join ', ')). Quit it with File > Quit, then run this again."
+    }
     & (Join-Path $PSScriptRoot 'build.ps1') -Preset $Preset -NoTest
 }
 
-$Exe = Join-Path $Repo "build\$Preset\mirante.exe"
 if (-not (Test-Path $Exe)) { throw "$Exe was not found. Build it with tools/build.ps1 -Preset $Preset, or add -Build." }
 
 $QtDir = & (Join-Path $PSScriptRoot 'setup-qt.ps1') | Select-Object -Last 1
