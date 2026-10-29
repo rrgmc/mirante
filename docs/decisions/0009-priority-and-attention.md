@@ -1,6 +1,6 @@
 # 0009. Four priority levels; attention as badges
 
-- Status: Accepted
+- Status: Accepted; the sorting of lists is superseded by [0034](0034-manual-order-in-the-sidebar.md)
 - Date: 2026-10-28
 
 ## Context

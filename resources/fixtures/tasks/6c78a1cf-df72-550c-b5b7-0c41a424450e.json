@@ -77,7 +77,7 @@
             "type": "dash.panel"
         }
     ],
-    "order": 0,
+    "order": 2,
     "priority": 2,
     "projectId": "475aa13b-e862-5f2e-b9aa-e1f4950328bc",
     "schemaVersion": 1,

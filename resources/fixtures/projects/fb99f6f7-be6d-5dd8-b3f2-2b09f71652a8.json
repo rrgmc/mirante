@@ -19,7 +19,7 @@
         }
     },
     "name": "frontend",
-    "order": 0,
+    "order": 1,
     "priority": 2,
     "schemaVersion": 1
 }

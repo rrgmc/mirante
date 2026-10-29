@@ -10,6 +10,7 @@
 #include <QIcon>
 #include <QMimeData>
 #include <QPushButton>
+#include <QMenu>
 #include <QSignalSpy>
 #include <QTabBar>
 #include <QTest>
@@ -17,6 +18,7 @@
 #include <QTreeView>
 
 #include <memory>
+#include <set>
 
 using namespace mirante;
 
@@ -42,7 +44,7 @@ QStringList childIds(const SidebarModel &model, const QModelIndex &parent)
 }
 
 // Drops id at row under parent and returns the move it asks for, as
-// "kind id priority index", or "refused". canDropMimeData must agree.
+// "kind id index", or "refused". canDropMimeData must agree.
 QString drop(SidebarModel &sidebar, const QString &id, int row, const QModelIndex &parent)
 {
     QSignalSpy spy(&sidebar, &SidebarModel::moveRequested);
@@ -54,16 +56,15 @@ QString drop(SidebarModel &sidebar, const QString &id, int row, const QModelInde
     if (!dropped)
         return QStringLiteral("refused");
     const QList<QVariant> &args = spy.first();
-    return QStringLiteral("%1 %2 %3 %4")
+    return QStringLiteral("%1 %2 %3")
         .arg(int(args.at(0).value<SidebarModel::Kind>()))
         .arg(args.at(1).toString())
-        .arg(args.at(2).toInt())
-        .arg(args.at(3).toInt());
+        .arg(args.at(2).toInt());
 }
 
-QString move(SidebarModel::Kind kind, const QString &id, int priority, int index)
+QString move(SidebarModel::Kind kind, const QString &id, int index)
 {
-    return QStringLiteral("%1 %2 %3 %4").arg(int(kind)).arg(id).arg(priority).arg(index);
+    return QStringLiteral("%1 %2 %3").arg(int(kind)).arg(id).arg(index);
 }
 
 // Loads the fixtures and checks the model with QAbstractItemModelTester.
@@ -139,7 +140,7 @@ void TestSidebarModel::hidesClosedByDefault()
 {
     Fixture f;
     QVERIFY(!f.sidebar->filter().closedTasks);
-    QVERIFY(!f.sidebar->filter().hideLow);
+    QVERIFY(f.sidebar->filter().hiddenPriorities.empty());
     QVERIFY(!f.sidebar->indexOf(upgradeGo).isValid());
 
     // The closed list shows the same groups and projects, with only done and
@@ -162,9 +163,9 @@ void TestSidebarModel::hidesLow()
 {
     Fixture f;
     SortFilter filter;
-    filter.hideLow = true;
+    filter.hiddenPriorities = {Priority::Low};
     f.sidebar->setFilter(filter);
-    QVERIFY(f.sidebar->filter().hideLow);
+    QVERIFY(f.sidebar->filter().hiddenPriorities.count(Priority::Low) == 1);
 
     QCOMPARE(childIds(*f.sidebar, f.sidebar->index(0, 0)), (QStringList{backendProject, frontendProject}));
     QVERIFY(!f.sidebar->indexOf(infraProject).isValid());
@@ -323,22 +324,18 @@ void TestSidebarModel::drops()
     QVERIFY(sidebar.supportedDropActions().testFlag(Qt::MoveAction));
 
     const QModelIndex project1 = sidebar.indexOf(p1.id);
-    QCOMPARE(childIds(sidebar, project1), (QStringList{"a", "b", "c", "d"}));
+    // The manual order alone: a and c have order 0, b and d order 1, and
+    // equal orders go by title. Priority does not count.
+    QCOMPARE(childIds(sidebar, project1), (QStringList{"a", "c", "b", "d"}));
     const auto task = SidebarModel::Kind::Task;
-    const int high = int(Priority::High);
-    const int normal = int(Priority::Normal);
 
-    // Within a level: first, and after the next row.
-    QCOMPARE(drop(sidebar, "b", 0, project1), move(task, "b", high, 0));
-    QCOMPARE(drop(sidebar, "a", 2, project1), move(task, "a", high, 1));
-    // Across a boundary, the row takes the level of the row above. The
-    // hidden done task e counts in the index, after d.
-    QCOMPARE(drop(sidebar, "a", 3, project1), move(task, "a", normal, 1));
-    QCOMPARE(drop(sidebar, "a", 4, project1), move(task, "a", normal, 2));
-    // Dropped first, it takes the level of the row below.
-    QCOMPARE(drop(sidebar, "d", 0, project1), move(task, "d", high, 0));
+    // First, and after the next row, whatever the priorities around.
+    QCOMPARE(drop(sidebar, "b", 0, project1), move(task, "b", 0));
+    QCOMPARE(drop(sidebar, "a", 2, project1), move(task, "a", 1));
+    // Last: the hidden done task e counts in the index, after d.
+    QCOMPARE(drop(sidebar, "a", 4, project1), move(task, "a", 3));
     // A drop on a row of the same kind is a drop above it.
-    QCOMPARE(drop(sidebar, "d", -1, sidebar.indexOf("c")), move(task, "d", high, 2));
+    QCOMPARE(drop(sidebar, "d", -1, sidebar.indexOf("c")), move(task, "d", 1));
 
     // Tasks stay in their project, and at their depth.
     QCOMPARE(drop(sidebar, "a", 0, sidebar.indexOf(p2.id)), QStringLiteral("refused"));
@@ -349,30 +346,19 @@ void TestSidebarModel::drops()
 
     // Projects among the projects of their group.
     const QModelIndex group1 = sidebar.indexOf(g1.id);
-    QCOMPARE(drop(sidebar, "p2", 0, group1), move(SidebarModel::Kind::Project, "p2", normal, 0));
-    QCOMPARE(drop(sidebar, "p1", 2, group1), move(SidebarModel::Kind::Project, "p1", normal, 1));
+    QCOMPARE(drop(sidebar, "p2", 0, group1), move(SidebarModel::Kind::Project, "p2", 0));
+    QCOMPARE(drop(sidebar, "p1", 2, group1), move(SidebarModel::Kind::Project, "p1", 1));
     QCOMPARE(drop(sidebar, "p3", 0, group1), QStringLiteral("refused"));
     QCOMPARE(drop(sidebar, "p1", 0, {}), QStringLiteral("refused"));
 
-    // Groups among groups; the priority is unused.
-    QCOMPARE(drop(sidebar, "g2", 0, {}), move(SidebarModel::Kind::Group, "g2", 0, 0));
-    QCOMPARE(drop(sidebar, "g1", 2, {}), move(SidebarModel::Kind::Group, "g1", 0, 1));
+    // Groups among groups.
+    QCOMPARE(drop(sidebar, "g2", 0, {}), move(SidebarModel::Kind::Group, "g2", 0));
+    QCOMPARE(drop(sidebar, "g1", 2, {}), move(SidebarModel::Kind::Group, "g1", 1));
     QCOMPARE(drop(sidebar, "g2", 0, group1), QStringLiteral("refused"));
 
     // A drop changes nothing itself.
     QCOMPARE(childIds(sidebar, {}), (QStringList{"g1", "g2"}));
-    QCOMPARE(childIds(sidebar, project1), (QStringList{"a", "b", "c", "d"}));
-
-    // The hint names the new level only when the priority changes.
-    const auto hint = [&sidebar](const QString &id, int row, const QModelIndex &parent) {
-        std::unique_ptr<QMimeData> data(sidebar.mimeData({sidebar.indexOf(id)}));
-        return sidebar.dropHint(data.get(), row, parent);
-    };
-    QCOMPARE(hint("a", 3, project1), QStringLiteral("Becomes Normal"));
-    QCOMPARE(hint("d", 0, project1), QStringLiteral("Becomes High"));
-    QVERIFY(hint("a", 2, project1).isEmpty());
-    QVERIFY(hint("a", 0, sidebar.indexOf(p2.id)).isEmpty());
-    QVERIFY(hint("g2", 0, {}).isEmpty());
+    QCOMPARE(childIds(sidebar, project1), (QStringList{"a", "c", "b", "d"}));
 }
 
 // The tree follows the model's setters and removers.
@@ -382,14 +368,13 @@ void TestSidebarModel::followsModelEdits()
     const QModelIndex backend = f.sidebar->indexOf(backendProject);
     QCOMPARE(childIds(*f.sidebar, backend).first(), fixLoginTimeout);
 
-    // A changed priority moves the task.
+    // A changed priority and title leave the task where it is.
     Task fix = *f.model.task(fixLoginTimeout);
     fix.priority = Priority::Low;
     fix.title = QStringLiteral("Fixed login timeout");
     f.model.setTask(fix);
     QStringList ids = childIds(*f.sidebar, f.sidebar->indexOf(backendProject));
-    QCOMPARE(ids.first(), addRateLimiting);
-    QVERIFY(ids.indexOf(fixLoginTimeout) > ids.indexOf(backendOverview));
+    QCOMPARE(ids.first(), fixLoginTimeout);
     QCOMPARE(f.sidebar->indexOf(fixLoginTimeout).data().toString(), QStringLiteral("Fixed login timeout"));
 
     f.model.removeTask(addRateLimiting);
@@ -487,14 +472,19 @@ void TestSidebarModel::sidebarWidget()
     QCOMPARE(tree->currentIndex(), sidebarModel->indexOf(itemId));
     QVERIFY(tree->isExpanded(sidebarModel->indexOf(fixLoginTimeout)));
 
-    QToolButton *hideLow = nullptr;
-    for (QToolButton *button : sidebar.findChildren<QToolButton *>()) {
-        if (button->isCheckable() && !button->isChecked())
-            hideLow = button;
-    }
-    QVERIFY(hideLow);
-    hideLow->click();
-    QVERIFY(sidebarModel->filter().hideLow);
+    // The filter button right of the title: one checkbox for each priority,
+    // all shown at first. Hiding one presses the button.
+    auto *priorityFilter = sidebar.findChild<QToolButton *>(QStringLiteral("priorityFilter"));
+    QVERIFY(priorityFilter && priorityFilter->menu());
+    const QList<QAction *> levels = priorityFilter->menu()->actions();
+    QCOMPARE(levels.size(), 4);
+    QCOMPARE(levels.at(3)->text(), QStringLiteral("Low"));
+    for (QAction *level : levels)
+        QVERIFY(level->isChecked());
+    QVERIFY(!priorityFilter->isChecked());
+    levels.at(3)->trigger();
+    QCOMPARE(sidebarModel->filter().hiddenPriorities, std::set<Priority>{Priority::Low});
+    QVERIFY(priorityFilter->isChecked());
 
     // The current entry and the expanded task survive the reset.
     QCOMPARE(tree->currentIndex(), sidebarModel->indexOf(itemId));
