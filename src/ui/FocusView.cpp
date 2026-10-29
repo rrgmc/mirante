@@ -9,7 +9,9 @@
 #include <QComboBox>
 #include <QKeyEvent>
 #include <QListView>
+#include <QMenu>
 #include <QPainter>
+#include <QStyle>
 #include <QStandardItemModel>
 #include <QVBoxLayout>
 
@@ -70,14 +72,19 @@ public:
         if (contextRect.width() <= 0)
             return;
 
+        // The context takes the title's colour. The Windows styles draw a
+        // selection as a light fill and keep the normal text colour on it;
+        // the others fill it with Highlight and draw HighlightedText.
         const bool selected = (opt.state & QStyle::State_Selected) != 0;
+        const bool lightSelection = style->name().startsWith(QLatin1String("windows"), Qt::CaseInsensitive);
         const QPalette::ColorGroup group = (opt.state & QStyle::State_Active) != 0 ? QPalette::Active
                                                                                    : QPalette::Inactive;
         painter->save();
         painter->setOpacity(painter->opacity() * contextOpacity
                             * (index.data(SidebarModel::PriorityRole).toInt() == int(Priority::Low) ? 0.5 : 1.0));
         painter->setFont(opt.font);
-        painter->setPen(opt.palette.color(group, selected ? QPalette::HighlightedText : QPalette::Text));
+        painter->setPen(opt.palette.color(group, selected && !lightSelection ? QPalette::HighlightedText
+                                                                             : QPalette::Text));
         painter->drawText(contextRect, Qt::AlignLeft | Qt::AlignVCenter,
                           metrics.elidedText(context, Qt::ElideRight, contextRect.width()));
         painter->restore();
@@ -124,6 +131,7 @@ struct FocusView::Private
     FocusListView *list = nullptr;
     QStandardItemModel *rows = nullptr;
     bool updatingGroups = false;
+    MenuFiller menuFiller;
 
     explicit Private(const Model &m)
         : model(m)
@@ -222,6 +230,19 @@ FocusView::FocusView(const Model &model, QWidget *parent)
     d->list->onOpen = open;
     connect(d->list, &QAbstractItemView::doubleClicked, this, open);
 
+    d->list->setContextMenuPolicy(Qt::CustomContextMenu);
+    connect(d->list, &QWidget::customContextMenuRequested, this, [this](const QPoint &pos) {
+        const QModelIndex index = d->list->indexAt(pos);
+        const QString taskId = index.data(SidebarModel::IdRole).toString();
+        if (taskId.isEmpty() || !d->menuFiller)
+            return;
+        d->list->setCurrentIndex(index);
+        QMenu menu(this);
+        d->menuFiller(&menu, taskId);
+        if (!menu.isEmpty())
+            menu.exec(d->list->viewport()->mapToGlobal(pos));
+    });
+
     connect(d->groups, qOverload<int>(&QComboBox::currentIndexChanged), this, [this](int index) {
         if (d->updatingGroups || index < 0)
             return;
@@ -256,6 +277,8 @@ void FocusView::setGroupFilter(const QString &groupId)
 }
 
 QString FocusView::groupFilter() const { return d->groupFilter; }
+
+void FocusView::setMenuFiller(MenuFiller filler) { d->menuFiller = std::move(filler); }
 
 QStringList FocusView::taskIds() const
 {

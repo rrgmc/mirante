@@ -225,6 +225,26 @@ private slots:
         QCOMPARE(opened.at(1).at(0).toString(), m2Skeleton);
     }
 
+    // A right click asks the filler for the task's menu. It adds nothing
+    // here, so no menu opens and the test does not block.
+    void taskMenu()
+    {
+        FocusView view(*model);
+        QStringList asked;
+        view.setMenuFiller([&asked](QMenu *, const QString &taskId) { asked << taskId; });
+        auto *list = view.findChild<QListView *>();
+        view.resize(400, 400);
+        view.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&view));
+        const QModelIndex third = list->model()->index(2, 0);
+        emit list->customContextMenuRequested(list->visualRect(third).center());
+        QCOMPARE(asked, QStringList{addRateLimiting});
+        QCOMPARE(list->currentIndex(), third);
+        // Not on a row: no menu.
+        emit list->customContextMenuRequested(QPoint(5, list->viewport()->height() - 2));
+        QCOMPARE(asked.size(), 1);
+    }
+
 private:
     std::unique_ptr<Model> model;
 };
