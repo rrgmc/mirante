@@ -76,6 +76,10 @@ Module `gitlab`. All GitLab types need a `gitlab` connection.
 
 `gitlab.mr.page`, web. The merge request's web page, using the group's [profile](web-views.md#profiles). Its configuration is the summary's: `project` and `iid`.
 
+- **Address:** `<baseUrl>/<project>/-/merge_requests/<iid>`, where `baseUrl` is the connection's base URL. An empty `project` uses the project's `gitlab.project` setting.
+- **Without a `gitlab` connection,** the cell says "No GitLab connection in this group."
+- **Without a project or a number,** the cell says "Set the project and number in the item's settings."
+
 ### GitLab MR List
 
 `gitlab.mr.list`, native.
@@ -111,6 +115,7 @@ Module `gitlab`. All GitLab types need a `gitlab` connection.
 - **The summary shows:** title, state, assignees, labels, milestone, due date and the latest comments.
 - **Configuration:** the summary and the page have `project` and `iid`, the issue number. The list has `scope`, `project`, `group`, `preset` and `filter`, as for merge requests.
 - **The list presets are:** `assignedToMe` ("Assigned to me"), `createdByMe` ("Created by me") and `allOpen` ("All open"). Custom filters work the same way as for merge requests.
+- **The page's address** is `<baseUrl>/<project>/-/issues/<iid>`. Its messages are those of the merge request page.
 - **Actions:** add comment, close and reopen.
 
 ## Jira
