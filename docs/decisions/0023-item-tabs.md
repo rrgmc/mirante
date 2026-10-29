@@ -1,6 +1,6 @@
 # 0023. Items open alone in a tab
 
-- Status: Accepted; place of the preview superseded by 0048
+- Status: Accepted; place of the preview superseded by 0048; pinning superseded by [0052](0052-no-pinning.md)
 - Date: 2026-10-28
 
 ## Context

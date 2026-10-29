@@ -10,7 +10,7 @@ private slots:
     void iconsRender_data()
     {
         QTest::addColumn<QString>("name");
-        for (const char *name : {"back", "collapse-all", "dashboard", "dashboards", "expand-all", "lock-closed", "lock-open", "maximise", "mirante", "open-alone", "open-in-browser", "pin", "reload", "restore"})
+        for (const char *name : {"back", "collapse-all", "dashboard", "dashboards", "expand-all", "lock-closed", "lock-open", "maximise", "mirante", "open-alone", "open-in-browser", "reload", "restore"})
             QTest::newRow(name) << QString::fromLatin1(name);
     }
 

@@ -278,7 +278,7 @@ Sidebar::Sidebar(const Model &model, const ItemTypeRegistry &types, QWidget *par
     d->tree->setDragEnabled(true);
     d->tree->setDragDropMode(QAbstractItemView::DragDrop);
     d->tree->setDropIndicatorShown(true);
-    d->tree->setExpandsOnDoubleClick(false);    // a double click on a task pins it
+    d->tree->setExpandsOnDoubleClick(false);    // the sidebar handles double clicks itself
     d->tree->setContextMenuPolicy(Qt::CustomContextMenu);
 
     // Footer: four task lists over the same groups: active tasks under every

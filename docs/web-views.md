@@ -41,7 +41,7 @@ Profiles isolate storage only. All pages run in the same Chromium processes, so 
 
 ## Placements and live copies
 
-A placement is one place where an item is shown: a cell in a dashboard, or an item tab.
+A placement is one place where an item is shown: a cell in a dashboard, or the preview slot.
 
 - Each visible placement has its own web view. If the same item is visible in two places, there are two independent views of it. They share the profile, so they share the login, but each has its own scroll position, history and unsent input. See [decision 0003](decisions/0003-view-per-placement.md).
 - A view is created when its placement first becomes visible. A hidden tab does not load its pages until it is opened.

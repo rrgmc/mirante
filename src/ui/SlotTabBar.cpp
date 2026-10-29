@@ -8,7 +8,6 @@
 #include <QMouseEvent>
 #include <QPaintEvent>
 #include <QStyleOptionTab>
-#include <QToolButton>
 #include <QWheelEvent>
 
 #include <algorithm>
@@ -49,17 +48,6 @@ SlotTabBar::SlotTabBar(QWidget *parent)
         setTabButton(FocusSlot, side, nullptr);
         close->deleteLater();
     }
-
-    // The pin goes on the side without the close button.
-    auto *pin = new QToolButton(this);
-    pin->setObjectName(QStringLiteral("pinButton"));
-    pin->setIcon(QIcon(QStringLiteral(":/icons/pin.svg")));
-    pin->setText(tr("Pin"));
-    pin->setToolTip(tr("Pin: keep this open in a tab"));
-    pin->setAutoRaise(true);
-    pin->setFocusPolicy(Qt::NoFocus);
-    connect(pin, &QToolButton::clicked, this, &SlotTabBar::pinRequested);
-    setTabButton(PreviewSlot, side == LeftSide ? RightSide : LeftSide, pin);
 
     connect(this, &QTabBar::tabCloseRequested, this, [this](int index) {
         if (index == PreviewSlot && hasPreview())
@@ -147,12 +135,8 @@ void SlotTabBar::contextMenuEvent(QContextMenuEvent *event)
     if (tabAt(event->pos()) != PreviewSlot || !hasPreview())
         return;
     QMenu menu(this);
-    QAction *pin = menu.addAction(tr("Pin"));
     QAction *close = menu.addAction(tr("Close preview"));
-    QAction *chosen = menu.exec(event->globalPos());
-    if (chosen == pin)
-        emit pinRequested();
-    else if (chosen == close)
+    if (menu.exec(event->globalPos()) == close)
         emit previewCloseRequested();
 }
 

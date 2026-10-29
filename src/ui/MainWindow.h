@@ -79,15 +79,13 @@ public:
     // Navigation, used by the sidebar, the switcher and the shortcuts.
     // Without a dashboard id, these use the task's default dashboard.
     void openTaskPreview(const QString &taskId, const QString &dashboardId = QString());
-    void pinTask(const QString &taskId, const QString &dashboardId = QString());
     void openRootDashboard(const QString &id);
     void newRootDashboard();
     // Shows the list of all root dashboards, where closed ones are opened again
     // and any can be deleted.
     void showDashboardList();
     void focusItem(const QString &taskId, const QString &itemId);
-    // Opens the item alone in the preview slot, like a task dashboard, or
-    // switches to its tab if it has one.
+    // Opens the item alone in the preview slot, like a task dashboard.
     void openItem(const QString &taskId, const QString &itemId);
     void revealInSidebar(const QString &id);
     void showQuickSwitcher();
@@ -99,7 +97,7 @@ public:
     // root tab bar in order, then Focus, then the preview if there is one.
     void switchPage(int step);
     // Ctrl+V with an image on the clipboard. Replaces the image of the image
-    // item in the focused cell or the current item tab, through ImagePaste,
+    // item in the focused cell or the current item preview, through ImagePaste,
     // after the paste dialog. It never adds an item to a dashboard: on any
     // other cell the status bar points to "Paste Image…" in a task's Items
     // menu. See docs/decisions/0051-paste-images-from-the-items-menu.md.

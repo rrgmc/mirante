@@ -39,7 +39,7 @@ Mirante is a personal desktop dashboard for all of one person's work, built with
 
 **Connection kind.** The type of a connection, such as `gitlab` or `jira.cloud`. A module registers it and decides how requests are signed.
 
-**Placement.** One place where an item is shown: a cell, or an item tab. Each visible placement has its own view, unless the item type allows only one.
+**Placement.** One place where an item is shown: a cell, or the preview slot. Each visible placement has its own view, unless the item type allows only one.
 
 **Dashboard.** A named arrangement of items or tasks, stored as a layout tree.
 - A **task dashboard** belongs to a task and shows its items.
@@ -53,7 +53,7 @@ Mirante is a personal desktop dashboard for all of one person's work, built with
 
 **Cell.** A layout node that shows one item or one task, or nothing (an empty cell).
 
-**Preview slot.** A fixed place right of the tabs that shows the last task dashboard or item opened, for example from the sidebar. The next one replaces it, unless it is pinned, which moves it to a tab of its own. Older documents call it the preview tab. See [decision 0048](decisions/0048-focus-and-preview-slots.md).
+**Preview slot.** A fixed place right of the tabs that shows the last task dashboard or item opened, for example from the sidebar. The next one replaces it. It never becomes a tab. Older documents call it the preview tab. See decisions [0048](decisions/0048-focus-and-preview-slots.md) and [0052](decisions/0052-no-pinning.md).
 
 **Focus slot.** A fixed place right of the tabs, before the preview slot, that shows the Focus view. It is always there and cannot be closed.
 
