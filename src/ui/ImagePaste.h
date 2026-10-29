@@ -32,7 +32,7 @@ public:
         ReplacedImage,      // the focused item's image was replaced
         CreatedItem,        // a new item holds the image
         Locked,             // a new item was needed, but the dashboard is locked
-        RootDashboard,      // a new item was needed, but this is a root dashboard
+        RootDashboard,      // a new item was needed on a root dashboard, and no task was named
         NoImageType,        // no registered type has a pastedImageField
         SaveFailed,         // the image could not be saved, for example read-only data
     };
@@ -40,11 +40,15 @@ public:
     // Pastes onto the dashboard in front. focusedCell is the path of the
     // focused cell in it, if any. If that cell holds an item whose type has a
     // pastedImageField, its image is replaced, even when locked. Otherwise, on
-    // an unlocked task dashboard, a new item of the first such type is made,
-    // named "Image" and numbered if needed: an empty focused cell holds it, any
+    // an unlocked dashboard, a new item of the first such type is made, named
+    // "Image" and numbered if needed: an empty focused cell holds it, any
     // other focused cell is split to the right. Without a focused cell, a
     // layout of one empty cell holds it, and any other layout's root is split.
-    Result paste(const QImage &image, const DashboardRef &dashboard, const std::optional<NodePath> &focusedCell);
+    // The item belongs to the task dashboard's task. On a root dashboard it
+    // belongs to rootTaskId; if that is empty, the result is RootDashboard, so
+    // the caller can ask for a task and paste again.
+    Result paste(const QImage &image, const DashboardRef &dashboard, const std::optional<NodePath> &focusedCell,
+                 const QString &rootTaskId = QString());
 
     // Pastes into an item shown alone in a tab: replaces its image if its type
     // has a pastedImageField; otherwise returns NoImageType.

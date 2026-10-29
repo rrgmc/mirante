@@ -364,6 +364,26 @@ void TestImagePaste::rootDashboard()
     QCOMPARE(paste.paste(redImage(), {QString(), rootId}, std::nullopt), ImagePaste::Result::RootDashboard);
     QCOMPARE(savedFiles(), files);
 
+    // With a task named, the item goes to that task, and the focused task
+    // cell is split to hold it. The cell names the task.
+    QCOMPARE(paste.paste(redImage(), {QString(), rootId}, NodePath{1}, taskId), ImagePaste::Result::CreatedItem);
+    const Item *created = itemNamed(QStringLiteral("Image 2"));
+    QVERIFY(created);
+    const LayoutNode *rootTree = model.layout({QString(), rootId});
+    QVERIFY(rootTree);
+    const std::vector<NodePath> cells = layout::cellPaths(*rootTree);
+    QCOMPARE(cells.size(), size_t(3));
+    const LayoutNode *placed = layout::nodeAt(*rootTree, cells.back());
+    QVERIFY(placed->ref && !placed->removed);
+    QCOMPARE(placed->ref->item, created->id);
+    QCOMPARE(placed->ref->task, taskId);
+    // The task dashboard is unchanged.
+    QCOMPARE(layout::cellPaths(board()).size(), size_t(3));
+
+    // A locked root dashboard refuses a new item.
+    locks.setUnlocked(rootId, false);
+    QCOMPARE(paste.paste(redImage(), {QString(), rootId}, NodePath{1}, taskId), ImagePaste::Result::Locked);
+
     // A root dashboard cell showing an image item still has its image replaced.
     locks.setUnlocked(rootId, false);
     QCOMPARE(paste.paste(redImage(), {QString(), rootId}, NodePath{0}), ImagePaste::Result::ReplacedImage);
@@ -415,7 +435,7 @@ void TestImagePaste::messages()
     QCOMPARE(ImagePaste::message(ImagePaste::Result::Locked),
              QStringLiteral("Unlock the dashboard to paste an image into it."));
     QCOMPARE(ImagePaste::message(ImagePaste::Result::RootDashboard),
-             QStringLiteral("Paste images into a task dashboard."));
+             QStringLiteral("A pasted image belongs to a task. Add an active task first."));
     QCOMPARE(ImagePaste::message(ImagePaste::Result::NoImageType), QStringLiteral("This build cannot show images."));
     QCOMPARE(ImagePaste::message(ImagePaste::Result::SaveFailed), QStringLiteral("The image could not be saved."));
 }

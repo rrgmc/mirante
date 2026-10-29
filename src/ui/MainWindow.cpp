@@ -4,6 +4,7 @@
 #include "core/DeviceSettings.h"
 #include "core/LayoutTree.h"
 #include "core/Model.h"
+#include "core/Sorting.h"
 #include "items/ItemTypeRegistry.h"
 #include "layout/CellFrame.h"
 #include "layout/CellStyle.h"
@@ -28,6 +29,7 @@
 #include <QAction>
 #include <QApplication>
 #include <QClipboard>
+#include <QComboBox>
 #include <QCloseEvent>
 #include <QDesktopServices>
 #include <QDir>
@@ -778,6 +780,40 @@ struct MainWindow::Private
         store->open(dir);
         restoreOpenTabs();
         updateWarnings();
+    }
+
+    // Asks which task an image pasted onto a root dashboard belongs to. It
+    // offers the active tasks in sidebar order, with the task of the sidebar's
+    // selection chosen. Returns the task's id, an empty id if there is no
+    // active task, or nullopt if the user cancels.
+    std::optional<QString> askTaskForImage()
+    {
+        QStringList labels;
+        QStringList ids;
+        const SortFilter activeTasks;
+        for (const Group *group : model->groups()) {
+            for (const Project *project : sortedProjects(model->projectsOfGroup(group->id), activeTasks)) {
+                for (const Task *task : sortedTasks(model->tasksOfProject(project->id), activeTasks)) {
+                    labels.append(MainWindow::tr("%1 / %2").arg(project->name, task->title));
+                    ids.append(task->id);
+                }
+            }
+        }
+        if (ids.isEmpty())
+            return QString();
+        const QString selected = sidebar->currentIndex().data(SidebarModel::TaskIdRole).toString();
+        QInputDialog dialog(q);
+        dialog.setWindowTitle(MainWindow::tr("Paste Image"));
+        dialog.setLabelText(MainWindow::tr("Add the image to the task:"));
+        dialog.setComboBoxItems(labels);
+        dialog.setComboBoxEditable(false);
+        dialog.setTextValue(labels.at(std::max(0, int(ids.indexOf(selected)))));
+        if (dialog.exec() != QDialog::Accepted)
+            return std::nullopt;
+        // The combo box's index, since two tasks can share a label.
+        const auto *combo = dialog.findChild<QComboBox *>();
+        const int index = combo ? combo->currentIndex() : int(labels.indexOf(dialog.textValue()));
+        return ids.value(index);
     }
 
     // The group and project the sidebar's selection belongs to, for the +
@@ -1534,6 +1570,14 @@ void MainWindow::pasteImage(const QImage &image)
         if (const QWidget *cell = d->shortcuts->focusedCell())
             path = page->view->pathOf(cell);
         result = d->imagePaste->paste(image, page->ref, path);
+        // A root dashboard has no task of its own, so the image needs one.
+        if (result == ImagePaste::Result::RootDashboard) {
+            const std::optional<QString> taskId = d->askTaskForImage();
+            if (!taskId)
+                return;
+            if (!taskId->isEmpty())
+                result = d->imagePaste->paste(image, page->ref, path, *taskId);
+        }
     }
     const QString message = ImagePaste::message(result);
     if (!message.isEmpty())
