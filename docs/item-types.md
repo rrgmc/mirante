@@ -164,7 +164,7 @@ Module `claude`.
 `claude.session.web`, web.
 
 - **Configuration:** `url`, a claude.ai URL, such as a Remote Control or cloud session link, required.
-- **Shows:** the claude.ai page, using the group's profile.
+- **Shows:** the claude.ai page, using the group's profile. If `url` is empty or is not an `http` or `https` address, the cell says "Set the address in the item's settings."
 
 There is no public API for these sessions, so the app has no status or summary for them. See [decision 0008](decisions/0008-claude-sessions.md).
 
