@@ -113,6 +113,8 @@ struct MainWindow::Private
     const ItemTypeRegistry *types = nullptr;
     Store *store = nullptr;
     DeviceSettings *settings = nullptr;
+    ProfileManager *profiles = nullptr;     // null in tests without web views
+    ViewPool *pool = nullptr;
     EntityActions *actions = nullptr;
     std::unique_ptr<ImagePaste> imagePaste;
     std::vector<LoadProblem> ownProblems;   // set with setLoadProblems(), such as a missing folder
@@ -1286,7 +1288,7 @@ struct MainWindow::Private
 };
 
 MainWindow::MainWindow(Model &model, const ItemTypeRegistry &types, Store &store, DeviceSettings &settings,
-                       QWidget *parent)
+                       ProfileManager *profiles, ViewPool *pool, QWidget *parent)
     : QMainWindow(parent)
     , d(std::make_unique<Private>())
 {
@@ -1295,6 +1297,8 @@ MainWindow::MainWindow(Model &model, const ItemTypeRegistry &types, Store &store
     d->types = &types;
     d->store = &store;
     d->settings = &settings;
+    d->profiles = profiles;
+    d->pool = pool;
 
     d->editor = new LayoutEditor(model, types, this);
     d->locks = new LockState(this);

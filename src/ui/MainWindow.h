@@ -16,8 +16,10 @@ class EntityActions;
 class ItemTypeRegistry;
 class LayoutView;
 class Model;
+class ProfileManager;
 class RootTabBar;
 class Shortcuts;
+class ViewPool;
 
 // The sidebar on the left; on the right the root tab bar over the dashboards,
 // a warning bar for the Store's problems and the read-only note, and the
@@ -30,9 +32,11 @@ class MainWindow : public QMainWindow
 
 public:
     // The Store loads and saves the workspaces the window opens. The settings
-    // keep the window's size, the workspaces and their open tabs.
+    // keep the window's size, the workspaces and their open tabs. The profiles
+    // and the pool give item cells their views; both must outlive the window.
+    // Without profiles, item cells keep their placeholders, which tests use.
     MainWindow(Model &model, const ItemTypeRegistry &types, Store &store, DeviceSettings &settings,
-               QWidget *parent = nullptr);
+               ProfileManager *profiles = nullptr, ViewPool *pool = nullptr, QWidget *parent = nullptr);
     ~MainWindow() override;
 
     // Shows the problems in the warning bar, with the Store's own problems,

@@ -95,6 +95,7 @@ struct EntityActions::Private
     std::function<bool(QDialog &)> exec;
     std::function<bool(const QString &)> confirm;
     std::function<Qt::KeyboardModifiers()> modifiers;
+    ProfileManager *profiles = nullptr;
 
     bool shiftHeld() const { return modifiers && (modifiers() & Qt::ShiftModifier); }
 
@@ -167,6 +168,8 @@ void EntityActions::setModifiers(std::function<Qt::KeyboardModifiers()> modifier
 {
     d->modifiers = std::move(modifiers);
 }
+
+void EntityActions::setProfiles(ProfileManager *profiles) { d->profiles = profiles; }
 
 // Creating.
 
