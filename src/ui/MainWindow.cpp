@@ -1123,7 +1123,34 @@ struct MainWindow::Private
         settings->addRecentWorkspace(folder);   // ignores the sample data's empty folder
     }
 
-    // The File, View and Help menus.
+    // The Modules menu: a submenu for each module with settings screens, named
+    // after the module, listing its screens by their names. Left out when no
+    // module has screens. See docs/ui.md#modules.
+    void buildModulesMenu(QMenuBar *bar)
+    {
+        QMenu *modules = nullptr;
+        for (const QString &moduleId : types->moduleIds()) {
+            const std::vector<const SettingsScreen *> screens = types->settingsScreens(moduleId);
+            if (screens.empty())
+                continue;
+            if (!modules) {
+                modules = bar->addMenu(MainWindow::tr("&Modules"));
+                modules->setObjectName(QStringLiteral("modulesMenu"));
+            }
+            QMenu *module = modules->addMenu(types->moduleName(moduleId));
+            module->setObjectName(QStringLiteral("modulesMenu.") + moduleId);
+            for (const SettingsScreen *screen : screens) {
+                const QString screenId = screen->id();
+                QAction *action = module->addAction(screen->name() + QStringLiteral("…"));
+                action->setObjectName(QStringLiteral("moduleSettings.%1.%2").arg(moduleId, screenId));
+                QObject::connect(action, &QAction::triggered, q, [this, moduleId, screenId] {
+                    actions->editModuleSettings(moduleId, screenId);
+                });
+            }
+        }
+    }
+
+    // The File, View, Modules and Help menus.
     void buildMenus()
     {
         QMenuBar *bar = q->menuBar();
@@ -1215,6 +1242,8 @@ struct MainWindow::Private
         QObject::connect(list, &QAction::triggered, q, &MainWindow::showDashboardList);
         QAction *add = view->addAction(MainWindow::tr("&New Dashboard"));
         QObject::connect(add, &QAction::triggered, q, &MainWindow::newRootDashboard);
+
+        buildModulesMenu(bar);
 
         QMenu *help = bar->addMenu(MainWindow::tr("&Help"));
         QAction *about = help->addAction(MainWindow::tr("&About Mirante"));

@@ -11,6 +11,7 @@
 #include <QHBoxLayout>
 #include <QImage>
 #include <QImageReader>
+#include <QJsonArray>
 #include <QLabel>
 #include <QLineEdit>
 #include <QMessageBox>
@@ -75,6 +76,16 @@ QJsonValue FieldForm::Private::value(const Row &row)
         const QString text = row.text->toPlainText();
         return text.isEmpty() ? QJsonValue(QJsonValue::Undefined) : QJsonValue(text);
     }
+    case Field::Type::TextList: {
+        // One entry per line, trimmed. Blank lines are dropped.
+        QJsonArray list;
+        for (const QString &line : row.text->toPlainText().split(QLatin1Char('\n'))) {
+            const QString entry = line.trimmed();
+            if (!entry.isEmpty())
+                list.append(entry);
+        }
+        return list.isEmpty() ? QJsonValue(QJsonValue::Undefined) : QJsonValue(list);
+    }
     case Field::Type::Integer:
         return row.spin->value();
     case Field::Type::Bool:
@@ -132,11 +143,22 @@ void FieldForm::Private::show(Row &row, const QJsonValue &value)
     switch (row.field.type) {
     case Field::Type::Text:
     case Field::Type::Url:
+        // With suggestions, the line is the combo box's. Selecting the
+        // matching entry, or none, keeps the list from showing another value.
+        if (row.combo)
+            row.combo->setCurrentIndex(row.combo->findText(value.toString()));
         row.line->setText(value.toString());
         break;
     case Field::Type::MultiLineText:
         row.text->setPlainText(value.toString());
         break;
+    case Field::Type::TextList: {
+        QStringList lines;
+        for (const QJsonValue &entry : value.toArray())
+            lines << entry.toString();
+        row.text->setPlainText(lines.join(QLatin1Char('\n')));
+        break;
+    }
     case Field::Type::Integer:
         row.spin->setValue(value.toInt());
         break;
@@ -189,10 +211,28 @@ FieldForm::FieldForm(std::vector<Field> fields, EditorContext context, QWidget *
         switch (row.field.type) {
         case Field::Type::Text:
         case Field::Type::Url:
-            row.line = new QLineEdit(this);
+            if (row.field.type == Field::Type::Text && !row.field.suggestions.isEmpty()) {
+                // An editable list: the suggestions, or any other text.
+                row.combo = new QComboBox(this);
+                row.combo->setEditable(true);
+                row.combo->setInsertPolicy(QComboBox::NoInsert);
+                row.combo->addItems(row.field.suggestions);
+                row.line = row.combo->lineEdit();
+                row.editor = row.combo;
+            } else {
+                row.line = new QLineEdit(this);
+                row.editor = row.line;
+            }
             row.line->setPlaceholderText(row.field.placeholder);
             connect(row.line, &QLineEdit::textChanged, this, edited);
-            row.editor = row.line;
+            break;
+        case Field::Type::TextList:
+            row.text = new QPlainTextEdit(this);
+            row.text->setPlaceholderText(row.field.placeholder);
+            row.text->setTabChangesFocus(true);
+            row.text->setToolTip(tr("One entry per line."));
+            connect(row.text, &QPlainTextEdit::textChanged, this, edited);
+            row.editor = row.text;
             break;
         case Field::Type::MultiLineText:
             row.text = new QPlainTextEdit(this);

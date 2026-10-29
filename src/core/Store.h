@@ -26,14 +26,16 @@ struct LoadProblem
 namespace store {
 
 // Loads the folder into the model, replacing its content, and the optional
-// workspace.mirante with the workspace's name and web profiles. Accepts schemaVersion 1 only.
+// workspace.mirante with the workspace's name, web profiles and module
+// settings. Accepts schemaVersion 1 only.
 // Files that cannot be used are skipped and reported.
 // dir may be a resource path such as ":/fixtures".
 std::vector<LoadProblem> load(const QString &dir, Model &model);
 
 // The files the model would write: relative path to file content, including
 // schemaVersion. Used by the write-back test, and the base of writing in M3.
-// workspace.mirante is included when the workspace has a name or web profiles.
+// workspace.mirante is included when the workspace has a name, web profiles
+// or module settings.
 std::map<QString, QJsonObject> serialise(const Model &model);
 
 // The content of one file the model would write, such as "tasks/<id>.json" or

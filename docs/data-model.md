@@ -142,6 +142,29 @@ Rules:
 - Deleting a profile removes it from the list only. Groups and items that name it keep the id and fall back by the rule above.
 - The list is synced. The logins in each profile are not; they stay on each device.
 
+## Module settings
+
+A module can have [settings screens](modules.md#settings-screens), such as GitLab's "General Configuration". Their values belong to the workspace and are kept in `workspace.mirante`, under `moduleSettings`: an object of module ids, each an object of screen ids, each the values of that screen. See [decision 0044](decisions/0044-module-settings-in-the-workspace.md).
+
+```json
+{
+  "moduleSettings": {
+    "gitlab": {
+      "general": { "projects": [ "acme/backend", "acme/web" ] }
+    }
+  },
+  "name": "My work",
+  "schemaVersion": 1
+}
+```
+
+Rules:
+
+- The module decides the keys of each screen. The core stores them without knowing what they mean.
+- Keys that the screen's form or editor does not show are kept. So are the entries of modules and screens that this build does not have.
+- Saving a screen with no values removes its entry. A module left without screens is removed too, and so is `moduleSettings` when it is empty.
+- The values are synced. Secrets, such as tokens, are never stored here; they stay in the keychain.
+
 ## Priority
 
 Projects and tasks have one of four levels:
@@ -256,7 +279,8 @@ After every edit, the app cleans the tree:
 | Layout trees, including size ratios | Geometry of detached root dashboard windows |
 | Connection details without tokens | Open root tabs and the preview tab |
 | Web profiles: the list, and each group's and item's choice | Tokens (in the keychain) |
-| Notes content | Terminal command template |
+| Module settings, from the modules' settings screens | Terminal command template |
+| Notes content | |
 | | Poll interval and other preferences |
 | | Web logins, in each web profile |
 

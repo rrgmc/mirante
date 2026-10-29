@@ -35,6 +35,8 @@ Mirante is a personal desktop dashboard for all of one person's work, built with
 
 **Module.** A folder of item types and the code they share, such as connection kinds and API clients. Each module can be included or left out when building. See [modules](modules.md).
 
+**Settings screen.** A configuration screen of a whole module, such as GitLab's "General Configuration", opened from the Modules menu. Its values are the module's settings, kept in the workspace and synced. See [settings screens](modules.md#settings-screens).
+
 **Connection kind.** The type of a connection, such as `gitlab` or `jira.cloud`. A module registers it and decides how requests are signed.
 
 **Placement.** One place where an item is shown: a cell, or an item tab. Each visible placement has its own view, unless the item type allows only one.

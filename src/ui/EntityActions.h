@@ -53,6 +53,11 @@ public:
     // Opens the web profiles dialog, File > Web Profiles…. See docs/ui.md#web-profiles.
     void editWebProfiles();
 
+    // Opens the dialog of a module's settings screen, from the Modules menu,
+    // and stores the result in the model. Nothing happens for an unknown
+    // screen. See docs/ui.md#modules.
+    void editModuleSettings(const QString &moduleId, const QString &screenId);
+
     // Creating. Each opens the entity's dialog with a new value, and returns the
     // new id, or an empty string if the dialog was cancelled. A new task gets one
     // dashboard with one empty cell. A new dashboard is built from the chosen preset.

@@ -85,6 +85,15 @@ File > Web Profiles… opens the list of the workspace's web profiles. A web pro
 
 The item dialog offers a web profile for items of web types; see [the type registry](item-types.md#the-type-registry). The web views of an item are made again when its profile changes.
 
+## Modules
+
+A module can have settings screens for values that belong to the whole module, such as GitLab's list of project paths. See [modules](modules.md#settings-screens) and [decision 0044](decisions/0044-module-settings-in-the-workspace.md).
+
+- **The menu.** The Modules menu, between View and Help, has a submenu for each module with screens, named after the module. Each submenu lists the module's screens by their names. A module without screens does not appear.
+- **The dialog.** Choosing a screen opens its dialog, titled with the module and the screen, such as "GitLab: General Configuration". It shows the screen's form, or the module's own editor. A note says that the settings are saved in the workspace and shared with it. OK stores the values and is refused while the form reports a problem. Cancel changes nothing.
+- **Lists.** A list field, such as the project paths, takes one entry per line. Blank lines are dropped.
+- **Using the values.** A module offers its settings where they help. For example, the project path field of every GitLab item is an editable list of the configured paths. Any other path can still be typed.
+
 ## Window
 
 The window opens centred on the screen, at the size it had when it was last closed on this device, maximized if it was. The sidebar width is kept too. The app's icon, a temporary one, is a blue square with three dashboard panes.
@@ -102,10 +111,11 @@ Standard controls, such as buttons, menus, lists and dialogs, keep the platform'
 
 ## Menus
 
-The menu bar has three menus.
+The menu bar has four menus. The Modules menu is left out when no module in the build has a settings screen.
 
 - **File:** New Workspace… (`Ctrl+N`), Open Workspace… (`Ctrl+O`), Open Recent with the last ten workspaces and Clear Recent, Rename Workspace…, Show Workspace Folder, Open Sample Data, Reload Workspace (`F5`), New Group…, Web Profiles… (see [web profiles](#web-profiles)), and Quit (`Ctrl+Q`). A workspace is a data folder with a `workspace.mirante` file at its top. Open Workspace… chooses that file. New Workspace… chooses a folder and a name and writes the file. A folder without the file is not opened; from the menus the app offers to make it a workspace. At start the app opens the workspace given with `--data`, otherwise the last one used on this device if it still has its file, otherwise the sample data. The window title and the sidebar header show the workspace's name: the name in its `workspace.mirante`, else the folder's name. Rename Workspace…, or a double click on the name in the sidebar header, renames it, and the Store writes `workspace.mirante`. The sample data cannot be renamed. Show Workspace Folder opens the workspace's folder in Explorer, Finder or the desktop's file manager; it is disabled for the sample data, which has no folder. Reload Workspace opens the workspace again from its files. See decisions [0025](decisions/0025-workspace-file.md) and [0027](decisions/0027-workspace-needs-its-file.md).
 - **View:** Sidebar (show or hide), Expand All Tasks, Collapse All Tasks, Full Screen (`F11`, `Ctrl+Cmd+F` on macOS; leaving it brings back the maximized or normal window, and a window closed in full screen opens as it was before; in full screen the menu bar hides and shows while the mouse is at the top edge or a menu is open, and every shortcut keeps working, while macOS shows its own menu bar), Go To… (`Ctrl+K`, the [quick switcher](#keyboard)), All Dashboards…, and New Dashboard.
+- **Modules:** a submenu for each module that has [settings screens](#modules), named after the module, such as GitLab. It lists the module's screens by the names the module gives them, such as General Configuration….
 - **Help:** About Mirante, with the version, the author and the project's address, and About Qt. Debug builds, and release builds started with `--log`, also have Show Log (`Ctrl+Shift+L`), a window that lists the app's Qt log messages as they arrive, including the JavaScript console of web pages, with a level and a text filter. Chromium's own messages go to the console only.
 
 ## Opening tasks

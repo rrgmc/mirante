@@ -16,6 +16,7 @@ struct Model::Private
 {
     QString workspaceName;
     std::vector<WebProfile> webProfiles;
+    QJsonObject moduleSettings;   // module id to screen id to values
     std::map<QString, Group> groups;
     std::map<QString, Project> projects;
     std::map<QString, Task> tasks;
@@ -461,6 +462,37 @@ void Model::setWebProfiles(const std::vector<WebProfile> &profiles)
         return;
     d->webProfiles = profiles;
     emit webProfilesChanged();
+}
+
+QJsonObject Model::moduleSettings() const { return d->moduleSettings; }
+
+QJsonObject Model::moduleSettings(const QString &moduleId, const QString &screenId) const
+{
+    return d->moduleSettings.value(moduleId).toObject().value(screenId).toObject();
+}
+
+void Model::setModuleSettings(const QJsonObject &settings)
+{
+    if (settings == d->moduleSettings)
+        return;
+    d->moduleSettings = settings;
+    emit moduleSettingsChanged();
+}
+
+void Model::setModuleSettings(const QString &moduleId, const QString &screenId, const QJsonObject &values)
+{
+    QJsonObject settings = d->moduleSettings;
+    // A module entry that is not an object cannot hold screens; it is replaced.
+    QJsonObject module = settings.value(moduleId).toObject();
+    if (values.isEmpty())
+        module.remove(screenId);
+    else
+        module.insert(screenId, values);
+    if (module.isEmpty())
+        settings.remove(moduleId);
+    else
+        settings.insert(moduleId, module);
+    setModuleSettings(settings);
 }
 
 } // namespace mirante

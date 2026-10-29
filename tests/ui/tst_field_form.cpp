@@ -244,6 +244,68 @@ private slots:
         // Labels fall back to the stored values.
         QCOMPARE(combo->currentText(), QStringLiteral("b"));
     }
+
+    // A text list is edited one entry per line. Entries are trimmed, and
+    // blank lines dropped; no entries remove the key.
+    void textList()
+    {
+        FieldForm form({field(QStringLiteral("paths"), QStringLiteral("Paths"), Field::Type::TextList)}, context());
+        auto *text = qobject_cast<QPlainTextEdit *>(form.editorFor(QStringLiteral("paths")));
+        QVERIFY(text);
+
+        const QJsonObject config{{QStringLiteral("paths"), QJsonArray{QStringLiteral("a/b"), QStringLiteral("c")}},
+                                 {QStringLiteral("other"), 1}};
+        form.setConfig(config);
+        QCOMPARE(text->toPlainText(), QStringLiteral("a/b\nc"));
+        QCOMPARE(form.config(), config);
+
+        text->setPlainText(QStringLiteral("  x/y \n\n z\n"));
+        QCOMPARE(form.config().value(QStringLiteral("paths")).toArray(),
+                 (QJsonArray{QStringLiteral("x/y"), QStringLiteral("z")}));
+        QCOMPARE(form.config().value(QStringLiteral("other")).toInt(), 1);
+        QVERIFY(form.problems().isEmpty());
+
+        text->setPlainText(QStringLiteral("\n  \n"));
+        QVERIFY(!form.config().contains(QStringLiteral("paths")));
+    }
+
+    // A text field with suggestions is an editable combo box: it offers them,
+    // and still takes any other text.
+    void textSuggestions()
+    {
+        Field project = field(QStringLiteral("project"), QStringLiteral("Project"), Field::Type::Text);
+        project.suggestions = {QStringLiteral("acme/backend"), QStringLiteral("acme/web")};
+        project.placeholder = QStringLiteral("group/project");
+        FieldForm form({project}, context());
+        auto *combo = qobject_cast<QComboBox *>(form.editorFor(QStringLiteral("project")));
+        QVERIFY(combo);
+        QVERIFY(combo->isEditable());
+        QCOMPARE(combo->count(), 2);
+        QCOMPARE(combo->itemText(1), QStringLiteral("acme/web"));
+        QCOMPARE(combo->lineEdit()->placeholderText(), QStringLiteral("group/project"));
+
+        // Empty and unedited: nothing is written.
+        QCOMPARE(combo->currentText(), QString());
+        QCOMPARE(form.config(), QJsonObject());
+
+        form.setConfig({{QStringLiteral("project"), QStringLiteral("acme/web")}});
+        QCOMPARE(combo->currentIndex(), 1);
+        QCOMPARE(combo->currentText(), QStringLiteral("acme/web"));
+
+        QSignalSpy changed(&form, &FieldForm::changed);
+        combo->setCurrentIndex(0);
+        QCOMPARE(form.config().value(QStringLiteral("project")).toString(), QStringLiteral("acme/backend"));
+        QVERIFY(changed.count() >= 1);
+
+        combo->lineEdit()->setText(QStringLiteral("other/project"));
+        QCOMPARE(form.config().value(QStringLiteral("project")).toString(), QStringLiteral("other/project"));
+        QCOMPARE(combo->count(), 2);
+
+        // A value not in the list is shown as it is.
+        form.setConfig({{QStringLiteral("project"), QStringLiteral("solo/repo")}});
+        QCOMPARE(combo->currentText(), QStringLiteral("solo/repo"));
+        QCOMPARE(form.config().value(QStringLiteral("project")).toString(), QStringLiteral("solo/repo"));
+    }
 };
 
 QTEST_MAIN(TestFieldForm)

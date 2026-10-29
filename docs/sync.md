@@ -8,7 +8,7 @@ The user chooses the data folder on each device. It does not have to be at the s
 
 ```
 <data folder>/
-  workspace.mirante           marks the folder as a workspace; holds its name and web profiles
+  workspace.mirante           marks the folder as a workspace; holds its name, web profiles and module settings
   groups/<uuid>.json
   projects/<uuid>.json
   tasks/<uuid>.json
@@ -21,7 +21,7 @@ The user chooses the data folder on each device. It does not have to be at the s
 - **Why this layout.** Two devices rarely change the same file at the same time. When they do, the sync tool keeps a conflict copy instead of damaging the data.
 - **Version field.** Every file has a `schemaVersion` field. The app migrates older files when it loads them, and writes them back in the new version only when they change for another reason. A file with a newer `schemaVersion` was written by a newer version of Mirante. The app skips it, reports it in the warning bar, and never writes over it.
 - **Unknown fields** are kept when a file is written back, so an older app version does not delete data written by a newer one.
-- **Unknown modules.** Items, connections and project settings of a module that is not in this build are kept unchanged too. A device built without a module never damages its data. See [missing modules](modules.md#missing-modules).
+- **Unknown modules.** Items, connections, project settings and module settings of a module that is not in this build are kept unchanged too. A device built without a module never damages its data. See [missing modules](modules.md#missing-modules).
 - **Format.** Files are pretty-printed JSON with sorted keys, so the files are easy to read and compare.
 
 A single SQLite database is not used. Sync tools copy database files whole and can damage them.
@@ -34,7 +34,7 @@ The sample data compiled into the app is read-only. Edits change what is shown, 
 - Writes are debounced by 500 ms, so dragging through a layout does not write many times.
 - Deleting an entity deletes its file. Entities that refer to it are cleaned up when they are next loaded. For example, a cell refers to a deleted task: see [normalisation](data-model.md#normalisation).
 - Moving a task or project to the [trash](data-model.md#trash) only changes its file, through its `trashedAt` field, so the trash syncs like any other change. Its file is deleted when the trash is emptied.
-- `workspace.mirante` is never deleted. Its keys other than the name and the web profiles are kept when those change.
+- `workspace.mirante` is never deleted. Its keys other than the name, the web profiles and the module settings are kept when those change.
 - A write that fails, for example because another program holds the file open for a moment, is tried again. While it fails, the warning bar shows it.
 
 ### Image files
@@ -105,3 +105,4 @@ Started with `--settings <file>`, the app keeps these settings in that INI file 
 - Each token is stored under service `mirante` and key `<groupId>/<connectionId>`. The key contains no secret, so it can be derived from synced data.
 - Tokens are never written to the data folder and never synced. Each device asks for each token once, when an item first needs it. See [decision 0006](decisions/0006-connections-per-group.md).
 - Web logins are not synced either. The list of web profiles is synced, in `workspace.mirante`, but the user logs in once per profile on each device. See [web views](web-views.md#profiles).
+- Module settings are synced, in `workspace.mirante`, so they never hold a token or a password. See [decision 0044](decisions/0044-module-settings-in-the-workspace.md).

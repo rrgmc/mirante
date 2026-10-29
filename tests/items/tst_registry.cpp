@@ -55,6 +55,34 @@ void registerBeta(mirante::ModuleRegistrar &registrar)
     registrar.addItemType(std::make_unique<FakeType>(QStringLiteral("beta.one"), QStringLiteral("Beta")));
 }
 
+class FakeScreen : public mirante::SettingsScreen
+{
+public:
+    FakeScreen(const QString &id, const QString &name)
+        : m_id(id)
+        , m_name(name)
+    {
+    }
+
+    QString id() const override { return m_id; }
+    QString name() const override { return m_name; }
+
+private:
+    QString m_id;
+    QString m_name;
+};
+
+// What the last registerScreens() call got from registrar.settings().
+const mirante::ModuleSettings *registeredSettings = nullptr;
+
+void registerScreens(mirante::ModuleRegistrar &registrar)
+{
+    registrar.setModuleName(QStringLiteral("Alpha Tools"));
+    registrar.addSettingsScreen(std::make_unique<FakeScreen>(QStringLiteral("general"), QStringLiteral("General")));
+    registrar.addSettingsScreen(std::make_unique<FakeScreen>(QStringLiteral("accounts2"), QStringLiteral("Accounts")));
+    registeredSettings = &registrar.settings();
+}
+
 } // namespace
 
 class TestRegistry : public QObject
@@ -178,6 +206,51 @@ private slots:
     {
         const mirante::UnknownItemType type(QStringLiteral("notes"));
         QCOMPARE(type.moduleId(), QStringLiteral("notes"));
+    }
+
+    // Screens are kept per module in the order added. A module without a
+    // name is named by its id.
+    void settingsScreens()
+    {
+        mirante::ItemTypeRegistry registry;
+        registry.registerModule(QStringLiteral("beta"), &registerBeta);
+        registry.registerModule(QStringLiteral("alpha"), &registerScreens);
+
+        QCOMPARE(registry.moduleIds(), (QStringList{QStringLiteral("alpha"), QStringLiteral("beta")}));
+        QCOMPARE(registry.moduleName(QStringLiteral("alpha")), QStringLiteral("Alpha Tools"));
+        QCOMPARE(registry.moduleName(QStringLiteral("beta")), QStringLiteral("beta"));
+        QCOMPARE(registry.moduleName(QStringLiteral("none")), QStringLiteral("none"));
+
+        const std::vector<const mirante::SettingsScreen *> screens =
+            registry.settingsScreens(QStringLiteral("alpha"));
+        QCOMPARE(screens.size(), std::size_t(2));
+        QCOMPARE(screens[0]->id(), QStringLiteral("general"));
+        QCOMPARE(screens[1]->id(), QStringLiteral("accounts2"));
+        QCOMPARE(screens[1]->name(), QStringLiteral("Accounts"));
+        QCOMPARE(registry.settingsScreen(QStringLiteral("alpha"), QStringLiteral("accounts2")), screens[1]);
+        QVERIFY(!registry.settingsScreen(QStringLiteral("alpha"), QStringLiteral("none")));
+        QVERIFY(registry.settingsScreens(QStringLiteral("beta")).empty());
+        QVERIFY(registry.settingsScreens(QStringLiteral("none")).empty());
+        QVERIFY(!registry.moduleSettings(QStringLiteral("none")));
+    }
+
+    // A module's ModuleSettings reads through the reader, which may be set
+    // after registering, and asks for the module's own id only.
+    void moduleSettingsReadThroughTheReader()
+    {
+        mirante::ItemTypeRegistry registry;
+        registry.registerModule(QStringLiteral("alpha"), &registerScreens);
+        QVERIFY(registry.moduleSettings(QStringLiteral("alpha")) == registeredSettings);
+        QVERIFY(registeredSettings->values(QStringLiteral("general")).isEmpty());
+
+        QStringList asked;
+        registry.setSettingsReader([&asked](const QString &moduleId, const QString &screenId) {
+            asked << moduleId + QLatin1Char('/') + screenId;
+            return QJsonObject{{QStringLiteral("key"), screenId}};
+        });
+        QCOMPARE(registeredSettings->values(QStringLiteral("general")).value(QStringLiteral("key")).toString(),
+                 QStringLiteral("general"));
+        QCOMPARE(asked, QStringList{QStringLiteral("alpha/general")});
     }
 };
 

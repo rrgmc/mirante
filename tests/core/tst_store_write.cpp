@@ -87,6 +87,7 @@ private slots:
     void writesEachKind();
     void keepsWorkspaceKeys();
     void writesWebProfiles();
+    void writesModuleSettings();
     void removalsDeleteFiles();
     void trashSurvivesReload();
     void readOnly();
@@ -223,6 +224,44 @@ void TestStoreWrite::writesWebProfiles()
     written = json(QStringLiteral("workspace.mirante"));
     QVERIFY(!written.contains(QStringLiteral("webProfiles")));
     QCOMPARE(written.value(QStringLiteral("name")).toString(), QStringLiteral("Old"));
+    QCOMPARE(written.value(QStringLiteral("futureField")).toInt(), 7);
+}
+
+// Changing one screen's values keeps the other screens and modules, and the
+// file's unknown keys. Empty values remove the screen, then the module.
+void TestStoreWrite::writesModuleSettings()
+{
+    writeFile(path(QStringLiteral("workspace.mirante")),
+              R"({ "schemaVersion": 1, "name": "Old", "futureField": 7,
+                   "moduleSettings": { "missing": { "general": { "y": "z" } } } })");
+    Model model;
+    Store store(model);
+    QVERIFY(store.open(m_dir->path()).empty());
+
+    const QJsonObject general{{QStringLiteral("projects"), QJsonArray{QStringLiteral("acme/backend")}}};
+    model.setModuleSettings(QStringLiteral("gitlab"), QStringLiteral("general"), general);
+    store.flush();
+    QJsonObject written = json(QStringLiteral("workspace.mirante"));
+    QCOMPARE(written.value(QStringLiteral("name")).toString(), QStringLiteral("Old"));
+    QCOMPARE(written.value(QStringLiteral("futureField")).toInt(), 7);
+    const QJsonObject settings = written.value(QStringLiteral("moduleSettings")).toObject();
+    QCOMPARE(settings.value(QStringLiteral("gitlab")).toObject().value(QStringLiteral("general")).toObject(),
+             general);
+    QCOMPARE(settings.value(QStringLiteral("missing")).toObject(),
+             (QJsonObject{{QStringLiteral("general"), QJsonObject{{QStringLiteral("y"), QStringLiteral("z")}}}}));
+
+    // Opened again, the values are back.
+    Model reopened;
+    Store again(reopened);
+    QVERIFY(again.open(m_dir->path()).empty());
+    QCOMPARE(reopened.moduleSettings(QStringLiteral("gitlab"), QStringLiteral("general")), general);
+    again.close();
+
+    model.setModuleSettings(QStringLiteral("gitlab"), QStringLiteral("general"), QJsonObject());
+    model.setModuleSettings(QStringLiteral("missing"), QStringLiteral("general"), QJsonObject());
+    store.flush();
+    written = json(QStringLiteral("workspace.mirante"));
+    QVERIFY(!written.contains(QStringLiteral("moduleSettings")));
     QCOMPARE(written.value(QStringLiteral("futureField")).toInt(), 7);
 }
 

@@ -10,14 +10,50 @@
 
 namespace mirante {
 
+namespace {
+
+// What ModuleRegistrar::settings() gives a module. It reads through the
+// registry's reader, which may be set after the module registered.
+class Settings : public ModuleSettings
+{
+public:
+    Settings(const QString &moduleId, const ItemTypeRegistry::SettingsReader *reader)
+        : m_moduleId(moduleId)
+        , m_reader(reader)
+    {
+    }
+
+    QJsonObject values(const QString &screenId) const override
+    {
+        return *m_reader ? (*m_reader)(m_moduleId, screenId) : QJsonObject();
+    }
+
+private:
+    QString m_moduleId;
+    const ItemTypeRegistry::SettingsReader *m_reader;
+};
+
+} // namespace
+
 struct ItemTypeRegistry::Private
 {
+    // One registered module, besides its item types.
+    struct Module
+    {
+        QString name;   // empty when the module gave none
+        std::vector<std::unique_ptr<SettingsScreen>> screens;
+        std::unique_ptr<Settings> settings;
+    };
+
+    SettingsReader reader;
+    std::map<QString, Module> modules;
     std::vector<std::unique_ptr<ItemType>> types;
     std::map<QString, const ItemType *> byId;
     // Made on first use by type(), so callers always get a type back.
     mutable std::map<QString, std::unique_ptr<UnknownItemType>> unknown;
 
     void add(const QString &moduleId, std::unique_ptr<ItemType> type);
+    void addScreen(const QString &moduleId, std::unique_ptr<SettingsScreen> screen);
 };
 
 void ItemTypeRegistry::Private::add(const QString &moduleId, std::unique_ptr<ItemType> type)
@@ -33,6 +69,27 @@ void ItemTypeRegistry::Private::add(const QString &moduleId, std::unique_ptr<Ite
                qUtf8Printable(id));
     byId.emplace(id, type.get());
     types.push_back(std::move(type));
+}
+
+void ItemTypeRegistry::Private::addScreen(const QString &moduleId, std::unique_ptr<SettingsScreen> screen)
+{
+    if (!screen)
+        qFatal("Module %s added a null settings screen", qUtf8Printable(moduleId));
+    const QString id = screen->id();
+    // Screen ids follow the rule for module ids: lowercase letters and digits.
+    if (!isValidModuleId(id))
+        qFatal("Module %s added the settings screen \"%s\": use lowercase letters and digits only",
+               qUtf8Printable(moduleId), qUtf8Printable(id));
+    if (screen->name().isEmpty())
+        qFatal("Module %s added the settings screen \"%s\" without a name", qUtf8Printable(moduleId),
+               qUtf8Printable(id));
+    Module &module = modules[moduleId];
+    for (const auto &existing : module.screens) {
+        if (existing->id() == id)
+            qFatal("Module %s added the settings screen \"%s\" twice", qUtf8Printable(moduleId),
+                   qUtf8Printable(id));
+    }
+    module.screens.push_back(std::move(screen));
 }
 
 ItemTypeRegistry::ItemTypeRegistry()
@@ -65,11 +122,23 @@ void ItemTypeRegistry::registerModule(const QString &moduleId, RegisterFunction 
             m_registry.add(m_moduleId, std::move(type));
         }
 
+        void setModuleName(const QString &name) override { m_registry.modules[m_moduleId].name = name; }
+
+        void addSettingsScreen(std::unique_ptr<SettingsScreen> screen) override
+        {
+            m_registry.addScreen(m_moduleId, std::move(screen));
+        }
+
+        const ModuleSettings &settings() const override { return *m_registry.modules.at(m_moduleId).settings; }
+
     private:
         Private &m_registry;
         QString m_moduleId;
     };
 
+    Private::Module &module = d->modules[moduleId];
+    if (!module.settings)
+        module.settings = std::make_unique<Settings>(moduleId, &d->reader);
     Registrar registrar(*d, moduleId);
     fn(registrar);
 }
@@ -113,6 +182,53 @@ QStringList ItemTypeRegistry::connectionKinds() const
     kinds.removeDuplicates();
     kinds.sort();
     return kinds;
+}
+
+void ItemTypeRegistry::setSettingsReader(SettingsReader reader)
+{
+    d->reader = std::move(reader);
+}
+
+QStringList ItemTypeRegistry::moduleIds() const
+{
+    QStringList ids;
+    for (const auto &entry : d->modules)
+        ids << entry.first;
+    return ids;
+}
+
+QString ItemTypeRegistry::moduleName(const QString &moduleId) const
+{
+    const auto found = d->modules.find(moduleId);
+    if (found == d->modules.end() || found->second.name.isEmpty())
+        return moduleId;
+    return found->second.name;
+}
+
+std::vector<const SettingsScreen *> ItemTypeRegistry::settingsScreens(const QString &moduleId) const
+{
+    std::vector<const SettingsScreen *> screens;
+    const auto found = d->modules.find(moduleId);
+    if (found == d->modules.end())
+        return screens;
+    for (const auto &screen : found->second.screens)
+        screens.push_back(screen.get());
+    return screens;
+}
+
+const SettingsScreen *ItemTypeRegistry::settingsScreen(const QString &moduleId, const QString &screenId) const
+{
+    for (const SettingsScreen *screen : settingsScreens(moduleId)) {
+        if (screen->id() == screenId)
+            return screen;
+    }
+    return nullptr;
+}
+
+const ModuleSettings *ItemTypeRegistry::moduleSettings(const QString &moduleId) const
+{
+    const auto found = d->modules.find(moduleId);
+    return found == d->modules.end() ? nullptr : found->second.settings.get();
 }
 
 } // namespace mirante

@@ -39,6 +39,7 @@ private slots:
     void replacesModel();
     void workspaceName();
     void webProfiles();
+    void moduleSettings();
 };
 
 void TestStoreLoad::loadsFixtures()
@@ -214,6 +215,49 @@ void TestStoreLoad::webProfiles()
     // Without a name or profiles there is nothing to write.
     model.setWorkspaceName(QString());
     model.setWebProfiles({});
+    QVERIFY(!store::fileFor(model, QStringLiteral("workspace.mirante")));
+}
+
+// workspace.mirante holds the module settings by module and screen. Modules
+// and keys this build does not know are kept.
+void TestStoreLoad::moduleSettings()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    writeFile(dir.path(), QStringLiteral("workspace.mirante"), R"({ "schemaVersion": 1, "name": "W",
+        "moduleSettings": {
+            "gitlab": { "general": { "projects": [ "acme/backend" ], "future": 1 }, "later": { "x": true } },
+            "missing": { "general": { "y": "z" } } } })");
+    Model model;
+    QVERIFY(store::load(dir.path(), model).empty());
+    QCOMPARE(model.moduleSettings(QStringLiteral("gitlab"), QStringLiteral("general"))
+                 .value(QStringLiteral("projects"))
+                 .toArray(),
+             QJsonArray{QStringLiteral("acme/backend")});
+    QCOMPARE(model.moduleSettings(QStringLiteral("missing"), QStringLiteral("general"))
+                 .value(QStringLiteral("y"))
+                 .toString(),
+             QStringLiteral("z"));
+    QVERIFY(model.moduleSettings(QStringLiteral("gitlab"), QStringLiteral("none")).isEmpty());
+    QVERIFY(model.moduleSettings(QStringLiteral("none"), QStringLiteral("general")).isEmpty());
+
+    // Written back unchanged.
+    const std::optional<QJsonObject> json = store::fileFor(model, QStringLiteral("workspace.mirante"));
+    QVERIFY(json);
+    QCOMPARE(json->value(QStringLiteral("moduleSettings")).toObject(), model.moduleSettings());
+    QCOMPARE(model.moduleSettings()
+                 .value(QStringLiteral("gitlab"))
+                 .toObject()
+                 .value(QStringLiteral("general"))
+                 .toObject()
+                 .value(QStringLiteral("future"))
+                 .toInt(),
+             1);
+
+    // Without a name, profiles or settings there is nothing to write.
+    model.setWorkspaceName(QString());
+    QVERIFY(store::fileFor(model, QStringLiteral("workspace.mirante")));
+    model.setModuleSettings(QJsonObject());
     QVERIFY(!store::fileFor(model, QStringLiteral("workspace.mirante")));
 }
 
