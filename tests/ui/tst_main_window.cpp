@@ -7,6 +7,7 @@
 #include "items/ItemTypeRegistry.h"
 #include "layout/CellFrame.h"
 #include "layout/LayoutView.h"
+#include "layout/TaskCell.h"
 #include "ui/EntityActions.h"
 #include "ui/FocusView.h"
 #include "ui/ImagePaste.h"
@@ -14,11 +15,13 @@
 #include "ui/RootDashboardsDialog.h"
 #include "ui/RootTabBar.h"
 #include "ui/Sidebar.h"
+#include "ui/SidebarDelegate.h"
 #include "ui/SidebarModel.h"
 
 #include <QApplication>
 #include <QDir>
 #include <QDirIterator>
+#include <QEnterEvent>
 #include <QFile>
 #include <QFileInfo>
 #include <QImage>
@@ -646,6 +649,41 @@ private slots:
         QCOMPARE(f.bar()->count(), 3);
         f.model.removeTask(kFixLoginTask);
         QCOMPARE(f.bar()->count(), 2);
+    }
+
+    // The sidebar tints the row of what the hovered cell shows: the task of a
+    // task cell, or the item of an item cell, also inside a task cell.
+    void hoverTintsSidebarRow()
+    {
+        Fixture f;
+        auto *sidebar = f.window->findChild<Sidebar *>();
+        auto *delegate = qobject_cast<SidebarDelegate *>(sidebar->findChild<QTreeView *>()->itemDelegate());
+        QVERIFY(delegate);
+        TaskCell *taskCell = nullptr;
+        for (TaskCell *cell : f.window->currentLayoutView()->findChildren<TaskCell *>()) {
+            if (cell->taskId() == kFixLoginTask)
+                taskCell = cell;
+        }
+        QVERIFY(taskCell);
+        CellFrame *itemCell = taskCell->view()->findChild<CellFrame *>();
+        QVERIFY(itemCell && itemCell->ref());
+        const QString itemId = itemCell->ref()->item;
+
+        QEnterEvent enter(QPointF(1, 1), QPointF(1, 1), QPointF(1, 1));
+        QEvent leave(QEvent::Leave);
+        QCoreApplication::sendEvent(taskCell, &enter);
+        QCOMPARE(sidebar->hoverHighlight(), kFixLoginTask);
+        QVERIFY(delegate->isHoverTinted(sidebar->model()->indexOf(kFixLoginTask)));
+
+        QCoreApplication::sendEvent(itemCell, &enter);
+        QCOMPARE(sidebar->hoverHighlight(), itemId);
+        QVERIFY(delegate->isHoverTinted(sidebar->model()->indexOf(itemId)));
+        QVERIFY(!delegate->isHoverTinted(sidebar->model()->indexOf(kFixLoginTask)));
+
+        QCoreApplication::sendEvent(itemCell, &leave);
+        QCOMPARE(sidebar->hoverHighlight(), kFixLoginTask);
+        QCoreApplication::sendEvent(taskCell, &leave);
+        QVERIFY(sidebar->hoverHighlight().isEmpty());
     }
 
     // From the sidebar menu, a task dashboard or a single item opens in a new

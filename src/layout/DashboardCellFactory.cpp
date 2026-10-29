@@ -1,6 +1,7 @@
 #include "layout/DashboardCellFactory.h"
 
 #include "items/ItemTypeRegistry.h"
+#include "layout/CellHoverTracker.h"
 #include "layout/CellFrame.h"
 #include "layout/TaskCell.h"
 
@@ -54,8 +55,12 @@ QWidget *DashboardCellFactory::createCell(const std::optional<CellRef> &ref, boo
         return new CellFrame(ref, true, nullptr, QString(), parent);
     if (!ref)
         return new CellFrame(std::nullopt, false, nullptr, QString(), parent);
-    if (d->dashboard.isRoot() && ref->isTask())
-        return new TaskCell(d->services, d->dashboard, *ref, parent);
+    if (d->dashboard.isRoot() && ref->isTask()) {
+        auto *cell = new TaskCell(d->services, d->dashboard, *ref, parent);
+        if (d->services.hover)
+            d->services.hover->watch(cell, ref->task);
+        return cell;
+    }
 
     const Item *item = d->item(*ref);
     if (!item)
@@ -65,6 +70,8 @@ QWidget *DashboardCellFactory::createCell(const std::optional<CellRef> &ref, boo
     // item can come from anywhere, so its header names its project and task.
     if (d->dashboard.isRoot())
         frame->setContext(d->origin(*ref));
+    if (d->services.hover)
+        d->services.hover->watch(frame, ref->item);
     return frame;
 }
 

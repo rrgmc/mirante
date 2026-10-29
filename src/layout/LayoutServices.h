@@ -6,6 +6,7 @@
 
 namespace mirante {
 
+class CellHoverTracker;
 class ItemTypeRegistry;
 class LayoutEditor;
 class LockState;
@@ -22,6 +23,9 @@ struct LayoutServices
     LayoutEditor *editor = nullptr;
     LockState *locks = nullptr;
     SingleViewTracker *tracker = nullptr;
+    // Told which cells show which item or task, so the sidebar can tint the
+    // row of the hovered one.
+    CellHoverTracker *hover = nullptr;
 
     // Opens a task dashboard on its own, where it can be edited. Task cells in
     // root dashboards call it on a double click or from their menu.

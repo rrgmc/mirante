@@ -77,6 +77,12 @@ void SidebarDelegate::paint(QPainter *painter, const QStyleOptionViewItem &optio
                                                         float(base.greenF() + (tint.greenF() - base.greenF()) * amount),
                                                         float(base.blueF() + (tint.blueF() - base.blueF()) * amount)));
     }
+    // The row of what the hovered dashboard cell shows.
+    if (isHoverTinted(index)) {
+        QColor tint = option.palette.color(QPalette::Highlight);
+        tint.setAlphaF(0.22f);
+        painter->fillRect(option.rect, tint);
+    }
     if (!isDimmed(index)) {
         QStyledItemDelegate::paint(painter, option, index);
         return;
@@ -85,6 +91,19 @@ void SidebarDelegate::paint(QPainter *painter, const QStyleOptionViewItem &optio
     painter->setOpacity(dimmedOpacity);
     QStyledItemDelegate::paint(painter, option, index);
     painter->restore();
+}
+
+void SidebarDelegate::setHoverId(const QString &id) { m_hoverId = id; }
+
+QString SidebarDelegate::hoverId() const { return m_hoverId; }
+
+// Only tasks and items: they are what dashboard cells show.
+bool SidebarDelegate::isHoverTinted(const QModelIndex &index) const
+{
+    if (m_hoverId.isEmpty() || index.data(SidebarModel::IdRole).toString() != m_hoverId)
+        return false;
+    const auto kind = SidebarModel::Kind(index.data(SidebarModel::KindRole).toInt());
+    return kind == SidebarModel::Kind::Task || kind == SidebarModel::Kind::Item;
 }
 
 // The marker takes the place of the icon, which projects and tasks do not have.
