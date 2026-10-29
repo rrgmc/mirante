@@ -31,6 +31,7 @@
 #include <QApplication>
 #include <QClipboard>
 #include <QComboBox>
+#include <QCursor>
 #include <QCloseEvent>
 #include <QDesktopServices>
 #include <QDir>
@@ -295,8 +296,11 @@ struct MainWindow::Private
 
     // Task dashboard tabs carry the dashboard icon and item tabs the item's
     // type icon, so they read apart from root dashboard tabs, which have none.
+    // Focus is a list, not a dashboard, so its tab has an icon of its own.
     QIcon pageIcon(const DashboardPage *page) const
     {
+        if (page->isFocus())
+            return QIcon(QStringLiteral(":/icons/focus.svg"));
         if (page->ref.isRoot())
             return QIcon();
         if (page->itemId.isEmpty())
@@ -914,6 +918,55 @@ struct MainWindow::Private
     QAction *showSidebarAction = nullptr;
     QAction *fullScreenAction = nullptr;
     bool maximizedBeforeFullScreen = false;     // the state full screen returns to
+    QTimer *menuPeek = nullptr;                 // runs only in full screen
+
+    // In full screen the menu bar hides, and shows while the mouse is at the
+    // top edge of the window or a menu is open, as in web browsers.
+    void followFullScreen()
+    {
+        QMenuBar *bar = q->menuBar();
+        if (!q->isFullScreen()) {
+            if (menuPeek)
+                menuPeek->stop();
+            bar->show();
+            return;
+        }
+        if (!menuPeek) {
+            menuPeek = new QTimer(q);
+            menuPeek->setInterval(100);
+            QObject::connect(menuPeek, &QTimer::timeout, q, [this] { peekMenuBar(); });
+        }
+        bar->hide();
+        menuPeek->start();
+    }
+
+    void peekMenuBar()
+    {
+        constexpr int edge = 4;     // pixels at the top that show the bar
+        QMenuBar *bar = q->menuBar();
+        const QPoint pos = q->mapFromGlobal(QCursor::pos());
+        const bool inWindow = q->rect().contains(pos);
+        if (!bar->isVisible()) {
+            if (inWindow && pos.y() < edge)
+                bar->show();
+            return;
+        }
+        const bool menuOpen = bar->activeAction() || QApplication::activePopupWidget();
+        if (!menuOpen && !(inWindow && pos.y() < bar->height() + edge))
+            bar->hide();
+    }
+
+    // A hidden menu bar takes its menus' shortcuts with it, F11 included, so
+    // the window holds the actions that have one too.
+    void keepMenuShortcuts(const QList<QAction *> &menuActions)
+    {
+        for (QAction *action : menuActions) {
+            if (QMenu *menu = action->menu())
+                keepMenuShortcuts(menu->actions());
+            else if (!action->shortcut().isEmpty())
+                q->addAction(action);
+        }
+    }
 
     // The workspace's name, else its folder's name, else "Sample data".
     QString workspaceDisplayName() const
@@ -1349,6 +1402,7 @@ MainWindow::MainWindow(Model &model, const ItemTypeRegistry &types, Store &store
     connect(d->switcher, &QuickSwitcher::activated, this,
             [this](const SwitcherEntry &entry) { d->onSwitcherActivated(entry); });
     d->buildMenus();
+    d->keepMenuShortcuts(menuBar()->actions());
 
     d->openInitialTabs();
     d->shortcuts = new Shortcuts(this);
@@ -1402,8 +1456,10 @@ void MainWindow::changeEvent(QEvent *event)
 {
     // The window can also leave full screen without the action, for example
     // through the macOS title bar.
-    if (event->type() == QEvent::WindowStateChange && d->fullScreenAction)
+    if (event->type() == QEvent::WindowStateChange && d->fullScreenAction) {
         d->fullScreenAction->setChecked(isFullScreen());
+        d->followFullScreen();
+    }
     QMainWindow::changeEvent(event);
 }
 

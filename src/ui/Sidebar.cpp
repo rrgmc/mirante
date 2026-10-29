@@ -237,6 +237,7 @@ Sidebar::Sidebar(const Model &model, const ItemTypeRegistry &types, QWidget *par
     // The Focus entry, above the tree.
     d->focus = new QPushButton(tr("Focus"), this);
     d->focus->setObjectName(QStringLiteral("focusEntry"));
+    d->focus->setIcon(QIcon(QStringLiteral(":/icons/focus.svg")));
     d->focus->setToolTip(tr("Active tasks of every project, most important first"));
     d->focus->setFlat(true);
     d->focus->setStyleSheet(QStringLiteral("QPushButton { text-align: left; padding: 4px 8px; }"));

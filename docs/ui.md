@@ -68,7 +68,7 @@ The window opens centred on the screen, at the size it had when it was last clos
 The menu bar has three menus.
 
 - **File:** New Workspace… (`Ctrl+N`), Open Workspace… (`Ctrl+O`), Open Recent with the last ten workspaces and Clear Recent, Rename Workspace…, Show Workspace Folder, Open Sample Data, Reload Workspace (`F5`), New Group…, and Quit (`Ctrl+Q`). A workspace is a data folder with a `workspace.mirante` file at its top. Open Workspace… chooses that file. New Workspace… chooses a folder and a name and writes the file. A folder without the file is not opened; from the menus the app offers to make it a workspace. At start the app opens the workspace given with `--data`, otherwise the last one used on this device if it still has its file, otherwise the sample data. The window title and the sidebar header show the workspace's name: the name in its `workspace.mirante`, else the folder's name. Rename Workspace…, or a double click on the name in the sidebar header, renames it, and the Store writes `workspace.mirante`. The sample data cannot be renamed. Show Workspace Folder opens the workspace's folder in Explorer, Finder or the desktop's file manager; it is disabled for the sample data, which has no folder. Reload Workspace opens the workspace again from its files. See decisions [0025](decisions/0025-workspace-file.md) and [0027](decisions/0027-workspace-needs-its-file.md).
-- **View:** Sidebar (show or hide), Expand All Tasks, Collapse All Tasks, Full Screen (`F11`, `Ctrl+Cmd+F` on macOS; leaving it brings back the maximized or normal window, and a window closed in full screen opens as it was before), Go To… (`Ctrl+K`, the [quick switcher](#keyboard)), All Dashboards…, and New Dashboard.
+- **View:** Sidebar (show or hide), Expand All Tasks, Collapse All Tasks, Full Screen (`F11`, `Ctrl+Cmd+F` on macOS; leaving it brings back the maximized or normal window, and a window closed in full screen opens as it was before; in full screen the menu bar hides and shows while the mouse is at the top edge or a menu is open, and every shortcut keeps working, while macOS shows its own menu bar), Go To… (`Ctrl+K`, the [quick switcher](#keyboard)), All Dashboards…, and New Dashboard.
 - **Help:** About Mirante, with the version, the author and the project's address, and About Qt.
 
 ## Opening tasks
@@ -167,7 +167,7 @@ If the same item is shown in two places, each place has its own live view. See [
 
 Focus answers "what should I work on now?", across all projects.
 
-- The Focus entry in the sidebar opens Focus in a "Focus" tab at the start of the root tab bar. There is at most one Focus tab. It can be closed like any other tab.
+- The Focus entry in the sidebar opens Focus in a "Focus" tab at the start of the root tab bar. The entry and the tab carry a target icon, since Focus is a list and not a dashboard. There is at most one Focus tab. It can be closed like any other tab.
 - It lists active tasks from all projects, or from one group, chosen in a combo box. Tasks in the [trash](#trash), and the tasks of projects in the trash, are left out. The combo box holds "All groups", then the groups in manual order.
 - Each row shows the task title, then its project and group, dimmed, and the [priority](data-model.md#priority) marker of the sidebar, a circle as for every task. Low tasks are dimmed.
 - A right click on a task opens the task's menu from the sidebar: edit, set priority, set state, delete and the rest.
