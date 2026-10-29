@@ -17,11 +17,11 @@ Tick each box, or note what is wrong next to it.
 
 Do these first. They test the [known risk](../web-views.md#known-risk-logins-in-embedded-browsers). Note for each one how you signed in (password, email code, Google, company sign-in) and whether it worked.
 
-- [ ] In group A, a Claude session (web) item with a claude.ai URL. Sign in to claude.ai inside the cell, or in a maximised cell.
-- [ ] In group A, a GitLab connection to `https://gitlab.com` (group dialog, Connections) and a GitLab MR (page) item. Sign in to gitlab.com. The merge request page shows.
-- [ ] In group A, a Jira Cloud connection to your Atlassian site and a Jira Issue (page) item. Sign in. The issue page shows.
-- [ ] A login popup, such as "Sign in with Google", opens in a dialog of at least 500 × 600 that can be resized, and closes by itself when the sign-in is done.
-- [ ] Quit and start again. All three items are still signed in.
+- [X] In group A, a Claude session (web) item with a claude.ai URL. Sign in to claude.ai inside the cell, or in a maximised cell. (Google account, work)
+- [X] In group A, a GitLab connection to `https://gitlab.com` (group dialog, Connections) and a GitLab MR (page) item. Sign in to gitlab.com. The merge request page shows. (Google account, work)
+- [X] In group A, a Jira Cloud connection to your Atlassian site and a Jira Issue (page) item. Sign in. The issue page shows. (Google account, work)
+- [X] A login popup, such as "Sign in with Google", opens in a dialog of at least 500 × 600 that can be resized, and closes by itself when the sign-in is done.
+- [X] Quit and start again. All three items are still signed in.
 
 ## Profiles
 
