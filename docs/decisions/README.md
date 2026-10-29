@@ -10,7 +10,7 @@ Each file records one design decision: what was decided, what else was considere
 | [0002](0002-own-layout-tree.md) | Own layout tree of splits, tabs and cells | Accepted |
 | [0003](0003-view-per-placement.md) | One live view per placement | Accepted |
 | [0004](0004-file-per-entity-sync.md) | One JSON file per entity in an externally synced folder | Accepted |
-| [0005](0005-profiles-per-group.md) | One web login profile per group, with a shared option | Accepted |
+| [0005](0005-profiles-per-group.md) | One web login profile per group, with a shared option | Accepted; profiles per module by 0040 |
 | [0006](0006-connections-per-group.md) | API connections per group, tokens in the keychain | Accepted |
 | [0007](0007-separate-item-types-per-rendering.md) | Separate item types for summary and page | Accepted |
 | [0008](0008-claude-sessions.md) | Claude sessions through web views and the terminal only | Accepted |
@@ -41,6 +41,10 @@ Each file records one design decision: what was decided, what else was considere
 | [0033](0033-cell-header-pills.md) | Cell headers show the type and the place as pills | Accepted |
 | [0034](0034-manual-order-in-the-sidebar.md) | The sidebar keeps the manual order; priority is a marker | Accepted |
 | [0036](0036-trash-for-tasks-and-projects.md) | Deleted tasks and projects go to a trash | Accepted |
+| [0037](0037-core-makes-web-views.md) | The core makes web views; modules may take the profile instead | Accepted |
+| [0038](0038-read-connections-in-m4.md) | Connections are read in M4, without tokens | Accepted |
+| [0039](0039-profiles-deleted-only-by-local-delete.md) | A group's web profile is deleted only when the group is deleted on this device | Accepted |
+| [0040](0040-profiles-per-group-and-module.md) | One web login profile per group and module | Accepted |
 
 ## Template
 

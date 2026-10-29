@@ -55,6 +55,8 @@ See [the M3 plan](plans/m3-data-folder.md).
 
 ## M4: Web views
 
+See [the M4 plan](plans/m4-web-views.md).
+
 - [ ] `ProfileManager` with group, shared and app profiles, and per-host overrides.
 - [ ] Item types Web page, Claude session (web), GitLab MR (page), GitLab Issue (page) and Jira Issue (page).
 - [ ] Logging in to claude.ai, gitlab.com and Jira Cloud works in a group profile and survives a restart. The result is recorded in [web views](web-views.md#known-risk-logins-in-embedded-browsers).
