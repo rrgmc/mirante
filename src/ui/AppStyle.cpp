@@ -9,6 +9,7 @@
 #include <QPainter>
 #include <QPainterPath>
 #include <QStyleOption>
+#include <QPushButton>
 #include <QTabBar>
 #include <QToolBar>
 #include <QToolButton>
@@ -236,6 +237,11 @@ void AppStyle::polish(QWidget *widget)
         widget->setAttribute(Qt::WA_Hover);
     if (qobject_cast<QTabBar *>(widget))
         widget->installEventFilter(this);
+    // Push buttons show no focus ring. On macOS the ring is drawn outside the
+    // button, and a dialog's layout cuts it into stray bars above and below
+    // the default button. The default button still shows by its colour.
+    if (qobject_cast<QPushButton *>(widget))
+        widget->setAttribute(Qt::WA_MacShowFocusRect, false);
 }
 
 void AppStyle::unpolish(QWidget *widget)

@@ -1,6 +1,6 @@
 # 0048. Focus and the preview have fixed slots right of the tabs
 
-- Status: Accepted
+- Status: Accepted; the pin button and pinned tabs superseded by [0052](0052-no-pinning.md); the sidebar's Focus entry by [0053](0053-no-focus-entry-in-the-sidebar.md)
 - Date: 2026-10-29
 
 ## Context

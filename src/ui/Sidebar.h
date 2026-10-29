@@ -67,8 +67,6 @@ public:
     bool showsTrash() const;
 
 signals:
-    // The Focus entry above the tree was activated.
-    void focusRequested();
     // A double click, or Enter, opens an item or a task dashboard. On every
     // other row, tasks included, it expands or collapses the row. A single
     // click only selects.

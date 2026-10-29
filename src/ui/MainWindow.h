@@ -56,7 +56,9 @@ public:
     // opened; the warning bar says why.
     void openWorkspace(const QString &path);
     // Makes folder a workspace with the given name, by writing its
-    // workspace.mirante, and opens it. Returns false, and shows why, if it fails.
+    // workspace.mirante, and opens it. A workspace without root dashboards
+    // gets one empty root dashboard, "Main", open as a tab and unlocked.
+    // Returns false, and shows why, if it fails.
     bool createWorkspace(const QString &folder, const QString &name);
     // The sample data compiled into the app, used when there is no workspace.
     // It is read-only: the warning bar says that changes are not saved.
@@ -73,19 +75,21 @@ public:
     bool renameWorkspace(const QString &name);
 
     void showAbout();
+    // Opens the settings window, or brings it to the front: Settings… in the
+    // application menu on macOS, Tools > Settings… elsewhere. Its changes
+    // apply at once. See docs/ui.md#settings.
+    void showSettings();
 
     // Navigation, used by the sidebar, the switcher and the shortcuts.
     // Without a dashboard id, these use the task's default dashboard.
     void openTaskPreview(const QString &taskId, const QString &dashboardId = QString());
-    void pinTask(const QString &taskId, const QString &dashboardId = QString());
     void openRootDashboard(const QString &id);
     void newRootDashboard();
     // Shows the list of all root dashboards, where closed ones are opened again
     // and any can be deleted.
     void showDashboardList();
     void focusItem(const QString &taskId, const QString &itemId);
-    // Opens the item alone in the preview slot, like a task dashboard, or
-    // switches to its tab if it has one.
+    // Opens the item alone in the preview slot, like a task dashboard.
     void openItem(const QString &taskId, const QString &itemId);
     void revealInSidebar(const QString &id);
     void showQuickSwitcher();
@@ -97,7 +101,7 @@ public:
     // root tab bar in order, then Focus, then the preview if there is one.
     void switchPage(int step);
     // Ctrl+V with an image on the clipboard. Replaces the image of the image
-    // item in the focused cell or the current item tab, through ImagePaste,
+    // item in the focused cell or the current item preview, through ImagePaste,
     // after the paste dialog. It never adds an item to a dashboard: on any
     // other cell the status bar points to "Paste Image…" in a task's Items
     // menu. See docs/decisions/0051-paste-images-from-the-items-menu.md.
@@ -123,8 +127,9 @@ signals:
     void currentPageChanged();
 
 protected:
-    // Saves the window's size, whether it is maximized, the sidebar width and
-    // the open tabs on this device. The window always opens centred.
+    // Saves the window's place and size, whether it is maximized, the sidebar
+    // width and the open tabs on this device. The window opens at the saved
+    // place only while that is still visible on a screen.
     void closeEvent(QCloseEvent *event) override;
     // Keeps View > Full Screen checked while the window is full screen.
     void changeEvent(QEvent *event) override;

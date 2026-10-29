@@ -1,4 +1,4 @@
-// Tests MainWindow on the fixtures: the root tabs, the preview and Focus slots, pinning,
+// Tests MainWindow on the fixtures: the root tabs, the preview and Focus slots,
 // new root dashboards, closing and reopening tabs, the warning bar, focusing an
 // item, views following the model, detached windows, and the web views of
 // item cells.
@@ -25,6 +25,7 @@
 #include "ui/SlotTabBar.h"
 #include "ui/Sidebar.h"
 #include "ui/SidebarDelegate.h"
+#include "ui/SettingsDialog.h"
 #include "ui/SidebarModel.h"
 #include "ui/Shortcuts.h"
 #include "ui/ProfilesDialog.h"
@@ -35,6 +36,7 @@
 #include <mirante/ItemType.h>
 
 #include <QApplication>
+#include <QCheckBox>
 #include <QDir>
 #include <QDirIterator>
 #include <QEnterEvent>
@@ -49,6 +51,8 @@
 #include <QMenuBar>
 #include <QPainter>
 #include <QPointer>
+#include <QPushButton>
+#include <QScreen>
 #include <QSettings>
 #include <QSignalSpy>
 #include <QStatusBar>
@@ -308,8 +312,13 @@ private slots:
         QVERIFY(!f.bar()->selectionShown());
         QCOMPARE(f.previewText(), QStringLiteral("Fix login timeout / Work"));
         QVERIFY(!f.slotBar()->tabIcon(SlotTabBar::PreviewSlot).isNull());
-        QVERIFY(f.slotBar()->findChild<QToolButton *>(QStringLiteral("pinButton")));
-        QVERIFY(!f.bar()->findChild<QToolButton *>(QStringLiteral("pinButton")));
+        // The preview has a close button and no pin button (decision 0052).
+        const auto closeSide = QTabBar::ButtonPosition(
+            f.slotBar()->style()->styleHint(QStyle::SH_TabBar_CloseButtonPosition, nullptr, f.slotBar()));
+        const auto otherSide = closeSide == QTabBar::LeftSide ? QTabBar::RightSide : QTabBar::LeftSide;
+        QVERIFY(f.slotBar()->tabButton(SlotTabBar::PreviewSlot, closeSide));
+        QVERIFY(!f.slotBar()->tabButton(SlotTabBar::PreviewSlot, otherSide));
+        QVERIFY(!f.window->findChild<QToolButton *>(QStringLiteral("pinButton")));
         f.window->show();
         QVERIFY(QTest::qWaitForWindowExposed(f.window.get()));
         QTRY_VERIFY(f.slotBar()->height() > 0);
@@ -376,8 +385,7 @@ private slots:
     void previewOfAChosenDashboard()
     {
         Fixture f;
-        // A chosen dashboard replaces the default one in the same preview slot,
-        // and pinning it pins that dashboard.
+        // A chosen dashboard replaces the default one in the same preview slot.
         const QString review = QStringLiteral("ece7e850-6e0f-51ef-ad23-4ee948afdd66");
         f.window->openTaskPreview(kFixLoginTask);
         f.window->openTaskPreview(kFixLoginTask, review);
@@ -386,52 +394,33 @@ private slots:
         const LayoutNode *reviewTree = f.model.layout(DashboardRef{kFixLoginTask, review});
         QVERIFY(reviewTree);
         QVERIFY(layout::sameShape(f.window->currentLayoutView()->tree(), *reviewTree));
-        f.window->pinTask(kFixLoginTask, review);
-        QVERIFY(!f.slotBar()->hasPreview());
-        QCOMPARE(f.bar()->count(), 3);
-        QVERIFY(layout::sameShape(f.window->currentLayoutView()->tree(), *reviewTree));
         f.window->openTaskPreview(kFixLoginTask);
-        QVERIFY(f.slotBar()->hasPreview());     // the default dashboard is not pinned yet
-        QCOMPARE(f.bar()->count(), 3);
+        QVERIFY(f.slotBar()->hasPreview());
+        QCOMPARE(f.bar()->count(), 2);
     }
 
-    // Pinning moves a task dashboard from the preview slot to a tab of its
-    // own. It does not make a root dashboard: a task dashboard in a root
-    // dashboard is read-only.
-    void pinTask()
+    // Opening the task dashboard that the preview shows switches to the
+    // preview. Only one preview exists, and it never becomes a tab.
+    void previewIsTheOnlyTaskPage()
     {
         Fixture f;
         f.window->openTaskPreview(kFixLoginTask);
-        f.window->pinTask(kFixLoginTask);
-
-        QCOMPARE(int(f.model.rootDashboards().size()), 2);
-        QCOMPARE(f.bar()->count(), 3);
-        QVERIFY(!f.slotBar()->hasPreview());
-        QCOMPARE(f.slotBar()->currentSlot(), -1);
-        QCOMPARE(f.bar()->currentIndex(), 2);
-        QVERIFY(f.bar()->selectionShown());
-        QCOMPARE(f.tabText(2), QStringLiteral("Fix login timeout / Work"));
-        QVERIFY(!f.bar()->tabIcon(2).isNull());    // a task dashboard tab
-        QVERIFY(f.bar()->tabIcon(0).isNull());     // a root dashboard tab
-        const LayoutNode *work = f.model.layout(DashboardRef{kFixLoginTask, kFixLoginDashboard});
-        QVERIFY(layout::sameShape(f.window->currentLayoutView()->tree(), *work));
-
-        // Opening it again switches to its tab.
+        LayoutView *preview = f.window->currentLayoutView();
         f.window->openRootDashboard(kRelease);
         QCOMPARE(f.bar()->currentIndex(), 1);
         f.window->openTaskPreview(kFixLoginTask);
-        QCOMPARE(f.bar()->currentIndex(), 2);
-        QCOMPARE(f.bar()->count(), 3);
-        QVERIFY(!f.slotBar()->hasPreview());
-
-        // The next preview opens in the slot again.
-        f.window->openTaskPreview(kOverviewTask);
-        QCOMPARE(f.bar()->count(), 3);
-        QVERIFY(f.slotBar()->hasPreview());
         QCOMPARE(f.slotBar()->currentSlot(), int(SlotTabBar::PreviewSlot));
+        QCOMPARE(f.window->currentLayoutView(), preview);
+        QCOMPARE(f.bar()->count(), 2);
+        QCOMPARE(int(f.model.rootDashboards().size()), 2);
+
+        // The next preview replaces it.
+        f.window->openTaskPreview(kOverviewTask);
+        QCOMPARE(f.bar()->count(), 2);
+        QCOMPARE(f.previewText(), overviewTitle(f));
     }
 
-    // A task dashboard tab has its own lock in its title bar. The lock at the
+    // A task dashboard preview has its own lock in its title bar. The lock at the
     // end of the tab bar row is for root dashboards only.
     void taskTabHasItsOwnLock()
     {
@@ -465,7 +454,7 @@ private slots:
         QVERIFY(!f.window->currentLayoutView()->editMode());
     }
 
-    // The title bar of a task tab is tinted with the task's group colour, and
+    // The title bar of a task preview is tinted with the task's group colour, and
     // follows a new colour and a move to another group at once.
     void taskTitleBarTintFollowsGroup()
     {
@@ -489,23 +478,26 @@ private slots:
         QCOMPARE(headerColour(), tinted(*page, QColor(QStringLiteral("#22c55e"))));
     }
 
-    void editingPreviewPinsIt()
+    // Editing the previewed task dashboard keeps it in the preview slot. It
+    // does not become a tab (decision 0052).
+    void editingPreviewKeepsIt()
     {
         Fixture f;
         f.window->openTaskPreview(kFixLoginTask);
         QVERIFY(f.slotBar()->hasPreview());
 
-        // An edit of the previewed task dashboard pins the preview.
         const DashboardRef ref{kFixLoginTask, kFixLoginDashboard};
         const LayoutNode *tree = f.model.layout(ref);
         QVERIFY(tree);
-        f.model.setLayout(ref, layout::splitCell(*tree, {}, Edge::Right, std::nullopt).tree);
+        const LayoutNode edited = layout::splitCell(*tree, {}, Edge::Right, std::nullopt).tree;
+        f.model.setLayout(ref, edited);
+        QTest::qWait(20);
 
-        QTRY_VERIFY(!f.slotBar()->hasPreview());
+        QVERIFY(f.slotBar()->hasPreview());
+        QCOMPARE(f.slotBar()->currentSlot(), int(SlotTabBar::PreviewSlot));
+        QCOMPARE(f.bar()->count(), 2);
         QCOMPARE(int(f.model.rootDashboards().size()), 2);
-        QCOMPARE(f.bar()->count(), 3);
-        QCOMPARE(f.slotBar()->currentSlot(), -1);
-        QCOMPARE(f.tabText(f.bar()->currentIndex()), QStringLiteral("Fix login timeout / Work"));
+        QVERIFY(layout::sameShape(f.window->currentLayoutView()->tree(), *f.model.layout(ref)));
     }
 
     void newDashboardOpensInPreview()
@@ -529,7 +521,7 @@ private slots:
         QCOMPARE(f.slotBar()->tabToolTip(SlotTabBar::PreviewSlot), QStringLiteral("backend / Fix login timeout / Work"));
 
         // A change to the task that leaves this dashboard's layout as it is,
-        // such as a new title or a new dashboard, does not pin the preview.
+        // such as a new title or a new dashboard, keeps the preview.
         Task task = *f.model.task(kFixLoginTask);
         task.title = QStringLiteral("Login timeout");
         f.model.setTask(task);
@@ -570,6 +562,32 @@ private slots:
         QVERIFY(f.window->menuBar()->isVisible());
     }
 
+    // The window's place and size are saved on close. The next window opens
+    // there while it is visible on a screen, and centred on the primary
+    // screen when it is not, such as on a monitor that was unplugged.
+    void windowPlace()
+    {
+        Fixture f;
+        const QRect available = QGuiApplication::primaryScreen()->availableGeometry();
+        // The smallest window, with room for the title bar above it.
+        const QSize size = f.window->minimumSize();
+        QVERIFY(available.width() >= size.width() + 20 && available.height() >= size.height() + 60);
+        const QRect visible(QPoint(available.left() + 20, available.top() + 60), size);
+        f.window->setGeometry(visible);
+        f.window->close();
+        QCOMPARE(f.settings.windowGeometry(), visible);
+        QCOMPARE(f.settings.windowSize(), visible.size());
+
+        f.window = std::make_unique<MainWindow>(f.model, f.types, f.dataStore, f.settings);
+        QCOMPARE(f.window->geometry(), visible);
+
+        // A place on no screen is not used; the saved size is.
+        f.settings.setWindowGeometry(QRect(QPoint(available.right() + 5000, 100), size));
+        f.window = std::make_unique<MainWindow>(f.model, f.types, f.dataStore, f.settings);
+        QCOMPARE(f.window->geometry().size(), size);
+        QVERIFY(available.contains(f.window->geometry()));
+    }
+
     // The Focus slot is always there, with an icon, and cannot be closed.
     void focusSlot()
     {
@@ -588,22 +606,6 @@ private slots:
         f.window->closeCurrentTab();
         QCOMPARE(f.slotBar()->currentSlot(), int(SlotTabBar::FocusSlot));
         QVERIFY(f.window->findChild<FocusView *>());
-    }
-
-    void pinButton()
-    {
-        Fixture f;
-        f.window->openTaskPreview(kOverviewTask);
-        auto *pin = f.slotBar()->findChild<QToolButton *>(QStringLiteral("pinButton"));
-        QVERIFY(pin);
-        QSignalSpy spy(f.slotBar(), &SlotTabBar::pinRequested);
-        pin->click();
-        QCOMPARE(spy.count(), 1);
-        QVERIFY(!f.slotBar()->hasPreview());
-        QCOMPARE(f.bar()->count(), 3);
-        QCOMPARE(f.bar()->currentIndex(), 2);
-        QCOMPARE(f.tabText(2), overviewTitle(f));
-        QCOMPARE(int(f.model.rootDashboards().size()), 2);
     }
 
     void newRootDashboard()
@@ -757,6 +759,29 @@ private slots:
         QVERIFY(f.window->windowTitle().startsWith(QStringLiteral("Fresh")));
         QVERIFY(f.window->findChild<QWidget *>(QStringLiteral("warningBar"))->isHidden());
 
+        // A new workspace starts with one empty root dashboard, "Main", open
+        // as the current tab and ready to fill.
+        QCOMPARE(int(f.model.rootDashboards().size()), 1);
+        const RootDashboard *main = f.model.rootDashboards().front();
+        QCOMPARE(main->name, QStringLiteral("Main"));
+        QCOMPARE(f.bar()->count(), 1);
+        QCOMPARE(f.tabText(0), QStringLiteral("Main"));
+        QVERIFY(f.bar()->selectionShown());
+        QVERIFY(f.window->currentLayoutView());
+        QVERIFY(f.window->currentLayoutView()->editMode());
+        // It is written to disk like any other root dashboard.
+        const QString mainId = main->id;
+        f.dataStore.flush();
+        QVERIFY(QFile::exists(dir.filePath(QStringLiteral("dashboards/%1.json").arg(mainId))));
+
+        // It is ordinary: deleting it leaves the workspace without one, and
+        // opening the workspace again does not add another.
+        f.model.removeRootDashboard(mainId);
+        f.dataStore.flush();
+        f.window->openWorkspace(dir.path());
+        QVERIFY(f.model.rootDashboards().empty());
+        QCOMPARE(f.bar()->count(), 0);
+
         // A folder that does not exist cannot be made one.
         QVERIFY(!f.window->createWorkspace(dir.filePath(QStringLiteral("missing")), QStringLiteral("X")));
     }
@@ -884,11 +909,15 @@ private slots:
     }
 
     // The Focus entry selects the Focus slot, which is not a tab.
-    void focusEntrySelectsSlot()
+    // A click on the Focus slot, or openFocus(), makes Focus current. The
+    // sidebar has no Focus entry (decision 0053).
+    void focusSlotSelectsFocus()
     {
         Fixture f;
-        auto *sidebar = f.window->findChild<Sidebar *>();
-        emit sidebar->focusRequested();
+        f.window->show();
+        QVERIFY(QTest::qWaitForWindowExposed(f.window.get()));
+        QVERIFY(!f.window->findChild<Sidebar *>()->findChild<QPushButton *>(QStringLiteral("focusEntry")));
+        QTest::mouseClick(f.slotBar(), Qt::LeftButton, {}, f.slotBar()->tabRect(SlotTabBar::FocusSlot).center());
         QCOMPARE(f.bar()->count(), 2);
         QCOMPARE(f.slotBar()->currentSlot(), int(SlotTabBar::FocusSlot));
         QVERIFY(!f.bar()->selectionShown());
@@ -896,7 +925,7 @@ private slots:
 
         f.window->openRootDashboard(kRelease);
         QCOMPARE(f.slotBar()->currentSlot(), -1);
-        emit sidebar->focusRequested();
+        f.window->openFocus();
         QCOMPARE(f.slotBar()->currentSlot(), int(SlotTabBar::FocusSlot));
         QCOMPARE(f.window->findChildren<FocusView *>().size(), 1);
 
@@ -1132,14 +1161,12 @@ private slots:
         QCOMPARE(f.model.task(kImageTask)->items.size(), itemsBefore);
     }
 
-    // A deleted task's tabs and preview close.
+    // A deleted task's preview closes.
     void removedTaskClosesItsTabs()
     {
         Fixture f;
-        f.window->openTaskPreview(kFixLoginTask);
-        f.window->pinTask(kFixLoginTask);
         f.window->openTaskPreview(kFixLoginTask, QStringLiteral("ece7e850-6e0f-51ef-ad23-4ee948afdd66"));
-        QCOMPARE(f.bar()->count(), 3);
+        QCOMPARE(f.bar()->count(), 2);
         QVERIFY(f.slotBar()->hasPreview());
         f.model.removeTask(kFixLoginTask);
         QCOMPARE(f.bar()->count(), 2);
@@ -1225,6 +1252,65 @@ private slots:
         QVERIFY(sidebar->hoverHighlight().isEmpty());
     }
 
+    // The settings window turns the sidebar's hover tint off and on at once.
+    // Its action has the preferences role, so macOS shows it in the
+    // application menu; elsewhere it is in the Tools menu.
+    void settingsTurnHoverTintOff()
+    {
+        Fixture f;
+        auto *action = f.window->findChild<QAction *>(QStringLiteral("settingsAction"));
+        QVERIFY(action);
+        QCOMPARE(action->menuRole(), QAction::PreferencesRole);
+        QCOMPARE(action->text(), QStringLiteral("&Settings…"));
+        auto *tools = f.window->menuBar()->findChild<QMenu *>(QStringLiteral("toolsMenu"));
+#ifdef Q_OS_MACOS
+        QVERIFY(!tools);
+#else
+        QVERIFY(tools && tools->actions().contains(action));
+#endif
+
+        auto *sidebar = f.window->findChild<Sidebar *>();
+        TaskCell *taskCell = nullptr;
+        for (TaskCell *cell : f.window->currentLayoutView()->findChildren<TaskCell *>()) {
+            if (cell->taskId() == kFixLoginTask)
+                taskCell = cell;
+        }
+        QVERIFY(taskCell);
+        QEnterEvent enter(QPointF(1, 1), QPointF(1, 1), QPointF(1, 1));
+        QCoreApplication::sendEvent(taskCell, &enter);
+        QCOMPARE(sidebar->hoverHighlight(), kFixLoginTask);
+
+        action->trigger();
+        auto *dialog = f.window->findChild<SettingsDialog *>();
+        QVERIFY(dialog);
+        QVERIFY(dialog->sidebarHoverTint()->isChecked());
+
+        // Off: the tint goes at once, and the mouse brings none.
+        dialog->sidebarHoverTint()->setChecked(false);
+        QVERIFY(!f.settings.sidebarHoverTint());
+        QVERIFY(sidebar->hoverHighlight().isEmpty());
+        QEvent leave(QEvent::Leave);
+        QCoreApplication::sendEvent(taskCell, &leave);
+        QCoreApplication::sendEvent(taskCell, &enter);
+        QVERIFY(sidebar->hoverHighlight().isEmpty());
+
+        // On: the hovered cell's row is tinted again at once.
+        dialog->sidebarHoverTint()->setChecked(true);
+        QCOMPARE(sidebar->hoverHighlight(), kFixLoginTask);
+
+        // A window started with the setting off does not tint.
+        dialog->sidebarHoverTint()->setChecked(false);
+        QCoreApplication::sendEvent(taskCell, &leave);
+        f.window = std::make_unique<MainWindow>(f.model, f.types, f.dataStore, f.settings);
+        sidebar = f.window->findChild<Sidebar *>();
+        for (TaskCell *cell : f.window->currentLayoutView()->findChildren<TaskCell *>()) {
+            if (cell->taskId() == kFixLoginTask)
+                taskCell = cell;
+        }
+        QCoreApplication::sendEvent(taskCell, &enter);
+        QVERIFY(sidebar->hoverHighlight().isEmpty());
+    }
+
     // From the sidebar menu, a task dashboard or a single item opens in a new
     // root dashboard.
     void openInNewRootDashboard()
@@ -1293,7 +1379,7 @@ private slots:
     }
 
     // An item opens alone like a task dashboard: in the preview slot, with
-    // its type icon and a "Task / Item" title bar, and it can be pinned.
+    // its type icon and a "Task / Item" title bar. It never becomes a tab.
     void itemTab()
     {
         Fixture f;
@@ -1315,25 +1401,18 @@ private slots:
         const auto frames = view->findChildren<CellFrame *>();
         QCOMPARE(frames.size(), 1);
 
-        // Opening it again switches to the preview. Pinned, it moves to a tab
-        // of its own, and a task dashboard opens in the preview slot.
+        // Opening it again switches to the preview. A task dashboard then
+        // replaces it in the preview slot.
         f.window->openRootDashboard(kMorning);
         f.window->openItem(kOverviewTask, kReviewsItem);
         QCOMPARE(f.slotBar()->currentSlot(), int(SlotTabBar::PreviewSlot));
         QCOMPARE(f.window->currentLayoutView(), view);
-        auto *pin = f.slotBar()->findChild<QToolButton *>(QStringLiteral("pinButton"));
-        QVERIFY(pin);
-        pin->click();
-        QVERIFY(!f.slotBar()->hasPreview());
-        QCOMPARE(f.bar()->count(), 3);
-        QCOMPARE(f.tabText(2), title);
-        QVERIFY(!f.bar()->tabIcon(2).isNull());
         f.window->openTaskPreview(kFixLoginTask);
-        QCOMPARE(f.bar()->count(), 3);
+        QCOMPARE(f.bar()->count(), 2);
         QVERIFY(f.slotBar()->hasPreview());
         f.window->openItem(kOverviewTask, kReviewsItem);
-        QCOMPARE(f.bar()->currentIndex(), 2);
-        QCOMPARE(f.slotBar()->currentSlot(), -1);
+        QCOMPARE(f.bar()->count(), 2);
+        QCOMPARE(f.previewText(), title);
 
         // The tabs and the preview close when their items and tasks are gone.
         QVERIFY(store::load(QStringLiteral(MIRANTE_FIXTURES_DIR "/no-such-folder"), f.model).empty());
@@ -1401,15 +1480,11 @@ private slots:
         f.model.setRootDashboard(renamed);
         QCOMPARE(window->windowTitle(), QStringLiteral("Mornings"));
 
-        // Only root dashboard tabs can be detached: not pinned task tabs or
-        // item tabs. Focus and the preview are not tabs.
+        // Only root dashboard tabs can be detached. Focus and the preview are
+        // not tabs.
         f.window->openTaskPreview(kFixLoginTask);
-        f.window->pinTask(kFixLoginTask);
-        QCOMPARE(f.bar()->count(), 2);
+        QCOMPARE(f.bar()->count(), 1);
         QVERIFY(f.bar()->tabData(0).toBool());
-        QVERIFY(!f.bar()->tabData(1).toBool());
-        emit f.bar()->detachRequested(1);
-        QCOMPARE(f.bar()->count(), 2);
         QCOMPARE(detachedWindows().size(), 1);
     }
 

@@ -13,8 +13,10 @@ namespace {
 const QString lastWorkspaceKey = QStringLiteral("workspace/last");
 const QString recentWorkspacesKey = QStringLiteral("workspace/recent");
 const QString windowSizeKey = QStringLiteral("window/size");
+const QString windowGeometryKey = QStringLiteral("window/geometry");
 const QString windowMaximizedKey = QStringLiteral("window/maximized");
 const QString windowSplitterKey = QStringLiteral("window/splitter");
+const QString sidebarHoverTintKey = QStringLiteral("sidebar/hoverTint");
 const QString hiddenViewLimitKey = QStringLiteral("webViews/hiddenLimit");
 
 constexpr int defaultHiddenViewLimit = 8;
@@ -163,6 +165,16 @@ void DeviceSettings::setWindowSize(const QSize &size)
     d->settings->setValue(windowSizeKey, size);
 }
 
+QRect DeviceSettings::windowGeometry() const
+{
+    return d->settings->value(windowGeometryKey).toRect();
+}
+
+void DeviceSettings::setWindowGeometry(const QRect &geometry)
+{
+    d->settings->setValue(windowGeometryKey, geometry);
+}
+
 bool DeviceSettings::windowMaximized() const
 {
     return d->settings->value(windowMaximizedKey).toBool();
@@ -199,6 +211,16 @@ void DeviceSettings::setDetachedGeometry(const QString &dashboardId, const QByte
         d->settings->remove(detachedKey(dashboardId));
     else
         d->settings->setValue(detachedKey(dashboardId), geometry);
+}
+
+bool DeviceSettings::sidebarHoverTint() const
+{
+    return d->settings->value(sidebarHoverTintKey, true).toBool();
+}
+
+void DeviceSettings::setSidebarHoverTint(bool on)
+{
+    d->settings->setValue(sidebarHoverTintKey, on);
 }
 
 // The value is edited by hand in the settings file, so anything that is not a

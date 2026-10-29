@@ -51,7 +51,9 @@ private slots:
         QVERIFY(device.recentWorkspaces().isEmpty());
         QVERIFY(device.folderPath(QStringLiteral("f1")).isEmpty());
         QVERIFY(!device.windowSize().isValid());
+        QVERIFY(!device.windowGeometry().isValid());
         QVERIFY(!device.windowMaximized());
+        QVERIFY(device.sidebarHoverTint());
         QVERIFY(device.sidebarSplitterState().isEmpty());
         const DeviceSettings::Tabs tabs = device.openTabs(QStringLiteral("C:/work"));
         QVERIFY(!tabs.saved);
@@ -102,6 +104,7 @@ private slots:
             device.setLastWorkspace(QStringLiteral("C:/data"));
             device.addRecentWorkspace(QStringLiteral("C:/data"));
             device.setWindowSize(QSize(1024, 768));
+            device.setWindowGeometry(QRect(-1500, 40, 1024, 768));
             device.setWindowMaximized(true);
             device.setSidebarSplitterState(QByteArray("abc"));
         }
@@ -109,8 +112,22 @@ private slots:
         QCOMPARE(settings->value(QStringLiteral("workspace/last")).toString(), QStringLiteral("C:/data"));
         QCOMPARE(settings->value(QStringLiteral("workspace/recent")).toStringList(), QStringList{QStringLiteral("C:/data")});
         QCOMPARE(settings->value(QStringLiteral("window/size")).toSize(), QSize(1024, 768));
+        QCOMPARE(settings->value(QStringLiteral("window/geometry")).toRect(), QRect(-1500, 40, 1024, 768));
+        QCOMPARE(DeviceSettings(settings.get()).windowGeometry(), QRect(-1500, 40, 1024, 768));
         QVERIFY(settings->value(QStringLiteral("window/maximized")).toBool());
         QCOMPARE(settings->value(QStringLiteral("window/splitter")).toByteArray(), QByteArray("abc"));
+    }
+
+    // The settings window's options are kept across sessions.
+    void sidebarHoverTint()
+    {
+        {
+            DeviceSettings device(settings.get());
+            device.setSidebarHoverTint(false);
+        }
+        reopen();
+        QCOMPARE(settings->value(QStringLiteral("sidebar/hoverTint")).toBool(), false);
+        QVERIFY(!DeviceSettings(settings.get()).sidebarHoverTint());
     }
 
     void recentIsMostRecentFirstWithoutDuplicates()

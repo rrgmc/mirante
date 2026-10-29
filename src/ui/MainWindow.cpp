@@ -5,6 +5,7 @@
 #include "core/GroupColours.h"
 #include "core/LayoutTree.h"
 #include "core/LogBuffer.h"
+#include "core/WindowPlacement.h"
 #include "core/Model.h"
 #include "items/ItemTypeRegistry.h"
 #include "items/Placement.h"
@@ -19,6 +20,7 @@
 #include "layout/LockState.h"
 #include "layout/SingleViewTracker.h"
 #include "layout/TaskCell.h"
+#include "platform/Platform.h"
 #include "ui/ConflictBar.h"
 #include "ui/DashboardDialog.h"
 #include "ui/DashboardPage.h"
@@ -31,6 +33,7 @@
 #include "ui/QuickSwitcher.h"
 #include "ui/RootDashboardsDialog.h"
 #include "ui/RootTabBar.h"
+#include "ui/SettingsDialog.h"
 #include "ui/Shortcuts.h"
 #include "ui/Sidebar.h"
 #include "ui/SlotTabBar.h"
@@ -50,7 +53,6 @@
 #include <QIcon>
 #include <QImage>
 #include <QInputDialog>
-#include <QJsonObject>
 #include <QKeySequence>
 #include <QLabel>
 #include <QLineEdit>
@@ -175,9 +177,14 @@ struct MainWindow::Private
     QToolButton *listButton = nullptr;
     QPointer<RootDashboardsDialog> dashboardList;
     QPointer<LogWindow> logWindow;
+    QPointer<SettingsDialog> settingsDialog;
+    // Whether the sidebar tints the row of the hovered cell, from the device
+    // settings. See applyDeviceSettings().
+    bool sidebarHoverTint = true;
 
-    // The pages of the root tab bar's tabs, in tab order: root dashboards,
-    // pinned task dashboards and pinned items.
+    // The pages of the root tab bar's tabs, in tab order. They are root
+    // dashboards only: task dashboards and items open in the preview slot,
+    // which never becomes a tab (decision 0052).
     std::vector<DashboardPage *> pages;
     // The pages of the two slots right of the tabs (decision 0048). They are
     // not in pages. Focus is made the first time it is shown.
@@ -294,7 +301,7 @@ struct MainWindow::Private
                               colour.isEmpty() ? QColor() : QColor(colour));
     }
 
-    // Task dashboard tabs carry the dashboard icon and item tabs the item's
+    // Task dashboard previews carry the dashboard icon and item previews the item's
     // type icon, so they read apart from root dashboard tabs, which have none.
     QIcon pageIcon(const DashboardPage *page) const
     {
@@ -306,8 +313,8 @@ struct MainWindow::Private
         return item ? types->type(item->type).icon() : QIcon();
     }
 
-    // The pages of the tabs and the preview: every page that can show a task.
-    std::vector<DashboardPage *> taskPages() const
+    // The pages of the tabs and the preview.
+    std::vector<DashboardPage *> allPages() const
     {
         std::vector<DashboardPage *> all = pages;
         if (preview)
@@ -326,19 +333,6 @@ struct MainWindow::Private
         }
         preview = page;
         syncPreview();
-        setCurrent(page);
-    }
-
-    // Keeps the preview open: it moves to a new tab at the end of the root
-    // tab bar, and the next preview opens in the slot again.
-    void pinPreview()
-    {
-        if (!preview)
-            return;
-        DashboardPage *page = preview;
-        preview = nullptr;
-        syncPreview();
-        insertTab(int(pages.size()), page);
         setCurrent(page);
     }
 
@@ -386,13 +380,10 @@ struct MainWindow::Private
         return page;
     }
 
+    // The preview if it shows this item, or nullptr.
     DashboardPage *itemPage(const QString &taskId, const QString &itemId) const
     {
-        for (DashboardPage *page : taskPages()) {
-            if (page->itemId == itemId && page->ref.taskId == taskId)
-                return page;
-        }
-        return nullptr;
+        return preview && preview->itemId == itemId && preview->ref.taskId == taskId ? preview : nullptr;
     }
 
     // A task dashboard is named after its task and itself: "Task / Dashboard".
@@ -410,10 +401,8 @@ struct MainWindow::Private
         auto *page = new DashboardPage(services, ref, stack);
         editor->attach(page->view, ref);
         page->view->setSingleViewTracker(tracker);
-        if (const LayoutNode *tree = model->layout(ref)) {
+        if (const LayoutNode *tree = model->layout(ref))
             page->view->setTree(*tree);
-            page->shownLayout = layoutToJson(*tree);
-        }
         const bool unlocked = locks->isUnlocked(ref.dashboardId);
         page->view->setEditMode(unlocked);
         if (page->lock) {
@@ -527,7 +516,7 @@ struct MainWindow::Private
         if (page)
             stack->setCurrentWidget(page);
         updateLockButton();
-        // When a task dashboard's tab comes to the front, the sidebar selects
+        // When a task dashboard's preview comes to the front, the sidebar selects
         // that dashboard under its task, so it shows which task is on screen.
         // Only on a change of tab, so the user's own selection is kept.
         if (page != shownPage) {
@@ -539,7 +528,7 @@ struct MainWindow::Private
     }
 
     // The lock at the end of the tab bar row is a root dashboard's. A task
-    // dashboard tab has its own lock in its title bar, so this one hides.
+    // dashboard preview has its own lock in its title bar, so this one hides.
     void updateLockButton()
     {
         const DashboardPage *page = currentPage();
@@ -550,7 +539,7 @@ struct MainWindow::Private
 
     void applyLock(const QString &dashboardId, bool unlocked)
     {
-        for (DashboardPage *page : taskPages()) {
+        for (DashboardPage *page : allPages()) {
             if (page->ref.dashboardId != dashboardId)
                 continue;
             page->view->setEditMode(unlocked);
@@ -669,14 +658,11 @@ struct MainWindow::Private
     }
 
     // Where a root tab with this order goes: before the first open root tab
-    // with a greater order, and always before the task dashboard tabs.
+    // with a greater order.
     int rootInsertIndex(int order) const
     {
         for (std::size_t i = 0; i < pages.size(); ++i) {
-            const DashboardPage *page = pages[i];
-            if (!page->ref.isRoot())
-                return int(i);
-            const RootDashboard *dashboard = model->rootDashboard(page->ref.dashboardId);
+            const RootDashboard *dashboard = model->rootDashboard(pages[i]->ref.dashboardId);
             if (dashboard && dashboard->order > order)
                 return int(i);
         }
@@ -692,14 +678,10 @@ struct MainWindow::Private
         return dashboards;
     }
 
-    // The open page of a task dashboard, the preview or a pinned one, or nullptr.
+    // The preview if it shows this task dashboard, or nullptr.
     DashboardPage *taskPage(const DashboardRef &ref) const
     {
-        for (DashboardPage *page : taskPages()) {
-            if (!page->ref.isRoot() && page->itemId.isEmpty() && page->ref == ref)
-                return page;
-        }
-        return nullptr;
+        return preview && preview->itemId.isEmpty() && preview->ref == ref ? preview : nullptr;
     }
 
     static QString defaultDashboardOf(const Task &task)
@@ -801,86 +783,43 @@ struct MainWindow::Private
 
     void onTaskChanged(const QString &taskId)
     {
-        // A task moved to the trash loses its pages, as a removed one does.
+        // A task moved to the trash loses its preview, as a removed one does.
         if (model->taskInTrash(taskId)) {
             onTaskRemoved(taskId);
             return;
         }
-        // An item page whose item is gone closes, and so does a task dashboard
-        // page whose dashboard is gone.
-        const auto gone = [&](const DashboardPage *page) {
-            if (page->ref.taskId != taskId)
-                return false;
-            return page->itemId.isEmpty() ? !model->taskDashboard(taskId, page->ref.dashboardId)
-                                          : !model->item(taskId, page->itemId);
-        };
-        for (int i = int(pages.size()) - 1; i >= 0; --i) {
-            if (gone(pages[std::size_t(i)]))
-                removeTab(i);
-        }
-        if (preview && gone(preview))
+        if (!preview || preview->ref.taskId != taskId)
+            return;
+        // A preview whose item is gone closes, and so does one whose task
+        // dashboard is gone. Otherwise it follows the change, and stays the
+        // preview: editing its layout does not make it a tab (decision 0052).
+        const bool gone = preview->itemId.isEmpty() ? !model->taskDashboard(taskId, preview->ref.dashboardId)
+                                                    : !model->item(taskId, preview->itemId);
+        if (gone) {
             closePreview();
-
-        bool previewEdited = false;
-        const auto refresh = [&](DashboardPage *page) {
-            if (page->itemId.isEmpty()) {
-                if (const LayoutNode *tree = model->layout(page->ref)) {
-                    page->view->setTree(*tree);
-                    QJsonObject shown = layoutToJson(*tree);
-                    if (page == preview && shown != page->shownLayout)
-                        previewEdited = true;
-                    page->shownLayout = std::move(shown);
-                }
-            }
-            updatePageHeader(page);
-        };
-        for (std::size_t i = 0; i < pages.size(); ++i) {
-            DashboardPage *page = pages[i];
-            if (page->ref.taskId != taskId)
-                continue;
-            refresh(page);
-            tabBar->setTabText(int(i), pageTitle(page));
-            tabBar->setTabToolTip(int(i), pageToolTip(page));
+            return;
         }
-        if (preview && preview->ref.taskId == taskId) {
-            refresh(preview);
-            syncPreview();
+        if (preview->itemId.isEmpty()) {
+            if (const LayoutNode *tree = model->layout(preview->ref))
+                preview->view->setTree(*tree);
         }
-        tabBar->updateGeometry();
+        updatePageHeader(preview);
+        syncPreview();
         syncCurrent();
-
-        // Editing the dashboard in the preview pins it (docs/ui.md). Other
-        // changes to its task, such as a new dashboard, do not. The change may
-        // come from the preview's own view, so pin after it returns.
-        if (previewEdited && currentPage() == preview) {
-            const QString dashboardId = preview->ref.dashboardId;
-            QTimer::singleShot(0, q, [window = q, taskId, dashboardId] { window->pinTask(taskId, dashboardId); });
-        }
     }
 
-    // The pages of a removed task close.
+    // The preview of a removed task closes.
     void onTaskRemoved(const QString &taskId)
     {
-        for (int i = int(pages.size()) - 1; i >= 0; --i) {
-            if (pages[std::size_t(i)]->ref.taskId == taskId)
-                removeTab(i);
-        }
         if (preview && preview->ref.taskId == taskId)
             closePreview();
     }
 
-    // Closes the pages of every task in the trash, such as the tasks of a
-    // project that just moved there.
-    void closeTrashedPages()
+    // Closes the preview of a task in the trash, such as a task of a project
+    // that just moved there.
+    void closeTrashedPreview()
     {
-        const auto trashed = [this](const DashboardPage *page) {
-            return !page->ref.taskId.isEmpty() && model->taskInTrash(page->ref.taskId);
-        };
-        for (int i = int(pages.size()) - 1; i >= 0; --i) {
-            if (trashed(pages[std::size_t(i)]))
-                removeTab(i);
-        }
-        if (preview && trashed(preview))
+        if (preview && model->taskInTrash(preview->ref.taskId))
             closePreview();
     }
 
@@ -901,8 +840,7 @@ struct MainWindow::Private
 
     // The open tabs, as DeviceSettings keeps them: the root dashboard tabs in
     // order, the current one, and the detached root dashboards. The current
-    // one is "focus" while the Focus slot is current. The preview, pinned task
-    // tabs and item tabs are not kept.
+    // one is "focus" while the Focus slot is current. The preview is not kept.
     DeviceSettings::Tabs openTabs() const
     {
         DeviceSettings::Tabs tabs;
@@ -1335,7 +1273,25 @@ struct MainWindow::Private
 
         buildModulesMenu(bar);
 
+        // The settings window. On macOS it is the standard Settings… item of
+        // the application menu, with Cmd+,: Qt moves it there by its role, from
+        // the Help menu, which keeps its other items. Elsewhere there is no
+        // application menu, so it goes in a Tools menu of its own.
+        QAction *settingsAction = new QAction(MainWindow::tr("&Settings…"), q);
+        settingsAction->setObjectName(QStringLiteral("settingsAction"));
+        settingsAction->setMenuRole(QAction::PreferencesRole);
+        settingsAction->setShortcut(QKeySequence::Preferences);
+        QObject::connect(settingsAction, &QAction::triggered, q, &MainWindow::showSettings);
+        const bool macos = platform::systemName() == QStringLiteral("macos");
+        if (!macos) {
+            QMenu *tools = bar->addMenu(MainWindow::tr("&Tools"));
+            tools->setObjectName(QStringLiteral("toolsMenu"));
+            tools->addAction(settingsAction);
+        }
+
         QMenu *help = bar->addMenu(MainWindow::tr("&Help"));
+        if (macos)
+            help->addAction(settingsAction);
         QAction *about = help->addAction(MainWindow::tr("&About Mirante"));
         about->setMenuRole(QAction::AboutRole);
         QObject::connect(about, &QAction::triggered, q, &MainWindow::showAbout);
@@ -1350,6 +1306,13 @@ struct MainWindow::Private
             log->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_L));
             QObject::connect(log, &QAction::triggered, q, [this] { showLog(); });
         }
+    }
+
+    // Applies the device settings that the settings window changes, at once.
+    void applyDeviceSettings()
+    {
+        sidebarHoverTint = settings->sidebarHoverTint();
+        sidebar->setHoverHighlight(sidebarHoverTint ? services.hover->hoveredId() : QString());
     }
 
     // Opens the log window, or brings it to the front. It has no parent, so it
@@ -1568,16 +1531,17 @@ MainWindow::MainWindow(Model &model, const ItemTypeRegistry &types, Store &store
     d->splitter->setStretchFactor(1, 1);
     d->splitter->setSizes({260, 1020});
 
-    // The window's size and sidebar width from the last session on this
-    // device. The window always opens centred on the screen.
-    const QSize size = settings.windowSize();
-    if (size.isValid())
-        resize(size);
-    if (const QScreen *screen = QGuiApplication::primaryScreen()) {
-        QRect frame(QPoint(0, 0), this->size());
-        frame.moveCenter(screen->availableGeometry().center());
-        move(frame.topLeft());
-    }
+    // The window's place, size and sidebar width from the last session on
+    // this device. The saved place is used only while it is still visible on
+    // a connected screen; otherwise the window is centred on the primary one.
+    // See docs/ui.md#window.
+    QList<QRect> screens;
+    for (const QScreen *screen : QGuiApplication::screens())
+        screens << screen->availableGeometry();
+    const QScreen *primary = QGuiApplication::primaryScreen();
+    const QSize savedSize = settings.windowSize();
+    setGeometry(windowplacement::place(settings.windowGeometry(), savedSize.isValid() ? savedSize : size(), screens,
+                                       primary ? primary->availableGeometry() : QRect()));
     if (settings.windowMaximized())
         setWindowState(windowState() | Qt::WindowMaximized);
     d->splitter->restoreState(settings.sidebarSplitterState());
@@ -1598,9 +1562,13 @@ MainWindow::MainWindow(Model &model, const ItemTypeRegistry &types, Store &store
     });
     connect(d->sidebar, &Sidebar::collapseRequested, this, [this] { d->showSidebar(false); });
     connect(d->sidebar, &Sidebar::titleDoubleClicked, this, [this] { d->promptRename(); });
-    connect(d->sidebar, &Sidebar::focusRequested, this, &MainWindow::openFocus);
-    // The sidebar tints the row of what the hovered dashboard cell shows.
-    connect(d->services.hover, &CellHoverTracker::hoveredChanged, d->sidebar, &Sidebar::setHoverHighlight);
+    // The sidebar tints the row of what the hovered dashboard cell shows,
+    // unless the settings window turned that off.
+    connect(d->services.hover, &CellHoverTracker::hoveredChanged, d->sidebar, [this](const QString &id) {
+        if (d->sidebarHoverTint)
+            d->sidebar->setHoverHighlight(id);
+    });
+    d->applyDeviceSettings();
     d->sidebar->setMenuFiller([this](QMenu *menu, SidebarModel::Kind kind, const QString &id, const QString &taskId) {
         d->actions->fillMenu(menu, kind, id, taskId);
     });
@@ -1644,7 +1612,6 @@ MainWindow::MainWindow(Model &model, const ItemTypeRegistry &types, Store &store
         else if (d->preview)
             d->setCurrent(d->preview);
     });
-    connect(d->slotBar, &SlotTabBar::pinRequested, this, [this] { d->pinPreview(); });
     connect(d->slotBar, &SlotTabBar::previewCloseRequested, this, [this] { d->closePreview(); });
 
     // Locks.
@@ -1668,22 +1635,18 @@ MainWindow::MainWindow(Model &model, const ItemTypeRegistry &types, Store &store
     });
     connect(&model, &Model::taskChanged, this, [this](const QString &taskId) { d->onTaskChanged(taskId); });
     connect(&model, &Model::taskRemoved, this, [this](const QString &taskId) { d->onTaskRemoved(taskId); });
-    // Task pages name their project.
+    // The preview names its project.
     connect(&model, &Model::projectChanged, this, [this] {
-        d->closeTrashedPages();
-        for (std::size_t i = 0; i < d->pages.size(); ++i) {
-            d->tabBar->setTabToolTip(int(i), d->pageToolTip(d->pages[i]));
-            d->updatePageHeader(d->pages[i]);
-        }
+        d->closeTrashedPreview();
         if (d->preview) {
             d->updatePageHeader(d->preview);
             d->syncPreview();
         }
     });
-    // Task pages take their group's colour.
+    // The preview takes its group's colour.
     connect(&model, &Model::groupChanged, this, [this] {
-        for (DashboardPage *page : d->taskPages())
-            d->updatePageHeader(page);
+        if (d->preview)
+            d->updatePageHeader(d->preview);
     });
     // The pages are made again on a reset. Detached root dashboards that still
     // exist are detached again.
@@ -1758,9 +1721,10 @@ MainWindow::~MainWindow()
 
 void MainWindow::closeEvent(QCloseEvent *event)
 {
-    // The size of the normal, not maximized, window is kept. A full screen
-    // window is saved as the window it came from.
+    // The place and size of the normal, not maximized, window are kept. A
+    // full screen window is saved as the window it came from.
     d->settings->setWindowSize(normalGeometry().size());
+    d->settings->setWindowGeometry(normalGeometry());
     d->settings->setWindowMaximized(isFullScreen() ? d->maximizedBeforeFullScreen : isMaximized());
     d->settings->setSidebarSplitterState(d->splitter->saveState());
     d->saveOpenTabs();
@@ -1830,6 +1794,19 @@ bool MainWindow::createWorkspace(const QString &folder, const QString &name)
         return false;
     }
     openWorkspace(folder);
+    // A new workspace starts with one empty root dashboard, open as a tab, so
+    // the content area is not empty. A folder of earlier data that is made a
+    // workspace keeps the root dashboards it has.
+    if (d->workspace == QDir(folder).absolutePath() && !d->store->readOnly() && d->model->rootDashboards().empty()) {
+        RootDashboard dashboard;
+        dashboard.id = QUuid::createUuid().toString(QUuid::WithoutBraces);
+        dashboard.name = tr("Main");
+        dashboard.order = 0;
+        dashboard.layout = layout::emptyLayout();
+        d->model->addRootDashboard(dashboard);
+        d->locks->setUnlocked(dashboard.id, true);
+        openRootDashboard(dashboard.id);
+    }
     return true;
 }
 
@@ -1887,7 +1864,7 @@ void MainWindow::openTaskPreview(const QString &taskId, const QString &chosenDas
     if (dashboardId.isEmpty() || !d->model->taskDashboard(taskId, dashboardId))
         return;
 
-    // A task dashboard already open in a tab, preview or pinned, is shown there.
+    // A task dashboard already in the preview is shown there.
     const DashboardRef ref{taskId, dashboardId};
     if (DashboardPage *open = d->taskPage(ref)) {
         d->setCurrent(open);
@@ -1895,30 +1872,6 @@ void MainWindow::openTaskPreview(const QString &taskId, const QString &chosenDas
     }
 
     d->showInPreview(d->makePage(ref));
-}
-
-void MainWindow::pinTask(const QString &taskId, const QString &chosenDashboardId)
-{
-    const Task *task = d->model->task(taskId);
-    if (!task || d->model->taskInTrash(*task))
-        return;
-    const QString dashboardId = chosenDashboardId.isEmpty() ? Private::defaultDashboardOf(*task) : chosenDashboardId;
-    const DashboardRef ref{taskId, dashboardId};
-    if (dashboardId.isEmpty() || !d->model->taskDashboard(taskId, dashboardId))
-        return;
-
-    // Pinning keeps the task dashboard's tab open: the preview stops being the
-    // preview, so the next one opens in a new tab. It is not a root dashboard.
-    if (d->preview && d->preview->itemId.isEmpty() && d->preview->ref == ref) {
-        d->pinPreview();
-        return;
-    }
-    DashboardPage *page = d->taskPage(ref);
-    if (!page) {
-        page = d->makePage(ref);
-        d->insertTab(int(d->pages.size()), page);
-    }
-    d->setCurrent(page);
 }
 
 void MainWindow::openRootDashboard(const QString &id)
@@ -2053,6 +2006,18 @@ void MainWindow::pasteImage(const QImage &image)
     result = itemId.isEmpty() ? d->imagePaste->paste(cropped, ref, path)
                               : d->imagePaste->pasteIntoItem(cropped, ref.taskId, itemId);
     showMessage(result);
+}
+
+void MainWindow::showSettings()
+{
+    if (!d->settingsDialog) {
+        d->settingsDialog = new SettingsDialog(*d->settings, this);
+        d->settingsDialog->setAttribute(Qt::WA_DeleteOnClose);
+        connect(d->settingsDialog, &SettingsDialog::changed, this, [this] { d->applyDeviceSettings(); });
+    }
+    d->settingsDialog->show();
+    d->settingsDialog->raise();
+    d->settingsDialog->activateWindow();
 }
 
 void MainWindow::setExec(std::function<bool(QDialog &dialog)> exec) { d->exec = std::move(exec); }

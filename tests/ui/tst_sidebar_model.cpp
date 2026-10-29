@@ -495,13 +495,8 @@ void TestSidebarModel::sidebarWidget()
     QTRY_VERIFY(tree->visualRect(sidebarModel->index(0, 0)).height() > 0);
     QVERIFY(tree->visualRect(sidebarModel->index(1, 0)).top() > tree->visualRect(sidebarModel->index(0, 0)).top());
 
-    // The Focus entry above the tree.
-    auto *focus = sidebar.findChild<QPushButton *>(QStringLiteral("focusEntry"));
-    QVERIFY(focus);
-    QCOMPARE(focus->text(), QStringLiteral("Focus"));
-    QSignalSpy focusRequested(&sidebar, &Sidebar::focusRequested);
-    focus->click();
-    QCOMPARE(focusRequested.count(), 1);
+    // Focus has its slot in the tab row; the sidebar has no Focus entry.
+    QVERIFY(!sidebar.findChild<QPushButton *>(QStringLiteral("focusEntry")));
 
     const QString itemId = model.task(fixLoginTimeout)->items.front().id;
     sidebar.reveal(itemId);

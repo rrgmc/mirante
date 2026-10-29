@@ -7,8 +7,8 @@ namespace mirante {
 // The two fixed slots at the right of the tab row, before the lock: Focus and
 // the preview. See decision 0048. They look like tabs. The Focus slot is always
 // there and has no close button. The preview slot shows the previewed task
-// dashboard or item with an italic title, a pin button and a close button; it
-// is hidden while there is no preview. A click on a slot emits slotClicked();
+// dashboard or item with an italic title and a close button; it is hidden
+// while there is no preview. The preview never becomes a tab (decision 0052). A click on a slot emits slotClicked();
 // MainWindow decides what is current, so the bar takes no keyboard focus and
 // ignores the mouse wheel. Implemented in SlotTabBar.cpp.
 class SlotTabBar : public QTabBar
@@ -36,7 +36,6 @@ public:
 
 signals:
     void slotClicked(int slot);
-    void pinRequested();
     void previewCloseRequested();
 
 protected:

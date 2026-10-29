@@ -3,7 +3,6 @@
 #include "core/Model.h"
 #include "layout/LayoutServices.h"
 
-#include <QJsonObject>
 #include <QString>
 #include <QWidget>
 
@@ -56,9 +55,6 @@ public:
     HeaderPill *part = nullptr;     // the dashboard, or the item with its type's colour
     HeaderPill *context = nullptr;  // the project, in a grey pill
     QToolButton *lock = nullptr;    // task dashboards only
-    // The model's layout of a task dashboard when it was last shown, to tell
-    // an edit of this dashboard from other changes to its task.
-    QJsonObject shownLayout;
 };
 
 } // namespace mirante

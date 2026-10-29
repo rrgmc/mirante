@@ -167,12 +167,15 @@ private slots:
         QCOMPARE(entries[0]->objectName(), QStringLiteral("moduleSettings.tools.general"));
         QCOMPARE(entries[1]->text(), QStringLiteral("Look…"));
 
-        // The menu sits between View and Help.
+        // The menu sits after View, and before Help and the Tools menu that
+        // Windows and Linux have.
         QStringList titles;
         for (QAction *action : f.window->menuBar()->actions())
             titles << action->text();
         QCOMPARE(titles.indexOf(QStringLiteral("&Modules")), titles.indexOf(QStringLiteral("&View")) + 1);
-        QCOMPARE(titles.indexOf(QStringLiteral("&Help")), titles.indexOf(QStringLiteral("&Modules")) + 1);
+        QVERIFY(titles.indexOf(QStringLiteral("&Help")) > titles.indexOf(QStringLiteral("&Modules")));
+        const int toolsIndex = titles.indexOf(QStringLiteral("&Tools"));
+        QVERIFY(toolsIndex < 0 || toolsIndex == titles.indexOf(QStringLiteral("&Modules")) + 1);
     }
 
     void noMenuWithoutScreens()

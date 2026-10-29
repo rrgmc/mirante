@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QByteArray>
+#include <QRect>
 #include <QSize>
 #include <QString>
 #include <QStringList>
@@ -57,6 +58,11 @@ public:
     // The main window. An invalid size means none was saved.
     QSize windowSize() const;
     void setWindowSize(const QSize &size);
+    // The main window's client area when it is neither maximized nor full
+    // screen, in screen coordinates: its position and size. An invalid
+    // rectangle means none was saved, as by versions before it was kept.
+    QRect windowGeometry() const;
+    void setWindowGeometry(const QRect &geometry);
     bool windowMaximized() const;
     void setWindowMaximized(bool maximized);
     QByteArray sidebarSplitterState() const;
@@ -67,6 +73,12 @@ public:
     // map serves every workspace. See docs/decisions/0024-detach-root-dashboard-tabs.md.
     QByteArray detachedGeometry(const QString &dashboardId) const;
     void setDetachedGeometry(const QString &dashboardId, const QByteArray &geometry);
+
+    // Whether the sidebar tints the row of what the dashboard cell under the
+    // mouse shows. On if not set. Set in the settings window; see
+    // docs/ui.md#settings.
+    bool sidebarHoverTint() const;
+    void setSidebarHoverTint(bool on);
 
     // The number of hidden web views kept loaded. 8 if not set.
     // See docs/web-views.md#memory-policy.

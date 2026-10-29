@@ -137,6 +137,7 @@ Code that differs per platform lives only here, behind these classes.
 | `QuickAdd` | Creates a task from a pasted link, using the modules' quick add handlers. See [quick add](ui.md#quick-add). |
 | `DashboardPage` | One tab's or slot's page: a `LayoutView` of one dashboard with its cell factory, or the Focus list. A detached window holds one too. |
 | `DetachedWindow` | A top-level window holding one detached root dashboard. See [decision 0024](decisions/0024-detach-root-dashboard-tabs.md). |
+| `SettingsDialog` | The [settings window](ui.md#settings): options of this device, kept in `DeviceSettings`, in sections. Each change is saved at once and reported with `changed()`. |
 | Dialogs | Group, project, task, item, connection and settings editors, the [profiles](ui.md#profiles) list and its connections dialog, and the dialogs of module [settings screens](ui.md#modules) |
 
 ## Data flow
