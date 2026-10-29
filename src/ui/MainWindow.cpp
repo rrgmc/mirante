@@ -7,6 +7,7 @@
 #include "core/LogBuffer.h"
 #include "core/WindowPlacement.h"
 #include "core/Model.h"
+#include "core/Profiles.h"
 #include "items/ItemTypeRegistry.h"
 #include "items/Placement.h"
 #include "layout/CellFrame.h"
@@ -1033,6 +1034,9 @@ struct MainWindow::Private
     QString workspace;              // the open data folder; empty for the sample data
     QAction *showSidebarAction = nullptr;
     QAction *fullScreenAction = nullptr;
+    QMenu *profilesMenu = nullptr;
+    QStringList profilesShown;           // the ids and names the Profiles menu was built for
+    bool profilesRefillQueued = false;
     bool maximizedBeforeFullScreen = false;     // the state full screen returns to
     QTimer *menuPeek = nullptr;                 // runs only in full screen
 
@@ -1151,34 +1155,97 @@ struct MainWindow::Private
         settings->addRecentWorkspace(folder);   // ignores the sample data's empty folder
     }
 
-    // The Modules menu: a submenu for each module with settings screens, named
-    // after the module, listing its screens by their names. Left out when no
-    // module has screens. See docs/ui.md#modules.
-    void buildModulesMenu(QMenuBar *bar)
+    // The Profiles menu: Manage Profiles…, then a submenu for each profile,
+    // Default first, then by name. See docs/ui.md#profiles-menu.
+    void buildProfilesMenu(QMenuBar *bar)
     {
-        QMenu *modules = nullptr;
+        profilesMenu = bar->addMenu(MainWindow::tr("&Profiles"));
+        profilesMenu->setObjectName(QStringLiteral("profilesMenu"));
+        fillProfilesMenu();
+        // Built again when profiles are added, renamed or removed. Queued, so
+        // an action of the menu that changed them is not deleted while its
+        // signal runs.
+        const auto refill = [this] {
+            if (profilesRefillQueued)
+                return;
+            profilesRefillQueued = true;
+            QMetaObject::invokeMethod(
+                q,
+                [this] {
+                    profilesRefillQueued = false;
+                    if (profileIdsAndNames() != profilesShown)
+                        fillProfilesMenu();
+                },
+                Qt::QueuedConnection);
+        };
+        QObject::connect(model, &Model::profilesChanged, q, refill);
+        QObject::connect(model, &Model::modelReset, q, refill);
+    }
+
+    QStringList profileIdsAndNames() const
+    {
+        QStringList shown;
+        for (const Profile &profile : profiles::all(*model))
+            shown << profile.id << profile.name;
+        return shown;
+    }
+
+    void fillProfilesMenu()
+    {
+        // clear() keeps the submenus, which are children of the menu.
+        for (QAction *action : profilesMenu->actions())
+            delete action->menu();
+        profilesMenu->clear();
+        profilesShown = profileIdsAndNames();
+        QAction *manage = profilesMenu->addAction(MainWindow::tr("&Manage Profiles…"));
+        manage->setObjectName(QStringLiteral("manageProfiles"));
+        QObject::connect(manage, &QAction::triggered, q, [this] { actions->editProfiles(); });
+        profilesMenu->addSeparator();
+        for (const Profile &profile : profiles::all(*model)) {
+            QMenu *menu = profilesMenu->addMenu(profile.name);
+            menu->setObjectName(QStringLiteral("profileMenu.") + profile.id);
+            fillProfileMenu(menu, profile.id);
+        }
+    }
+
+    // One profile's submenu: what can be done with that profile. Modules is
+    // its first entry. Further entries, such as Rename… or Clear Data…, go
+    // here, one line each.
+    void fillProfileMenu(QMenu *menu, const QString &profileId)
+    {
+        addModulesMenu(menu, profileId);
+    }
+
+    // The profile's Modules submenu: a submenu for each module with settings
+    // screens, named after the module, listing its screens by their names.
+    // Each opens the screen's dialog for this profile. Disabled, with "No
+    // module settings", when no module has screens.
+    void addModulesMenu(QMenu *menu, const QString &profileId)
+    {
+        QMenu *modules = menu->addMenu(MainWindow::tr("&Modules"));
+        modules->setObjectName(QStringLiteral("modulesMenu.") + profileId);
         for (const QString &moduleId : types->moduleIds()) {
             const std::vector<const SettingsScreen *> screens = types->settingsScreens(moduleId);
             if (screens.empty())
                 continue;
-            if (!modules) {
-                modules = bar->addMenu(MainWindow::tr("&Modules"));
-                modules->setObjectName(QStringLiteral("modulesMenu"));
-            }
             QMenu *module = modules->addMenu(types->moduleName(moduleId));
-            module->setObjectName(QStringLiteral("modulesMenu.") + moduleId);
+            module->setObjectName(QStringLiteral("modulesMenu.%1.%2").arg(profileId, moduleId));
             for (const SettingsScreen *screen : screens) {
                 const QString screenId = screen->id();
                 QAction *action = module->addAction(screen->name() + QStringLiteral("…"));
-                action->setObjectName(QStringLiteral("moduleSettings.%1.%2").arg(moduleId, screenId));
-                QObject::connect(action, &QAction::triggered, q, [this, moduleId, screenId] {
-                    actions->editModuleSettings(moduleId, screenId);
+                action->setObjectName(QStringLiteral("moduleSettings.%1.%2.%3").arg(profileId, moduleId, screenId));
+                QObject::connect(action, &QAction::triggered, q, [this, profileId, moduleId, screenId] {
+                    actions->editModuleSettings(profileId, moduleId, screenId);
                 });
             }
         }
+        if (modules->isEmpty()) {
+            modules->addAction(MainWindow::tr("No module settings"))->setEnabled(false);
+            modules->setEnabled(false);
+        }
     }
 
-    // The File, View, Modules and Help menus.
+    // The File, View, Profiles and Help menus.    // The File, View, Modules and Help menus.
     void buildMenus()
     {
         QMenuBar *bar = q->menuBar();
@@ -1238,8 +1305,6 @@ struct MainWindow::Private
         file->addSeparator();
         QAction *newGroup = file->addAction(MainWindow::tr("New &Group…"));
         QObject::connect(newGroup, &QAction::triggered, q, [this] { revealNew(actions->newGroup()); });
-        QAction *profilesAction = file->addAction(MainWindow::tr("&Profiles…"));
-        QObject::connect(profilesAction, &QAction::triggered, q, [this] { actions->editProfiles(); });
         file->addSeparator();
         QAction *quit = file->addAction(MainWindow::tr("&Quit"));
         quit->setShortcut(QKeySequence::Quit);
@@ -1271,7 +1336,7 @@ struct MainWindow::Private
         QAction *add = view->addAction(MainWindow::tr("&New Dashboard"));
         QObject::connect(add, &QAction::triggered, q, &MainWindow::newRootDashboard);
 
-        buildModulesMenu(bar);
+        buildProfilesMenu(bar);
 
         // The settings window. On macOS it is the standard Settings… item of
         // the application menu, with Cmd+,: Qt moves it there by its role, from

@@ -60,14 +60,14 @@ public:
     // used.
     void setEditProfiles(std::function<void(ProfilesDialog &dialog)> edit);
 
-    // Opens the profiles dialog, File > Profiles…. See docs/ui.md#profiles.
+    // Opens the profiles dialog, Profiles > Manage Profiles…. See docs/ui.md#profiles.
     void editProfiles();
 
-    // Opens the dialog of a module's settings screen, from the Modules menu,
-    // and stores the values edited for each profile in the model. Secrets
-    // typed into it go to setSaveSecret(). Nothing happens for an unknown
-    // screen. See docs/ui.md#modules.
-    void editModuleSettings(const QString &moduleId, const QString &screenId);
+    // Opens the dialog of a module's settings screen in one profile, from
+    // Profiles > <profile> > Modules, and stores the values in the model.
+    // Secrets typed into it go to setSaveSecret(). Nothing happens for an
+    // unknown screen or profile. See docs/ui.md#modules.
+    void editModuleSettings(const QString &profileId, const QString &moduleId, const QString &screenId);
 
     // Creating. Each opens the entity's dialog with a new value, and returns the
     // new id, or an empty string if the dialog was cancelled. A new task gets one

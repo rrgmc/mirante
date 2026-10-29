@@ -73,9 +73,9 @@ Groups have no connections. The server each module talks to is a module setting 
 
 ## Profiles
 
-File > Profiles… opens the list of the workspace's profiles. A profile holds web logins and module settings, such as the GitLab and Jira servers with their tokens. See [data model](data-model.md#profile), [web views](web-views.md#profiles) and decisions [0042](decisions/0042-user-managed-web-profiles.md), [0050](decisions/0050-profiles-hold-logins-connections-and-settings.md) and [0054](decisions/0054-module-settings-replace-connections.md).
+Profiles > Manage Profiles… opens the list of the workspace's profiles; see the [Profiles menu](#profiles-menu). A profile holds web logins and module settings, such as the GitLab and Jira servers with their tokens. See [data model](data-model.md#profile), [web views](web-views.md#profiles) and decisions [0042](decisions/0042-user-managed-web-profiles.md), [0050](decisions/0050-profiles-hold-logins-connections-and-settings.md) and [0054](decisions/0054-module-settings-replace-connections.md).
 
-- **Help.** A short text at the top says what a profile holds, that each group chooses a default profile and each item can choose its own, that the list and the settings are shared with the workspace while logins and tokens stay on this device, and where a module's settings are edited.
+- **Help.** A short text at the top says what a profile holds, that each group chooses a default profile and each item can choose its own, that the list and the settings are shared with the workspace while logins and tokens stay on this device, and that a profile's module settings are in the Profiles menu.
 - **Warning.** Under the help, a tinted box with the warning icon says: "Items in the same profile share its logins, servers and tokens. Every item that uses a profile can read the logins and data of all sites in that profile, and call its servers with its tokens. Use separate profiles for things you do not trust together."
 - **The list.** Default first, then the other profiles by name.
 - **New profile…** asks for a name. **Rename…**, or a double click, asks for a new one. A blank name, or one already used, ignoring case, is refused with a message. "Default" is such a name.
@@ -85,6 +85,17 @@ File > Profiles… opens the list of the workspace's profiles. A profile holds w
 - Changes to the list apply at once. The dialog closes with Close. Changes that arrive from another device update the list while it is open.
 
 The item dialog offers a profile for items of types that use one; see [the type registry](item-types.md#the-type-registry). The views of an item are made again when its profile changes.
+
+## Profiles menu
+
+The Profiles menu, between View and Help, lists what can be done with profiles. See [decision 0054](decisions/0054-module-settings-replace-connections.md).
+
+- **Manage Profiles…** comes first. It opens the [profiles dialog](#profiles).
+- A separator line follows.
+- Then a submenu for each profile, named after it: Default first, then the others by name.
+- Each profile's submenu holds what can be done with that profile. Its first entry is **Modules**, with a submenu for each module that has [settings screens](#modules), named after the module. That submenu lists the module's screens by their names, such as Profiles > Default > Modules > GitLab > General Configuration…. When no module has screens, Modules is disabled and says "No module settings".
+- The menu is built again when profiles are added, renamed or deleted, here or on another device.
+- More entries for a profile, such as Rename… or Clear Data…, can be added to its submenu later. The code builds each profile's submenu in one function, `fillProfileMenu()` in `MainWindow.cpp`, where each entry is one line.
 
 ## Item dialog
 
@@ -101,18 +112,17 @@ The item dialog offers a profile for items of types that use one; see [the type 
 
 ## Modules
 
-A module can have settings screens for values that belong to the whole module, such as GitLab's list of project paths. Each profile has its own values. See [modules](modules.md#settings-screens) and decisions [0044](decisions/0044-module-settings-in-the-workspace.md) and [0050](decisions/0050-profiles-hold-logins-connections-and-settings.md).
+A module can have settings screens for values that belong to the whole module, such as GitLab's server and list of project paths. Each profile has its own values. See [modules](modules.md#settings-screens) and decisions [0044](decisions/0044-module-settings-in-the-workspace.md), [0050](decisions/0050-profiles-hold-logins-connections-and-settings.md) and [0054](decisions/0054-module-settings-replace-connections.md).
 
-- **The menu.** The Modules menu, between View and Help, has a submenu for each module with screens, named after the module. Each submenu lists the module's screens by their names. A module without screens does not appear.
-- **The dialog.** Choosing a screen opens its dialog, titled with the module and the screen, such as "GitLab: General Configuration". A **Profile** list at the top chooses whose values are shown, with Default chosen first. Below it are the screen's form, or the module's own editor, and a note that each profile has its own settings, that items use those of their profile, and that the settings are saved in the workspace and shared with it. Choosing another profile keeps the edits made so far; it is refused while the form reports a problem. OK stores the values of every profile that was changed, and is refused while the form reports a problem. A profile that was only looked at is not written. Cancel changes nothing.
-- **Why a list in the dialog.** The settings stay in the Modules menu, one entry per screen with the module's names, as the user asked in decision 0044. A section per module in the profiles dialog would put a whole profile in one place, but that dialog would grow with every module. The list at the top makes clear whose values are edited.
+- **The menu.** Each profile's submenu of the [Profiles menu](#profiles-menu) has Modules, with a submenu for each module with screens, named after the module. Each lists the module's screens by their names. A module without screens does not appear.
+- **The dialog.** Choosing a screen opens its dialog for that profile only, titled with the profile, the module and the screen, such as "Default: GitLab General Configuration". It shows the screen's form, or the module's own editor, and a note that the settings belong to that profile, that items using it read them, that they are saved in the workspace and shared with it, and that tokens stay on this device. OK stores the values and is refused while the form reports a problem. Cancel changes nothing.
 - **Lists.** A list field, such as the project paths, takes one entry per line. Blank lines are dropped.
 - **Tokens.** A token field, such as GitLab's and Jira's **Token**, shows its text hidden and always starts empty. What is typed there is never stored in the workspace; it goes to this device's keychain, under `<profile id>/<module id>/<field key>`. Storing it comes in M5: until then it is dropped, and the log says so without the value. See [decision 0054](decisions/0054-module-settings-replace-connections.md).
 - **Using the values.** A module offers its settings where they help. For example, the project path field of every GitLab item is an editable list of the paths configured in the item's profile. Any other path can still be typed.
 
 ## Settings
 
-The settings window holds settings of this device. They are kept in the [device settings](sync.md#device-settings), not in the workspace, so they are not synced. Module settings, which belong to the workspace, stay in the [Modules](#modules) menu.
+The settings window holds settings of this device. They are kept in the [device settings](sync.md#device-settings), not in the workspace, so they are not synced. Module settings, which belong to the workspace, are in the [Profiles menu](#profiles-menu).
 
 - **Opening it.** On macOS it is the standard Settings… item of the application menu, with `Cmd+,`. On Windows and Linux it is Tools > Settings…, with the platform's preferences key if it has one. There is no Edit menu, since the app has no edit commands, and Tools is where Windows apps keep their options. See [menus](#menus).
 - **Applying changes.** Each change is saved and applied at once, without a restart. The window has only a Close button.
@@ -148,11 +158,11 @@ Standard controls, such as buttons, menus, lists and dialogs, keep the platform'
 
 ## Menus
 
-The menu bar has File, View, Modules, Tools and Help. The Modules menu is left out when no module in the build has a settings screen. On macOS there is no Tools menu: its one entry, Settings…, is in the application menu.
+The menu bar has File, View, Profiles, Tools and Help. On macOS there is no Tools menu: its one entry, Settings…, is in the application menu.
 
-- **File:** New Workspace… (`Ctrl+N`), Open Workspace… (`Ctrl+O`), Open Recent with the last ten workspaces and Clear Recent, Rename Workspace…, Show Workspace Folder, Open Sample Data, Reload Workspace (`F5`), New Group…, Profiles… (see [profiles](#profiles)), and Quit (`Ctrl+Q`). A workspace is a data folder with a `workspace.mirante` file at its top. Open Workspace… chooses that file. New Workspace… chooses a folder and a name and writes the file. A new workspace starts with one empty root dashboard, "Main", open as a tab with editing on, so the content area is not empty. It is an ordinary root dashboard: it can be renamed, closed or deleted. Opening an existing workspace never adds one. A folder without the file is not opened; from the menus the app offers to make it a workspace. At start the app opens the workspace given with `--data`, otherwise the last one used on this device if it still has its file, otherwise the sample data. The window title and the sidebar header show the workspace's name: the name in its `workspace.mirante`, else the folder's name. Rename Workspace…, or a double click on the name in the sidebar header, renames it, and the Store writes `workspace.mirante`. The sample data cannot be renamed. Show Workspace Folder opens the workspace's folder in Explorer, Finder or the desktop's file manager; it is disabled for the sample data, which has no folder. Reload Workspace opens the workspace again from its files. See decisions [0025](decisions/0025-workspace-file.md) and [0027](decisions/0027-workspace-needs-its-file.md).
+- **File:** New Workspace… (`Ctrl+N`), Open Workspace… (`Ctrl+O`), Open Recent with the last ten workspaces and Clear Recent, Rename Workspace…, Show Workspace Folder, Open Sample Data, Reload Workspace (`F5`), New Group…, and Quit (`Ctrl+Q`). A workspace is a data folder with a `workspace.mirante` file at its top. Open Workspace… chooses that file. New Workspace… chooses a folder and a name and writes the file. A new workspace starts with one empty root dashboard, "Main", open as a tab with editing on, so the content area is not empty. It is an ordinary root dashboard: it can be renamed, closed or deleted. Opening an existing workspace never adds one. A folder without the file is not opened; from the menus the app offers to make it a workspace. At start the app opens the workspace given with `--data`, otherwise the last one used on this device if it still has its file, otherwise the sample data. The window title and the sidebar header show the workspace's name: the name in its `workspace.mirante`, else the folder's name. Rename Workspace…, or a double click on the name in the sidebar header, renames it, and the Store writes `workspace.mirante`. The sample data cannot be renamed. Show Workspace Folder opens the workspace's folder in Explorer, Finder or the desktop's file manager; it is disabled for the sample data, which has no folder. Reload Workspace opens the workspace again from its files. See decisions [0025](decisions/0025-workspace-file.md) and [0027](decisions/0027-workspace-needs-its-file.md).
 - **View:** Sidebar (show or hide), Expand All Tasks, Collapse All Tasks, Full Screen (`F11`, `Ctrl+Cmd+F` on macOS; leaving it brings back the maximized or normal window, and a window closed in full screen opens as it was before; in full screen the menu bar hides and shows while the mouse is at the top edge or a menu is open, and every shortcut keeps working, while macOS shows its own menu bar), Go To… (`Ctrl+K`, the [quick switcher](#keyboard)), All Dashboards…, and New Dashboard.
-- **Modules:** a submenu for each module that has [settings screens](#modules), named after the module, such as GitLab. It lists the module's screens by the names the module gives them, such as General Configuration….
+- **Profiles:** Manage Profiles…, then a submenu for each profile with its Modules submenu. See [Profiles menu](#profiles-menu).
 - **Tools:** Settings…, which opens the [settings window](#settings). Windows and Linux only.
 - **Help:** About Mirante, with the version, the author and the project's address, and About Qt. Debug builds, and release builds started with `--log`, also have Show Log (`Ctrl+Shift+L`), a window that lists the app's Qt log messages as they arrive, including the JavaScript console of web pages, with a level and a text filter. Chromium's own messages go to the console only.
 

@@ -6,7 +6,7 @@ Web content uses Qt WebEngine, which embeds Chromium. This document describes lo
 
 A `QWebEngineProfile` holds cookies, local storage, cache and site permissions. Pages in different profiles cannot see each other's logins.
 
-The workspace holds a list of [profiles](data-model.md#profile), each with an id and a name, such as "Work" and "Personal". A profile holds web logins and module settings, with the server and token of each module; this section is about its web logins. The user manages the list with File > Profiles…; see [ui](ui.md#profiles). A profile called Default always exists and cannot be renamed or deleted. See decisions [0042](decisions/0042-user-managed-web-profiles.md) and [0050](decisions/0050-profiles-hold-logins-connections-and-settings.md).
+The workspace holds a list of [profiles](data-model.md#profile), each with an id and a name, such as "Work" and "Personal". A profile holds web logins and module settings, with the server and token of each module; this section is about its web logins. The user manages the list with Profiles > Manage Profiles…; see [ui](ui.md#profiles). A profile called Default always exists and cannot be renamed or deleted. See decisions [0042](decisions/0042-user-managed-web-profiles.md) and [0050](decisions/0050-profiles-hold-logins-connections-and-settings.md).
 
 Mirante creates these `QWebEngineProfile`s:
 

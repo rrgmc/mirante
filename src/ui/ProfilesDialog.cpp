@@ -149,7 +149,7 @@ ProfilesDialog::ProfilesDialog(Model &model, QWidget *parent)
     auto *help = new QLabel(tr("A profile holds web logins and module settings, such as the GitLab or Jira server "
                                "and its token. Each group chooses a default profile, and each item can choose its "
                                "own. The list and the settings are shared with the workspace; logins and tokens "
-                               "stay on this device. Edit a module's settings for a profile in the Modules menu."),
+                               "stay on this device. A profile's module settings are in the Profiles menu."),
                             this);
     help->setObjectName(QStringLiteral("help"));
     help->setWordWrap(true);

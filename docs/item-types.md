@@ -96,7 +96,7 @@ Module `gitlab`. All GitLab types talk to the GitLab server of the item's profil
 `gitlab.mr.page`, web. The merge request's web page, in the item's [profile](web-views.md#profiles). Its configuration is the summary's: `project` and `iid`.
 
 - **Address:** `<baseUrl>/<project>/-/merge_requests/<iid>`, where `baseUrl` is the GitLab base URL of the item's profile. An empty `project` uses the project's `gitlab.project` setting.
-- **With a base URL that is not a web address,** the cell says "Set the GitLab base URL in Modules > GitLab > General Configuration for this profile."
+- **With a base URL that is not a web address,** the cell says "Set the GitLab base URL in this profile's Modules > GitLab > General Configuration, in the Profiles menu."
 - **Without a project or a number,** the cell says "Set the project and number in the item's settings."
 
 ### GitLab MR List
@@ -160,7 +160,7 @@ Module `jira`. Jira types talk to the Jira site of the item's profile, set in it
 `jira.issue.page`, web. The issue's web page. Its configuration is the summary's: `key`.
 
 - **Address:** `<baseUrl>/browse/<key>`, where `baseUrl` is the Jira base URL of the item's profile.
-- **Without a Jira base URL,** the cell says "Set the Jira base URL in Modules > Jira > General Configuration for this profile."
+- **Without a Jira base URL,** the cell says "Set the Jira base URL in this profile's Modules > Jira > General Configuration, in the Profiles menu."
 - **Without an issue key,** the cell says "Set the issue key in the item's settings."
 
 ### Jira List

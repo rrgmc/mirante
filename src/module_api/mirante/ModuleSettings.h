@@ -14,8 +14,8 @@ namespace mirante {
 class ItemEditor;
 
 // One configuration screen of a module, such as GitLab's "General
-// Configuration". The Modules menu lists it by name, in a submenu named after
-// the module. Its values are one JSON object per profile, kept in the
+// Configuration". Each profile's Modules submenu, in the Profiles menu, lists
+// it by name, in a submenu named after the module. Its values are one JSON object per profile, kept in the
 // workspace and synced. Secrets, such as tokens, never go there. See
 // docs/decisions/0044-module-settings-in-the-workspace.md and
 // docs/decisions/0050-profiles-hold-logins-connections-and-settings.md.

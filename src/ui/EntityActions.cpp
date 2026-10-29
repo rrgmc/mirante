@@ -252,26 +252,20 @@ void EntityActions::editProfiles()
         dialog.exec();
 }
 
-void EntityActions::editModuleSettings(const QString &moduleId, const QString &screenId)
+void EntityActions::editModuleSettings(const QString &profileId, const QString &moduleId, const QString &screenId)
 {
     const SettingsScreen *screen = d->types.settingsScreen(moduleId, screenId);
-    if (!screen)
+    if (!screen || !d->model.profile(profileId))
         return;
-    Model *model = &d->model;
-    ModuleSettingsDialog dialog(d->types.moduleName(moduleId), *screen, profiles::all(*model),
-                                [model, moduleId, screenId](const QString &profileId) {
-                                    return model->moduleSettings(profileId, moduleId, screenId);
-                                },
-                                d->dialogParent);
+    ModuleSettingsDialog dialog(profiles::nameOf(d->model, profileId), d->types.moduleName(moduleId), *screen,
+                                d->model.moduleSettings(profileId, moduleId, screenId), d->dialogParent);
     if (!d->exec(dialog))
         return;
-    for (const auto &[profileId, values] : dialog.values())
-        d->model.setModuleSettings(profileId, moduleId, screenId, values);
+    d->model.setModuleSettings(profileId, moduleId, screenId, dialog.values());
     // Secrets, such as tokens, stay on this device, in the keychain.
-    for (const auto &[profileId, secrets] : dialog.secrets()) {
-        for (auto it = secrets.begin(); it != secrets.end(); ++it)
-            d->saveSecret(secretKey(profileId, moduleId, it.key()), it.value().toString());
-    }
+    const QJsonObject secrets = dialog.secrets();
+    for (auto it = secrets.begin(); it != secrets.end(); ++it)
+        d->saveSecret(secretKey(profileId, moduleId, it.key()), it.value().toString());
 }
 
 // Creating.

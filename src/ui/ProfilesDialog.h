@@ -13,8 +13,8 @@ class Model;
 // deletes them, and clears a profile's web data on this device. Changes go to
 // the model at once. Default cannot be renamed or deleted, but can be
 // cleared. A warning says that items in one profile share its logins,
-// servers and tokens. Module settings are edited from the Modules menu.
-// Opened with File > Profiles….
+// servers and tokens. Module settings are edited from the Profiles menu.
+// Opened with Profiles > Manage Profiles….
 // See docs/ui.md#profiles. Implemented in ProfilesDialog.cpp.
 class ProfilesDialog : public QDialog
 {
