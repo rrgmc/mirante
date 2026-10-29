@@ -1,9 +1,9 @@
 #include "ui/SidebarDelegate.h"
 
 #include "core/Entities.h"
+#include "items/PaintedIconEngine.h"
 #include "ui/SidebarModel.h"
 
-#include <QIconEngine>
 #include <QPainter>
 
 namespace mirante {
@@ -17,7 +17,7 @@ constexpr qreal dimmedOpacity = 0.5;
 constexpr qreal squareRadius = 0.25;
 
 // A filled dot or rounded square, half the size of the icon, drawn at any size.
-class MarkerIconEngine : public QIconEngine
+class MarkerIconEngine : public PaintedIconEngine
 {
 public:
     MarkerIconEngine(const QColor &colour, SidebarDelegate::MarkerShape shape)

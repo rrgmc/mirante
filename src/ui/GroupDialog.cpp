@@ -2,6 +2,7 @@
 
 #include "core/Edits.h"
 #include "core/GroupColours.h"
+#include "items/PaintedIconEngine.h"
 
 #include <QApplication>
 #include <QButtonGroup>
@@ -12,7 +13,6 @@
 #include <QGroupBox>
 #include <QHBoxLayout>
 #include <QHeaderView>
-#include <QIconEngine>
 #include <QLabel>
 #include <QPainter>
 #include <QLineEdit>
@@ -39,7 +39,7 @@ bool isWebUrl(const QString &text)
 
 // A colour swatch: a filled circle, with a ring in the text colour around it
 // while chosen.
-class SwatchIconEngine : public QIconEngine
+class SwatchIconEngine : public PaintedIconEngine
 {
 public:
     explicit SwatchIconEngine(const QColor &colour) : m_colour(colour) {}
