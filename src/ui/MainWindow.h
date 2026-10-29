@@ -75,6 +75,10 @@ public:
     bool renameWorkspace(const QString &name);
 
     void showAbout();
+    // Opens the settings window, or brings it to the front: Settings… in the
+    // application menu on macOS, Tools > Settings… elsewhere. Its changes
+    // apply at once. See docs/ui.md#settings.
+    void showSettings();
 
     // Navigation, used by the sidebar, the switcher and the shortcuts.
     // Without a dashboard id, these use the task's default dashboard.

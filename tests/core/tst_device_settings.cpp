@@ -53,6 +53,7 @@ private slots:
         QVERIFY(!device.windowSize().isValid());
         QVERIFY(!device.windowGeometry().isValid());
         QVERIFY(!device.windowMaximized());
+        QVERIFY(device.sidebarHoverTint());
         QVERIFY(device.sidebarSplitterState().isEmpty());
         const DeviceSettings::Tabs tabs = device.openTabs(QStringLiteral("C:/work"));
         QVERIFY(!tabs.saved);
@@ -115,6 +116,18 @@ private slots:
         QCOMPARE(DeviceSettings(settings.get()).windowGeometry(), QRect(-1500, 40, 1024, 768));
         QVERIFY(settings->value(QStringLiteral("window/maximized")).toBool());
         QCOMPARE(settings->value(QStringLiteral("window/splitter")).toByteArray(), QByteArray("abc"));
+    }
+
+    // The settings window's options are kept across sessions.
+    void sidebarHoverTint()
+    {
+        {
+            DeviceSettings device(settings.get());
+            device.setSidebarHoverTint(false);
+        }
+        reopen();
+        QCOMPARE(settings->value(QStringLiteral("sidebar/hoverTint")).toBool(), false);
+        QVERIFY(!DeviceSettings(settings.get()).sidebarHoverTint());
     }
 
     void recentIsMostRecentFirstWithoutDuplicates()

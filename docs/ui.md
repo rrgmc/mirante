@@ -46,7 +46,7 @@ The sidebar can be collapsed.
   - A task itself is not dragged onto dashboards. Drag one of its items, to show that item, or one of its dashboards, to show the task with that dashboard in a root dashboard. See [placing tasks](#placing-tasks-and-items).
 - The context menu holds new, edit, rename, set priority, set state and delete, and on a task dashboard "Set as default". On a task and its Items row it also holds "Paste Image…", after "New item…". See [pasting images](#pasting-images). On a task dashboard or an item it also holds "Open in new root dashboard", which makes a root dashboard showing just that dashboard or item.
 - Project rows have a light tint of their group's colour, a rounded shape like the selection. They stand out between groups and tasks, and show their group while its heading is scrolled away. Task rows have no tint. See [decision 0046](decisions/0046-group-colours.md).
-- While the mouse is over a dashboard cell, the sidebar row of what the cell shows gets a soft tint: the item's row for an item cell, also one inside a task cell, and the task's row for a task cell. The tint goes when the mouse leaves the cell. The tree does not expand or scroll for it. If a collapsed row hides that row, the nearest row that can be seen takes the tint instead: the task of an item whose task or Items row is closed, or the project or group if that is closed. The tint follows as rows open and close.
+- While the mouse is over a dashboard cell, the sidebar row of what the cell shows gets a soft tint: the item's row for an item cell, also one inside a task cell, and the task's row for a task cell. The tint goes when the mouse leaves the cell. The tree does not expand or scroll for it. The [settings window](#settings) can turn the tint off. If a collapsed row hides that row, the nearest row that can be seen takes the tint instead: the task of an item whose task or Items row is closed, or the project or group if that is closed. The tint follows as rows open and close.
 - "Delete project…" and "Delete task…" move the project or task to the [trash](#trash), without a question, since it can be undone. Holding `Shift` while choosing them deletes for good, after a confirmation. Every other delete, such as of a group, an item or a task dashboard, asks for confirmation first and cannot be undone.
 
 ### Trash
@@ -110,6 +110,16 @@ A module can have settings screens for values that belong to the whole module, s
 - **Lists.** A list field, such as the project paths, takes one entry per line. Blank lines are dropped.
 - **Using the values.** A module offers its settings where they help. For example, the project path field of every GitLab item is an editable list of the configured paths. Any other path can still be typed.
 
+## Settings
+
+The settings window holds settings of this device. They are kept in the [device settings](sync.md#device-settings), not in the workspace, so they are not synced. Module settings, which belong to the workspace, stay in the [Modules](#modules) menu.
+
+- **Opening it.** On macOS it is the standard Settings… item of the application menu, with `Cmd+,`. On Windows and Linux it is Tools > Settings…, with the platform's preferences key if it has one. There is no Edit menu, since the app has no edit commands, and Tools is where Windows apps keep their options. See [menus](#menus).
+- **Applying changes.** Each change is saved and applied at once, without a restart. The window has only a Close button.
+- **Layout.** The options are grouped in sections. Each section is a bold heading over a form. A note at the top says that the settings apply to this device only.
+- **Sidebar:**
+  - "Highlight the sidebar row of the cell under the mouse", on by default. It turns the hover tint of the [sidebar tree](#sidebar-tree) on or off. Turned off, any tint goes at once.
+
 ## Window
 
 When the window closes, its place and size are saved on this device, and whether it is maximized. The sidebar width is kept too. The place and size are those of the normal window, also when it was maximized or full screen.
@@ -137,11 +147,12 @@ Standard controls, such as buttons, menus, lists and dialogs, keep the platform'
 
 ## Menus
 
-The menu bar has four menus. The Modules menu is left out when no module in the build has a settings screen.
+The menu bar has File, View, Modules, Tools and Help. The Modules menu is left out when no module in the build has a settings screen. On macOS there is no Tools menu: its one entry, Settings…, is in the application menu.
 
 - **File:** New Workspace… (`Ctrl+N`), Open Workspace… (`Ctrl+O`), Open Recent with the last ten workspaces and Clear Recent, Rename Workspace…, Show Workspace Folder, Open Sample Data, Reload Workspace (`F5`), New Group…, Web Profiles… (see [web profiles](#web-profiles)), and Quit (`Ctrl+Q`). A workspace is a data folder with a `workspace.mirante` file at its top. Open Workspace… chooses that file. New Workspace… chooses a folder and a name and writes the file. A new workspace starts with one empty root dashboard, "Main", open as a tab with editing on, so the content area is not empty. It is an ordinary root dashboard: it can be renamed, closed or deleted. Opening an existing workspace never adds one. A folder without the file is not opened; from the menus the app offers to make it a workspace. At start the app opens the workspace given with `--data`, otherwise the last one used on this device if it still has its file, otherwise the sample data. The window title and the sidebar header show the workspace's name: the name in its `workspace.mirante`, else the folder's name. Rename Workspace…, or a double click on the name in the sidebar header, renames it, and the Store writes `workspace.mirante`. The sample data cannot be renamed. Show Workspace Folder opens the workspace's folder in Explorer, Finder or the desktop's file manager; it is disabled for the sample data, which has no folder. Reload Workspace opens the workspace again from its files. See decisions [0025](decisions/0025-workspace-file.md) and [0027](decisions/0027-workspace-needs-its-file.md).
 - **View:** Sidebar (show or hide), Expand All Tasks, Collapse All Tasks, Full Screen (`F11`, `Ctrl+Cmd+F` on macOS; leaving it brings back the maximized or normal window, and a window closed in full screen opens as it was before; in full screen the menu bar hides and shows while the mouse is at the top edge or a menu is open, and every shortcut keeps working, while macOS shows its own menu bar), Go To… (`Ctrl+K`, the [quick switcher](#keyboard)), All Dashboards…, and New Dashboard.
 - **Modules:** a submenu for each module that has [settings screens](#modules), named after the module, such as GitLab. It lists the module's screens by the names the module gives them, such as General Configuration….
+- **Tools:** Settings…, which opens the [settings window](#settings). Windows and Linux only.
 - **Help:** About Mirante, with the version, the author and the project's address, and About Qt. Debug builds, and release builds started with `--log`, also have Show Log (`Ctrl+Shift+L`), a window that lists the app's Qt log messages as they arrive, including the JavaScript console of web pages, with a level and a text filter. Chromium's own messages go to the console only.
 
 ## Opening tasks
@@ -332,6 +343,7 @@ The project is chosen by matching the merge request's GitLab project or the issu
 | `Ctrl+Tab`, `Ctrl+Shift+Tab` | Next or previous tab in the focused tab group |
 | `Ctrl+PgDown`, `Ctrl+PgUp` | Next or previous tab of the tab row: the tabs in order, then Focus, then the preview, wrapping around |
 | `F11` (macOS: `Ctrl+Cmd+F`) | Full screen on or off, as in web browsers. The platform's standard key, `QKeySequence::FullScreen`. |
+| `Cmd+,` (macOS) | Open the [settings window](#settings). Windows and Linux use Tools > Settings…. |
 | `Ctrl+Shift+M` | Maximise the focused cell, or restore the maximised one. See [a bigger view](#a-bigger-view-of-an-item). |
 | `Ctrl+W` | Close the preview or the current tab. Focus cannot be closed. |
 | `Ctrl+V` | With an image on the clipboard: replace the image of the Image item in the focused cell or the current item preview, after the [paste dialog](#pasting-images). It never adds an item to a dashboard; a new image item comes from "Paste Image…" in a task's Items menu. See [image](item-types.md#image). A text field keeps its own paste. |

@@ -74,6 +74,12 @@ public:
     QByteArray detachedGeometry(const QString &dashboardId) const;
     void setDetachedGeometry(const QString &dashboardId, const QByteArray &geometry);
 
+    // Whether the sidebar tints the row of what the dashboard cell under the
+    // mouse shows. On if not set. Set in the settings window; see
+    // docs/ui.md#settings.
+    bool sidebarHoverTint() const;
+    void setSidebarHoverTint(bool on);
+
     // The number of hidden web views kept loaded. 8 if not set.
     // See docs/web-views.md#memory-policy.
     int hiddenViewLimit() const;

@@ -25,6 +25,7 @@
 #include "ui/SlotTabBar.h"
 #include "ui/Sidebar.h"
 #include "ui/SidebarDelegate.h"
+#include "ui/SettingsDialog.h"
 #include "ui/SidebarModel.h"
 #include "ui/Shortcuts.h"
 #include "ui/WebProfilesDialog.h"
@@ -35,6 +36,7 @@
 #include <mirante/ItemType.h>
 
 #include <QApplication>
+#include <QCheckBox>
 #include <QDir>
 #include <QDirIterator>
 #include <QEnterEvent>
@@ -1247,6 +1249,65 @@ private slots:
         QCoreApplication::sendEvent(itemCell, &leave);
         QCOMPARE(sidebar->hoverHighlight(), kFixLoginTask);
         QCoreApplication::sendEvent(taskCell, &leave);
+        QVERIFY(sidebar->hoverHighlight().isEmpty());
+    }
+
+    // The settings window turns the sidebar's hover tint off and on at once.
+    // Its action has the preferences role, so macOS shows it in the
+    // application menu; elsewhere it is in the Tools menu.
+    void settingsTurnHoverTintOff()
+    {
+        Fixture f;
+        auto *action = f.window->findChild<QAction *>(QStringLiteral("settingsAction"));
+        QVERIFY(action);
+        QCOMPARE(action->menuRole(), QAction::PreferencesRole);
+        QCOMPARE(action->text(), QStringLiteral("&Settings…"));
+        auto *tools = f.window->menuBar()->findChild<QMenu *>(QStringLiteral("toolsMenu"));
+#ifdef Q_OS_MACOS
+        QVERIFY(!tools);
+#else
+        QVERIFY(tools && tools->actions().contains(action));
+#endif
+
+        auto *sidebar = f.window->findChild<Sidebar *>();
+        TaskCell *taskCell = nullptr;
+        for (TaskCell *cell : f.window->currentLayoutView()->findChildren<TaskCell *>()) {
+            if (cell->taskId() == kFixLoginTask)
+                taskCell = cell;
+        }
+        QVERIFY(taskCell);
+        QEnterEvent enter(QPointF(1, 1), QPointF(1, 1), QPointF(1, 1));
+        QCoreApplication::sendEvent(taskCell, &enter);
+        QCOMPARE(sidebar->hoverHighlight(), kFixLoginTask);
+
+        action->trigger();
+        auto *dialog = f.window->findChild<SettingsDialog *>();
+        QVERIFY(dialog);
+        QVERIFY(dialog->sidebarHoverTint()->isChecked());
+
+        // Off: the tint goes at once, and the mouse brings none.
+        dialog->sidebarHoverTint()->setChecked(false);
+        QVERIFY(!f.settings.sidebarHoverTint());
+        QVERIFY(sidebar->hoverHighlight().isEmpty());
+        QEvent leave(QEvent::Leave);
+        QCoreApplication::sendEvent(taskCell, &leave);
+        QCoreApplication::sendEvent(taskCell, &enter);
+        QVERIFY(sidebar->hoverHighlight().isEmpty());
+
+        // On: the hovered cell's row is tinted again at once.
+        dialog->sidebarHoverTint()->setChecked(true);
+        QCOMPARE(sidebar->hoverHighlight(), kFixLoginTask);
+
+        // A window started with the setting off does not tint.
+        dialog->sidebarHoverTint()->setChecked(false);
+        QCoreApplication::sendEvent(taskCell, &leave);
+        f.window = std::make_unique<MainWindow>(f.model, f.types, f.dataStore, f.settings);
+        sidebar = f.window->findChild<Sidebar *>();
+        for (TaskCell *cell : f.window->currentLayoutView()->findChildren<TaskCell *>()) {
+            if (cell->taskId() == kFixLoginTask)
+                taskCell = cell;
+        }
+        QCoreApplication::sendEvent(taskCell, &enter);
         QVERIFY(sidebar->hoverHighlight().isEmpty());
     }
 

@@ -87,6 +87,7 @@ Settings that only make sense on one device are stored with `QSettings`, outside
 - the data folder path: the last workspace opened, and the list of recent ones;
 - the local path of each project [folder](data-model.md#folder);
 - the main window's place and size, whether it is maximized, and the sidebar width;
+- the options of the [settings window](ui.md#settings), such as the sidebar's hover tint;
 - detached root dashboard window geometry;
 - the open root tabs, the current tab and the detached root dashboards of each workspace;
 - terminal command template, editor command;

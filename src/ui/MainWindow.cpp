@@ -20,6 +20,7 @@
 #include "layout/LockState.h"
 #include "layout/SingleViewTracker.h"
 #include "layout/TaskCell.h"
+#include "platform/Platform.h"
 #include "ui/ConflictBar.h"
 #include "ui/DashboardDialog.h"
 #include "ui/DashboardPage.h"
@@ -32,6 +33,7 @@
 #include "ui/QuickSwitcher.h"
 #include "ui/RootDashboardsDialog.h"
 #include "ui/RootTabBar.h"
+#include "ui/SettingsDialog.h"
 #include "ui/Shortcuts.h"
 #include "ui/Sidebar.h"
 #include "ui/SlotTabBar.h"
@@ -175,6 +177,10 @@ struct MainWindow::Private
     QToolButton *listButton = nullptr;
     QPointer<RootDashboardsDialog> dashboardList;
     QPointer<LogWindow> logWindow;
+    QPointer<SettingsDialog> settingsDialog;
+    // Whether the sidebar tints the row of the hovered cell, from the device
+    // settings. See applyDeviceSettings().
+    bool sidebarHoverTint = true;
 
     // The pages of the root tab bar's tabs, in tab order. They are root
     // dashboards only: task dashboards and items open in the preview slot,
@@ -1267,7 +1273,25 @@ struct MainWindow::Private
 
         buildModulesMenu(bar);
 
+        // The settings window. On macOS it is the standard Settings… item of
+        // the application menu, with Cmd+,: Qt moves it there by its role, from
+        // the Help menu, which keeps its other items. Elsewhere there is no
+        // application menu, so it goes in a Tools menu of its own.
+        QAction *settingsAction = new QAction(MainWindow::tr("&Settings…"), q);
+        settingsAction->setObjectName(QStringLiteral("settingsAction"));
+        settingsAction->setMenuRole(QAction::PreferencesRole);
+        settingsAction->setShortcut(QKeySequence::Preferences);
+        QObject::connect(settingsAction, &QAction::triggered, q, &MainWindow::showSettings);
+        const bool macos = platform::systemName() == QStringLiteral("macos");
+        if (!macos) {
+            QMenu *tools = bar->addMenu(MainWindow::tr("&Tools"));
+            tools->setObjectName(QStringLiteral("toolsMenu"));
+            tools->addAction(settingsAction);
+        }
+
         QMenu *help = bar->addMenu(MainWindow::tr("&Help"));
+        if (macos)
+            help->addAction(settingsAction);
         QAction *about = help->addAction(MainWindow::tr("&About Mirante"));
         about->setMenuRole(QAction::AboutRole);
         QObject::connect(about, &QAction::triggered, q, &MainWindow::showAbout);
@@ -1282,6 +1306,13 @@ struct MainWindow::Private
             log->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_L));
             QObject::connect(log, &QAction::triggered, q, [this] { showLog(); });
         }
+    }
+
+    // Applies the device settings that the settings window changes, at once.
+    void applyDeviceSettings()
+    {
+        sidebarHoverTint = settings->sidebarHoverTint();
+        sidebar->setHoverHighlight(sidebarHoverTint ? services.hover->hoveredId() : QString());
     }
 
     // Opens the log window, or brings it to the front. It has no parent, so it
@@ -1531,8 +1562,13 @@ MainWindow::MainWindow(Model &model, const ItemTypeRegistry &types, Store &store
     });
     connect(d->sidebar, &Sidebar::collapseRequested, this, [this] { d->showSidebar(false); });
     connect(d->sidebar, &Sidebar::titleDoubleClicked, this, [this] { d->promptRename(); });
-    // The sidebar tints the row of what the hovered dashboard cell shows.
-    connect(d->services.hover, &CellHoverTracker::hoveredChanged, d->sidebar, &Sidebar::setHoverHighlight);
+    // The sidebar tints the row of what the hovered dashboard cell shows,
+    // unless the settings window turned that off.
+    connect(d->services.hover, &CellHoverTracker::hoveredChanged, d->sidebar, [this](const QString &id) {
+        if (d->sidebarHoverTint)
+            d->sidebar->setHoverHighlight(id);
+    });
+    d->applyDeviceSettings();
     d->sidebar->setMenuFiller([this](QMenu *menu, SidebarModel::Kind kind, const QString &id, const QString &taskId) {
         d->actions->fillMenu(menu, kind, id, taskId);
     });
@@ -1970,6 +2006,18 @@ void MainWindow::pasteImage(const QImage &image)
     result = itemId.isEmpty() ? d->imagePaste->paste(cropped, ref, path)
                               : d->imagePaste->pasteIntoItem(cropped, ref.taskId, itemId);
     showMessage(result);
+}
+
+void MainWindow::showSettings()
+{
+    if (!d->settingsDialog) {
+        d->settingsDialog = new SettingsDialog(*d->settings, this);
+        d->settingsDialog->setAttribute(Qt::WA_DeleteOnClose);
+        connect(d->settingsDialog, &SettingsDialog::changed, this, [this] { d->applyDeviceSettings(); });
+    }
+    d->settingsDialog->show();
+    d->settingsDialog->raise();
+    d->settingsDialog->activateWindow();
 }
 
 void MainWindow::setExec(std::function<bool(QDialog &dialog)> exec) { d->exec = std::move(exec); }
