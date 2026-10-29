@@ -41,7 +41,7 @@ The sidebar can be collapsed.
 - [Attention badges](#attention) appear on tasks, and are summed on projects and groups.
 - **Drag and drop:**
   - Dragging within a priority level changes the order.
-  - Dragging across the boundary between two levels changes the priority.
+  - Dragging across the boundary between two levels changes the priority. While the drop would do so, a tooltip next to the cursor names the new level, such as "Becomes Normal".
   - A task itself is not dragged onto dashboards. Drag one of its items, to show that item, or one of its dashboards, to show the task with that dashboard in a root dashboard. See [placing tasks](#placing-tasks-and-items).
 - The context menu holds new, edit, rename, set priority, set state and delete, and on a task dashboard "Set as default". On a task dashboard or an item it also holds "Open in new root dashboard", which makes a root dashboard showing just that dashboard or item.
 - Project rows have a light tinted background, so they stand out between groups and tasks.

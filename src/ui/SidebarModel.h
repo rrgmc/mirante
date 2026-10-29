@@ -59,6 +59,11 @@ public:
     bool dropMimeData(const QMimeData *data, Qt::DropAction action, int row, int column,
                       const QModelIndex &parent) override;
 
+    // What a drop of data at row under parent would do beyond reordering,
+    // shown while dragging: "Becomes High" when a project or task would land
+    // in another priority level. Empty otherwise.
+    QString dropHint(const QMimeData *data, int row, const QModelIndex &parent) const;
+
 signals:
     // A dropped group, project or task. For projects and tasks, priority is
     // the level it lands in, and index its place among the siblings of that
