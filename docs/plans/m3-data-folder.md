@@ -374,6 +374,8 @@ The image is saved as PNG through `Store::saveFile`.
 
 The rules, the roles and the brief are those of the [M2 plan](m2-app-skeleton.md#tasks-for-parallel-work), with `m2-app-skeleton.md` replaced by this plan. At most seven agents run at the same time.
 
+The headers written by T0 are the interfaces. Where they differ in detail from the sketches in the parts above, the headers win. For example, the sidebar reports drops through `SidebarModel::moveRequested` and gets its context menu commands through `Sidebar::setMenuFiller`, and `ImagePaste` returns a `Result` that `MainWindow` shows.
+
 | Task | Branch | Work | Owns | Needs |
 |---|---|---|---|---|
 | T0 | `m3-interfaces` | Every header named in this plan, with stubs that compile. The new `Model` signals and methods, declared. `Fields.h`, `ItemEditor.h`, and the three new `ItemType` methods. | everything it creates; after merging, the headers belong to the orchestrator | none |

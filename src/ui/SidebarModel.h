@@ -49,6 +49,21 @@ public:
     QStringList mimeTypes() const override;
     QMimeData *mimeData(const QModelIndexList &indexes) const override;
 
+    // Drops of groups among groups, projects among the projects of their
+    // group, and tasks among the tasks of their project, as in the M3 plan,
+    // part 6. A drop changes nothing itself: it emits moveRequested.
+    Qt::DropActions supportedDropActions() const override;
+    bool canDropMimeData(const QMimeData *data, Qt::DropAction action, int row, int column,
+                         const QModelIndex &parent) const override;
+    bool dropMimeData(const QMimeData *data, Qt::DropAction action, int row, int column,
+                      const QModelIndex &parent) override;
+
+signals:
+    // A dropped group, project or task. For projects and tasks, priority is
+    // the level it lands in, and index its place among the siblings of that
+    // level; for groups, priority is unused and index is its place among groups.
+    void moveRequested(mirante::SidebarModel::Kind kind, const QString &id, int priority, int index);
+
 private:
     void emitChanged(const QModelIndex &parent);
 

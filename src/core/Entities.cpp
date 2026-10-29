@@ -416,4 +416,14 @@ QJsonObject Task::toJson() const
     }, extra);
 }
 
+// toJson() writes every field and extra, so equal JSON means equal values.
+bool operator==(const Folder &a, const Folder &b) { return a.toJson() == b.toJson(); }
+bool operator==(const Connection &a, const Connection &b) { return a.toJson() == b.toJson(); }
+bool operator==(const Group &a, const Group &b) { return a.toJson() == b.toJson(); }
+bool operator==(const Project &a, const Project &b) { return a.toJson() == b.toJson(); }
+bool operator==(const Item &a, const Item &b) { return a.toJson() == b.toJson(); }
+bool operator==(const Dashboard &a, const Dashboard &b) { return a.toJson() == b.toJson(); }
+bool operator==(const RootDashboard &a, const RootDashboard &b) { return a.toJson() == b.toJson(); }
+bool operator==(const Task &a, const Task &b) { return a.toJson() == b.toJson(); }
+
 } // namespace mirante

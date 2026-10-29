@@ -320,4 +320,9 @@ void Sidebar::collapseAllTasks()
     d->forEachTask({}, [this](const QModelIndex &task) { d->tree->collapse(task); });
 }
 
+SidebarModel *Sidebar::model() const { return d->model; }
+
+// Stub written by T0 of the M3 plan. T10 implements it.
+void Sidebar::setMenuFiller(MenuFiller) {}
+
 } // namespace mirante

@@ -236,6 +236,15 @@ void Model::removeRootDashboard(const QString &id)
     emit rootDashboardRemoved(id);
 }
 
+// Stubs written by T0 of the M3 plan. T1 implements them.
+void Model::setGroup(const Group &) {}
+void Model::setProject(const Project &) {}
+void Model::setTask(const Task &) {}
+void Model::setRootDashboard(const RootDashboard &) {}
+void Model::removeGroup(const QString &) {}
+void Model::removeProject(const QString &) {}
+void Model::removeTask(const QString &) {}
+
 QString Model::workspaceName() const { return d->workspaceName; }
 
 void Model::setWorkspaceName(const QString &name)

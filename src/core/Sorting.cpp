@@ -77,4 +77,7 @@ std::vector<const Task *> sortedTasks(std::vector<const Task *> tasks, const Sor
                          taskBefore);
 }
 
+// Stub written by T0 of the M3 plan. T6 implements it.
+std::vector<const Task *> focusOrder(std::vector<const Task *>, const Model &) { return {}; }
+
 } // namespace mirante

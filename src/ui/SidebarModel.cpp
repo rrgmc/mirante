@@ -345,6 +345,16 @@ Qt::ItemFlags SidebarModel::flags(const QModelIndex &index) const
 
 QStringList SidebarModel::mimeTypes() const { return {QString::fromLatin1(dragMimeType)}; }
 
+// Stubs written by T0 of the M3 plan. T10 implements them.
+Qt::DropActions SidebarModel::supportedDropActions() const { return Qt::IgnoreAction; }
+
+bool SidebarModel::canDropMimeData(const QMimeData *, Qt::DropAction, int, int, const QModelIndex &) const
+{
+    return false;
+}
+
+bool SidebarModel::dropMimeData(const QMimeData *, Qt::DropAction, int, int, const QModelIndex &) { return false; }
+
 // A drag carries one reference: the first item or dashboard among the indexes.
 // A dashboard is dropped as a task cell showing that dashboard.
 QMimeData *SidebarModel::mimeData(const QModelIndexList &indexes) const
