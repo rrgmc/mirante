@@ -85,6 +85,15 @@ File > Web Profiles… opens the list of the workspace's web profiles. A web pro
 
 The item dialog offers a web profile for items of web types; see [the type registry](item-types.md#the-type-registry). The web views of an item are made again when its profile changes.
 
+## Item dialog
+
+"New item…", in the context menu of a task or its Items row, opens the item dialog in two steps. See [decision 0043](decisions/0043-pick-the-item-type-first.md).
+
+1. **Choose a type.** A grid of large icons, 48 pixels, with each type's name under its icon, like the icon view of a file manager. The grid wraps, so many types show at once. It lists the [item types](item-types.md) of the build, by name; types of missing modules are not offered. A tooltip repeats a name that is cut short. A double click on a type, or Enter, or **Next**, goes on with the selected type.
+2. **Edit the item.** The chosen type, shown with its icon, then the name, the web profile for a type whose views are web views, and the configuration. The configuration uses the type's own editor if it has one, or else a form built from its fields. **Back** returns to the grid. Choosing another type starts from that type's defaults; choosing the same type keeps what was entered. OK is refused while the name is empty or the configuration has problems, and a message under the page says why.
+
+"Edit item…" opens the second page only. The type of an existing item cannot change. An item whose module is missing shows its name only, and keeps the rest unchanged.
+
 ## Window
 
 The window opens centred on the screen, at the size it had when it was last closed on this device, maximized if it was. The sidebar width is kept too. The app's icon, a temporary one, is a blue square with three dashboard panes.
