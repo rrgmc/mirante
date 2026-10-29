@@ -2,6 +2,7 @@
 
 #include "core/Entities.h"
 #include "core/Model.h"
+#include "ui/JsonHighlighter.h"
 
 #include <QDialog>
 #include <QDir>
@@ -119,15 +120,20 @@ QWidget *imageView(const QImage &image)
     return scroll;
 }
 
-QPlainTextEdit *textView(const QString &text)
+// A JSON file is coloured, which makes a changed value easier to find.
+QPlainTextEdit *textView(const QString &text, bool json)
 {
     auto *edit = new QPlainTextEdit;
     edit->setReadOnly(true);
     edit->setLineWrapMode(QPlainTextEdit::NoWrap);
     edit->setFont(QFontDatabase::systemFont(QFontDatabase::FixedFont));
+    if (json)
+        new JsonHighlighter(edit->document());
     edit->setPlainText(text);
     return edit;
 }
+
+bool isJson(const QByteArray &content) { return !QJsonDocument::fromJson(content).isNull(); }
 
 } // namespace
 
@@ -242,10 +248,12 @@ struct ConflictBar::Private
             current = imageView(currentImage);
             other = imageView(otherImage);
         } else {
-            const QString currentText = displayText(readFile(filePath));
-            const QString otherText = displayText(readFile(copyPath));
-            QPlainTextEdit *currentEdit = textView(currentText);
-            QPlainTextEdit *otherEdit = textView(otherText);
+            const QByteArray currentContent = readFile(filePath);
+            const QByteArray otherContent = readFile(copyPath);
+            const QString currentText = displayText(currentContent);
+            const QString otherText = displayText(otherContent);
+            QPlainTextEdit *currentEdit = textView(currentText, isJson(currentContent));
+            QPlainTextEdit *otherEdit = textView(otherText, isJson(otherContent));
             markDifferences(currentEdit, otherText.split(QLatin1Char('\n')));
             markDifferences(otherEdit, currentText.split(QLatin1Char('\n')));
             current = currentEdit;

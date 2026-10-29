@@ -75,7 +75,7 @@ The app does not load conflict copies. It lists them in a warning bar with three
 
 - keep the current file;
 - use the copy instead;
-- show both side by side.
+- show both side by side, with the lines that differ marked. JSON is shown pretty-printed, with keys, strings, numbers and `true`, `false` and `null` in their own colours.
 
 The chosen loser is deleted.
 
