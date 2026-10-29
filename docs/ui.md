@@ -118,6 +118,7 @@ Standard controls, such as buttons, menus, lists and dialogs, keep the platform'
 - **Close buttons on tabs** are on the right. They show on the current tab and on the tab under the mouse only.
 - **Cell borders** are a thin, light line with rounded corners.
 - **The warning bar** has a tinted background and no frame.
+- **Forms** in dialogs fill the dialog's width and start at its top left on every platform. On macOS, Qt would otherwise keep each field at its natural width and centre the form, which cuts long values, such as addresses, short.
 - **The sidebar** has a light grey background, a little darker than the window, with rounded row shapes, as in macOS sidebars. See [sidebar tree](#sidebar-tree).
 - **Header tints.** Cell headers and title bars have a light tint, mixed into the window colour, so text stays readable in light and dark palettes. The title bars of task dashboard and item tabs, and task cell headers, have a 22% tint of the task's [group colour](data-model.md#group). Item cell headers have a lighter 12% tint of the group colour of the item's task, in every dashboard, so an item placed on a root dashboard shows its group too. Empty and removed cells keep the highlight colour. See [decision 0046](decisions/0046-group-colours.md) and [decision 0047](decisions/0047-item-headers-in-group-colours.md).
 
