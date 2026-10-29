@@ -379,8 +379,7 @@ GroupDialog::GroupDialog(const Group &group, QWidget *parent)
     layout->addWidget(d->message);
     layout->addWidget(buttons);
 
-    // Until the dialog is given the kinds of ItemTypeRegistry::connectionKinds(),
-    // every connection is read-only.
+    // Until setConnectionKinds() is called, every connection is read-only.
     d->setKinds({});
     d->name->setFocus();
 }
@@ -412,6 +411,7 @@ Group GroupDialog::value() const
     return group;
 }
 
+void GroupDialog::setConnectionKinds(const QStringList &kinds) { d->setKinds(kinds); }
 void GroupDialog::setName(const QString &name) { d->name->setText(name); }
 
 void GroupDialog::accept()

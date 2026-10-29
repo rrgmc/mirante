@@ -145,6 +145,7 @@ private slots:
 
     void group();
     void groupConnectionsWithoutKinds();
+    void groupConnections();
     void groupSharedSites();
     void project();
     void projectFolders();
@@ -219,6 +220,94 @@ void TestDialogs::groupConnectionsWithoutKinds()
     dialog.accept();
     QCOMPARE(dialog.result(), int(QDialog::Accepted));
     QCOMPARE(dialog.value(), original);
+}
+
+void TestDialogs::groupConnections()
+{
+    const Group original = *model.group(workGroup);
+    const QString gitlab = QStringLiteral("gitlab");
+    const QString cloud = QStringLiteral("jira.cloud");
+    const QString dc = QStringLiteral("jira.dc");
+    GroupDialog dialog(original);
+    dialog.setConnectionKinds({gitlab, cloud, dc});
+    QCOMPARE(dialog.value(), original);
+
+    // Rows: gitlab.com, Acme self-hosted, Jira Cloud, Jira DC, time tracking.
+    auto *table = dialog.findChild<QTableWidget *>(QStringLiteral("connections"));
+    const auto kindBox = [table](int row) { return qobject_cast<QComboBox *>(table->cellWidget(row, 0)); };
+    const auto check = [table](int row) { return table->item(row, 3); };
+    QVERIFY(kindBox(0));
+    QCOMPARE(kindBox(0)->count(), 3);
+    QCOMPARE(kindBox(0)->currentText(), gitlab);
+    QVERIFY(!kindBox(4));   // time tracking: no type uses it
+    QVERIFY(!(table->item(4, 1)->flags() & Qt::ItemIsEditable));
+    QVERIFY(table->item(1, 1)->flags() & Qt::ItemIsEditable);
+
+    // Edit in place.
+    table->item(1, 1)->setText(QStringLiteral(" Acme GitLab "));
+    table->item(1, 2)->setText(QStringLiteral("https://git.acme.example"));
+    Group expected = original;
+    expected.connections[1].name = QStringLiteral("Acme GitLab");
+    expected.connections[1].baseUrl = QStringLiteral("https://git.acme.example");
+    QCOMPARE(dialog.value(), expected);
+
+    // One default per kind. Unchecking leaves the kind without one.
+    check(1)->setCheckState(Qt::Checked);
+    QCOMPARE(dialog.value().defaultConnections.value(gitlab), original.connections[1].id);
+    QCOMPARE(check(0)->checkState(), Qt::Unchecked);
+    check(1)->setCheckState(Qt::Unchecked);
+    QVERIFY(!dialog.value().defaultConnections.contains(gitlab));
+    check(1)->setCheckState(Qt::Checked);
+
+    // Removing the default clears it. A read-only connection is not removed.
+    auto *remove = dialog.findChild<QPushButton *>(QStringLiteral("removeConnection"));
+    table->setCurrentCell(4, 1);
+    QVERIFY(!remove->isEnabled());
+    table->setCurrentCell(1, 1);
+    QVERIFY(remove->isEnabled());
+    remove->click();
+    QCOMPARE(table->rowCount(), 4);
+    QVERIFY(!dialog.value().defaultConnections.contains(gitlab));
+
+    // Changing the kind of a default clears it. The new kind keeps its own.
+    kindBox(1)->setCurrentText(dc);
+    QCOMPARE(dialog.value().connections[1].kind, dc);
+    QVERIFY(!dialog.value().defaultConnections.contains(cloud));
+    QCOMPARE(dialog.value().defaultConnections.value(dc), original.connections[3].id);
+
+    // A new connection gets an id, the first kind, and becomes the default of
+    // a kind without one.
+    dialog.findChild<QPushButton *>(QStringLiteral("addConnection"))->click();
+    QCOMPARE(table->rowCount(), 5);
+    const Connection added = dialog.value().connections.back();
+    QVERIFY(!added.id.isEmpty());
+    QCOMPARE(added.kind, gitlab);
+    QCOMPARE(dialog.value().defaultConnections.value(gitlab), added.id);
+
+    // It needs a name and a web base URL.
+    dialog.setName(QStringLiteral("Work"));
+    dialog.accept();
+    QCOMPARE(dialog.result(), int(QDialog::Rejected));
+    table->item(4, 1)->setText(QStringLiteral("GitLab (new)"));
+    table->item(4, 2)->setText(QStringLiteral("gitlab.example"));
+    dialog.accept();
+    QCOMPARE(dialog.result(), int(QDialog::Rejected));
+    table->item(4, 2)->setText(QStringLiteral("https://gitlab.example"));
+    dialog.accept();
+    QCOMPARE(dialog.result(), int(QDialog::Accepted));
+
+    expected = original;
+    expected.connections.erase(expected.connections.begin() + 1);
+    expected.connections[1].kind = dc;
+    Connection newConnection;
+    newConnection.id = added.id;
+    newConnection.kind = gitlab;
+    newConnection.name = QStringLiteral("GitLab (new)");
+    newConnection.baseUrl = QStringLiteral("https://gitlab.example");
+    expected.connections.push_back(newConnection);
+    expected.defaultConnections.remove(cloud);
+    expected.defaultConnections.insert(gitlab, added.id);
+    QCOMPARE(dialog.value(), expected);   // time tracking and its default unchanged
 }
 
 void TestDialogs::groupSharedSites()
