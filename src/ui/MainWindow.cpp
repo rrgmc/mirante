@@ -29,6 +29,7 @@
 #include <QApplication>
 #include <QClipboard>
 #include <QCloseEvent>
+#include <QDesktopServices>
 #include <QDir>
 #include <QFileDialog>
 #include <QFileInfo>
@@ -57,6 +58,7 @@
 #include <QTextEdit>
 #include <QTimer>
 #include <QToolButton>
+#include <QUrl>
 #include <QUuid>
 #include <QVBoxLayout>
 
@@ -926,7 +928,14 @@ struct MainWindow::Private
         });
         QAction *rename = file->addAction(MainWindow::tr("Re&name Workspace…"));
         QObject::connect(rename, &QAction::triggered, q, [this] { promptRename(); });
-        QObject::connect(file, &QMenu::aboutToShow, q, [this, rename] { rename->setEnabled(!workspace.isEmpty()); });
+        // Opens the folder in Explorer, Finder or the desktop's file manager.
+        QAction *showFolder = file->addAction(MainWindow::tr("Show Workspace &Folder"));
+        QObject::connect(showFolder, &QAction::triggered, q,
+                         [this] { QDesktopServices::openUrl(QUrl::fromLocalFile(workspace)); });
+        QObject::connect(file, &QMenu::aboutToShow, q, [this, rename, showFolder] {
+            rename->setEnabled(!workspace.isEmpty());
+            showFolder->setEnabled(!workspace.isEmpty());
+        });
         QAction *sample = file->addAction(MainWindow::tr("Open &Sample Data"));
         QObject::connect(sample, &QAction::triggered, q, &MainWindow::openSampleData);
         QAction *reload = file->addAction(MainWindow::tr("Re&load Workspace"));
