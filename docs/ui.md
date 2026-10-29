@@ -126,10 +126,10 @@ When editing is on:
   - clear cell;
   - remove cell.
 
-  Clear cell, remove cell, and closing a tab of a tab group ask for confirmation, since they remove content from the layout.
-- **The tab context menu** offers add tab (an empty tab after the clicked one), rename, close, move to the left or right, "Remove tab group" and "Collapse when single".
-  - "Remove tab group" is enabled when the group has one tab. It unwraps the group once: the tab's content takes the group's place.
-  - "Collapse when single" is a setting of the group: whenever it has one tab, now or after closing others, the group is replaced by that tab's content.
+  Clear cell, remove cell, and deleting a tab of a tab group ask for confirmation, since they remove content from the layout.
+- **The tab context menu** offers add tab (an empty tab after the clicked one), rename, "Delete tab", move to the left or right, and "Ungroup".
+  - "Delete tab" removes the tab and its content from the layout.
+  - "Ungroup" appears only when the group has one tab. It removes the tab group: the tab's content takes the group's place.
 - **A `+` button** at the right of each tab group adds an empty tab at the end.
 - **Drag and drop:** drag a cell by its header, a tab by its tab, a whole tab group by the empty part of its tab bar, or an item from the sidebar. Cell headers and tab bars show an open hand while the dashboard is unlocked. Holding a drag over a tab that is not shown opens it, so a cell can be dropped beside its content. A tab group or a split moves within its own dashboard. A semi-transparent overlay shows five drop zones on the cell under the cursor:
   - the left, right, top or bottom edge splits the cell on that side;
