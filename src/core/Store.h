@@ -53,6 +53,17 @@ QString workspaceFileName();                // "workspace.mirante"
 bool isWorkspace(const QString &dir);
 // Makes the folder a workspace by writing its workspace.mirante, with the name.
 bool createWorkspace(const QString &dir, const QString &name, QString *error = nullptr);
+// Moves a workspace's folder, with everything in it, to the folder to. to
+// must not exist yet, or be empty, and must not be inside from. The caller
+// closes the Store first, so nothing in the app watches or writes the folder.
+// The folder is renamed in place first, so one that another program holds
+// open, as Windows refuses to move, fails before anything changes. Across
+// drives the files are copied and the old folder removed; a failed copy puts
+// everything back. Returns false and sets *error if the workspace was not
+// moved. If the old folder could not be removed entirely after a copy, it
+// stays under another name, given in *leftover.
+bool moveWorkspace(const QString &from, const QString &to, QString *error = nullptr,
+                   QString *leftover = nullptr);
 
 // Writes the workspace's name into workspace.mirante at the top of the data
 // folder, keeping the file's other keys. The first file M2 writes; see

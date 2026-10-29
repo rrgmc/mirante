@@ -95,6 +95,8 @@ Settings that only make sense on one device are stored with `QSettings`, outside
 - the global hotkey;
 - the device name, shown on local Claude session items.
 
+Moving a workspace with File > Move Workspace… updates the settings that name its folder: the last workspace, the recent list, its open tabs, and project folder paths inside it. See [decision 0055](decisions/0055-move-workspace.md).
+
 Started with `--settings <file>`, the app keeps these settings in that INI file instead, and leaves the device's own settings alone. Test runs use it, so they do not change the last workspace, the recent list or the open tabs of the person using the app.
 
 ## Secrets

@@ -822,6 +822,56 @@ private slots:
         QVERIFY(!f.window->renameWorkspace(QStringLiteral("Other")));
     }
 
+    // Moving a workspace opens it in its new folder, keeps its open tabs and
+    // its place in the recent list, and keeps writing there. Logins are kept
+    // by profile id, so nothing about them changes.
+    void moveWorkspace()
+    {
+        QTemporaryDir root;
+        QVERIFY(root.isValid());
+        const QString from = QDir(root.path()).absoluteFilePath(QStringLiteral("old"));
+        QVERIFY(copyFixtures(from));
+
+        Fixture f;
+        f.window->openWorkspace(from);
+        f.window->openRootDashboard(kRelease);
+        f.window->saveOpenTabs();
+        const DeviceSettings::Tabs saved = f.settings.openTabs(from);
+
+        const QString to = QDir(root.path()).absoluteFilePath(QStringLiteral("moved/here"));
+        QVERIFY(f.window->moveWorkspace(to));
+        QCOMPARE(f.window->workspace(), to);
+        QVERIFY(!QFileInfo::exists(from));
+        QVERIFY(store::isWorkspace(to));
+        QCOMPARE(f.window->recentWorkspaces(), QStringList{to});
+        QCOMPARE(f.settings.lastWorkspace(), to);
+        QVERIFY(!f.settings.openTabs(from).saved);
+        QCOMPARE(f.settings.openTabs(to).ids, saved.ids);
+        QCOMPARE(f.bar()->count(), int(saved.ids.size()));
+        QCOMPARE(f.settings.openTabs(to).current, saved.current);
+        QVERIFY(f.window->findChild<QWidget *>(QStringLiteral("warningBar"))->isHidden());
+
+        // Edits are written to the new folder.
+        QVERIFY(f.window->renameWorkspace(QStringLiteral("Moved")));
+        f.dataStore.flush();
+        QFile file(QDir(to).filePath(QStringLiteral("workspace.mirante")));
+        QVERIFY(file.open(QIODevice::ReadOnly));
+        QCOMPARE(QJsonDocument::fromJson(file.readAll()).object().value(QStringLiteral("name")).toString(),
+                 QStringLiteral("Moved"));
+        file.close();
+
+        // A folder that is not empty is refused; the workspace stays open
+        // where it is, and the warning bar says why.
+        QVERIFY(!f.window->moveWorkspace(root.path()));
+        QCOMPARE(f.window->workspace(), to);
+        QVERIFY(store::isWorkspace(to));
+        QVERIFY(!f.window->findChild<QWidget *>(QStringLiteral("warningBar"))->isHidden());
+
+        // The sample data cannot be moved.
+        f.window->openSampleData();
+        QVERIFY(!f.window->moveWorkspace(QDir(root.path()).absoluteFilePath(QStringLiteral("sample"))));
+    }
+
     // An edit through EntityActions reaches the file on disk.
     void editReachesDisk()
     {

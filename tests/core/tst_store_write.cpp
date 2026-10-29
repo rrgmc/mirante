@@ -94,6 +94,8 @@ private slots:
     void imageFiles();
     void saveFile();
     void closeFlushes();
+    void moveWorkspace();
+    void moveWorkspaceRefused();
 
 private:
     std::unique_ptr<QTemporaryDir> m_dir;
@@ -473,6 +475,62 @@ void TestStoreWrite::closeFlushes()
         model.setGroup(makeGroup(QStringLiteral("g3"), QStringLiteral("Third")));
     }
     QVERIFY(QFile::exists(path(QStringLiteral("groups/g3.json"))));
+}
+
+// The whole folder moves, hidden files and subfolders too, into a new
+// folder or an empty one.
+void TestStoreWrite::moveWorkspace()
+{
+    QTemporaryDir root;
+    QVERIFY(root.isValid());
+    const QString from = root.filePath(QStringLiteral("work"));
+    QVERIFY(QDir().mkpath(from + QStringLiteral("/files")));
+    QVERIFY(store::createWorkspace(from, QStringLiteral("Work")));
+    writeFile(from + QStringLiteral("/files/a.png"), "png");
+    writeFile(from + QStringLiteral("/.hidden"), "sync");
+
+    const QString to = root.filePath(QStringLiteral("elsewhere/work"));
+    QString error;
+    QString leftover;
+    QVERIFY2(store::moveWorkspace(from, to, &error, &leftover), qPrintable(error));
+    QVERIFY(leftover.isEmpty());
+    QVERIFY(!QFileInfo::exists(from));
+    QVERIFY(store::isWorkspace(to));
+    QVERIFY(QFile::exists(to + QStringLiteral("/files/a.png")));
+    QVERIFY(QFile::exists(to + QStringLiteral("/.hidden")));
+    // Nothing else is left beside the old place.
+    QCOMPARE(QDir(root.path()).entryList(QDir::AllEntries | QDir::NoDotAndDotDot), QStringList{QStringLiteral("elsewhere")});
+
+    // An empty folder takes the files.
+    const QString empty = root.filePath(QStringLiteral("empty"));
+    QVERIFY(QDir().mkpath(empty));
+    QVERIFY2(store::moveWorkspace(to, empty, &error), qPrintable(error));
+    QVERIFY(store::isWorkspace(empty));
+    QVERIFY(!QFileInfo::exists(to));
+}
+
+// A folder that is not empty, the workspace itself, a folder inside it and a
+// folder that is not a workspace are refused, and nothing changes.
+void TestStoreWrite::moveWorkspaceRefused()
+{
+    QTemporaryDir root;
+    QVERIFY(root.isValid());
+    const QString from = root.filePath(QStringLiteral("work"));
+    QVERIFY(QDir().mkpath(from));
+    QVERIFY(store::createWorkspace(from, QStringLiteral("Work")));
+    const QString full = root.filePath(QStringLiteral("full"));
+    QVERIFY(QDir().mkpath(full));
+    writeFile(full + QStringLiteral("/note.txt"), "x");
+
+    QString error;
+    QVERIFY(!store::moveWorkspace(from, full, &error));
+    QVERIFY(!error.isEmpty());
+    QVERIFY(!store::moveWorkspace(from, from, &error));
+    QVERIFY(!store::moveWorkspace(from, from + QStringLiteral("/sub"), &error));
+    QVERIFY(!store::moveWorkspace(full, root.filePath(QStringLiteral("new")), &error));
+    QVERIFY(store::isWorkspace(from));
+    QVERIFY(QFile::exists(full + QStringLiteral("/note.txt")));
+    QVERIFY(!QFileInfo::exists(root.filePath(QStringLiteral("new"))));
 }
 
 QTEST_GUILESS_MAIN(TestStoreWrite)

@@ -36,6 +36,10 @@ public:
     void addRecentWorkspace(const QString &folder);
     void removeRecentWorkspace(const QString &folder);
     void clearRecentWorkspaces();
+    // After a workspace's folder moved from one path to another: the last
+    // workspace, the recent list, the open tabs and project folder paths
+    // inside the old folder take the new path. See docs/ui.md#menus.
+    void moveWorkspace(const QString &from, const QString &to);
 
     // The local path of a project folder, by the folder's id. Empty if not set.
     // See docs/decisions/0010-folder-identity.md.

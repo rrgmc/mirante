@@ -73,6 +73,13 @@ public:
     // workspace.mirante. The sample data cannot be renamed. Returns false if
     // it is refused.
     bool renameWorkspace(const QString &name);
+    // Moves the open workspace's folder to destination, which must not exist
+    // yet or be empty, and opens it there. The device settings that name the
+    // folder, such as the recent list and the open tabs, follow it. Web logins
+    // and tokens are kept by profile id, not by folder, so they keep working.
+    // The sample data cannot be moved. Returns false, and shows why, if the
+    // workspace was not moved; it then stays open where it was.
+    bool moveWorkspace(const QString &destination);
 
     void showAbout();
     // Opens the settings window, or brings it to the front: Settings… in the
