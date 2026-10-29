@@ -99,7 +99,7 @@ ImagePaste::ImagePaste(Model &model, Store &store, const ItemTypeRegistry &types
 ImagePaste::~ImagePaste() = default;
 
 ImagePaste::Result ImagePaste::paste(const QImage &image, const DashboardRef &dashboard,
-                                     const std::optional<NodePath> &focusedCell)
+                                     const std::optional<NodePath> &focusedCell, const QString &rootTaskId)
 {
     // The focused cell, if the path leads to a cell of the dashboard's layout.
     const LayoutNode *tree = d->model.layout(dashboard);
@@ -120,15 +120,16 @@ ImagePaste::Result ImagePaste::paste(const QImage &image, const DashboardRef &da
     const ItemType *type = d->imageType();
     if (!type)
         return Result::NoImageType;
-    if (dashboard.isRoot())
-        return Result::RootDashboard;
     if (!d->locks.isUnlocked(dashboard.dashboardId))
         return Result::Locked;
+    // A root dashboard has no task of its own, so the caller names one.
+    const QString taskId = dashboard.isRoot() ? rootTaskId : dashboard.taskId;
+    if (taskId.isEmpty())
+        return Result::RootDashboard;
 
-    const Task *task = d->model.task(dashboard.taskId);
-    const Dashboard *taskDashboard = d->model.taskDashboard(dashboard.taskId, dashboard.dashboardId);
-    if (!task || !taskDashboard)
-        return Result::SaveFailed;      // the dashboard is gone; nothing to paste into
+    const Task *task = d->model.task(taskId);
+    if (!task || !tree)
+        return Result::SaveFailed;      // the task or dashboard is gone; nothing to paste into
 
     const QString file = d->save(image);
     if (file.isEmpty())
@@ -141,20 +142,29 @@ ImagePaste::Result ImagePaste::paste(const QImage &image, const DashboardRef &da
     item.config = defaultConfig(type->fields());
     item.config.insert(type->pastedImageField(), file);
 
+    // A root dashboard's item cell names the task, since it can show items of any task.
     CellRef ref;
     ref.item = item.id;
+    if (dashboard.isRoot())
+        ref.task = task->id;
 
     LayoutNode layout;
     if (cell && !cell->ref)
-        layout = layout::setRef(taskDashboard->layout, *focusedCell, ref);
+        layout = layout::setRef(*tree, *focusedCell, ref);
     else if (cell)
-        layout = layout::splitCell(taskDashboard->layout, *focusedCell, Edge::Right, ref).tree;
-    else if (taskDashboard->layout.kind == LayoutNode::Kind::Cell && !taskDashboard->layout.ref)
-        layout = layout::setRef(taskDashboard->layout, NodePath{}, ref);   // a dashboard of one empty cell
+        layout = layout::splitCell(*tree, *focusedCell, Edge::Right, ref).tree;
+    else if (tree->kind == LayoutNode::Kind::Cell && !tree->ref)
+        layout = layout::setRef(*tree, NodePath{}, ref);   // a dashboard of one empty cell
     else
-        layout = layout::splitCell(taskDashboard->layout, NodePath{}, Edge::Right, ref).tree;
+        layout = layout::splitCell(*tree, NodePath{}, Edge::Right, ref).tree;
 
     Task changed = edits::addItem(*task, item);
+    if (dashboard.isRoot()) {
+        // The item first, so the root dashboard's cell refers to something.
+        d->model.setTask(changed);
+        d->model.setLayout(dashboard, layout);
+        return Result::CreatedItem;
+    }
     for (Dashboard &board : changed.dashboards) {
         if (board.id == dashboard.dashboardId)
             board.layout = layout;
@@ -179,7 +189,7 @@ QString ImagePaste::message(Result result)
     case Result::Locked:
         return QCoreApplication::translate("ImagePaste", "Unlock the dashboard to paste an image into it.");
     case Result::RootDashboard:
-        return QCoreApplication::translate("ImagePaste", "Paste images into a task dashboard.");
+        return QCoreApplication::translate("ImagePaste", "A pasted image belongs to a task. Add an active task first.");
     case Result::NoImageType:
         return QCoreApplication::translate("ImagePaste", "This build cannot show images.");
     case Result::SaveFailed:
