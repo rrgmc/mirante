@@ -8,6 +8,7 @@
 #include <QIcon>
 #include <QLabel>
 #include <QMenu>
+#include <QPushButton>
 #include <QSet>
 #include <QTabBar>
 #include <QToolButton>
@@ -15,6 +16,7 @@
 #include <QVBoxLayout>
 
 #include <functional>
+#include <utility>
 
 namespace mirante {
 
@@ -56,6 +58,8 @@ struct Sidebar::Private
     QToolButton *hideLow = nullptr;
     QLabel *title = nullptr;
     QTabBar *stateTabs = nullptr;       // the task lists: "Projects", "Active" and "Done"
+    QPushButton *focus = nullptr;       // the Focus entry above the tree
+    MenuFiller menuFiller;
 
     // Expansion survives a reset of the model. Groups and projects start
     // expanded, so the user's collapsed ones are kept; tasks start collapsed.
@@ -156,6 +160,14 @@ Sidebar::Sidebar(const Model &model, const ItemTypeRegistry &types, QWidget *par
     header->addWidget(collapseTasks);
     header->addWidget(collapse);
 
+    // The Focus entry, above the tree.
+    d->focus = new QPushButton(tr("Focus"), this);
+    d->focus->setObjectName(QStringLiteral("focusEntry"));
+    d->focus->setToolTip(tr("Active tasks of every project, most important first"));
+    d->focus->setFlat(true);
+    d->focus->setStyleSheet(QStringLiteral("QPushButton { text-align: left; padding: 4px 8px; }"));
+    connect(d->focus, &QPushButton::clicked, this, &Sidebar::focusRequested);
+
     // The tree.
     d->tree = new QTreeView(this);
     d->tree->setModel(d->model);
@@ -169,8 +181,11 @@ Sidebar::Sidebar(const Model &model, const ItemTypeRegistry &types, QWidget *par
     d->tree->setPalette(treePalette);
     d->tree->setFrameShape(QFrame::NoFrame);
     d->tree->setSelectionMode(QAbstractItemView::SingleSelection);
+    // Items and dashboards are dragged onto dashboards. Groups, projects and
+    // tasks are dragged among their siblings; the model reports the drop.
     d->tree->setDragEnabled(true);
-    d->tree->setDragDropMode(QAbstractItemView::DragOnly);
+    d->tree->setDragDropMode(QAbstractItemView::DragDrop);
+    d->tree->setDropIndicatorShown(true);
     d->tree->setExpandsOnDoubleClick(false);    // a double click on a task pins it
     d->tree->setContextMenuPolicy(Qt::CustomContextMenu);
 
@@ -211,6 +226,7 @@ Sidebar::Sidebar(const Model &model, const ItemTypeRegistry &types, QWidget *par
     layout->setContentsMargins(0, 0, 0, 0);
     layout->setSpacing(0);
     layout->addLayout(header);
+    layout->addWidget(d->focus);
     layout->addWidget(d->tree, 1);
     layout->addLayout(footer);
 
@@ -255,20 +271,29 @@ Sidebar::Sidebar(const Model &model, const ItemTypeRegistry &types, QWidget *par
     });
 
     connect(d->tree, &QWidget::customContextMenuRequested, this, [this](const QPoint &pos) {
-        // Task dashboards and items can each be put in a new root dashboard.
         const QModelIndex index = d->tree->indexAt(pos);
-        const SidebarModel::Kind kind = index.isValid() ? d->kind(index) : SidebarModel::Kind::Group;
-        if (kind != SidebarModel::Kind::Dashboard && kind != SidebarModel::Kind::Item)
+        if (!index.isValid())
             return;
+        const SidebarModel::Kind kind = d->kind(index);
         const QString taskId = index.data(SidebarModel::TaskIdRole).toString();
         const QString id = d->id(index);
         QMenu menu(this);
-        menu.addAction(tr("Open in new root dashboard"), this, [this, kind, taskId, id] {
-            if (kind == SidebarModel::Kind::Dashboard)
-                emit openInNewRootDashboard(taskId, id);
-            else
-                emit openItemInNewRootDashboard(taskId, id);
-        });
+        // The entity commands first, then the sidebar's own.
+        if (d->menuFiller)
+            d->menuFiller(&menu, kind, id, taskId);
+        // Task dashboards and items can each be put in a new root dashboard.
+        if (kind == SidebarModel::Kind::Dashboard || kind == SidebarModel::Kind::Item) {
+            if (!menu.isEmpty())
+                menu.addSeparator();
+            menu.addAction(tr("Open in new root dashboard"), this, [this, kind, taskId, id] {
+                if (kind == SidebarModel::Kind::Dashboard)
+                    emit openInNewRootDashboard(taskId, id);
+                else
+                    emit openItemInNewRootDashboard(taskId, id);
+            });
+        }
+        if (menu.isEmpty())
+            return;
         menu.exec(d->tree->viewport()->mapToGlobal(pos));
     });
 }
@@ -322,7 +347,6 @@ void Sidebar::collapseAllTasks()
 
 SidebarModel *Sidebar::model() const { return d->model; }
 
-// Stub written by T0 of the M3 plan. T10 implements it.
-void Sidebar::setMenuFiller(MenuFiller) {}
+void Sidebar::setMenuFiller(MenuFiller filler) { d->menuFiller = std::move(filler); }
 
 } // namespace mirante
