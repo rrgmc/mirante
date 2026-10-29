@@ -19,25 +19,42 @@ The user chooses the data folder on each device. It does not have to be at the s
 - **One file per entity.** A task file holds the task's items and its task dashboards. A group file holds its connections without tokens.
 - **Binary files** of items, such as the images of Image items, sit in `files/` and are referred to by name. See [decision 0021](decisions/0021-image-items-as-files.md).
 - **Why this layout.** Two devices rarely change the same file at the same time. When they do, the sync tool keeps a conflict copy instead of damaging the data.
-- **Version field.** Every file has a `schemaVersion` field. The app migrates older files when it loads them, and writes them back in the new version only when they change for another reason.
+- **Version field.** Every file has a `schemaVersion` field. The app migrates older files when it loads them, and writes them back in the new version only when they change for another reason. A file with a newer `schemaVersion` was written by a newer version of Mirante. The app skips it, reports it in the warning bar, and never writes over it.
 - **Unknown fields** are kept when a file is written back, so an older app version does not delete data written by a newer one.
 - **Unknown modules.** Items, connections and project settings of a module that is not in this build are kept unchanged too. A device built without a module never damages its data. See [missing modules](modules.md#missing-modules).
 - **Format.** Files are pretty-printed JSON with sorted keys, so the files are easy to read and compare.
 
 A single SQLite database is not used. Sync tools copy database files whole and can damage them.
 
+The sample data compiled into the app is read-only. Edits change what is shown, but nothing is saved. See [decision 0029](decisions/0029-sample-data-read-only.md).
+
 ## Writing
 
 - Each change writes the affected file with `QSaveFile`, which writes to a temporary file and renames it. A reader never sees a half-written file.
 - Writes are debounced by 500 ms, so dragging through a layout does not write many times.
 - Deleting an entity deletes its file. Entities that refer to it are cleaned up when they are next loaded. For example, a cell refers to a deleted task: see [normalisation](data-model.md#normalisation).
+- `workspace.mirante` is never deleted. Its keys other than the name are kept when the name changes.
+- A write that fails, for example because another program holds the file open for a moment, is tried again. While it fails, the warning bar shows it.
+
+### Image files
+
+- When an edit on this device removes the last reference to a file in `files/`, the app deletes the file. Examples are replacing an image, or deleting an item, task, project or group.
+- A reference is any string in any item's configuration equal to the file name. This includes items of modules that are not in the build.
+- The app never deletes a file only because it finds it unreferenced on disk. Another device may have added the image, and the task file that refers to it may not have arrived yet. A change that arrives from another device never deletes a file either.
+
+See [decision 0030](decisions/0030-deleting-image-files.md).
 
 ## Reading external changes
 
-- `QFileSystemWatcher` watches the four subfolders.
+- `QFileSystemWatcher` watches the top folder, for `workspace.mirante`, and its five subfolders: `groups/`, `projects/`, `tasks/`, `dashboards/` and `files/`. A subfolder that appears later is watched too.
 - A change starts a reload of the changed files after 300 ms of quiet.
 - The app remembers the content hash of each file it wrote, and ignores change events for files whose content matches. This avoids reloading its own writes.
-- A reload updates the model in place. Open views keep their state where the entity still exists.
+- The temporary files of `QSaveFile` and of sync tools are ignored.
+- A reload updates the model in place. Open views keep their state where the entity still exists. A reload is never written back.
+- A changed file that cannot be used, for example because it is not valid JSON, is reported. The app keeps the entity as it was until the file is repaired.
+- A removed file removes its entity. Removing a group or project also removes its children from the app, as loading would. If a child's file is still there, it is reported, and comes back when its parent's file does.
+- A project or task whose parent is not loaded yet is reported and tried again after each later change, because a sync tool may deliver a child before its parent.
+- A change in `files/` does not change the model.
 
 ## Conflict copies
 
