@@ -44,14 +44,14 @@ The base of the Qt app, reading a fixed set of JSON files. Nothing is written ba
 
 See [the M3 plan](plans/m3-data-folder.md).
 
-- [ ] `Store` writes changes with `QSaveFile`, and reloads external changes. (Choosing the data folder, as a workspace, arrived early in M2.)
-- [ ] Groups, projects, tasks, items and dashboards can be created, edited and deleted.
-- [ ] The `files/` folder of the data folder: pasting an image from the clipboard creates or fills an Image item and saves the image there; unused files are deleted. See [decision 0021](decisions/0021-image-items-as-files.md).
-- [ ] Priorities, including drag across priority levels, and task states work.
-- [ ] The Focus view works.
-- [ ] Project folders can be mapped to a local path on each device.
-- [ ] Two app instances pointed at the same folder see each other's changes. Conflict copies appear in the warning bar.
-- [ ] Tests cover the Store, migrations, conflict detection and sorting.
+- [x] `Store` writes changes with `QSaveFile`, and reloads external changes. (Choosing the data folder, as a workspace, arrived early in M2.)
+- [x] Groups, projects, tasks, items and dashboards can be created, edited and deleted.
+- [x] The `files/` folder of the data folder: pasting an image from the clipboard creates or fills an Image item and saves the image there; unused files are deleted. See [decision 0021](decisions/0021-image-items-as-files.md).
+- [x] Priorities and task states work. Priority shows as a marker and the sidebar keeps the manual order; see [decision 0034](decisions/0034-manual-order-in-the-sidebar.md).
+- [x] The Focus view works.
+- [x] Project folders can be mapped to a local path on each device.
+- [x] Two app instances pointed at the same folder see each other's changes. Conflict copies appear in the warning bar.
+- [x] Tests cover the Store, migrations, conflict detection and sorting.
 
 ## M4: Web views
 
