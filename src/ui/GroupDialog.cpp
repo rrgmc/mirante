@@ -5,6 +5,7 @@
 
 #include <QApplication>
 #include <QButtonGroup>
+#include <QCheckBox>
 #include <QColorDialog>
 #include <QComboBox>
 #include <QDialogButtonBox>
@@ -63,6 +64,13 @@ struct GroupDialog::Private
     QLineEdit *name = nullptr;
     QComboBox *profile = nullptr;
     QLabel *message = nullptr;             // why OK was refused
+    QFormLayout *form = nullptr;
+
+    // The new profile offered for a new group; null unless offered.
+    QCheckBox *newProfile = nullptr;
+    QLineEdit *newProfileName = nullptr;
+    bool profileNameEdited = false;        // the name no longer follows the group's
+    QStringList existingProfileNames;
 
     // The colour. chosenColour is empty until one is chosen in the dialog.
     QString chosenColour;
@@ -162,10 +170,7 @@ GroupDialog::GroupDialog(const Group &group, QWidget *parent)
     // The profile.
     d->profile = new QComboBox(this);
     d->profile->setObjectName(QStringLiteral("profile"));
-    auto *profileHelp = new QLabel(tr("Items of this group use this profile for their logins and module "
-                                      "settings, unless an item chooses its own. Manage them with "
-                                      "Profiles > Manage Profiles…."),
-                                   this);
+    auto *profileHelp = new QLabel(tr("Items of this group use this profile, unless an item chooses its own."), this);
     profileHelp->setWordWrap(true);
 
     d->message = new QLabel(this);
@@ -174,6 +179,7 @@ GroupDialog::GroupDialog(const Group &group, QWidget *parent)
     d->message->hide();
 
     auto *form = new QFormLayout;
+    d->form = form;
     form->addRow(tr("Name:"), d->name);
     form->addRow(tr("Colour:"), colourRow);
     form->addRow(QString(), colourHelp);
@@ -185,6 +191,9 @@ GroupDialog::GroupDialog(const Group &group, QWidget *parent)
     connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
 
     auto *layout = new QVBoxLayout(this);
+    // The dialog is never smaller than its content, wrapped help texts and
+    // rows added by offerNewProfile() included.
+    layout->setSizeConstraint(QLayout::SetMinimumSize);
     layout->addLayout(form);
     layout->addStretch(1);
     layout->addWidget(d->message);
@@ -241,13 +250,79 @@ void GroupDialog::setProfile(const QString &id)
         d->profile->setCurrentIndex(index);
 }
 
+void GroupDialog::offerNewProfile(const QStringList &existingNames)
+{
+    if (d->newProfile)
+        return;
+    d->existingProfileNames = existingNames;
+    d->newProfile = new QCheckBox(tr("Create a new profile for this group"), this);
+    d->newProfile->setObjectName(QStringLiteral("createProfile"));
+    d->newProfile->setChecked(false);
+    d->newProfileName = new QLineEdit(d->name->text().trimmed(), this);
+    d->newProfileName->setObjectName(QStringLiteral("newProfileName"));
+    d->newProfileName->setEnabled(false);
+    // The profile row follows the profile list, after its help text.
+    d->form->addRow(QString(), d->newProfile);
+    d->form->addRow(tr("Profile name:"), d->newProfileName);
+
+    connect(d->newProfile, &QCheckBox::toggled, this, [this](bool on) {
+        d->newProfileName->setEnabled(on);
+        d->profile->setEnabled(!on);
+        if (on)
+            d->newProfileName->setFocus();
+    });
+    // The suggested name is the group's, until the user types another.
+    connect(d->name, &QLineEdit::textChanged, this, [this](const QString &text) {
+        if (!d->profileNameEdited)
+            d->newProfileName->setText(text.trimmed());
+    });
+    connect(d->newProfileName, &QLineEdit::textEdited, this, [this] { d->profileNameEdited = true; });
+}
+
+bool GroupDialog::createsProfile() const { return d->newProfile && d->newProfile->isChecked(); }
+
+QString GroupDialog::newProfileName() const
+{
+    return d->newProfileName ? d->newProfileName->text().trimmed() : QString();
+}
+
+void GroupDialog::setCreatesProfile(bool on)
+{
+    if (d->newProfile)
+        d->newProfile->setChecked(on);
+}
+
+void GroupDialog::setNewProfileName(const QString &name)
+{
+    if (!d->newProfileName)
+        return;
+    d->newProfileName->setText(name);
+    d->profileNameEdited = true;
+}
+
 void GroupDialog::accept()
 {
-    if (d->name->text().trimmed().isEmpty()) {
-        d->message->setText(tr("Enter a name."));
+    const auto refuse = [this](const QString &text, QWidget *focus) {
+        d->message->setText(text);
         d->message->show();
-        d->name->setFocus();
+        focus->setFocus();
+    };
+    if (d->name->text().trimmed().isEmpty()) {
+        refuse(tr("Enter a name."), d->name);
         return;
+    }
+    if (createsProfile()) {
+        const QString name = newProfileName();
+        if (name.isEmpty()) {
+            refuse(tr("Enter a name for the new profile."), d->newProfileName);
+            return;
+        }
+        for (const QString &existing : std::as_const(d->existingProfileNames)) {
+            if (existing.compare(name, Qt::CaseInsensitive) == 0) {
+                refuse(tr("A profile called \"%1\" already exists.").arg(existing), d->newProfileName);
+                return;
+            }
+        }
     }
     QDialog::accept();
 }

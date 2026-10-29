@@ -31,7 +31,18 @@ public:
     // group's own is kept, so a group without one stays without one.
     QString colour() const;
 
+    // Offers "Create a new profile for this group", unticked, with a profile
+    // name that follows the group's name until it is edited. While ticked,
+    // the profile list is disabled. EntityActions offers it for a new group
+    // when other groups exist. existingNames are refused, ignoring case.
+    void offerNewProfile(const QStringList &existingNames);
+    // Whether the new profile was asked for, and its name, trimmed.
+    bool createsProfile() const;
+    QString newProfileName() const;
+
     void setName(const QString &name);    // for tests
+    void setCreatesProfile(bool on);           // for tests
+    void setNewProfileName(const QString &name);  // for tests
     void setProfile(const QString &id);      // for tests
     void setColour(const QString &colour);   // for tests; as if chosen in the dialog
 
