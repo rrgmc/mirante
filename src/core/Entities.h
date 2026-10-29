@@ -78,7 +78,10 @@ struct Project
     std::vector<Folder> folders;
     QJsonObject moduleSettings;                  // one object per module id; opaque to the core
     QMap<QString, QString> connectionOverrides;  // connection kind to connection id
+    QString trashedAt;                           // ISO 8601 UTC; empty if not in the trash
     QJsonObject extra;
+
+    bool isTrashed() const { return !trashedAt.isEmpty(); }
 
     static std::optional<Project> fromJson(const QJsonObject &json, QString *error = nullptr);
     QJsonObject toJson() const;
@@ -129,7 +132,10 @@ struct Task
     std::vector<Item> items;
     std::vector<Dashboard> dashboards;
     QString defaultDashboardId;
+    QString trashedAt;          // ISO 8601 UTC; empty if not in the trash
     QJsonObject extra;
+
+    bool isTrashed() const { return !trashedAt.isEmpty(); }
 
     static std::optional<Task> fromJson(const QJsonObject &json, QString *error = nullptr);
     QJsonObject toJson() const;

@@ -33,6 +33,7 @@ The sample data compiled into the app is read-only. Edits change what is shown, 
 - Each change writes the affected file with `QSaveFile`, which writes to a temporary file and renames it. A reader never sees a half-written file.
 - Writes are debounced by 500 ms, so dragging through a layout does not write many times.
 - Deleting an entity deletes its file. Entities that refer to it are cleaned up when they are next loaded. For example, a cell refers to a deleted task: see [normalisation](data-model.md#normalisation).
+- Moving a task or project to the [trash](data-model.md#trash) only changes its file, through its `trashedAt` field, so the trash syncs like any other change. Its file is deleted when the trash is emptied.
 - `workspace.mirante` is never deleted. Its keys other than the name are kept when the name changes.
 - A write that fails, for example because another program holds the file open for a moment, is tried again. While it fails, the warning bar shows it.
 

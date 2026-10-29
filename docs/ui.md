@@ -35,17 +35,29 @@ The sidebar can be collapsed.
 - A coloured marker shows the priority level. Projects have a small rounded square and tasks a circle, so the two levels are easy to tell apart. Low items are dimmed.
 - Each task has two fixed children: **Dashboards**, with its task dashboards, then **Items**, with the task's items. They are there for every task, even when empty.
 - The selected row keeps its full highlight colour when the sidebar does not have the focus, so the dashboard on screen stays easy to see.
-- Three tabs at the bottom choose the task list. **Projects** lists active tasks under every project, including projects without any. **Active** lists the same tasks, but leaves out projects without active tasks. **Done** lists done and archived tasks under every project. A filter button right of the workspace title opens a menu with a checkbox for each priority. Unchecking one hides the projects and tasks of that priority in all three lists. The button looks pressed while it hides something. All priorities are shown at start.
+- Four tabs at the bottom choose the task list. **Projects** lists active tasks under every project, including projects without any. **Active** lists the same tasks, but leaves out projects without active tasks. **Done** lists done and archived tasks under every project. **Trash** lists what is in the [trash](#trash). The first three lists leave out projects and tasks in the trash. A filter button right of the workspace title opens a menu with a checkbox for each priority. Unchecking one hides the projects and tasks of that priority in the Projects, Active and Done lists. The button looks pressed while it hides something. All priorities are shown at start.
 - A `+` button in the sidebar header opens a menu: New Group…, New Project… in the group of the selected row, and New Task… in the project of the selected row. The last two are disabled when the selection has no group or project.
 - Two buttons in the sidebar header expand or collapse every task at once, with its Dashboards and Items. Groups and projects are left as they are; they open and close by hand only.
 - [Attention badges](#attention) appear on tasks, and are summed on projects and groups.
 - **Drag and drop:**
-  - Dragging a group, project or task among its siblings changes its place. It never changes a priority.
+  - Dragging a group, project or task among its siblings changes its place. It never changes a priority. Nothing is dragged in the Trash list.
   - A task itself is not dragged onto dashboards. Drag one of its items, to show that item, or one of its dashboards, to show the task with that dashboard in a root dashboard. See [placing tasks](#placing-tasks-and-items).
 - The context menu holds new, edit, rename, set priority, set state and delete, and on a task dashboard "Set as default". On a task dashboard or an item it also holds "Open in new root dashboard", which makes a root dashboard showing just that dashboard or item.
 - Project rows have a light tinted background, so they stand out between groups and tasks.
 - While the mouse is over a dashboard cell, the sidebar row of what the cell shows gets a soft tint: the item's row for an item cell, also one inside a task cell, and the task's row for a task cell. The tint goes when the mouse leaves the cell. The tree does not expand or scroll for it, so an item under a collapsed task shows no tint.
-- Every delete asks for confirmation first.
+- "Delete project…" and "Delete task…" move the project or task to the [trash](#trash), without a question, since it can be undone. Holding `Shift` while choosing them deletes for good, after a confirmation. Every other delete, such as of a group, an item or a task dashboard, asks for confirmation first and cannot be undone.
+
+### Trash
+
+Deleted projects and tasks go to the trash first. See [decision 0036](decisions/0036-trash-for-tasks-and-projects.md) and [data model](data-model.md#trash).
+
+- The **Trash** tab at the bottom of the sidebar lists, under their groups, the projects in the trash with all their tasks, and the other projects that hold tasks in the trash, with only those tasks. Groups with nothing in the trash are left out. The priority filter does not apply here.
+- The context menu of a project or task offers **Restore** and **Delete permanently…**. Delete permanently asks for confirmation first. Restoring a task whose project is in the trash restores the project too, with all its tasks.
+- While the Trash tab is shown, an **Empty Trash…** button at the bottom deletes everything in the trash for good, after one confirmation that names the counts, such as "Permanently delete 1 project and 6 tasks in the trash?". The button is disabled when the trash is empty.
+- A double click in the Trash list only expands or collapses a row. Nothing there opens.
+- A project in the trash takes its tasks with it. They are left out of the other sidebar lists, [Focus](#focus-view), the [quick switcher](#keyboard), and the project and task pickers, such as the task dialog's project list and the task picker for a pasted image.
+- Tabs of a task in the trash close, as for a deleted task.
+- A dashboard cell that shows a task in the trash, or an item of one, reads "In trash" instead of its content. It keeps its reference, so a restore brings the content back. A task cell changes at once; an item cell of a root dashboard changes when the dashboard is next built, such as when its tab opens.
 
 ## Window
 
@@ -156,7 +168,7 @@ If the same item is shown in two places, each place has its own live view. See [
 Focus answers "what should I work on now?", across all projects.
 
 - The Focus entry in the sidebar opens Focus in a "Focus" tab at the start of the root tab bar. There is at most one Focus tab. It can be closed like any other tab.
-- It lists active tasks from all projects, or from one group, chosen in a combo box. The combo box holds "All groups", then the groups in manual order.
+- It lists active tasks from all projects, or from one group, chosen in a combo box. Tasks in the [trash](#trash), and the tasks of projects in the trash, are left out. The combo box holds "All groups", then the groups in manual order.
 - Each row shows the task title, then its project and group, dimmed, and the [priority](data-model.md#priority) marker of the sidebar, a circle as for every task. Low tasks are dimmed.
 - A right click on a task opens the task's menu from the sidebar: edit, set priority, set state, delete and the rest.
 - **Sort order:**
@@ -197,7 +209,7 @@ The project is chosen by matching the merge request's GitLab project or the issu
 
 | Key | Action |
 |---|---|
-| `Ctrl+K` | Quick switcher: fuzzy search over groups, projects, tasks, items and dashboards |
+| `Ctrl+K` | Quick switcher: fuzzy search over groups, projects, tasks, items and dashboards. Entries in the [trash](#trash) are left out. |
 | `Ctrl+Shift+N` | Quick add |
 | `Ctrl+Alt+Arrow` | Move focus to the cell in that direction |
 | `Ctrl+Tab`, `Ctrl+Shift+Tab` | Next or previous tab in the focused tab group |

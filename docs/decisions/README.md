@@ -40,6 +40,7 @@ Each file records one design decision: what was decided, what else was considere
 | [0032](0032-paste-images-into-root-dashboards.md) | Pasting an image into a root dashboard asks for its task | Accepted |
 | [0033](0033-cell-header-pills.md) | Cell headers show the type and the place as pills | Accepted |
 | [0034](0034-manual-order-in-the-sidebar.md) | The sidebar keeps the manual order; priority is a marker | Accepted |
+| [0036](0036-trash-for-tasks-and-projects.md) | Deleted tasks and projects go to a trash | Accepted |
 
 ## Template
 

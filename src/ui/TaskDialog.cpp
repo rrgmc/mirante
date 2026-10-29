@@ -51,8 +51,11 @@ struct TaskDialog::Private
             std::vector<const Project *> projects = model.projectsOfGroup(group->id);
             std::sort(projects.begin(), projects.end(),
                       [](const Project *a, const Project *b) { return projectBefore(*a, *b); });
-            for (const Project *p : projects)
-                project->addItem(QStringLiteral("    ") + p->name, p->id);
+            // Projects in the trash are left out, except the task's own.
+            for (const Project *p : projects) {
+                if (!p->isTrashed() || p->id == task.projectId)
+                    project->addItem(QStringLiteral("    ") + p->name, p->id);
+            }
         }
     }
 };

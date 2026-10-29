@@ -83,6 +83,7 @@ private slots:
     void rootItemsNameTheirTask();
     void openAlone();
     void removedTask();
+    void trashedTask();
     void headerMenuAndDrag();
     void rootViewForwardsTaskCells();
 
@@ -306,6 +307,46 @@ void TestTaskCell::removedTask()
         texts.append(label->text());
     QVERIFY(texts.contains(QStringLiteral("Removed")));
     QVERIFY(!texts.contains(QStringLiteral("Empty")));
+}
+
+// A task in the trash reads "In trash", keeps its title, and comes back when
+// restored. So does an item of it in a root dashboard.
+void TestTaskCell::trashedTask()
+{
+    TaskCell cell(m_services, {QString(), kMorningRoot}, taskRef(kFixLoginTask));
+    auto *label = cell.findChild<QLabel *>(QStringLiteral("removedLabel"));
+    QVERIFY(label && label->isHidden());
+
+    Task task = *m_model->task(kFixLoginTask);
+    task.trashedAt = QStringLiteral("2026-10-29T10:00:00Z");
+    m_model->setTask(task);
+    QVERIFY(!cell.view());
+    QVERIFY(!label->isHidden());
+    QCOMPARE(label->text(), QStringLiteral("In trash"));
+
+    task.trashedAt.clear();
+    m_model->setTask(task);
+    QVERIFY(cell.view());
+    QVERIFY(label->isHidden());
+
+    // The task's project in the trash takes the task with it.
+    Project project = *m_model->project(task.projectId);
+    project.trashedAt = QStringLiteral("2026-10-29T10:00:00Z");
+    m_model->setProject(project);
+    QVERIFY(!label->isHidden());
+    QCOMPARE(label->text(), QStringLiteral("In trash"));
+
+    // An item of a task in the trash keeps its reference and reads "In trash".
+    const DashboardRef morning{QString(), kMorningRoot};
+    DashboardCellFactory factory(m_services, morning);
+    const CellRef itemRef{task.items.front().id, task.id, QString()};
+    QVERIFY(m_model->refExists(itemRef));
+    std::unique_ptr<QWidget> itemCell(factory.createCell(itemRef, false, nullptr));
+    QStringList texts;
+    for (const QLabel *text : itemCell->findChildren<QLabel *>())
+        texts.append(text->text());
+    QVERIFY(texts.contains(QStringLiteral("In trash")));
+    QVERIFY(texts.contains(task.items.front().name));
 }
 
 void TestTaskCell::headerMenuAndDrag()

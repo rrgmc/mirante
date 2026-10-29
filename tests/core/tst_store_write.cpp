@@ -85,6 +85,7 @@ private slots:
     void writesEachKind();
     void keepsWorkspaceKeys();
     void removalsDeleteFiles();
+    void trashSurvivesReload();
     void readOnly();
     void imageFiles();
     void saveFile();
@@ -227,6 +228,32 @@ void TestStoreWrite::removalsDeleteFiles()
     QVERIFY(!QFile::exists(path(QStringLiteral("projects/p1.json"))));
     QVERIFY(!QFile::exists(t2File));
     QVERIFY(store.problems().empty());
+}
+
+// trashedAt is written to the files and read back, so the trash syncs.
+void TestStoreWrite::trashSurvivesReload()
+{
+    const QString when = QStringLiteral("2026-10-29T10:00:00Z");
+    Task task = edits::newTask(QStringLiteral("p1"), QStringLiteral("One"));
+    {
+        Model model;
+        Store store(model);
+        QVERIFY(store.open(m_dir->path()).empty());
+        model.setGroup(makeGroup(QStringLiteral("g1"), QStringLiteral("Work")));
+        Project project = makeProject(QStringLiteral("p1"), QStringLiteral("g1"));
+        project.trashedAt = when;
+        model.setProject(project);
+        task.trashedAt = when;
+        model.setTask(task);
+        store.flush();
+    }
+    Model model;
+    QVERIFY(store::load(m_dir->path(), model).empty());
+    QVERIFY(model.project(QStringLiteral("p1")));
+    QCOMPARE(model.project(QStringLiteral("p1"))->trashedAt, when);
+    QVERIFY(model.task(task.id));
+    QCOMPARE(model.task(task.id)->trashedAt, when);
+    QVERIFY(model.taskInTrash(task.id));
 }
 
 void TestStoreWrite::readOnly()

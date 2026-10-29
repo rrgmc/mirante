@@ -57,6 +57,12 @@ public:
     using MenuFiller = std::function<void(QMenu *menu, SidebarModel::Kind kind, const QString &id,
                                           const QString &taskId)>;
     void setMenuFiller(MenuFiller filler);
+    // The same for rows of the Trash list, such as EntityActions::fillTrashMenu.
+    // The sidebar adds nothing of its own there.
+    void setTrashMenuFiller(MenuFiller filler);
+
+    // Whether the Trash list is the current one.
+    bool showsTrash() const;
 
 signals:
     // The Focus entry above the tree was activated.
@@ -72,6 +78,8 @@ signals:
     void collapseRequested();
     // A double click on the title, to rename the workspace.
     void titleDoubleClicked();
+    // The "Empty Trash…" button, shown under the Trash list, was clicked.
+    void emptyTrashRequested();
 
 private:
     struct Private;

@@ -223,6 +223,20 @@ std::vector<const RootDashboard *> Model::rootDashboards() const
     return result;
 }
 
+bool Model::taskInTrash(const Task &task) const
+{
+    if (task.isTrashed())
+        return true;
+    const Project *p = project(task.projectId);
+    return p != nullptr && p->isTrashed();
+}
+
+bool Model::taskInTrash(const QString &taskId) const
+{
+    const Task *t = task(taskId);
+    return t != nullptr && taskInTrash(*t);
+}
+
 bool Model::refExists(const CellRef &ref) const
 {
     if (ref.isItem())

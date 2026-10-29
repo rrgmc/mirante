@@ -42,6 +42,7 @@ Groups have no priority. They keep their manual order.
 | `folders` | List of [folders](#folder); exactly one has `main: true` |
 | `moduleSettings` | Project settings declared by [modules](modules.md#what-a-module-registers), as one object per module id |
 | `connectionOverrides` | Optional map from connection kind to a connection id of the same group |
+| `trashedAt` | Optional. When the project went to the [trash](#trash), as an ISO 8601 UTC string |
 
 Module settings are defaults. Items in the project's tasks use them unless they set their own value. Quick add also uses them to choose the project for a pasted link. See [ui](ui.md#quick-add).
 
@@ -81,11 +82,22 @@ Each device maps a folder id to a local path in its own settings. A device witho
 | `items` | List of [items](#item) |
 | `dashboards` | List of task [dashboards](#dashboard) |
 | `defaultDashboardId` | The dashboard shown when the task is opened |
+| `trashedAt` | Optional. When the task went to the [trash](#trash), as an ISO 8601 UTC string |
 
 Rules:
 
 - A new task gets one dashboard with a single empty cell.
 - The user sets the state. The app suggests "done" when all linked merge requests are merged and all linked Jira issues are closed. It never changes the state on its own.
+
+## Trash
+
+A project or task with a `trashedAt` value is in the trash. Without the key, or with an empty value, it is not. The key is new and optional, so files without it load as before and `schemaVersion` does not change. See [decision 0036](decisions/0036-trash-for-tasks-and-projects.md).
+
+- A project in the trash takes its tasks with it. Their own `trashedAt` is not set, so restoring the project brings back the tasks it had.
+- Entries in the trash still exist. Dashboard cells keep their references to them and read "In trash", so a restore brings them back. See [normalisation](#normalisation).
+- Emptying the trash, or deleting one entry permanently, deletes the entities and their files as any other deletion does.
+
+The sidebar's Trash list and its commands are in [ui](ui.md#trash).
 
 ## Item
 
@@ -202,7 +214,7 @@ After every edit, the app cleans the tree:
 3. A tabs node with no tabs is replaced by an empty cell.
 4. A tabs node with one tab keeps its tab bar, unless `collapseSingle` is `true`. Then it is replaced by the tab's node. The app no longer offers `collapseSingle` as a setting. It still reads and honours the flag in existing files. "Ungroup" in the tab menu sets it on a group of one tab, so this rule removes the group at once.
 5. Removing an item from a cell leaves an empty cell, not a gap.
-6. A cell that refers to a deleted item, task or dashboard becomes an empty cell showing "Removed".
+6. A cell that refers to a deleted item, task or dashboard becomes an empty cell showing "Removed". A task or project in the [trash](#trash) is not deleted, so a cell that refers to it, or to one of its items, keeps its reference and shows "In trash".
 7. A tabs node with one tab whose node is another tabs node is replaced by that inner tabs node. A tab bar with one tab around another tab bar shows nothing new.
 
 ## What is synced

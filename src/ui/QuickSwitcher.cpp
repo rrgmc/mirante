@@ -412,9 +412,14 @@ std::vector<SwitcherEntry> QuickSwitcher::candidates(const Model &model)
     std::vector<SwitcherEntry> entries;
     for (const Group *group : model.groups()) {
         entries.push_back({SwitcherEntry::Kind::Group, group->id, QString(), group->name, QString()});
+        // Nothing in the trash is offered: a project in the trash takes its tasks with it.
         for (const Project *project : model.projectsOfGroup(group->id)) {
+            if (project->isTrashed())
+                continue;
             entries.push_back({SwitcherEntry::Kind::Project, project->id, QString(), project->name, group->name});
             for (const Task *task : model.tasksOfProject(project->id)) {
+                if (task->isTrashed())
+                    continue;
                 entries.push_back({SwitcherEntry::Kind::Task, task->id, QString(), task->title,
                                    joinPath(group->name, project->name)});
                 const QString itemDetail = joinPath(project->name, task->title);

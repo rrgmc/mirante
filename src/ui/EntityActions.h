@@ -37,6 +37,9 @@ public:
     void setExec(std::function<bool(QDialog &dialog)> exec);
     // Asks the user to confirm a deletion. The default shows a message box.
     void setConfirm(std::function<bool(const QString &question)> confirm);
+    // Reads the keyboard modifiers when a menu command runs. The default is
+    // QGuiApplication::queryKeyboardModifiers(); tests set their own.
+    void setModifiers(std::function<Qt::KeyboardModifiers()> modifiers);
 
     // Creating. Each opens the entity's dialog with a new value, and returns the
     // new id, or an empty string if the dialog was cancelled. A new task gets one
@@ -54,9 +57,25 @@ public:
     void editItem(const QString &taskId, const QString &itemId);
     void renameDashboard(const QString &taskId, const QString &dashboardId);
 
-    // Deleting, after a confirmation that names what goes with the entity, such
-    // as "Delete project backend and its 4 tasks?". The last dashboard of a task
-    // cannot be deleted.
+    // The trash. See docs/ui.md#trash. Moving a project or task to the trash
+    // sets its trashedAt, without a confirmation; a project takes its tasks
+    // with it, without changing them. Restoring clears trashedAt. Restoring a
+    // task whose project is in the trash restores the project too.
+    void trashProject(const QString &id);
+    void trashTask(const QString &id);
+    void restoreProject(const QString &id);
+    void restoreTask(const QString &id);
+    // Deletes everything in the trash for good, after one confirmation that
+    // names the counts. Nothing happens when the trash is empty.
+    void emptyTrash();
+    // What the trash holds: projects in the trash, and tasks in the trash,
+    // counting every task of a project in the trash.
+    int trashedProjectCount() const;
+    int trashedTaskCount() const;
+
+    // Deleting for good, after a confirmation that names what goes with the
+    // entity, such as "Delete project backend and its 4 tasks?". The last
+    // dashboard of a task cannot be deleted.
     void removeGroup(const QString &id);
     void removeProject(const QString &id);
     void removeTask(const QString &id);
@@ -75,8 +94,12 @@ public:
 
     // Adds the commands for a sidebar row to menu: new, edit, rename, set
     // priority, set state, delete, and on dashboards "Set as default". Fits
-    // Sidebar::MenuFiller.
+    // Sidebar::MenuFiller. "Delete project…" and "Delete task…" move to the
+    // trash, or delete for good while Shift is held.
     void fillMenu(QMenu *menu, SidebarModel::Kind kind, const QString &id, const QString &taskId);
+    // The commands for a row of the sidebar's Trash list: "Restore" and
+    // "Delete permanently…" on projects and tasks. Fits Sidebar::MenuFiller.
+    void fillTrashMenu(QMenu *menu, SidebarModel::Kind kind, const QString &id, const QString &taskId);
 
 signals:
     // A task dashboard made with newDashboard, so the window can show it.

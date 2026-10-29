@@ -65,6 +65,12 @@ QWidget *DashboardCellFactory::createCell(const std::optional<CellRef> &ref, boo
     const Item *item = d->item(*ref);
     if (!item)
         return new CellFrame(ref, true, nullptr, QString(), parent);
+    // An item of a task in the trash keeps its reference, so a restore brings it back.
+    if (d->services.model->taskInTrash(d->dashboard.isRoot() ? ref->task : d->dashboard.taskId)) {
+        auto *trashed = new CellFrame(ref, true, d->type(*item), item->name, parent);
+        trashed->setMessage(QCoreApplication::translate("DashboardCellFactory", "In trash"));
+        return trashed;
+    }
     auto *frame = new CellFrame(ref, false, d->type(*item), item->name, parent);
     // In a task dashboard every item is of that task. In a root dashboard an
     // item can come from anywhere, so its header names its project and task.

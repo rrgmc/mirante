@@ -651,6 +651,30 @@ private slots:
         QCOMPARE(f.bar()->count(), 2);
     }
 
+    // A task moved to the trash, alone or with its project, closes its tabs
+    // and does not open again until restored.
+    void trashedTaskClosesItsTabs()
+    {
+        Fixture f;
+        f.window->openTaskPreview(kFixLoginTask);
+        QCOMPARE(f.bar()->count(), 3);
+        Task task = *f.model.task(kFixLoginTask);
+        task.trashedAt = QStringLiteral("2026-10-29T10:00:00Z");
+        f.model.setTask(task);
+        QCOMPARE(f.bar()->count(), 2);
+        f.window->openTaskPreview(kFixLoginTask);
+        QCOMPARE(f.bar()->count(), 2);
+
+        task.trashedAt.clear();
+        f.model.setTask(task);
+        f.window->openTaskPreview(kFixLoginTask);
+        QCOMPARE(f.bar()->count(), 3);
+        Project project = *f.model.project(task.projectId);
+        project.trashedAt = QStringLiteral("2026-10-29T10:00:00Z");
+        f.model.setProject(project);
+        QCOMPARE(f.bar()->count(), 2);
+    }
+
     // The sidebar tints the row of what the hovered cell shows: the task of a
     // task cell, or the item of an item cell, also inside a task cell.
     void hoverTintsSidebarRow()

@@ -51,12 +51,16 @@ bool taskBefore(const Task &a, const Task &b)
 // closedTasks does not apply to projects, which have no state.
 bool projectVisible(const Project &project, const SortFilter &filter)
 {
-    return filter.hiddenPriorities.count(project.priority) == 0;
+    if (filter.trash)
+        return true;
+    return !project.isTrashed() && filter.hiddenPriorities.count(project.priority) == 0;
 }
 
 bool taskVisible(const Task &task, const SortFilter &filter)
 {
-    if (filter.hiddenPriorities.count(task.priority) != 0)
+    if (filter.trash)
+        return task.isTrashed();
+    if (task.isTrashed() || filter.hiddenPriorities.count(task.priority) != 0)
         return false;
     return (task.state != TaskState::Active) == filter.closedTasks;
 }
@@ -75,12 +79,21 @@ std::vector<const Task *> sortedTasks(std::vector<const Task *> tasks, const Sor
                          taskBefore);
 }
 
+std::vector<const Task *> trashContents(const Project &project, std::vector<const Task *> tasks)
+{
+    const bool all = project.isTrashed();
+    return filterAndSort(std::move(tasks), [all](const Task &t) { return all || t.isTrashed(); }, taskBefore);
+}
+
 // Task priority, then the priority of the task's project, then taskBefore().
 // A task without a known project sorts after the others of its priority.
 std::vector<const Task *> focusOrder(std::vector<const Task *> tasks, const Model &model)
 {
     tasks.erase(std::remove_if(tasks.begin(), tasks.end(),
-                               [](const Task *task) { return task == nullptr || task->state != TaskState::Active; }),
+                               [&model](const Task *task) {
+                                   return task == nullptr || task->state != TaskState::Active
+                                       || model.taskInTrash(*task);
+                               }),
                 tasks.end());
     // A rank past Low stands for "no project".
     const auto projectRank = [&](const Task &task) {

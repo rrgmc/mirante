@@ -145,6 +145,28 @@ private slots:
         QVERIFY(!view.taskIds().contains(flakyTest));
     }
 
+    // A task in the trash, and the tasks of a project in the trash, are left out.
+    void hidesTrash()
+    {
+        FocusView view(*model);
+        Task garden = *model->task(gardenPlan);
+        garden.trashedAt = QStringLiteral("2026-10-29T10:00:00Z");
+        model->setTask(garden);
+        QCOMPARE(view.taskIds(), without(allTasks, gardenPlan));
+
+        Project project = *model->project(model->task(fixLoginTimeout)->projectId);
+        project.trashedAt = QStringLiteral("2026-10-29T10:00:00Z");
+        model->setProject(project);
+        QStringList expected = without(allTasks, gardenPlan);
+        for (const QString &id : {fixLoginTimeout, addRateLimiting, backendOverview, flakyTest})
+            expected.removeAll(id);
+        QCOMPARE(view.taskIds(), expected);
+
+        project.trashedAt.clear();
+        model->setProject(project);
+        QCOMPARE(view.taskIds(), without(allTasks, gardenPlan));
+    }
+
     void followsTaskChanges()
     {
         FocusView view(*model);

@@ -130,13 +130,16 @@ struct TaskCell::Private
 void TaskCell::Private::refresh()
 {
     const Task *current = task();
-    removed = current == nullptr;
+    // A task in the trash shows like a removed one, but keeps its title.
+    const bool trashed = current && services.model->taskInTrash(*current);
+    removed = current == nullptr || trashed;
     // A removed task keeps its header, so the cell can still be moved or
     // removed in the root dashboard.
+    removedLabel->setText(trashed ? TaskCell::tr("In trash") : TaskCell::tr("Removed"));
     removedLabel->setVisible(removed);
     openButton->setVisible(!removed && services.openTaskAlone);
     if (removed) {
-        title->setText(TaskCell::tr("Removed task"));
+        title->setText(trashed ? current->title : TaskCell::tr("Removed task"));
         title->setToolTip(QString());
         context->clear();
         context->setToolTip(QString());

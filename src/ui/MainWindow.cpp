@@ -599,6 +599,11 @@ struct MainWindow::Private
 
     void onTaskChanged(const QString &taskId)
     {
+        // A task moved to the trash loses its pages, as a removed one does.
+        if (model->taskInTrash(taskId)) {
+            onTaskRemoved(taskId);
+            return;
+        }
         // An item page whose item is gone closes, and so does a task dashboard
         // page whose dashboard is gone.
         for (int i = int(pages.size()) - 1; i >= 0; --i) {
@@ -645,6 +650,17 @@ struct MainWindow::Private
     {
         for (int i = int(pages.size()) - 1; i >= 0; --i) {
             if (pages[std::size_t(i)]->ref.taskId == taskId)
+                removeTab(i);
+        }
+    }
+
+    // Closes the pages of every task in the trash, such as the tasks of a
+    // project that just moved there.
+    void closeTrashedPages()
+    {
+        for (int i = int(pages.size()) - 1; i >= 0; --i) {
+            const QString &taskId = pages[std::size_t(i)]->ref.taskId;
+            if (!taskId.isEmpty() && model->taskInTrash(taskId))
                 removeTab(i);
         }
     }
@@ -1258,6 +1274,11 @@ MainWindow::MainWindow(Model &model, const ItemTypeRegistry &types, Store &store
     d->sidebar->setMenuFiller([this](QMenu *menu, SidebarModel::Kind kind, const QString &id, const QString &taskId) {
         d->actions->fillMenu(menu, kind, id, taskId);
     });
+    d->sidebar->setTrashMenuFiller(
+        [this](QMenu *menu, SidebarModel::Kind kind, const QString &id, const QString &taskId) {
+            d->actions->fillTrashMenu(menu, kind, id, taskId);
+        });
+    connect(d->sidebar, &Sidebar::emptyTrashRequested, d->actions, &EntityActions::emptyTrash);
     connect(d->sidebar->model(), &SidebarModel::moveRequested, this,
             [this](SidebarModel::Kind kind, const QString &id, int index) { d->onMoveRequested(kind, id, index); });
     d->sidebar->addHeaderWidget(d->buildNewButton());
@@ -1295,6 +1316,7 @@ MainWindow::MainWindow(Model &model, const ItemTypeRegistry &types, Store &store
     connect(&model, &Model::taskRemoved, this, [this](const QString &taskId) { d->onTaskRemoved(taskId); });
     // Task pages name their project.
     connect(&model, &Model::projectChanged, this, [this] {
+        d->closeTrashedPages();
         for (std::size_t i = 0; i < d->pages.size(); ++i) {
             d->tabBar->setTabToolTip(int(i), d->pageToolTip(d->pages[i]));
             d->updatePageHeader(d->pages[i]);
@@ -1445,7 +1467,7 @@ void MainWindow::showAbout()
 void MainWindow::openTaskPreview(const QString &taskId, const QString &chosenDashboardId)
 {
     const Task *task = d->model->task(taskId);
-    if (!task)
+    if (!task || d->model->taskInTrash(*task))
         return;
     const QString dashboardId = chosenDashboardId.isEmpty() ? Private::defaultDashboardOf(*task) : chosenDashboardId;
     if (dashboardId.isEmpty() || !d->model->taskDashboard(taskId, dashboardId))
@@ -1464,7 +1486,7 @@ void MainWindow::openTaskPreview(const QString &taskId, const QString &chosenDas
 void MainWindow::pinTask(const QString &taskId, const QString &chosenDashboardId)
 {
     const Task *task = d->model->task(taskId);
-    if (!task)
+    if (!task || d->model->taskInTrash(*task))
         return;
     const QString dashboardId = chosenDashboardId.isEmpty() ? Private::defaultDashboardOf(*task) : chosenDashboardId;
     const DashboardRef ref{taskId, dashboardId};
@@ -1526,7 +1548,7 @@ void MainWindow::showDashboardList()
 
 void MainWindow::openItem(const QString &taskId, const QString &itemId)
 {
-    if (!d->model->item(taskId, itemId))
+    if (!d->model->item(taskId, itemId) || d->model->taskInTrash(taskId))
         return;
     if (DashboardPage *open = d->itemPage(taskId, itemId)) {
         d->setCurrent(open);

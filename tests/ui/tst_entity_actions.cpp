@@ -1,7 +1,7 @@
 // Tests EntityActions on the fixtures: creating, editing and deleting each kind
 // of entity through its dialog, the refusals (a cancelled dialog or
-// confirmation, the last dashboard), priority and state, moves, and the
-// commands each kind of sidebar row gets in its context menu.
+// confirmation, the last dashboard), priority and state, moves, the trash, and
+// the commands each kind of sidebar row gets in its context menu.
 #include "core/DeviceSettings.h"
 #include "core/Model.h"
 #include "core/Store.h"
@@ -18,6 +18,7 @@
 #include <mirante/Module.h>
 
 #include <QAction>
+#include <QDateTime>
 #include <QMenu>
 #include <QSettings>
 #include <QTemporaryDir>
@@ -172,6 +173,8 @@ class TestEntityActions : public QObject
     // The confirmations asked, and the answer given.
     QStringList questions;
     bool answer = true;
+    // The keyboard modifiers a menu command sees.
+    Qt::KeyboardModifiers modifiers = Qt::NoModifier;
 
 private slots:
     void initTestCase();
@@ -191,6 +194,12 @@ private slots:
     void priorityAndState();
     void moves();
     void menus();
+    void trashAndRestore();
+    void restoreTaskRestoresProject();
+    void deleteMenuMovesToTrash();
+    void shiftDeletesPermanently();
+    void emptyTrash();
+    void trashMenus();
 };
 
 void TestEntityActions::initTestCase()
@@ -227,6 +236,8 @@ void TestEntityActions::init()
         questions << question;
         return answer;
     });
+    modifiers = Qt::NoModifier;
+    actions->setModifiers([this] { return modifiers; });
 }
 
 void TestEntityActions::cleanup()
@@ -611,6 +622,140 @@ void TestEntityActions::menus()
     QMenu unknown;
     actions->fillMenu(&unknown, SidebarModel::Kind::Task, QStringLiteral("no such task"), QString());
     QVERIFY(unknown.actions().isEmpty());
+}
+
+
+// Moving to the trash sets trashedAt without a question; restoring clears it.
+// A project takes its tasks with it, without changing them.
+void TestEntityActions::trashAndRestore()
+{
+    actions->trashTask(upgradeGo);
+    QVERIFY(model.task(upgradeGo));
+    const QDateTime when = QDateTime::fromString(model.task(upgradeGo)->trashedAt, Qt::ISODate);
+    QVERIFY(when.isValid());
+    QCOMPARE(when.timeSpec(), Qt::UTC);
+    QVERIFY(model.taskInTrash(upgradeGo));
+
+    actions->trashProject(backendProject);
+    QVERIFY(model.project(backendProject)->isTrashed());
+    QVERIFY(model.taskInTrash(fixLoginTimeout));
+    QVERIFY(!model.task(fixLoginTimeout)->isTrashed());
+    QVERIFY(questions.isEmpty());
+    QCOMPARE(actions->trashedProjectCount(), 1);
+    QCOMPARE(actions->trashedTaskCount(), 5);
+
+    actions->restoreProject(backendProject);
+    QVERIFY(!model.project(backendProject)->isTrashed());
+    QVERIFY(!model.taskInTrash(fixLoginTimeout));
+    // The task in the trash on its own stays there.
+    QVERIFY(model.taskInTrash(upgradeGo));
+    actions->restoreTask(upgradeGo);
+    QVERIFY(!model.taskInTrash(upgradeGo));
+    QVERIFY(model.task(upgradeGo)->trashedAt.isEmpty());
+}
+
+void TestEntityActions::restoreTaskRestoresProject()
+{
+    actions->trashTask(fixLoginTimeout);
+    actions->trashProject(backendProject);
+    actions->restoreTask(fixLoginTimeout);
+    QVERIFY(!model.project(backendProject)->isTrashed());
+    QVERIFY(!model.task(fixLoginTimeout)->isTrashed());
+
+    // A task that is not in the trash itself restores its project.
+    actions->trashProject(backendProject);
+    actions->restoreTask(backendOverview);
+    QVERIFY(!model.project(backendProject)->isTrashed());
+}
+
+// "Delete project…" and "Delete task…" move to the trash without a question.
+void TestEntityActions::deleteMenuMovesToTrash()
+{
+    QMenu task;
+    actions->fillMenu(&task, SidebarModel::Kind::Task, fixLoginTimeout, fixLoginTimeout);
+    actionNamed(task, QStringLiteral("Delete task…"))->trigger();
+    QVERIFY(model.task(fixLoginTimeout));
+    QVERIFY(model.task(fixLoginTimeout)->isTrashed());
+
+    QMenu project;
+    actions->fillMenu(&project, SidebarModel::Kind::Project, frontendProject, QString());
+    actionNamed(project, QStringLiteral("Delete project…"))->trigger();
+    QVERIFY(model.project(frontendProject));
+    QVERIFY(model.project(frontendProject)->isTrashed());
+    QVERIFY(questions.isEmpty());
+}
+
+// With Shift held, they delete for good after the usual question.
+void TestEntityActions::shiftDeletesPermanently()
+{
+    modifiers = Qt::ShiftModifier;
+    QMenu task;
+    actions->fillMenu(&task, SidebarModel::Kind::Task, fixLoginTimeout, fixLoginTimeout);
+    answer = false;
+    actionNamed(task, QStringLiteral("Delete task…"))->trigger();
+    QVERIFY(model.task(fixLoginTimeout));
+    QVERIFY(!model.task(fixLoginTimeout)->isTrashed());
+    answer = true;
+    actionNamed(task, QStringLiteral("Delete task…"))->trigger();
+    QVERIFY(!model.task(fixLoginTimeout));
+
+    QMenu project;
+    actions->fillMenu(&project, SidebarModel::Kind::Project, backendProject, QString());
+    actionNamed(project, QStringLiteral("Delete project…"))->trigger();
+    QVERIFY(!model.project(backendProject));
+    QCOMPARE(questions, (QStringList{QStringLiteral("Delete task Fix login timeout?"),
+                                     QStringLiteral("Delete task Fix login timeout?"),
+                                     QStringLiteral("Delete project backend and its 4 tasks?")}));
+}
+
+// One question names the counts; declining keeps everything.
+void TestEntityActions::emptyTrash()
+{
+    // An empty trash asks nothing.
+    actions->emptyTrash();
+    QVERIFY(questions.isEmpty());
+
+    actions->trashProject(backendProject);
+    const QString frontendTask = model.tasksOfProject(frontendProject).front()->id;
+    actions->trashTask(frontendTask);
+
+    answer = false;
+    actions->emptyTrash();
+    QCOMPARE(questions, QStringList{QStringLiteral("Permanently delete 1 project and 6 tasks in the trash?")});
+    QVERIFY(model.project(backendProject));
+
+    answer = true;
+    actions->emptyTrash();
+    QVERIFY(!model.project(backendProject));
+    QVERIFY(!model.task(fixLoginTimeout));
+    QVERIFY(!model.task(frontendTask));
+    QVERIFY(model.project(frontendProject));
+    QCOMPARE(actions->trashedProjectCount(), 0);
+    QCOMPARE(actions->trashedTaskCount(), 0);
+}
+
+// The Trash list's menu: Restore and Delete permanently, on projects and tasks.
+void TestEntityActions::trashMenus()
+{
+    actions->trashProject(backendProject);
+    QMenu project;
+    actions->fillTrashMenu(&project, SidebarModel::Kind::Project, backendProject, QString());
+    QCOMPARE(texts(project), (QStringList{QStringLiteral("Restore"), QStringLiteral("Delete permanently…")}));
+    actionNamed(project, QStringLiteral("Restore"))->trigger();
+    QVERIFY(!model.project(backendProject)->isTrashed());
+
+    actions->trashTask(fixLoginTimeout);
+    QMenu task;
+    actions->fillTrashMenu(&task, SidebarModel::Kind::Task, fixLoginTimeout, fixLoginTimeout);
+    QCOMPARE(texts(task), (QStringList{QStringLiteral("Restore"), QStringLiteral("Delete permanently…")}));
+    actionNamed(task, QStringLiteral("Delete permanently…"))->trigger();
+    QCOMPARE(questions, QStringList{QStringLiteral("Delete task Fix login timeout?")});
+    QVERIFY(!model.task(fixLoginTimeout));
+
+    // Groups, items and dashboards get nothing.
+    QMenu group;
+    actions->fillTrashMenu(&group, SidebarModel::Kind::Group, workGroup, QString());
+    QVERIFY(group.actions().isEmpty());
 }
 
 QTEST_MAIN(TestEntityActions)

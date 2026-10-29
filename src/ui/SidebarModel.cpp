@@ -84,11 +84,23 @@ Tree buildTree(const Model &model, const SortFilter &filter)
     std::vector<const Group *> groups = model.groups();
     std::sort(groups.begin(), groups.end(), groupBefore);
     for (const Group *group : groups) {
-        const int groupNode = addNode(tree, SidebarModel::Kind::Group, group->id, {}, -1);
+        // The projects to show, each with its tasks. The Trash list shows a
+        // project in the trash with all its tasks, and any other project only
+        // with its tasks in the trash.
+        std::vector<std::pair<const Project *, std::vector<const Task *>>> projects;
         for (const Project *project : sortedProjects(model.projectsOfGroup(group->id), filter)) {
-            const std::vector<const Task *> tasks = sortedTasks(model.tasksOfProject(project->id), filter);
-            if (filter.hideEmptyProjects && tasks.empty())
+            std::vector<const Task *> tasks = filter.trash
+                ? trashContents(*project, model.tasksOfProject(project->id))
+                : sortedTasks(model.tasksOfProject(project->id), filter);
+            if (tasks.empty() && (filter.trash ? !project->isTrashed() : filter.hideEmptyProjects))
                 continue;
+            projects.emplace_back(project, std::move(tasks));
+        }
+        // The Trash list leaves out groups with nothing in the trash.
+        if (filter.trash && projects.empty())
+            continue;
+        const int groupNode = addNode(tree, SidebarModel::Kind::Group, group->id, {}, -1);
+        for (const auto &[project, tasks] : projects) {
             const int projectNode = addNode(tree, SidebarModel::Kind::Project, project->id, {}, groupNode);
             for (const Task *task : tasks) {
                 const int taskNode = addNode(tree, SidebarModel::Kind::Task, task->id, task->id, projectNode);
@@ -196,7 +208,7 @@ struct SidebarModel::Private
 std::optional<Move> SidebarModel::Private::move(const QMimeData *data, int row, const QModelIndex &parent) const
 {
     const QString type = QString::fromLatin1(moveMimeType);
-    if (!data || !data->hasFormat(type))
+    if (filter.trash || !data || !data->hasFormat(type))
         return std::nullopt;
     const QString id = QString::fromUtf8(data->data(type));
     const Node *moved = node(id);
@@ -470,12 +482,16 @@ QVariant SidebarModel::data(const QModelIndex &index, int role) const
 Qt::ItemFlags SidebarModel::flags(const QModelIndex &index) const
 {
     // The top level, groups and projects take drops among their children.
+    // Nothing in the Trash list is dragged or takes a drop.
     if (!index.isValid())
-        return Qt::ItemIsDropEnabled;
+        return d->filter.trash ? Qt::NoItemFlags : Qt::ItemIsDropEnabled;
     const Node *node = d->node(index);
     if (!node)
         return Qt::NoItemFlags;
     Qt::ItemFlags flags = Qt::ItemIsEnabled | Qt::ItemIsSelectable;
+    if (d->filter.trash)
+        return node->kind == Kind::Item || node->kind == Kind::Dashboard ? flags | Qt::ItemNeverHasChildren
+                                                                         : flags;
     switch (node->kind) {
     case Kind::Item:
     case Kind::Dashboard:

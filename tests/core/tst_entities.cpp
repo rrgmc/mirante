@@ -172,6 +172,30 @@ private slots:
         QCOMPARE(project->connectionOverrides.value(QStringLiteral("jira.cloud")), QStringLiteral("c-9"));
     }
 
+    // trashedAt is written only when set, and read back as a field, not as extra.
+    void trashedAt()
+    {
+        const auto project = Project::fromJson(parse(R"({ "id": "p-1", "groupId": "g-1",
+            "trashedAt": "2026-10-29T10:00:00Z" })"));
+        QVERIFY(project);
+        QCOMPARE(project->trashedAt, QStringLiteral("2026-10-29T10:00:00Z"));
+        QVERIFY(project->isTrashed());
+        QVERIFY(project->extra.isEmpty());
+        QCOMPARE(Project::fromJson(project->toJson())->trashedAt, project->trashedAt);
+        Project restored = *project;
+        restored.trashedAt.clear();
+        QVERIFY(!restored.toJson().contains(QStringLiteral("trashedAt")));
+
+        const auto task = Task::fromJson(parse(R"({ "id": "t-1", "projectId": "p-1",
+            "trashedAt": "2026-10-29T11:00:00Z" })"));
+        QVERIFY(task);
+        QCOMPARE(task->trashedAt, QStringLiteral("2026-10-29T11:00:00Z"));
+        QVERIFY(task->isTrashed());
+        QVERIFY(task->extra.isEmpty());
+        QCOMPARE(task->toJson().value(QStringLiteral("trashedAt")).toString(), task->trashedAt);
+        QVERIFY(!Task::fromJson(parse(R"({ "id": "t-1", "projectId": "p-1" })"))->isTrashed());
+    }
+
     void priorityValues()
     {
         const Priority expected[] = {Priority::Urgent, Priority::High, Priority::Normal, Priority::Low};
