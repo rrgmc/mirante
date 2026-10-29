@@ -77,7 +77,7 @@
             "type": "gitlab.pipeline"
         }
     ],
-    "order": 0,
+    "order": 2,
     "priority": 2,
     "projectId": "3dd79dc2-8ec9-5181-b7d0-704a18f494d5",
     "schemaVersion": 1,

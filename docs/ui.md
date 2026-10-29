@@ -31,17 +31,16 @@ The sidebar can be collapsed.
 ### Sidebar tree
 
 - Groups appear in manual order.
-- Projects and tasks are sorted by [priority](data-model.md#priority), then manual order.
+- Projects and tasks appear in manual order. [Priority](data-model.md#priority) does not change their place; only Focus sorts by it. See [decision 0034](decisions/0034-manual-order-in-the-sidebar.md).
 - A coloured marker shows the priority level. Low items are dimmed.
 - Each task has two fixed children: **Dashboards**, with its task dashboards, then **Items**, with the task's items. They are there for every task, even when empty.
 - The selected row keeps its full highlight colour when the sidebar does not have the focus, so the dashboard on screen stays easy to see.
-- Three tabs at the bottom choose the task list. **Projects** lists active tasks under every project, including projects without any. **Active** lists the same tasks, but leaves out projects without active tasks. **Done** lists done and archived tasks under every project. A filter, off by default, hides Low items in all three.
+- Three tabs at the bottom choose the task list. **Projects** lists active tasks under every project, including projects without any. **Active** lists the same tasks, but leaves out projects without active tasks. **Done** lists done and archived tasks under every project. A filter button right of the workspace title opens a menu with a checkbox for each priority. Unchecking one hides the projects and tasks of that priority in all three lists. The button looks pressed while it hides something. All priorities are shown at start.
 - A `+` button in the sidebar header opens a menu: New Group…, New Project… in the group of the selected row, and New Task… in the project of the selected row. The last two are disabled when the selection has no group or project.
 - Two buttons in the sidebar header expand or collapse every task at once, with its Dashboards and Items. Groups and projects are left as they are; they open and close by hand only.
 - [Attention badges](#attention) appear on tasks, and are summed on projects and groups.
 - **Drag and drop:**
-  - Dragging within a priority level changes the order.
-  - Dragging across the boundary between two levels changes the priority. While the drop would do so, a tooltip next to the cursor names the new level, such as "Becomes Normal".
+  - Dragging a group, project or task among its siblings changes its place. It never changes a priority.
   - A task itself is not dragged onto dashboards. Drag one of its items, to show that item, or one of its dashboards, to show the task with that dashboard in a root dashboard. See [placing tasks](#placing-tasks-and-items).
 - The context menu holds new, edit, rename, set priority, set state and delete, and on a task dashboard "Set as default". On a task dashboard or an item it also holds "Open in new root dashboard", which makes a root dashboard showing just that dashboard or item.
 - Project rows have a light tinted background, so they stand out between groups and tasks.

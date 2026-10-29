@@ -123,8 +123,8 @@ private slots:
     void removeDefaultDashboard();
     void removeLastDashboardRefused();
     void setDefaultDashboard();
-    void moveProjectWithinPriority();
-    void moveProjectToOtherPriority();
+    void moveProjectAmongAll();
+    void moveProjectKeepsPriority();
     void moveProjectClampsIndex();
     void moveUnknownProject();
     void moveTask();
@@ -238,61 +238,57 @@ void TestEdits::setDefaultDashboard()
              QStringLiteral("d1"));
 }
 
-void TestEdits::moveProjectWithinPriority()
+void TestEdits::moveProjectAmongAll()
 {
-    // Normal: a (0), b (1), c (2). High: h (0).
+    // a (Normal, 0), b (High, 1), c (Low, 2): one list, whatever the priority.
     const std::vector<Project> siblings{
-        makeProject(QStringLiteral("a"), Priority::Normal, 0), makeProject(QStringLiteral("b"), Priority::Normal, 1),
-        makeProject(QStringLiteral("c"), Priority::Normal, 2), makeProject(QStringLiteral("h"), Priority::High, 0)};
+        makeProject(QStringLiteral("a"), Priority::Normal, 0), makeProject(QStringLiteral("b"), Priority::High, 1),
+        makeProject(QStringLiteral("c"), Priority::Low, 2)};
 
     // c to the front: c 0, a 1, b 2.
-    const std::vector<Project> changed = edits::moveProject(siblings, QStringLiteral("c"), Priority::Normal, 0);
+    const std::vector<Project> changed = edits::moveProject(siblings, QStringLiteral("c"), 0);
     QCOMPARE(ids(changed), QStringList({QStringLiteral("a"), QStringLiteral("b"), QStringLiteral("c")}));
     QCOMPARE(byId(changed, QStringLiteral("c"))->order, 0);
     QCOMPARE(byId(changed, QStringLiteral("a"))->order, 1);
     QCOMPARE(byId(changed, QStringLiteral("b"))->order, 2);
 
     // a after b: b 0, a 1; c keeps 2 and is not returned.
-    const std::vector<Project> swapped = edits::moveProject(siblings, QStringLiteral("a"), Priority::Normal, 1);
+    const std::vector<Project> swapped = edits::moveProject(siblings, QStringLiteral("a"), 1);
     QCOMPARE(ids(swapped), QStringList({QStringLiteral("a"), QStringLiteral("b")}));
     QCOMPARE(byId(swapped, QStringLiteral("b"))->order, 0);
     QCOMPARE(byId(swapped, QStringLiteral("a"))->order, 1);
 
     // A move to the same place changes nothing.
-    QVERIFY(edits::moveProject(siblings, QStringLiteral("b"), Priority::Normal, 1).empty());
+    QVERIFY(edits::moveProject(siblings, QStringLiteral("b"), 1).empty());
 }
 
-void TestEdits::moveProjectToOtherPriority()
+void TestEdits::moveProjectKeepsPriority()
 {
-    // Normal: a (0), b (1). High: h (0), k (1).
     const std::vector<Project> siblings{
-        makeProject(QStringLiteral("a"), Priority::Normal, 0), makeProject(QStringLiteral("b"), Priority::Normal, 1),
-        makeProject(QStringLiteral("h"), Priority::High, 0), makeProject(QStringLiteral("k"), Priority::High, 1)};
-
-    // a between h and k. b keeps its order, so it is not returned.
-    const std::vector<Project> changed = edits::moveProject(siblings, QStringLiteral("a"), Priority::High, 1);
-    QCOMPARE(ids(changed), QStringList({QStringLiteral("a"), QStringLiteral("k")}));
-    QCOMPARE(byId(changed, QStringLiteral("a"))->priority, Priority::High);
-    QCOMPARE(byId(changed, QStringLiteral("a"))->order, 1);
-    QCOMPARE(byId(changed, QStringLiteral("k"))->order, 2);
+        makeProject(QStringLiteral("a"), Priority::Normal, 0), makeProject(QStringLiteral("h"), Priority::High, 1),
+        makeProject(QStringLiteral("k"), Priority::Urgent, 2)};
+    const std::vector<Project> changed = edits::moveProject(siblings, QStringLiteral("a"), 2);
+    QCOMPARE(byId(changed, QStringLiteral("a"))->priority, Priority::Normal);
+    QCOMPARE(byId(changed, QStringLiteral("a"))->order, 2);
+    QCOMPARE(byId(changed, QStringLiteral("h"))->priority, Priority::High);
+    QCOMPARE(byId(changed, QStringLiteral("k"))->priority, Priority::Urgent);
 }
-
 void TestEdits::moveProjectClampsIndex()
 {
     const std::vector<Project> siblings{makeProject(QStringLiteral("a"), Priority::Normal, 0),
                                         makeProject(QStringLiteral("b"), Priority::Normal, 1)};
-    const std::vector<Project> changed = edits::moveProject(siblings, QStringLiteral("a"), Priority::Normal, 99);
+    const std::vector<Project> changed = edits::moveProject(siblings, QStringLiteral("a"), 99);
     QCOMPARE(byId(changed, QStringLiteral("a"))->order, 1);
     QCOMPARE(byId(changed, QStringLiteral("b"))->order, 0);
 
-    const std::vector<Project> front = edits::moveProject(siblings, QStringLiteral("b"), Priority::Normal, -5);
+    const std::vector<Project> front = edits::moveProject(siblings, QStringLiteral("b"), -5);
     QCOMPARE(byId(front, QStringLiteral("b"))->order, 0);
 }
 
 void TestEdits::moveUnknownProject()
 {
     const std::vector<Project> siblings{makeProject(QStringLiteral("a"), Priority::Normal, 0)};
-    QVERIFY(edits::moveProject(siblings, QStringLiteral("nope"), Priority::Normal, 0).empty());
+    QVERIFY(edits::moveProject(siblings, QStringLiteral("nope"), 0).empty());
 }
 
 void TestEdits::moveTask()
@@ -301,11 +297,11 @@ void TestEdits::moveTask()
     std::vector<Task> siblings{makeTask(QStringLiteral("a"), Priority::Low, 5),
                                makeTask(QStringLiteral("b"), Priority::Low, 5),
                                makeTask(QStringLiteral("u"), Priority::Urgent, 0)};
-    const std::vector<Task> changed = edits::moveTask(siblings, QStringLiteral("u"), Priority::Low, 1);
+    const std::vector<Task> changed = edits::moveTask(siblings, QStringLiteral("u"), 1);
     QCOMPARE(ids(changed), QStringList({QStringLiteral("a"), QStringLiteral("b"), QStringLiteral("u")}));
     QCOMPARE(byId(changed, QStringLiteral("a"))->order, 0);
     QCOMPARE(byId(changed, QStringLiteral("u"))->order, 1);
-    QCOMPARE(byId(changed, QStringLiteral("u"))->priority, Priority::Low);
+    QCOMPARE(byId(changed, QStringLiteral("u"))->priority, Priority::Urgent);
     QCOMPARE(byId(changed, QStringLiteral("b"))->order, 2);
 }
 

@@ -163,19 +163,19 @@ Task setDefaultDashboard(Task task, const QString &dashboardId)
     return task;
 }
 
-std::vector<Project> moveProject(std::vector<Project> siblings, const QString &id, Priority priority, int index)
+std::vector<Project> moveProject(std::vector<Project> siblings, const QString &id, int index)
 {
     return move(std::move(siblings), id, index,
-                [priority](const Project &p) { return p.priority == priority; },
-                [priority](Project &p) { p.priority = priority; },
+                [](const Project &) { return true; },
+                [](Project &) {},
                 projectBefore);
 }
 
-std::vector<Task> moveTask(std::vector<Task> siblings, const QString &id, Priority priority, int index)
+std::vector<Task> moveTask(std::vector<Task> siblings, const QString &id, int index)
 {
     return move(std::move(siblings), id, index,
-                [priority](const Task &t) { return t.priority == priority; },
-                [priority](Task &t) { t.priority = priority; },
+                [](const Task &) { return true; },
+                [](Task &) {},
                 taskBefore);
 }
 
