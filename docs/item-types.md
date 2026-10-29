@@ -61,7 +61,7 @@ Module `gitlab`. All GitLab types need a `gitlab` connection.
 
 `gitlab.mr.summary`, native.
 
-- **Configuration:** project path and merge request number. Pasting a merge request URL fills both.
+- **Configuration:** `project`, the project path, which defaults to the project's `gitlab.project` setting when empty; `iid`, the merge request number, required. Pasting a merge request URL fills both.
 - **Shows:**
   - title, state, draft flag;
   - source and target branches;
@@ -73,16 +73,17 @@ Module `gitlab`. All GitLab types need a `gitlab` connection.
 
 ### GitLab MR (page)
 
-`gitlab.mr.page`, web. The merge request's web page, using the group's [profile](web-views.md#profiles).
+`gitlab.mr.page`, web. The merge request's web page, using the group's [profile](web-views.md#profiles). Its configuration is the summary's: `project` and `iid`.
 
 ### GitLab MR List
 
 `gitlab.mr.list`, native.
 
 - **Configuration:**
-  - scope: one project, one GitLab group, or all projects visible to you;
-  - preset: "Created by me", "Review requested from me", "Assigned to me" or "All open";
-  - optional custom filter parameters, passed to the GitLab merge requests API, such as `labels=bug&target_branch=main`.
+  - `scope`: `project` (one project), `group` (one GitLab group) or `all` (all projects visible to you);
+  - `project`, the project path, empty for the `gitlab.project` setting; `group`, the group path;
+  - `preset`: `createdByMe` ("Created by me"), `reviewRequested` ("Review requested from me"), `assignedToMe` ("Assigned to me") or `allOpen` ("All open");
+  - `filter`: optional custom filter parameters, passed to the GitLab merge requests API, such as `labels=bug&target_branch=main`.
 - **Shows:** a compact, sortable table with columns for reference, title, author, pipeline status, approvals, and the date of the last update.
 - **Row click:** shows the merge request summary in a preview area below the table. A row menu offers "Add to task as item".
 
@@ -91,8 +92,8 @@ Module `gitlab`. All GitLab types need a `gitlab` connection.
 `gitlab.pipeline`, native.
 
 - **Configuration:**
-  - project path;
-  - branch, with three choices: a fixed branch, "current branch of the main folder", or "branch of a linked merge request".
+  - `project`, the project path, empty for the `gitlab.project` setting;
+  - `branchSource`, with three choices: `fixed` (the branch in `branch`), `mainFolder` ("current branch of the main folder"), or `mergeRequest` ("branch of a linked merge request", the merge request numbered `iid`).
 - **Shows:** the latest pipeline for that branch:
   - stages, each with its jobs;
   - job status and duration;
@@ -107,7 +108,8 @@ Module `gitlab`. All GitLab types need a `gitlab` connection.
 `gitlab.issue.summary`, `gitlab.issue.page` and `gitlab.issue.list` follow the merge request pattern:
 
 - **The summary shows:** title, state, assignees, labels, milestone, due date and the latest comments.
-- **The list presets are:** "Assigned to me", "Created by me" and "All open". Custom filters work the same way as for merge requests.
+- **Configuration:** the summary and the page have `project` and `iid`, the issue number. The list has `scope`, `project`, `group`, `preset` and `filter`, as for merge requests.
+- **The list presets are:** `assignedToMe` ("Assigned to me"), `createdByMe` ("Created by me") and `allOpen` ("All open"). Custom filters work the same way as for merge requests.
 - **Actions:** add comment, close and reopen.
 
 ## Jira
@@ -118,7 +120,7 @@ Module `jira`. Jira types need a `jira.cloud` or `jira.dc` connection.
 
 `jira.issue.summary`, native.
 
-- **Configuration:** issue key. Pasting an issue URL fills it.
+- **Configuration:** `key`, the issue key, such as `PROJ-123`, required. Pasting an issue URL fills it.
 - **Shows:**
   - key, summary, status, type, priority, assignee, reporter, sprint;
   - the description, rendered from the HTML in `renderedFields`;
@@ -130,16 +132,16 @@ Module `jira`. Jira types need a `jira.cloud` or `jira.dc` connection.
 
 ### Jira Issue (page)
 
-`jira.issue.page`, web. The issue's web page.
+`jira.issue.page`, web. The issue's web page. Its configuration is the summary's: `key`.
 
 ### Jira List
 
 `jira.list`, native.
 
-- **Configuration:** a JQL query (Jira's query language), or one of these presets:
-  - "My open issues";
-  - "Current sprint of this project", using the project's `jira.projectKey` setting;
-  - "Recently updated in this project".
+- **Configuration:** `preset`, one of these presets, or `jql` for the JQL query (Jira's query language) in the `jql` field:
+  - `myOpen`, "My open issues";
+  - `currentSprint`, "Current sprint of this project", using the project's `jira.projectKey` setting;
+  - `recentlyUpdated`, "Recently updated in this project".
 - **Shows:** a sortable table with columns for key, summary, status, assignee and the date of the last update.
 - **Row click:** shows the issue summary in a preview area. A row menu offers "Add to task as item".
 
@@ -151,7 +153,7 @@ Module `claude`.
 
 `claude.session.web`, web.
 
-- **Configuration:** a claude.ai URL, such as a Remote Control or cloud session link.
+- **Configuration:** `url`, a claude.ai URL, such as a Remote Control or cloud session link, required.
 - **Shows:** the claude.ai page, using the group's profile.
 
 There is no public API for these sessions, so the app has no status or summary for them. See [decision 0008](decisions/0008-claude-sessions.md).
@@ -161,9 +163,9 @@ There is no public API for these sessions, so the app has no status or summary f
 `claude.session.local`, native.
 
 - **Configuration:**
-  - session id;
-  - folder, one of the project's folders, the main folder by default;
-  - a note about which device the session lives on.
+  - `sessionId`, the session id, required;
+  - `folder`, one of the project's folders, the main folder when empty;
+  - `device`, a note about which device the session lives on.
 - **Shows:** the session id, folder and device, plus a "Resume in terminal" button.
 - **Action:** runs `claude --resume <id>` in a terminal in the folder's local path. See [terminal launch](integrations.md#terminal-launch).
 
@@ -175,21 +177,21 @@ Local sessions exist on one device only. On other devices the panel shows the de
 
 `web.page`, web, module `web`.
 
-- **Configuration:** a URL.
+- **Configuration:** `url`, the page's address, required.
 - **Shows:** the page, using the group's profile, or the shared profile if the host is overridden.
 
 ### Notes
 
 `notes`, native, module `notes`.
 
-- **Configuration:** none.
+- **Configuration:** none. The item dialog edits only the name.
 - **Shows:** a Markdown editor with a preview. The text is stored in the task file, so it syncs.
 
 ### Image
 
 `image`, native, module `image`. See [decision 0021](decisions/0021-image-items-as-files.md).
 
-- **Configuration:** `file`, the image's file in the data folder's `files/` folder; `link`, an optional URL; `memo`, optional plain text.
+- **Configuration:** `file`, the image's file in the data folder's `files/` folder, required; `link`, an optional URL; `memo`, optional plain text. The type returns `file` from `pastedImageField`.
 - **Shows:** the image, scaled to fit the cell, with the memo under it. A click on the image opens the link, if there is one.
 - **Paste:** pasting an image from the clipboard into the item replaces its image. Pasting an image onto a dashboard creates a new Image item there. A pasted image is saved as PNG.
 
@@ -197,7 +199,7 @@ Local sessions exist on one device only. On other devices the panel shows the de
 
 `folder`, native, module `folder`.
 
-- **Configuration:** one of the project's folders.
+- **Configuration:** `folder`, one of the project's folders, required.
 - **Shows:**
   - the local path on this device;
   - the current Git branch;
