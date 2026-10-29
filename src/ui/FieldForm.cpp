@@ -148,9 +148,14 @@ void FieldForm::Private::show(Row &row, const QJsonValue &value)
         fillCombo(row, value);
         break;
     case Field::Type::Image:
-        // The form cannot read files/, so an existing image shows its name only.
         row.image = value.toString();
         row.thumbnail->clear();
+        if (!row.image.isEmpty() && context.loadImage) {
+            const QImage image = context.loadImage(row.image);
+            if (!image.isNull())
+                row.thumbnail->setPixmap(QPixmap::fromImage(
+                    image.scaled(thumbnailSize, Qt::KeepAspectRatio, Qt::SmoothTransformation)));
+        }
         row.imageName->setText(row.image.isEmpty() ? FieldForm::tr("No image") : row.image);
         break;
     }

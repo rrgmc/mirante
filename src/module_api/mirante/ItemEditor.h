@@ -21,6 +21,8 @@ struct EditorContext
     // Saves an image as PNG in the data folder's files/ and returns its file
     // name, or an empty string if it cannot.
     std::function<QString(const QImage &image)> saveImage;
+    // Reads an image from files/ by its file name. A null image if it is missing.
+    std::function<QImage(const QString &name)> loadImage;
 };
 
 // The editor of an item's configuration, shown in the item dialog. An item
