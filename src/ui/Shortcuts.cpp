@@ -4,7 +4,6 @@
 #include "layout/LayoutView.h"
 #include "layout/TaskCell.h"
 #include "ui/MainWindow.h"
-#include "ui/RootTabBar.h"
 
 #include <QApplication>
 #include <QEvent>
@@ -263,21 +262,12 @@ struct Shortcuts::Private
         focusFirstCell(tabs->currentWidget());
     }
 
+    // The tabs of the root tab bar, then Focus and the preview. See
+    // MainWindow::switchPage().
     void switchRootTab(int step)
     {
-        RootTabBar *bar = window->rootTabBar();
-        const int count = bar ? bar->count() : 0;
-        if (count < 2)
-            return;
-        const int current = bar->currentIndex();
-        for (int i = 1; i < count; ++i) {
-            const int index = ((current + step * i) % count + count) % count;
-            if (bar->isTabVisible(index)) {
-                bar->setCurrentIndex(index);
-                focusFirstCell();
-                return;
-            }
-        }
+        window->switchPage(step);
+        focusFirstCell();
     }
 
     void clearMaximisedConnections()
@@ -390,13 +380,12 @@ Shortcuts::Shortcuts(MainWindow *window)
 
     d->connections.push_back(connect(qApp, &QApplication::focusChanged, this,
                                      [this](QWidget * /*old*/, QWidget *now) { d->onFocusChanged(now); }));
-    if (RootTabBar *bar = window->rootTabBar()) {
-        // A cell maximised in a detached window stays so.
-        d->connections.push_back(connect(bar, &QTabBar::currentChanged, this, [this] {
-            if (d->maximised && d->inMainWindow(d->maximised))
-                d->restore(false);
-        }));
-    }
+    // A change of page restores a cell maximised in the main window. A cell
+    // maximised in a detached window stays so.
+    d->connections.push_back(connect(window, &MainWindow::currentPageChanged, this, [this] {
+        if (d->maximised && d->inMainWindow(d->maximised))
+            d->restore(false);
+    }));
 
     d->add(QKeySequence(Qt::CTRL | Qt::ALT | Qt::Key_Left), [this] { d->move(Direction::Left); });
     d->add(QKeySequence(Qt::CTRL | Qt::ALT | Qt::Key_Right), [this] { d->move(Direction::Right); });

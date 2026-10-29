@@ -6,7 +6,7 @@ This document describes navigation, dashboards and editing. It was checked with 
 
 ```
 ┌───────────────┬──────────────────────────────────────────────┐
-│ Focus         │ [Preview: Fix login] [Morning] [Release] [+] │
+│ Focus         │ [Morning] [Release] [+] ≡ │ [◎ Focus] [Fix…] 🔒 │
 │               ├──────────────────────────────────────────────┤
 │ ▾ Work        │                                              │
 │   ▾ backend   │        active root dashboard or task         │
@@ -21,8 +21,11 @@ This document describes navigation, dashboards and editing. It was checked with 
 - **Sidebar, on the left:**
   - A **Focus** entry at the top. See [Focus view](#focus-view).
   - A tree of groups, projects and tasks.
-- **Tab bar, on the right:** root dashboards and the preview tab.
-- **Content area:** the dashboard of the selected tab.
+- **Tab row, on the right, above the content:**
+  - On the left, the **tabs**: root dashboards, then pinned task dashboards and pinned items. The `+` button and the dashboard list button follow them.
+  - On the right, after a thin separator, two fixed **slots**: **Focus** and the **preview**, then the lock. They look like tabs. See [decision 0048](decisions/0048-focus-and-preview-slots.md).
+  - One page is current across the tabs and the slots. While a slot is current, no tab shows as selected, and the other way round.
+- **Content area:** the page of the current tab or slot.
 - **Warning bar, above the tab bar:** files that could not be loaded or saved. While the sample data is open, it also says that changes to it are not saved, and points to File > New Workspace…. See [decision 0029](decisions/0029-sample-data-read-only.md).
 - **Conflict bar, under the warning bar:** one line for each conflict copy a sync tool made, such as "Two versions of task Fix login timeout", with "Keep current", "Use other" and "Compare". See [sync](sync.md#conflict-copies).
 
@@ -118,7 +121,7 @@ The window opens centred on the screen, at the size it had when it was last clos
 Standard controls, such as buttons, menus, lists and dialogs, keep the platform's own look. Mirante draws a few controls itself, in the same way on every platform, so the app looks calm on macOS as well as on Windows and Linux. See [decision 0041](decisions/0041-own-look-for-tabs-and-tool-buttons.md).
 
 - **Tool buttons** outside a toolbar, such as the sidebar buttons, the cell header buttons and the web toolbar, are flat. A light rounded fill shows when the mouse is over one, and a stronger one while it is pressed or on.
-- **Tabs**, in the root tab bar, in tab groups and at the foot of the sidebar, are rounded fills. The current tab has a light grey fill and keeps the normal text colour. The tab under the mouse has a lighter fill.
+- **Tabs**, in the root tab bar, in the Focus and preview slots, in tab groups and at the foot of the sidebar, are rounded fills. The current tab has a light grey fill and keeps the normal text colour. The tab under the mouse has a lighter fill.
 - **Close buttons on tabs** are on the right. They show on the current tab and on the tab under the mouse only.
 - **Cell borders** are a thin, light line with rounded corners.
 - **The warning bar** has a tinted background and no frame.
@@ -140,13 +143,14 @@ The menu bar has four menus. The Modules menu is left out when no module in the 
 
 - **Single click:** selects a row. It opens nothing.
 - **Double click** (or `Enter`) on a task: expands or collapses it. Tasks are opened through their dashboards.
-- **Double click** on a task dashboard: opens it in the **preview tab**. The preview tab shows its title in italics. The next dashboard opened this way replaces it. Task dashboard titles name the task and the dashboard: "Task / Dashboard". The title bar below the tab shows them in pills, as cell headers do: the task in bold, the dashboard in a grey pill with the dashboard icon, and the task's project in a grey pill. An item tab's title bar shows the item in a pill with its type's icon and colour instead of the dashboard. A task cell's header uses the same pills. The title bar and the task cell header are tinted with the task's group colour, so they show which group the task is from. The tint follows at once when the group's colour changes or the task moves to another group. The tab's tooltip reads "Project / Task / Dashboard".
-- **Double click** on an item: opens the item alone in a tab, the preview tab like a task dashboard, titled "Task / Item" with the item type's icon. It is read-only and can be pinned. See [decision 0023](decisions/0023-item-tabs.md).
-- **Pin:** editing the dashboard's layout, or the pin button, keeps the preview open as a task tab, so the next dashboard opens in a new tab. Other changes to its task, such as a new dashboard or a new title, do not pin it. A task tab is never a root dashboard. Task tabs carry the dashboard icon, come after the root dashboard tabs, and have a title bar with the task and dashboard pills and their own lock. The lock at the end of the tab bar row is for root dashboards, and hides while a task tab is in front. See [decision 0022](decisions/0022-task-dashboard-tabs.md).
-- When a task tab comes to the front, the sidebar selects its dashboard under its task.
-- Opening a task dashboard that already has a tab switches to that tab instead of opening a preview.
+- **Double click** on a task dashboard: opens it in the **preview slot**, right of the tabs. The slot shows the dashboard's icon and its title in italics, with a pin button and a close button. The next dashboard opened this way replaces it. Every preview opens there: task dashboards and items from the sidebar, "Open Alone", the quick switcher, Focus and new task dashboards. With no preview, the slot is hidden. A middle click on the slot closes it, and its context menu holds "Pin" and "Close preview". Task dashboard titles name the task and the dashboard: "Task / Dashboard". The title bar below the tab shows them in pills, as cell headers do: the task in bold, the dashboard in a grey pill with the dashboard icon, and the task's project in a grey pill. An item tab's title bar shows the item in a pill with its type's icon and colour instead of the dashboard. A task cell's header uses the same pills. The title bar and the task cell header are tinted with the task's group colour, so they show which group the task is from. The tint follows at once when the group's colour changes or the task moves to another group. The tab's tooltip reads "Project / Task / Dashboard".
+- **Double click** on an item: opens the item alone in the preview slot, like a task dashboard, titled "Task / Item" with the item type's icon. It is read-only and can be pinned. See [decision 0023](decisions/0023-item-tabs.md).
+- **Pin:** editing the dashboard's layout, or the pin button, moves the preview to a new task tab at the end of the tabs, so the next dashboard opens in the preview slot again. Other changes to its task, such as a new dashboard or a new title, do not pin it. A task tab is never a root dashboard. Task tabs carry the dashboard icon, come after the root dashboard tabs, and have a title bar with the task and dashboard pills and their own lock. The lock at the end of the tab row is for root dashboards, and hides while a task tab or a task dashboard preview is in front. See [decision 0022](decisions/0022-task-dashboard-tabs.md).
+- When a task tab or the preview comes to the front, the sidebar selects its dashboard or item under its task.
+- Opening a task dashboard or an item that already has a tab switches to that tab instead of opening a preview.
+- Closing the last tab, or closing the preview while there is no tab, shows Focus.
 
-The open tabs are stored on each device for each workspace, not synced: the root dashboard tabs and the Focus tab in order, the current tab, and the [detached](#detached-windows) root dashboards. The preview tab is not kept; if it was current, the first tab is current next time. They are saved when another workspace opens and when the window closes, and come back when the workspace opens again. Pinned task tabs and item tabs are not kept either. The first time a workspace opens on a device, every root dashboard opens.
+The open tabs are stored on each device for each workspace, not synced: the root dashboard tabs in order, the current tab, and the [detached](#detached-windows) root dashboards. If the Focus slot was current, it is current next time. The preview is not kept; if it was current, the first tab is current next time. They are saved when another workspace opens and when the window closes, and come back when the workspace opens again. Pinned task tabs and item tabs are not kept either. The first time a workspace opens on a device, every root dashboard opens.
 
 ## Root dashboards
 
@@ -182,7 +186,7 @@ Each cell has a small header containing:
 Some work, such as signing in to a site, is easier on a large page than in a small cell. An item cell offers two bigger views. Both work on locked dashboards, and in task dashboards shown inside root dashboards, because neither changes a layout. Empty and "Removed" cells, and task cells, offer neither. See the [M4 plan](plans/m4-web-views.md#part-6-a-bigger-view-of-an-item).
 
 - **Maximise.** The button after the menu button in the cell header, the cell menu entry "Maximise", or `Ctrl+Shift+M` for the focused cell, shows the cell over the whole dashboard area and gives it the focus. The button's tooltip names the shortcut. The same cell moves, so a web page keeps its state, including a login in progress. The button, the menu entry "Restore" or the shortcut again puts the cell back in its place. Maximising another cell puts the first one back. Changing the root tab or closing the tab also puts it back.
-- **Open Alone.** The cell menu entry "Open Alone" opens the item alone in the preview tab, as a double click on the item in the sidebar does. See [decision 0023](decisions/0023-item-tabs.md). The tab has a view of its own, in the same web profile, so a login made there reaches the cell when its page reloads. An item tab already shows its item alone, so it does not offer "Open Alone".
+- **Open Alone.** The cell menu entry "Open Alone" opens the item alone in the preview slot, as a double click on the item in the sidebar does. See [decision 0023](decisions/0023-item-tabs.md). The preview has a view of its own, in the same web profile, so a login made there reaches the cell when its page reloads. An item tab already shows its item alone, so it does not offer "Open Alone".
 - **Changing the item from its cell.** The menu of an item cell also offers two entries that change the item, not the layout, so they work on a locked dashboard and in an item tab too:
   - "Edit Item…" opens the item dialog.
   - "Use Current Address" is there for a cell that shows a web page, when the item's type has an address field. It saves the address the page shows now in that field, such as the Address of a Web page item. It is disabled when the two are already the same, and its tooltip shows the address.
@@ -191,7 +195,7 @@ On a locked dashboard the cell menu of an item cell holds only these entries. On
 
 ### Layout presets
 
-"New dashboard" and "Apply preset" offer starting layouts. A task dashboard made with "New dashboard…" in the sidebar opens in the preview tab.
+"New dashboard" and "Apply preset" offer starting layouts. A task dashboard made with "New dashboard…" in the sidebar opens in the preview slot.
 
 - Full: one cell.
 - Two side by side.
@@ -258,14 +262,14 @@ A root dashboard tab can be detached into its own operating system window. Nothi
 - "Detach into Window" in the context menu of a root dashboard tab takes the tab out of the tab bar and moves its dashboard into a new window. The dashboard is moved, not made again, so its web pages keep their state. Only cells whose item type cannot move to another window are made again.
 - The window's title is the dashboard's name. A rename changes it.
 - A small toolbar holds "Put Back" and the dashboard's own lock. The lock works as the lock of the main window does.
-- Closing the window, or "Put Back", puts the tab back at the end of the tab bar, before the preview tab, and makes it current.
+- Closing the window, or "Put Back", puts the tab back at the end of the tabs and makes it current.
 - Opening a detached root dashboard from the sidebar, the quick switcher or the dashboard list brings its window to the front instead of opening a tab.
 - Deleting a root dashboard closes its window.
 - The window's position and size are stored on each device when it closes. A new window opens at the stored position and size, or at a default size.
 - The detached root dashboards are saved with the [open tabs](#opening-tasks). When the workspace opens again, they open again in their windows.
 - Opening another workspace closes the detached windows, after saving them. Closing the main window puts them back, after saving them, so they open detached next time.
 - The keyboard shortcuts of the main window, such as moving the focus between cells and maximising a cell, work in the main window only.
-- The maximise button and the cell menu entries "Maximise" and "Restore" work in a detached window too. The cell is maximised over the window's dashboard, below its toolbar, and stays in that window. Changing the main window's tab leaves it maximised. "Open Alone" opens the item in the main window's preview tab and brings the main window to the front.
+- The maximise button and the cell menu entries "Maximise" and "Restore" work in a detached window too. The cell is maximised over the window's dashboard, below its toolbar, and stays in that window. Changing the main window's tab leaves it maximised. "Open Alone" opens the item in the main window's preview slot and brings the main window to the front.
 
 If the same item is shown in two places, each place has its own live view. See [decision 0003](decisions/0003-view-per-placement.md).
 
@@ -273,7 +277,7 @@ If the same item is shown in two places, each place has its own live view. See [
 
 Focus answers "what should I work on now?", across all projects.
 
-- The Focus entry in the sidebar opens Focus in a "Focus" tab at the start of the root tab bar. The entry and the tab carry a target icon, since Focus is a list and not a dashboard. There is at most one Focus tab. It can be closed like any other tab.
+- Focus has a fixed slot right of the tabs, before the preview slot. The Focus entry in the sidebar selects it, and so does a click on the slot. The entry and the slot carry a target icon, since Focus is a list and not a dashboard. The slot is always there and cannot be closed. See [decision 0048](decisions/0048-focus-and-preview-slots.md).
 - It lists active tasks from all projects, or from one group, chosen in a combo box. Tasks in the [trash](#trash), and the tasks of projects in the trash, are left out. The combo box holds "All groups", then the groups in manual order.
 - Each row shows the task title, then its project and group, dimmed, and the [priority](data-model.md#priority) marker of the sidebar, a circle as for every task. Low tasks are dimmed.
 - A right click on a task opens the task's menu from the sidebar: edit, set priority, set state, delete and the rest.
@@ -282,7 +286,7 @@ Focus answers "what should I work on now?", across all projects.
   2. project priority, to break ties;
   3. manual order.
 - The list follows changes to groups, projects and tasks as they happen.
-- A double click or `Enter` opens the task's default dashboard in the preview tab.
+- A double click or `Enter` opens the task's default dashboard in the preview slot.
 - A toggle, "Needs attention first", moves tasks with attention badges to the top. It arrives with attention in M5.
 
 ## Attention
@@ -319,10 +323,10 @@ The project is chosen by matching the merge request's GitLab project or the issu
 | `Ctrl+Shift+N` | Quick add |
 | `Ctrl+Alt+Arrow` | Move focus to the cell in that direction |
 | `Ctrl+Tab`, `Ctrl+Shift+Tab` | Next or previous tab in the focused tab group |
-| `Ctrl+PgDown`, `Ctrl+PgUp` | Next or previous root dashboard tab |
+| `Ctrl+PgDown`, `Ctrl+PgUp` | Next or previous tab of the tab row: the tabs in order, then Focus, then the preview, wrapping around |
 | `F11` (macOS: `Ctrl+Cmd+F`) | Full screen on or off, as in web browsers. The platform's standard key, `QKeySequence::FullScreen`. |
 | `Ctrl+Shift+M` | Maximise the focused cell, or restore the maximised one. See [a bigger view](#a-bigger-view-of-an-item). |
-| `Ctrl+W` | Close the preview tab or the focused root tab |
+| `Ctrl+W` | Close the preview or the current tab. Focus cannot be closed. |
 | `Ctrl+V` | With an image on the clipboard: replace the image of the Image item in the focused cell or the current item tab, after the [paste dialog](#pasting-images). It never adds an item to a dashboard; a new image item comes from "Paste Image…" in a task's Items menu. See [image](item-types.md#image). A text field keeps its own paste. |
 | Global hotkey (configurable) | Bring Mirante to the front |
 

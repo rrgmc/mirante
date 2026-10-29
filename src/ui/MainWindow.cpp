@@ -33,6 +33,7 @@
 #include "ui/RootTabBar.h"
 #include "ui/Shortcuts.h"
 #include "ui/Sidebar.h"
+#include "ui/SlotTabBar.h"
 
 #include <QAbstractSpinBox>
 #include <QAction>
@@ -57,6 +58,7 @@
 #include <QMenuBar>
 #include <QMessageBox>
 #include <QMimeData>
+#include <QPainter>
 #include <QModelIndex>
 #include <QPlainTextEdit>
 #include <QPointer>
@@ -111,6 +113,31 @@ QWidget *findItemCell(const LayoutView *view, const QString &itemId)
     return nullptr;
 }
 
+// A thin vertical line between the root tabs and the slots. It is drawn with
+// the text colour mostly transparent, as the flat controls are, so it suits
+// light and dark palettes.
+class SlotSeparator : public QWidget
+{
+public:
+    explicit SlotSeparator(QWidget *parent)
+        : QWidget(parent)
+    {
+        setFixedWidth(9);
+        setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Preferred);
+    }
+
+protected:
+    void paintEvent(QPaintEvent *) override
+    {
+        QPainter painter(this);
+        QColor line = palette().color(QPalette::WindowText);
+        line.setAlpha(60);
+        painter.setPen(line);
+        const int x = width() / 2;
+        painter.drawLine(x, height() / 4, x, height() - height() / 4);
+    }
+};
+
 } // namespace
 
 struct MainWindow::Private
@@ -139,6 +166,7 @@ struct MainWindow::Private
     QFrame *warningBar = nullptr;
     QLabel *warningText = nullptr;
     RootTabBar *tabBar = nullptr;
+    SlotTabBar *slotBar = nullptr;
     QToolButton *showSidebarButton = nullptr;
     QToolButton *lockButton = nullptr;
     QStackedWidget *stack = nullptr;
@@ -148,8 +176,19 @@ struct MainWindow::Private
     QPointer<RootDashboardsDialog> dashboardList;
     QPointer<LogWindow> logWindow;
 
-    std::vector<DashboardPage *> pages;     // in tab order
-    DashboardPage *preview = nullptr;       // also in pages, always last
+    // The pages of the root tab bar's tabs, in tab order: root dashboards,
+    // pinned task dashboards and pinned items.
+    std::vector<DashboardPage *> pages;
+    // The pages of the two slots right of the tabs (decision 0048). They are
+    // not in pages. Focus is made the first time it is shown.
+    DashboardPage *preview = nullptr;
+    DashboardPage *focus = nullptr;
+    // The slot page that is current, or null while a tab of the root tab bar
+    // is current. See setCurrent().
+    QPointer<DashboardPage> slotPage;
+    // Set while the window itself changes the root tab bar's tabs, so that its
+    // currentChanged() is not taken for the user's choice.
+    bool changingTabs = false;
     // The windows of detached root dashboards, in the order they were
     // detached. Their pages are not in pages. See docs/ui.md#detached-windows.
     std::vector<DetachedWindow *> detached;
@@ -162,6 +201,8 @@ struct MainWindow::Private
 
     DashboardPage *currentPage() const
     {
+        if (slotPage)
+            return slotPage;
         if (pages.empty())
             return nullptr;
         const int index = tabBar->currentIndex();
@@ -255,11 +296,8 @@ struct MainWindow::Private
 
     // Task dashboard tabs carry the dashboard icon and item tabs the item's
     // type icon, so they read apart from root dashboard tabs, which have none.
-    // Focus is a list, not a dashboard, so its tab has an icon of its own.
     QIcon pageIcon(const DashboardPage *page) const
     {
-        if (page->isFocus())
-            return QIcon(QStringLiteral(":/icons/focus.svg"));
         if (page->ref.isRoot())
             return QIcon();
         if (page->itemId.isEmpty())
@@ -268,28 +306,31 @@ struct MainWindow::Private
         return item ? types->type(item->type).icon() : QIcon();
     }
 
-    // Puts a new page in the preview tab, replacing the previous preview.
+    // The pages of the tabs and the preview: every page that can show a task.
+    std::vector<DashboardPage *> taskPages() const
+    {
+        std::vector<DashboardPage *> all = pages;
+        if (preview)
+            all.push_back(preview);
+        return all;
+    }
+
+    // Puts a new page in the preview slot, replacing the previous preview,
+    // and makes it current.
     void showInPreview(DashboardPage *page)
     {
-        if (preview) {
-            const int index = indexOf(preview);
-            DashboardPage *old = preview;
-            pages[std::size_t(index)] = page;
-            preview = page;
+        if (DashboardPage *old = preview) {
+            preview = nullptr;
             stack->removeWidget(old);
             delete old;
-            tabBar->setTabText(index, pageTitle(page));
-            tabBar->setTabIcon(index, pageIcon(page));
-            tabBar->setTabToolTip(index, pageToolTip(page));
-            syncPreview();
-        } else {
-            preview = page;
-            insertTab(int(pages.size()), page);
         }
+        preview = page;
+        syncPreview();
         setCurrent(page);
     }
 
-    // Keeps the preview open: the next preview opens in a new tab.
+    // Keeps the preview open: it moves to a new tab at the end of the root
+    // tab bar, and the next preview opens in the slot again.
     void pinPreview()
     {
         if (!preview)
@@ -297,7 +338,34 @@ struct MainWindow::Private
         DashboardPage *page = preview;
         preview = nullptr;
         syncPreview();
+        insertTab(int(pages.size()), page);
         setCurrent(page);
+    }
+
+    // Closes the preview slot. If it was current, the current root tab is
+    // shown again, or Focus if there is none.
+    void closePreview()
+    {
+        DashboardPage *old = preview;
+        if (!old)
+            return;
+        preview = nullptr;
+        if (slotPage == old)
+            slotPage = pages.empty() ? focusPage() : nullptr;
+        stack->removeWidget(old);
+        delete old;
+        syncPreview();
+        syncSelection();
+        syncCurrent();
+    }
+
+    // Closes a tab's page or the preview.
+    void closePage(DashboardPage *page)
+    {
+        if (page && page == preview)
+            closePreview();
+        else
+            removeTab(indexOf(page));
     }
 
     // The page that shows one item alone. It is read-only and not attached to
@@ -320,7 +388,7 @@ struct MainWindow::Private
 
     DashboardPage *itemPage(const QString &taskId, const QString &itemId) const
     {
-        for (DashboardPage *page : pages) {
+        for (DashboardPage *page : taskPages()) {
             if (page->itemId == itemId && page->ref.taskId == taskId)
                 return page;
         }
@@ -362,27 +430,35 @@ struct MainWindow::Private
     void insertTab(int index, DashboardPage *page)
     {
         pages.insert(pages.begin() + index, page);
+        changingTabs = true;
         tabBar->insertTab(index, pageTitle(page));
+        changingTabs = false;
         tabBar->setTabIcon(index, pageIcon(page));
         tabBar->setTabToolTip(index, pageToolTip(page));
         // Only root dashboard tabs can be detached (decision 0024).
         tabBar->setTabData(index, page->isRoot());
-        syncPreview();
+        // QTabBar does not update its size hint while it is hidden, so the
+        // layout would keep the empty bar's size.
+        tabBar->updateGeometry();
         syncCurrent();
     }
 
-    // Takes a page out of the tab bar without deleting it.
+    // Takes a page out of the tab bar without deleting it. When the last tab
+    // goes while it is current, Focus is shown.
     DashboardPage *takeTab(DashboardPage *page)
     {
         const int index = indexOf(page);
         if (index < 0)
             return page;
         pages.erase(pages.begin() + index);
-        if (preview == page)
-            preview = nullptr;
         stack->removeWidget(page);
+        changingTabs = true;
         tabBar->removeTab(index);
-        syncPreview();
+        changingTabs = false;
+        if (pages.empty() && !slotPage)
+            slotPage = focusPage();
+        tabBar->updateGeometry();
+        syncSelection();
         syncCurrent();
         return page;
     }
@@ -393,20 +469,55 @@ struct MainWindow::Private
             delete takeTab(pages[std::size_t(index)]);
     }
 
-    void setCurrent(const DashboardPage *page)
+    // Makes a tab's page, the preview or Focus current. One page is current
+    // across the root tab bar and the slots, so the other bar shows no
+    // selection.
+    void setCurrent(DashboardPage *page)
     {
-        const int index = indexOf(page);
-        if (index >= 0)
+        if (page && (page == preview || page == focus)) {
+            slotPage = page;
+        } else {
+            const int index = indexOf(page);
+            if (index < 0)
+                return;
+            slotPage = nullptr;
+            changingTabs = true;
             tabBar->setCurrentIndex(index);
+            changingTabs = false;
+        }
+        syncSelection();
         syncCurrent();
     }
 
-    // Called after every change to the tabs. QTabBar does not update its size
-    // hint while it is hidden, so the layout would keep the empty bar's size.
+    void syncSelection()
+    {
+        tabBar->setSelectionShown(!slotPage);
+        slotBar->setCurrentSlot(!slotPage            ? -1
+                                : slotPage == preview ? int(SlotTabBar::PreviewSlot)
+                                                      : int(SlotTabBar::FocusSlot));
+    }
+
+    // Shows the preview's title, icon and tooltip in its slot, or hides it.
     void syncPreview()
     {
-        tabBar->setPreviewIndex(preview ? indexOf(preview) : -1);
-        tabBar->updateGeometry();
+        if (preview)
+            slotBar->setPreview(pageIcon(preview), pageTitle(preview), pageToolTip(preview));
+        else
+            slotBar->clearPreview();
+    }
+
+    // The order of switchPage(): the visible tabs, then Focus, then the preview.
+    std::vector<DashboardPage *> pageCycle()
+    {
+        std::vector<DashboardPage *> cycle;
+        for (std::size_t i = 0; i < pages.size(); ++i) {
+            if (tabBar->isTabVisible(int(i)))
+                cycle.push_back(pages[i]);
+        }
+        cycle.push_back(focusPage());
+        if (preview)
+            cycle.push_back(preview);
+        return cycle;
     }
 
     // Shows the page of the current tab, and its lock state next to the tabs.
@@ -423,6 +534,7 @@ struct MainWindow::Private
             shownPage = page;
             if (page && !page->ref.isRoot() && sidebar)
                 sidebar->reveal(page->itemId.isEmpty() ? page->ref.dashboardId : page->itemId);
+            emit q->currentPageChanged();
         }
     }
 
@@ -438,7 +550,7 @@ struct MainWindow::Private
 
     void applyLock(const QString &dashboardId, bool unlocked)
     {
-        for (DashboardPage *page : pages) {
+        for (DashboardPage *page : taskPages()) {
             if (page->ref.dashboardId != dashboardId)
                 continue;
             page->view->setEditMode(unlocked);
@@ -508,7 +620,7 @@ struct MainWindow::Private
     }
 
     // The window was closed or "Put Back" was clicked: its page goes back to
-    // the end of the tab bar, before the preview tab, and becomes current.
+    // the end of the tab bar and becomes current.
     void putBack(const QString &dashboardId)
     {
         DetachedWindow *window = detachedWindow(dashboardId);
@@ -523,7 +635,7 @@ struct MainWindow::Private
         if (!page)
             return;
         stack->addWidget(page);
-        insertTab(preview ? indexOf(preview) : int(pages.size()), page);
+        insertTab(int(pages.size()), page);
         page->view->remakeUnsafeCells();
         setCurrent(page);
     }
@@ -580,10 +692,10 @@ struct MainWindow::Private
         return dashboards;
     }
 
-    // The open tab of a task dashboard, the preview or a pinned one, or nullptr.
+    // The open page of a task dashboard, the preview or a pinned one, or nullptr.
     DashboardPage *taskPage(const DashboardRef &ref) const
     {
-        for (DashboardPage *page : pages) {
+        for (DashboardPage *page : taskPages()) {
             if (!page->ref.isRoot() && page->itemId.isEmpty() && page->ref == ref)
                 return page;
         }
@@ -657,12 +769,13 @@ struct MainWindow::Private
     {
         for (const RootDashboard *dashboard : sortedRootDashboards())
             insertTab(int(pages.size()), makePage(DashboardRef{QString(), dashboard->id}));
-        if (!pages.empty())
-            setCurrent(pages.front());
+        setCurrent(pages.empty() ? focusPage() : pages.front());
     }
 
+    // Closes the tabs and the preview. Focus stays.
     void closeAllTabs()
     {
+        closePreview();
         while (!pages.empty())
             removeTab(int(pages.size()) - 1);
     }
@@ -695,20 +808,21 @@ struct MainWindow::Private
         }
         // An item page whose item is gone closes, and so does a task dashboard
         // page whose dashboard is gone.
-        for (int i = int(pages.size()) - 1; i >= 0; --i) {
-            const DashboardPage *page = pages[std::size_t(i)];
+        const auto gone = [&](const DashboardPage *page) {
             if (page->ref.taskId != taskId)
-                continue;
-            const bool gone = page->itemId.isEmpty() ? !model->taskDashboard(taskId, page->ref.dashboardId)
-                                                     : !model->item(taskId, page->itemId);
-            if (gone)
+                return false;
+            return page->itemId.isEmpty() ? !model->taskDashboard(taskId, page->ref.dashboardId)
+                                          : !model->item(taskId, page->itemId);
+        };
+        for (int i = int(pages.size()) - 1; i >= 0; --i) {
+            if (gone(pages[std::size_t(i)]))
                 removeTab(i);
         }
+        if (preview && gone(preview))
+            closePreview();
+
         bool previewEdited = false;
-        for (std::size_t i = 0; i < pages.size(); ++i) {
-            DashboardPage *page = pages[i];
-            if (page->ref.taskId != taskId)
-                continue;
+        const auto refresh = [&](DashboardPage *page) {
             if (page->itemId.isEmpty()) {
                 if (const LayoutNode *tree = model->layout(page->ref)) {
                     page->view->setTree(*tree);
@@ -718,14 +832,24 @@ struct MainWindow::Private
                     page->shownLayout = std::move(shown);
                 }
             }
+            updatePageHeader(page);
+        };
+        for (std::size_t i = 0; i < pages.size(); ++i) {
+            DashboardPage *page = pages[i];
+            if (page->ref.taskId != taskId)
+                continue;
+            refresh(page);
             tabBar->setTabText(int(i), pageTitle(page));
             tabBar->setTabToolTip(int(i), pageToolTip(page));
-            updatePageHeader(page);
+        }
+        if (preview && preview->ref.taskId == taskId) {
+            refresh(preview);
+            syncPreview();
         }
         tabBar->updateGeometry();
         syncCurrent();
 
-        // Editing the dashboard in the preview tab pins it (docs/ui.md). Other
+        // Editing the dashboard in the preview pins it (docs/ui.md). Other
         // changes to its task, such as a new dashboard, do not. The change may
         // come from the preview's own view, so pin after it returns.
         if (previewEdited && currentPage() == preview) {
@@ -741,52 +865,50 @@ struct MainWindow::Private
             if (pages[std::size_t(i)]->ref.taskId == taskId)
                 removeTab(i);
         }
+        if (preview && preview->ref.taskId == taskId)
+            closePreview();
     }
 
     // Closes the pages of every task in the trash, such as the tasks of a
     // project that just moved there.
     void closeTrashedPages()
     {
+        const auto trashed = [this](const DashboardPage *page) {
+            return !page->ref.taskId.isEmpty() && model->taskInTrash(page->ref.taskId);
+        };
         for (int i = int(pages.size()) - 1; i >= 0; --i) {
-            const QString &taskId = pages[std::size_t(i)]->ref.taskId;
-            if (!taskId.isEmpty() && model->taskInTrash(taskId))
+            if (trashed(pages[std::size_t(i)]))
                 removeTab(i);
         }
+        if (preview && trashed(preview))
+            closePreview();
     }
 
-    DashboardPage *focusPage() const
+    // The page of the Focus slot, made the first time it is asked for.
+    DashboardPage *focusPage()
     {
-        for (DashboardPage *page : pages) {
-            if (page->isFocus())
-                return page;
-        }
-        return nullptr;
-    }
-
-    // The Focus page, at the start of the tab bar.
-    DashboardPage *makeFocusPage()
-    {
+        if (focus)
+            return focus;
         auto *view = new FocusView(*model);
         QObject::connect(view, &FocusView::taskOpened, q, [this](const QString &taskId) { q->openTaskPreview(taskId); });
         view->setMenuFiller([this](QMenu *menu, const QString &taskId) {
             actions->fillMenu(menu, SidebarModel::Kind::Task, taskId, taskId);
         });
-        auto *page = new DashboardPage(view, stack);
-        stack->addWidget(page);
-        return page;
+        focus = new DashboardPage(view, stack);
+        stack->addWidget(focus);
+        return focus;
     }
 
-    // The open tabs, as DeviceSettings keeps them: root dashboards and Focus in
-    // tab order, the current one, and the detached root dashboards. The preview
-    // tab, pinned task tabs and item tabs are not kept.
+    // The open tabs, as DeviceSettings keeps them: the root dashboard tabs in
+    // order, the current one, and the detached root dashboards. The current
+    // one is "focus" while the Focus slot is current. The preview, pinned task
+    // tabs and item tabs are not kept.
     DeviceSettings::Tabs openTabs() const
     {
         DeviceSettings::Tabs tabs;
         tabs.saved = true;
         for (const DashboardPage *page : pages) {
-            if (page->isFocus())
-                tabs.ids << focusTabId;
-            else if (page->isRoot())
+            if (page->isRoot())
                 tabs.ids << page->ref.dashboardId;
         }
         // Another current tab, which is not kept, falls back to the first.
@@ -802,33 +924,28 @@ struct MainWindow::Private
     }
 
     // Replaces the open tabs and detached windows with saved ones. Ids that
-    // no longer exist are skipped. A detached window opens at its stored
-    // geometry.
+    // no longer exist are skipped, and so is "focus", which earlier versions
+    // kept as a tab. A detached window opens at its stored geometry.
     void restoreTabs(const DeviceSettings::Tabs &tabs)
     {
         closeDetachedWindows();
         closeAllTabs();
         for (const QString &id : tabs.ids) {
-            if (id == focusTabId) {
-                if (!focusPage())
-                    insertTab(int(pages.size()), makeFocusPage());
-            } else if (model->rootDashboard(id) && !rootPage(id)) {
+            if (model->rootDashboard(id) && !rootPage(id))
                 insertTab(int(pages.size()), makePage(DashboardRef{QString(), id}));
-            }
         }
         for (const QString &id : tabs.detached) {
             if (model->rootDashboard(id) && !rootPage(id) && !detachedWindow(id))
                 openInWindow(makePage(DashboardRef{QString(), id}));
         }
-        const DashboardPage *current = nullptr;
+        DashboardPage *current = nullptr;
         if (tabs.current == focusTabId)
             current = focusPage();
         else if (!tabs.current.isEmpty())
             current = rootPage(tabs.current);
-        if (!current && !pages.empty())
-            current = pages.front();
-        if (current)
-            setCurrent(current);
+        if (!current)
+            current = pages.empty() ? focusPage() : pages.front();
+        setCurrent(current);
     }
 
     // The key the open tabs are saved under: the Store's folder, or none
@@ -1345,11 +1462,18 @@ struct MainWindow::Private
         listButton->setToolTip(tr("All root dashboards, including closed ones"));
         listButton->setAutoRaise(true);
 
+        // The Focus and preview slots, on the right before the lock and apart
+        // from the tabs (decision 0048).
+        slotBar = new SlotTabBar(content);
+        auto *separator = new SlotSeparator(content);
+
         tabRow->addWidget(showSidebarButton);
         tabRow->addWidget(tabBar);
         tabRow->addWidget(addButton);
         tabRow->addWidget(listButton);
         tabRow->addStretch(1);
+        tabRow->addWidget(separator);
+        tabRow->addWidget(slotBar);
         tabRow->addWidget(lockButton);      // at the far right
 
         stack = new QStackedWidget(content);
@@ -1491,18 +1615,37 @@ MainWindow::MainWindow(Model &model, const ItemTypeRegistry &types, Store &store
     connect(&model, &Model::workspaceNameChanged, this, [this] { d->updateTitle(); });
     connect(d->showSidebarButton, &QToolButton::clicked, this, [this] { d->showSidebar(true); });
 
-    // The tab bar.
-    connect(d->tabBar, &QTabBar::currentChanged, this, [this] { d->syncCurrent(); });
-    connect(d->tabBar, &QTabBar::tabCloseRequested, this, [this](int index) { d->removeTab(index); });
-    connect(d->tabBar, &RootTabBar::pinRequested, this, [this](int index) {
-        if (index >= 0 && index < int(d->pages.size()) && d->pages[std::size_t(index)] == d->preview)
-            d->pinPreview();
+    // The tab bar. A tab the user chooses, by a click, the keyboard or the
+    // wheel, becomes current, even while a slot is. Other changes of the
+    // bar's current index, such as when its current tab is hidden, leave a
+    // current slot as it is.
+    connect(d->tabBar, &QTabBar::currentChanged, this, [this](int index) {
+        if (d->changingTabs || index < 0 || index >= int(d->pages.size()))
+            return;
+        if (d->slotPage && !d->tabBar->hasFocus() && !d->tabBar->underMouse())
+            return;
+        d->setCurrent(d->pages[std::size_t(index)]);
     });
+    connect(d->tabBar, &RootTabBar::tabPressed, this, [this](int index) {
+        if (index >= 0 && index < int(d->pages.size()))
+            d->setCurrent(d->pages[std::size_t(index)]);
+    });
+    connect(d->tabBar, &QTabBar::tabCloseRequested, this, [this](int index) { d->removeTab(index); });
     connect(d->tabBar, &RootTabBar::newDashboardRequested, this, &MainWindow::newRootDashboard);
     connect(d->tabBar, &RootTabBar::dashboardListRequested, this, &MainWindow::showDashboardList);
     connect(d->tabBar, &RootTabBar::detachRequested, this, [this](int index) { d->detach(index); });
     connect(d->tabBar, &RootTabBar::renameRequested, this, [this](int index) { d->renameRoot(index); });
     connect(d->listButton, &QToolButton::clicked, this, &MainWindow::showDashboardList);
+
+    // The Focus and preview slots.
+    connect(d->slotBar, &SlotTabBar::slotClicked, this, [this](int slot) {
+        if (slot == SlotTabBar::FocusSlot)
+            openFocus();
+        else if (d->preview)
+            d->setCurrent(d->preview);
+    });
+    connect(d->slotBar, &SlotTabBar::pinRequested, this, [this] { d->pinPreview(); });
+    connect(d->slotBar, &SlotTabBar::previewCloseRequested, this, [this] { d->closePreview(); });
 
     // Locks.
     connect(d->lockButton, &QToolButton::clicked, this, [this] {
@@ -1532,10 +1675,14 @@ MainWindow::MainWindow(Model &model, const ItemTypeRegistry &types, Store &store
             d->tabBar->setTabToolTip(int(i), d->pageToolTip(d->pages[i]));
             d->updatePageHeader(d->pages[i]);
         }
+        if (d->preview) {
+            d->updatePageHeader(d->preview);
+            d->syncPreview();
+        }
     });
     // Task pages take their group's colour.
     connect(&model, &Model::groupChanged, this, [this] {
-        for (DashboardPage *page : d->pages)
+        for (DashboardPage *page : d->taskPages())
             d->updatePageHeader(page);
     });
     // The pages are made again on a reset. Detached root dashboards that still
@@ -1601,9 +1748,11 @@ MainWindow::~MainWindow()
     // The pages go next, while the services they use still exist.
     d->pages.clear();
     d->preview = nullptr;
+    d->focus = nullptr;
     delete d->splitter;
     d->splitter = nullptr;
     d->tabBar = nullptr;
+    d->slotBar = nullptr;
     d->stack = nullptr;
 }
 
@@ -1767,7 +1916,7 @@ void MainWindow::pinTask(const QString &taskId, const QString &chosenDashboardId
     DashboardPage *page = d->taskPage(ref);
     if (!page) {
         page = d->makePage(ref);
-        d->insertTab(d->preview ? d->indexOf(d->preview) : int(d->pages.size()), page);
+        d->insertTab(int(d->pages.size()), page);
     }
     d->setCurrent(page);
 }
@@ -1849,16 +1998,24 @@ void MainWindow::revealInSidebar(const QString &id)
 
 void MainWindow::showQuickSwitcher() { d->switcher->popup(); }
 
-void MainWindow::closeCurrentTab() { d->removeTab(d->tabBar->currentIndex()); }
-
-void MainWindow::openFocus()
+void MainWindow::closeCurrentTab()
 {
-    DashboardPage *page = d->focusPage();
-    if (!page) {
-        page = d->makeFocusPage();
-        d->insertTab(0, page);
-    }
-    d->setCurrent(page);
+    DashboardPage *page = d->currentPage();
+    if (page && !page->isFocus())
+        d->closePage(page);
+}
+
+void MainWindow::openFocus() { d->setCurrent(d->focusPage()); }
+
+void MainWindow::switchPage(int step)
+{
+    const std::vector<DashboardPage *> cycle = d->pageCycle();
+    const int count = int(cycle.size());
+    if (count < 2)
+        return;
+    const auto found = std::find(cycle.begin(), cycle.end(), d->currentPage());
+    const int current = found == cycle.end() ? 0 : int(found - cycle.begin());
+    d->setCurrent(cycle[std::size_t(((current + step) % count + count) % count)]);
 }
 
 void MainWindow::pasteImage(const QImage &image)
@@ -1905,6 +2062,8 @@ void MainWindow::saveOpenTabs() { d->saveOpenTabs(); }
 EntityActions *MainWindow::entityActions() const { return d->actions; }
 
 RootTabBar *MainWindow::rootTabBar() const { return d->tabBar; }
+
+SlotTabBar *MainWindow::slotTabBar() const { return d->slotBar; }
 
 LayoutView *MainWindow::currentLayoutView() const
 {

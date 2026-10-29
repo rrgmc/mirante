@@ -1,46 +1,68 @@
 #include "ui/RootTabBar.h"
 
 #include <QContextMenuEvent>
-#include <QIcon>
 #include <QMenu>
 #include <QMouseEvent>
 #include <QPaintEvent>
-#include <QPointer>
 #include <QStyleOptionTab>
 #include <QStylePainter>
-#include <QToolButton>
 
 namespace mirante {
 
-struct RootTabBar::Private
+namespace tabbar {
+
+namespace {
+// The dynamic property AppStyle reads; see AppStyle.cpp.
+const char *const selectionHiddenProperty = "miranteSelectionHidden";
+} // namespace
+
+void paintTabs(QTabBar &bar, const QRect &dirty, const std::function<void(QStyleOptionTab *, int)> &init,
+               int italicIndex, bool selectionShown)
 {
-    int previewIndex = -1;
-    QPointer<QToolButton> pin;      // on the preview tab, if there is one
+    QStylePainter painter(&bar);
+    const QFont normal = bar.font();
+    QFont italic = normal;
+    italic.setItalic(true);
 
-    // The pin goes on the side without the close button.
-    static ButtonPosition pinSide(const QTabBar *bar)
-    {
-        const auto closeSide = ButtonPosition(bar->style()->styleHint(QStyle::SH_TabBar_CloseButtonPosition, nullptr, bar));
-        return closeSide == LeftSide ? RightSide : LeftSide;
-    }
+    auto drawTab = [&](int index) {
+        QStyleOptionTab option;
+        init(&option, index);
+        if (!option.rect.intersects(dirty))
+            return;
+        if (!selectionShown)
+            option.state &= ~QStyle::State_Selected;
+        painter.drawControl(QStyle::CE_TabBarTabShape, option);
+        painter.setFont(index == italicIndex ? italic : normal);
+        painter.drawControl(QStyle::CE_TabBarTabLabel, option);
+        painter.setFont(normal);
+    };
 
-    // The tab that holds the pin button, or -1.
-    int pinIndex(const QTabBar *bar) const
-    {
-        if (!pin)
-            return -1;
-        const ButtonPosition side = pinSide(bar);
-        for (int i = 0; i < bar->count(); ++i) {
-            if (bar->tabButton(i, side) == pin)
-                return i;
-        }
-        return -1;
+    const int selected = bar.currentIndex();
+    for (int i = 0; i < bar.count(); ++i) {
+        if (i != selected && bar.isTabVisible(i))
+            drawTab(i);
     }
-};
+    if (selected >= 0 && bar.isTabVisible(selected))
+        drawTab(selected);
+}
+
+void setSelectionShown(QTabBar &bar, bool shown)
+{
+    if (selectionShown(bar) == shown)
+        return;
+    bar.setProperty(selectionHiddenProperty, !shown);
+    bar.update();
+    // The close buttons paint the current tab's state too.
+    for (QWidget *child : bar.findChildren<QWidget *>(Qt::FindDirectChildrenOnly))
+        child->update();
+}
+
+bool selectionShown(const QTabBar &bar) { return !bar.property(selectionHiddenProperty).toBool(); }
+
+} // namespace tabbar
 
 RootTabBar::RootTabBar(QWidget *parent)
     : QTabBar(parent)
-    , d(std::make_unique<Private>())
 {
     setTabsClosable(true);
     setDrawBase(false);
@@ -49,79 +71,27 @@ RootTabBar::RootTabBar(QWidget *parent)
     setElideMode(Qt::ElideRight);
 }
 
-RootTabBar::~RootTabBar()
-{
-    // The pin's lambda reads d, which goes before the children.
-    delete d->pin;
-}
+RootTabBar::~RootTabBar() = default;
 
-void RootTabBar::setPreviewIndex(int index)
-{
-    if (index < 0 || index >= count())
-        index = -1;
-    d->previewIndex = index;
+void RootTabBar::setSelectionShown(bool shown) { tabbar::setSelectionShown(*this, shown); }
 
-    const ButtonPosition side = Private::pinSide(this);
-    const int current = d->pinIndex(this);
-    if (current == index && (index < 0 || d->pin))
-        return;
-
-    // Move the pin: QTabBar deletes the buttons of a removed tab, so a new
-    // button is made each time.
-    if (current >= 0)
-        setTabButton(current, side, nullptr);
-    if (d->pin)
-        d->pin->deleteLater();
-    d->pin = nullptr;
-
-    if (index >= 0) {
-        auto *pin = new QToolButton(this);
-        pin->setObjectName(QStringLiteral("pinButton"));
-        pin->setIcon(QIcon(QStringLiteral(":/icons/pin.svg")));
-        pin->setText(tr("Pin"));
-        pin->setToolTip(tr("Pin this task"));
-        pin->setAutoRaise(true);
-        pin->setFocusPolicy(Qt::NoFocus);
-        connect(pin, &QToolButton::clicked, this, [this] {
-            const int at = d->pinIndex(this);
-            if (at >= 0)
-                emit pinRequested(at);
-        });
-        setTabButton(index, side, pin);
-        d->pin = pin;
-    }
-    update();
-}
-
-int RootTabBar::previewIndex() const { return d->previewIndex; }
+bool RootTabBar::selectionShown() const { return tabbar::selectionShown(*this); }
 
 void RootTabBar::paintEvent(QPaintEvent *event)
 {
-    // Draws the tabs as QTabBar does, but with an italic title for the preview
-    // tab. The current tab is drawn last so that it overlaps its neighbours.
-    QStylePainter painter(this);
-    const QFont normal = font();
-    QFont italic = normal;
-    italic.setItalic(true);
+    tabbar::paintTabs(
+        *this, event->rect(), [this](QStyleOptionTab *option, int index) { initStyleOption(option, index); }, -1,
+        selectionShown());
+}
 
-    auto drawTab = [&](int index) {
-        QStyleOptionTab option;
-        initStyleOption(&option, index);
-        if (!option.rect.intersects(event->rect()))
-            return;
-        painter.drawControl(QStyle::CE_TabBarTabShape, option);
-        painter.setFont(index == d->previewIndex ? italic : normal);
-        painter.drawControl(QStyle::CE_TabBarTabLabel, option);
-        painter.setFont(normal);
-    };
-
-    const int selected = currentIndex();
-    for (int i = 0; i < count(); ++i) {
-        if (i != selected && isTabVisible(i))
-            drawTab(i);
+void RootTabBar::mousePressEvent(QMouseEvent *event)
+{
+    if (event->button() == Qt::LeftButton) {
+        const int index = tabAt(event->position().toPoint());
+        if (index >= 0)
+            emit tabPressed(index);
     }
-    if (selected >= 0 && isTabVisible(selected))
-        drawTab(selected);
+    QTabBar::mousePressEvent(event);
 }
 
 // A middle click on a tab closes it, as in web browsers.
