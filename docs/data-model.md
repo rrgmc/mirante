@@ -38,7 +38,7 @@ Groups have no priority. They keep their manual order.
 | `id`, `groupId` | UUIDs |
 | `name` | Display name |
 | `priority` | See [priority](#priority) |
-| `order` | Manual position within its priority level |
+| `order` | Manual position among its siblings |
 | `folders` | List of [folders](#folder); exactly one has `main: true` |
 | `moduleSettings` | Project settings declared by [modules](modules.md#what-a-module-registers), as one object per module id |
 | `connectionOverrides` | Optional map from connection kind to a connection id of the same group |
@@ -77,7 +77,7 @@ Each device maps a folder id to a local path in its own settings. A device witho
 | `title` | Display name |
 | `state` | `active`, `done` or `archived` |
 | `priority` | See [priority](#priority) |
-| `order` | Manual position within its priority level |
+| `order` | Manual position among its siblings |
 | `items` | List of [items](#item) |
 | `dashboards` | List of task [dashboards](#dashboard) |
 | `defaultDashboardId` | The dashboard shown when the task is opened |
@@ -112,7 +112,7 @@ Projects and tasks have one of four levels:
 | Normal | 2 (default) |
 | Low | 3 |
 
-Lists sort by level first, then by the manual `order` field. Jira priority is not used. See [decision 0009](decisions/0009-priority-and-attention.md).
+The sidebar lists projects and tasks by the manual `order` field only; the level shows as a marker. Only the Focus view sorts by level. Jira priority is not used. See decisions [0009](decisions/0009-priority-and-attention.md) and [0034](decisions/0034-manual-order-in-the-sidebar.md).
 
 Attention, such as a failed pipeline, is not a priority. It is computed from live data and shown as a badge. See [ui](ui.md#attention).
 
@@ -200,7 +200,7 @@ After every edit, the app cleans the tree:
 1. A split with one child is replaced by that child.
 2. A split whose child is a split in the same direction absorbs that child's children, with sizes scaled to match.
 3. A tabs node with no tabs is replaced by an empty cell.
-4. A tabs node with one tab keeps its tab bar, unless `collapseSingle` is `true`. Then it is replaced by the tab's node.
+4. A tabs node with one tab keeps its tab bar, unless `collapseSingle` is `true`. Then it is replaced by the tab's node. The app no longer offers `collapseSingle` as a setting. It still reads and honours the flag in existing files. "Ungroup" in the tab menu sets it on a group of one tab, so this rule removes the group at once.
 5. Removing an item from a cell leaves an empty cell, not a gap.
 6. A cell that refers to a deleted item, task or dashboard becomes an empty cell showing "Removed".
 7. A tabs node with one tab whose node is another tabs node is replaced by that inner tabs node. A tab bar with one tab around another tab bar shows nothing new.

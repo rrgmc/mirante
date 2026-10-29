@@ -116,7 +116,6 @@ struct Move
 {
     SidebarModel::Kind kind = SidebarModel::Kind::Group;
     QString id;
-    int priority = 0;
     int index = 0;
 };
 
@@ -128,28 +127,24 @@ int positionOf(const std::vector<const T *> &list, const QString &id)
     return it == list.end() ? -1 : int(it - list.begin());
 }
 
-// The priority and index of a project or task dropped between the rows above
-// and below, either of which may be absent. It takes the level of the row
-// above, or of the row below when dropped first. The index counts every
-// sibling at that level but the moved one, hidden ones included, as
-// edits::moveProject and moveTask do.
+// The index of a project or task dropped between the rows above and below,
+// either of which may be absent. The index counts every sibling but the moved
+// one, hidden ones included, as edits::moveProject and moveTask do. The
+// priority does not change.
 template <typename T, typename Before>
 void placeAmong(Move &move, const std::vector<const T *> &siblings, const T *moved, const T *above, const T *below,
                 Before before)
 {
-    const T *neighbour = above ? above : below;
-    const Priority priority = neighbour ? neighbour->priority : moved->priority;
-    std::vector<const T *> level;
+    std::vector<const T *> others;
     for (const T *sibling : siblings) {
-        if (sibling->id != moved->id && sibling->priority == priority)
-            level.push_back(sibling);
+        if (sibling->id != moved->id)
+            others.push_back(sibling);
     }
-    std::sort(level.begin(), level.end(), [&before](const T *a, const T *b) { return before(*a, *b); });
-    move.priority = int(priority);
+    std::sort(others.begin(), others.end(), [&before](const T *a, const T *b) { return before(*a, *b); });
     if (above)
-        move.index = positionOf(level, above->id) + 1;
+        move.index = positionOf(others, above->id) + 1;
     else if (below)
-        move.index = positionOf(level, below->id);
+        move.index = positionOf(others, below->id);
     else
         move.index = 0;
 }
@@ -315,8 +310,7 @@ SidebarModel::~SidebarModel() = default;
 
 void SidebarModel::setFilter(const SortFilter &filter)
 {
-    if (filter.hideLow == d->filter.hideLow && filter.closedTasks == d->filter.closedTasks
-        && filter.hideEmptyProjects == d->filter.hideEmptyProjects)
+    if (filter == d->filter)
         return;
     beginResetModel();
     d->filter = filter;
@@ -524,23 +518,8 @@ bool SidebarModel::dropMimeData(const QMimeData *data, Qt::DropAction action, in
     const std::optional<Move> move = d->move(data, row, parent);
     if (!move)
         return false;
-    emit moveRequested(move->kind, move->id, move->priority, move->index);
+    emit moveRequested(move->kind, move->id, move->index);
     return true;
-}
-
-QString SidebarModel::dropHint(const QMimeData *data, int row, const QModelIndex &parent) const
-{
-    const std::optional<Move> move = d->move(data, row, parent);
-    if (!move || move->kind == Kind::Group)
-        return {};
-    const Project *project = move->kind == Kind::Project ? d->model.project(move->id) : nullptr;
-    const Task *task = move->kind == Kind::Task ? d->model.task(move->id) : nullptr;
-    if (!project && !task)
-        return {};
-    const Priority current = project ? project->priority : task->priority;
-    if (int(current) == move->priority)
-        return {};
-    return tr("Becomes %1").arg(priorityName(Priority(move->priority)));
 }
 
 // A drag carries one entry: the first draggable one among the indexes. An

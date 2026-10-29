@@ -27,12 +27,10 @@ std::vector<const T *> filterAndSort(std::vector<const T *> list, Visible visibl
 
 } // namespace
 
-// Priority, then order, then name, then id. The last two keys make the order
-// stable when the user has not ordered the entries.
+// Order, then name, then id. The last two keys make the order stable when the
+// user has not ordered the entries. Priority does not count.
 bool projectBefore(const Project &a, const Project &b)
 {
-    if (a.priority != b.priority)
-        return a.priority < b.priority;
     if (a.order != b.order)
         return a.order < b.order;
     if (const int c = compareText(a.name, b.name); c != 0)
@@ -43,8 +41,6 @@ bool projectBefore(const Project &a, const Project &b)
 // The same keys as projects, with the title.
 bool taskBefore(const Task &a, const Task &b)
 {
-    if (a.priority != b.priority)
-        return a.priority < b.priority;
     if (a.order != b.order)
         return a.order < b.order;
     if (const int c = compareText(a.title, b.title); c != 0)
@@ -55,12 +51,12 @@ bool taskBefore(const Task &a, const Task &b)
 // closedTasks does not apply to projects, which have no state.
 bool projectVisible(const Project &project, const SortFilter &filter)
 {
-    return !(filter.hideLow && project.priority == Priority::Low);
+    return filter.hiddenPriorities.count(project.priority) == 0;
 }
 
 bool taskVisible(const Task &task, const SortFilter &filter)
 {
-    if (filter.hideLow && task.priority == Priority::Low)
+    if (filter.hiddenPriorities.count(task.priority) != 0)
         return false;
     return (task.state != TaskState::Active) == filter.closedTasks;
 }

@@ -34,9 +34,9 @@ public:
     // The commands of the cell and tab menus. Public so tests can call them.
     enum class CellCommand { SplitRight, SplitDown, WrapInTabs, AddTab, ClearCell, RemoveCell };
     // AddTab inserts an empty tab after the given one, and makes it current.
-    // RemoveGroup unwraps a tab group with one tab: the tab's content takes
-    // the group's place.
-    enum class TabCommand { AddTab, Close, MoveLeft, MoveRight, ToggleCollapseSingle, RemoveGroup };
+    // Delete removes the tab and its content from the layout. Ungroup unwraps
+    // a tab group with one tab: the tab's content takes the group's place.
+    enum class TabCommand { AddTab, Delete, MoveLeft, MoveRight, Ungroup };
 
     void cellCommand(const DashboardRef &dashboard, const NodePath &path, CellCommand command);
     void changeItem(const DashboardRef &dashboard, const NodePath &path, const CellRef &ref);
