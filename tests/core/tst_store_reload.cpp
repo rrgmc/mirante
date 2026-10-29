@@ -86,6 +86,7 @@ private slots:
     void removedFile();
     void removedGroupWithChildren();
     void parentArrivesLater();
+    void dashboardArrivesBeforeItsTask();
     void workspaceFile();
     void reloadKeepsImageFiles();
     void twoStores();
@@ -246,6 +247,27 @@ void TestStoreReload::parentArrivesLater()
     writeFile(path(QStringLiteral("groups/g2.json")), groupJson(QStringLiteral("g2"), QStringLiteral("Late")));
     QTRY_VERIFY_WITH_TIMEOUT(model.project(QStringLiteral("p2")) != nullptr, kTimeout);
     QVERIFY(store.problems().empty());
+}
+
+void TestStoreReload::dashboardArrivesBeforeItsTask()
+{
+    Model model;
+    Store store(model);
+    QVERIFY(store.open(m_dir->path()).empty());
+
+    Task task = edits::newTask(QStringLiteral("p1"), QStringLiteral("Late task"));
+    const QString cell = QStringLiteral(R"({"type":"cell","ref":{"task":"%1","dashboard":"%2"}})")
+                             .arg(task.id, task.dashboards.front().id);
+    writeFile(path(QStringLiteral("dashboards/d1.json")),
+              QStringLiteral(R"({"schemaVersion":1,"id":"d1","name":"D","order":0,"layout":%1})")
+                  .arg(cell)
+                  .toUtf8());
+    QTRY_VERIFY_WITH_TIMEOUT(model.rootDashboard(QStringLiteral("d1")) != nullptr, kTimeout);
+    QVERIFY(model.rootDashboard(QStringLiteral("d1"))->layout.removed);
+
+    writeFile(path(QStringLiteral("tasks/") + task.id + QStringLiteral(".json")), taskBytes(task));
+    QTRY_VERIFY_WITH_TIMEOUT(model.rootDashboard(QStringLiteral("d1"))->layout.ref.has_value(), kTimeout);
+    QCOMPARE(model.rootDashboard(QStringLiteral("d1"))->layout.ref->task, task.id);
 }
 
 void TestStoreReload::workspaceFile()

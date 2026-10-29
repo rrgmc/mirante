@@ -51,6 +51,7 @@ See [decision 0030](decisions/0030-deleting-image-files.md).
 - The app remembers the content hash of each file it wrote, and ignores change events for files whose content matches. This avoids reloading its own writes.
 - The temporary files of `QSaveFile` and of sync tools are ignored.
 - A reload updates the model in place. Open views keep their state where the entity still exists. A reload is never written back.
+- A root dashboard can arrive before a task it shows. Its cell then shows "Removed", but the file keeps the reference. After each reload the app reads such dashboards again, so the cell comes back when the task arrives.
 - A changed file that cannot be used, for example because it is not valid JSON, is reported. The app keeps the entity as it was until the file is repaired.
 - A removed file removes its entity. Removing a group or project also removes its children from the app, as loading would. If a child's file is still there, it is reported, and comes back when its parent's file does.
 - A project or task whose parent is not loaded yet is reported and tried again after each later change, because a sync tool may deliver a child before its parent.
