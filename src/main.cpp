@@ -6,6 +6,7 @@
 #include "items/EnabledModules.h"
 #include "items/ItemTypeRegistry.h"
 #include "items/ViewPool.h"
+#include "ui/AppStyle.h"
 #include "ui/MainWindow.h"
 #include "web/ProfileManager.h"
 
@@ -28,6 +29,7 @@ int main(int argc, char *argv[])
     // Qt WebEngine asks for shared OpenGL contexts, set before the application.
     QCoreApplication::setAttribute(Qt::AA_ShareOpenGLContexts);
     QApplication app(argc, argv);
+    QApplication::setStyle(new mirante::AppStyle);
     QApplication::setApplicationName(QStringLiteral(MIRANTE_APP_NAME));
     QApplication::setOrganizationName(QStringLiteral(MIRANTE_ORGANISATION));
     QApplication::setApplicationVersion(QStringLiteral(MIRANTE_VERSION));

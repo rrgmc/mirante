@@ -45,6 +45,7 @@ Each file records one design decision: what was decided, what else was considere
 | [0038](0038-read-connections-in-m4.md) | Connections are read in M4, without tokens | Accepted |
 | [0039](0039-profiles-deleted-only-by-local-delete.md) | A group's web profile is deleted only when the group is deleted on this device | Accepted |
 | [0040](0040-profiles-per-group-and-module.md) | One web login profile per group and module | Accepted |
+| [0041](0041-own-look-for-tabs-and-tool-buttons.md) | Mirante draws its own tabs and tool buttons | Accepted |
 
 ## Template
 

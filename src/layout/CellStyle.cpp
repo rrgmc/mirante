@@ -34,8 +34,9 @@ QString border(const QString &selector, const QPalette &palette, bool editMode, 
     else if (editMode)
         line = QStringLiteral("2px dashed %1").arg(palette.color(QPalette::Highlight).name());
     else
-        line = QStringLiteral("1px solid %1").arg(palette.color(QPalette::Mid).name());
-    return QStringLiteral("%1 { border: %2; border-radius: 3px; }").arg(selector, line);
+        line = QStringLiteral("1px solid %1")
+                   .arg(mix(palette.color(QPalette::Window), palette.color(QPalette::WindowText), 0.15).name());
+    return QStringLiteral("%1 { border: %2; border-radius: 6px; }").arg(selector, line);
 }
 
 } // namespace mirante::cellstyle
