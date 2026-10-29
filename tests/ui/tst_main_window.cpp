@@ -1,11 +1,15 @@
 // Tests MainWindow on the fixtures: the root tabs, the preview tab, pinning,
 // new root dashboards, closing and reopening tabs, the warning bar, focusing an
 // item, and views following the model.
+#include "core/DeviceSettings.h"
 #include "core/Model.h"
 #include "core/Store.h"
 #include "items/ItemTypeRegistry.h"
 #include "layout/CellFrame.h"
 #include "layout/LayoutView.h"
+#include "ui/EntityActions.h"
+#include "ui/FocusView.h"
+#include "ui/ImagePaste.h"
 #include "ui/MainWindow.h"
 #include "ui/RootDashboardsDialog.h"
 #include "ui/RootTabBar.h"
@@ -17,10 +21,15 @@
 #include <QDirIterator>
 #include <QFile>
 #include <QFileInfo>
+#include <QImage>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QLabel>
+#include <QMenu>
 #include <QPointer>
 #include <QSettings>
 #include <QSignalSpy>
+#include <QStatusBar>
 #include <QTemporaryDir>
 #include <QTest>
 #include <QToolButton>
@@ -43,10 +52,31 @@ const QString kReviewsItem = QStringLiteral("191057b6-8355-5994-beae-62a500d35f8
 struct Fixture;
 QString overviewTitle(const Fixture &f);
 
+// Copies the fixtures into a folder, so a test can open them as a workspace
+// that is written to.
+bool copyFixtures(const QString &target)
+{
+    QDirIterator files(QStringLiteral(MIRANTE_FIXTURES_DIR), QDir::Files, QDirIterator::Subdirectories);
+    while (files.hasNext()) {
+        const QString source = files.next();
+        const QString relative = QDir(QStringLiteral(MIRANTE_FIXTURES_DIR)).relativeFilePath(source);
+        if (!QDir(target).mkpath(QFileInfo(relative).path()) || !QFile::copy(source, QDir(target).filePath(relative)))
+            return false;
+    }
+    return true;
+}
+
+// The window starts on the fixtures, loaded without the Store, so nothing is
+// written until a test opens a workspace. The settings live in a temporary
+// INI file.
 struct Fixture
 {
+    QTemporaryDir settingsDir;
+    QSettings iniSettings{settingsDir.filePath(QStringLiteral("settings.ini")), QSettings::IniFormat};
+    DeviceSettings settings{&iniSettings};
     ItemTypeRegistry types;
     Model model;
+    Store dataStore{model};
     std::unique_ptr<MainWindow> window;
 
     Fixture()
@@ -54,7 +84,14 @@ struct Fixture
         const auto problems = store::load(QStringLiteral(MIRANTE_FIXTURES_DIR), model);
         if (!problems.empty())
             qWarning() << "fixture problems:" << problems.size();
-        window = std::make_unique<MainWindow>(model, types);
+        window = std::make_unique<MainWindow>(model, types, dataStore, settings);
+    }
+
+    QWidget *warningBar() const { return window->findChild<QWidget *>(QStringLiteral("warningBar")); }
+    QString warningText() const
+    {
+        const auto labels = warningBar()->findChildren<QLabel *>();
+        return labels.isEmpty() ? QString() : labels.front()->text();
     }
 
     RootTabBar *bar() const { return window->rootTabBar(); }
@@ -336,9 +373,9 @@ private slots:
     // dropped from the list.
     void workspaces()
     {
-        // Keep the test's settings apart from the app's.
-        QCoreApplication::setOrganizationName(QStringLiteral("MiranteTests"));
-        QSettings().remove(QStringLiteral("workspace"));
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        QVERIFY(copyFixtures(dir.path()));
 
         Fixture f;
         f.window->openSampleData();
@@ -346,15 +383,16 @@ private slots:
         QVERIFY(f.window->windowTitle().contains(QStringLiteral("Sample data")));
         // The sample data is compiled into the app only, so the test checks no tabs here.
 
-        const QString folder = QDir(QStringLiteral(MIRANTE_FIXTURES_DIR)).absolutePath();
+        const QString folder = QDir(dir.path()).absolutePath();
         f.window->openWorkspace(folder);
         QCOMPARE(f.window->workspace(), folder);
         QCOMPARE(f.window->recentWorkspaces(), QStringList{folder});
-        QCOMPARE(QSettings().value(QStringLiteral("workspace/last")).toString(), folder);
+        QCOMPARE(f.settings.lastWorkspace(), folder);
+        QCOMPARE(f.dataStore.dir(), folder);
         // The fixtures have a workspace.mirante naming them, which the title shows.
         QVERIFY(f.window->windowTitle().startsWith(QStringLiteral("Sample data")));
         QCOMPARE(f.bar()->count(), 2);
-        QVERIFY(f.window->findChild<QWidget *>(QStringLiteral("warningBar"))->isHidden());
+        QVERIFY(f.warningBar()->isHidden());
 
         // Opening it again keeps one entry; a missing folder is reported.
         f.window->openWorkspace(folder);
@@ -367,16 +405,12 @@ private slots:
         f.window->openSampleData();
         f.window->openWorkspace(folder + QStringLiteral("/workspace.mirante"));
         QCOMPARE(f.window->workspace(), folder);
-
-        QSettings().remove(QStringLiteral("workspace"));
     }
 
     // A folder is a workspace only with a workspace.mirante in it. Without
     // one it is not opened; createWorkspace writes the file and opens it.
     void workspaceNeedsItsFile()
     {
-        QCoreApplication::setOrganizationName(QStringLiteral("MiranteTests"));
-        QSettings().remove(QStringLiteral("workspace"));
         QTemporaryDir dir;
         QVERIFY(dir.isValid());
 
@@ -395,23 +429,15 @@ private slots:
 
         // A folder that does not exist cannot be made one.
         QVERIFY(!f.window->createWorkspace(dir.filePath(QStringLiteral("missing")), QStringLiteral("X")));
-        QSettings().remove(QStringLiteral("workspace"));
     }
 
     // A workspace's name lives in its workspace.mirante. Renaming writes it, and
     // the sidebar title and the window title show it.
     void renameWorkspace()
     {
-        QCoreApplication::setOrganizationName(QStringLiteral("MiranteTests"));
         QTemporaryDir dir;
         QVERIFY(dir.isValid());
-        QDirIterator files(QStringLiteral(MIRANTE_FIXTURES_DIR), QDir::Files, QDirIterator::Subdirectories);
-        while (files.hasNext()) {
-            const QString source = files.next();
-            const QString relative = QDir(QStringLiteral(MIRANTE_FIXTURES_DIR)).relativeFilePath(source);
-            QVERIFY(QDir(dir.path()).mkpath(QFileInfo(relative).path()));
-            QVERIFY(QFile::copy(source, dir.filePath(relative)));
-        }
+        QVERIFY(copyFixtures(dir.path()));
 
         Fixture f;
         f.window->openWorkspace(dir.path());
@@ -423,6 +449,14 @@ private slots:
         QCOMPARE(title->text(), QStringLiteral("Work stuff"));
         QVERIFY(f.window->windowTitle().startsWith(QStringLiteral("Work stuff")));
 
+        // The Store writes the name into workspace.mirante.
+        f.dataStore.flush();
+        QFile file(dir.filePath(QStringLiteral("workspace.mirante")));
+        QVERIFY(file.open(QIODevice::ReadOnly));
+        QCOMPARE(QJsonDocument::fromJson(file.readAll()).object().value(QStringLiteral("name")).toString(),
+                 QStringLiteral("Work stuff"));
+        file.close();
+
         // Opening it again reads the name back.
         f.window->openSampleData();
         f.window->openWorkspace(dir.path());
@@ -431,7 +465,157 @@ private slots:
         // The sample data cannot be renamed.
         f.window->openSampleData();
         QVERIFY(!f.window->renameWorkspace(QStringLiteral("Other")));
-        QSettings().remove(QStringLiteral("workspace"));
+    }
+
+    // An edit through EntityActions reaches the file on disk.
+    void editReachesDisk()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        QVERIFY(copyFixtures(dir.path()));
+
+        Fixture f;
+        f.window->openWorkspace(dir.path());
+        QVERIFY(!f.dataStore.readOnly());
+        QCOMPARE(f.model.task(kFixLoginTask)->state, TaskState::Active);
+        f.window->entityActions()->setState(kFixLoginTask, TaskState::Done);
+        f.dataStore.flush();
+
+        QFile file(dir.filePath(QStringLiteral("tasks/%1.json").arg(kFixLoginTask)));
+        QVERIFY(file.open(QIODevice::ReadOnly));
+        QCOMPARE(QJsonDocument::fromJson(file.readAll()).object().value(QStringLiteral("state")).toString(),
+                 QStringLiteral("done"));
+    }
+
+    // The open tabs of a workspace are saved when another one opens, and come
+    // back when it opens again: root dashboards and Focus in order, the
+    // preview, and the current tab.
+    void openTabsRestored()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        QVERIFY(copyFixtures(dir.path()));
+
+        Fixture f;
+        f.window->openWorkspace(dir.path());
+        QCOMPARE(f.bar()->count(), 2);      // nothing saved yet: every root dashboard
+        f.window->openFocus();
+        f.window->openRootDashboard(kRelease);
+        f.window->closeCurrentTab();
+        f.window->openTaskPreview(kFixLoginTask);
+        QCOMPARE(f.bar()->count(), 3);
+
+        f.window->openSampleData();
+        f.window->openWorkspace(dir.path());
+        QCOMPARE(f.bar()->count(), 3);
+        QCOMPARE(f.tabText(0), QStringLiteral("Focus"));
+        QCOMPARE(f.tabText(1), QStringLiteral("Morning"));
+        QCOMPARE(f.tabText(2), QStringLiteral("Fix login timeout / Work"));
+        QCOMPARE(f.bar()->previewIndex(), 2);
+        QCOMPARE(f.bar()->currentIndex(), 2);
+
+        // Reloading keeps them, and so does a new window on the same settings.
+        f.window->openRootDashboard(kMorning);
+        f.window->reloadWorkspace();
+        QCOMPARE(f.bar()->count(), 3);
+        QCOMPARE(f.bar()->currentIndex(), 1);
+        f.window->close();
+        f.window.reset();
+        f.dataStore.close();    // as at start: nothing is open yet
+        f.window = std::make_unique<MainWindow>(f.model, f.types, f.dataStore, f.settings);
+        f.window->openWorkspace(dir.path());
+        QCOMPARE(f.bar()->count(), 3);
+        QCOMPARE(f.tabText(0), QStringLiteral("Focus"));
+        QCOMPARE(f.bar()->currentIndex(), 1);
+    }
+
+    // The Focus entry opens one Focus tab, at the start of the tab bar.
+    void focusTab()
+    {
+        Fixture f;
+        auto *sidebar = f.window->findChild<Sidebar *>();
+        emit sidebar->focusRequested();
+        QCOMPARE(f.bar()->count(), 3);
+        QCOMPARE(f.tabText(0), QStringLiteral("Focus"));
+        QCOMPARE(f.bar()->currentIndex(), 0);
+        QVERIFY(!f.window->currentLayoutView());
+
+        f.window->openRootDashboard(kRelease);
+        emit sidebar->focusRequested();
+        QCOMPARE(f.bar()->count(), 3);
+        QCOMPARE(f.bar()->currentIndex(), 0);
+
+        // A task opened from it goes to the preview tab.
+        auto *focus = f.window->findChild<FocusView *>();
+        QVERIFY(focus);
+        emit focus->taskOpened(kFixLoginTask);
+        QCOMPARE(f.bar()->count(), 4);
+        QCOMPARE(f.bar()->previewIndex(), 3);
+        QCOMPARE(f.tabText(3), QStringLiteral("Fix login timeout / Work"));
+
+        // It closes like any other tab.
+        emit f.bar()->tabCloseRequested(0);
+        QCOMPARE(f.bar()->count(), 3);
+        QVERIFY(!f.window->findChild<FocusView *>());
+    }
+
+    // The sample data is read-only, and the warning bar says so.
+    void readOnlyNote()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        QVERIFY(copyFixtures(dir.path()));
+
+        Fixture f;
+        QVERIFY(f.warningBar()->isHidden());
+        f.window->openSampleData();
+        QVERIFY(f.dataStore.readOnly());
+        QVERIFY(!f.warningBar()->isHidden());
+        QVERIFY(f.warningText().contains(QStringLiteral("not saved")));
+
+        f.window->openWorkspace(dir.path());
+        QVERIFY(f.warningBar()->isHidden());
+    }
+
+    // The + menu in the sidebar header makes a project in the selected group
+    // and a task in the selected project, so each needs a selection.
+    void newMenu()
+    {
+        Fixture f;
+        auto *button = f.window->findChild<QToolButton *>(QStringLiteral("newEntityButton"));
+        QVERIFY(button && button->menu());
+        const auto actions = button->menu()->actions();
+        QCOMPARE(actions.size(), 3);
+        emit button->menu()->aboutToShow();
+        QVERIFY(actions[0]->isEnabled());
+        QVERIFY(!actions[1]->isEnabled());
+        QVERIFY(!actions[2]->isEnabled());
+
+        f.window->revealInSidebar(kFixLoginTask);
+        emit button->menu()->aboutToShow();
+        QVERIFY(actions[1]->isEnabled());
+        QVERIFY(actions[2]->isEnabled());
+    }
+
+    // A pasted image that cannot be placed is explained in the status bar.
+    // The registry has no type that takes pasted images.
+    void pasteImageMessage()
+    {
+        Fixture f;
+        QImage image(4, 4, QImage::Format_ARGB32);
+        image.fill(Qt::red);
+        f.window->pasteImage(image);
+        QCOMPARE(f.window->statusBar()->currentMessage(), ImagePaste::message(ImagePaste::Result::NoImageType));
+    }
+
+    // A deleted task's tabs close.
+    void removedTaskClosesItsTabs()
+    {
+        Fixture f;
+        f.window->openTaskPreview(kFixLoginTask);
+        QCOMPARE(f.bar()->count(), 3);
+        f.model.removeTask(kFixLoginTask);
+        QCOMPARE(f.bar()->count(), 2);
     }
 
     // From the sidebar menu, a task dashboard or a single item opens in a new

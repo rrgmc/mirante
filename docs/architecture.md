@@ -116,9 +116,12 @@ Code that differs per platform lives only here, behind these classes.
 
 | Class | Responsibility |
 |---|---|
-| `MainWindow` | Sidebar, root tab bar, preview tab, toolbar, shortcuts |
+| `MainWindow` | Sidebar, root tab bar, preview tab, the Focus tab, warning and conflict bars, toolbar, shortcuts. It opens workspaces through the `Store`, and saves and restores each workspace's open tabs through `DeviceSettings`. |
 | `Sidebar` | Tree model and view of groups, projects and tasks, with drag and drop |
+| `EntityActions` | Every create, edit, move and delete command for groups, projects, tasks, items and task dashboards, shared by the sidebar menus, the menu bar and sidebar drops |
 | `FocusView` | The [Focus](ui.md#focus-view) list |
+| `ConflictBar` | One line for each conflict copy, with "Keep current", "Use other" and "Compare". See [sync](sync.md#conflict-copies). |
+| `ImagePaste` | Pastes an image from the clipboard into an image item, or as a new one. See [image](item-types.md#image). |
 | `QuickSwitcher` | `Ctrl+K` fuzzy search |
 | `QuickAdd` | Creates a task from a pasted link, using the modules' quick add handlers. See [quick add](ui.md#quick-add). |
 | `DetachedWindow` | A top-level window holding one detached root dashboard. See [decision 0024](decisions/0024-detach-root-dashboard-tabs.md). |
@@ -135,7 +138,7 @@ Code that differs per platform lives only here, behind these classes.
 
 ## Ownership and lifetime
 
-- `main.cpp` creates the long-lived services in this order: `DeviceSettings`, the registries (filled by `registerEnabledModules()`), `Model`, `Store`, `SecretStore`, `StatusCache`, `ProfileManager`, `MainWindow`. It destroys them in reverse order.
+- `main.cpp` creates the long-lived services in this order: `DeviceSettings`, the registries (filled by `registerEnabledModules()`), `Model`, `Store`, `SecretStore`, `StatusCache`, `ProfileManager`, `MainWindow`. It destroys them in reverse order. `DeviceSettings` is created after the application and organisation names are set, because they choose where `QSettings` keeps its values. The `Store` flushes its pending writes when the application is about to quit.
 - Each `Placement` owns its view widget.
 - `ProfileManager` owns the profiles and is destroyed after all web views.
 
