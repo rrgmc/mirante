@@ -8,6 +8,7 @@
 #include <QIcon>
 #include <QHash>
 #include <QMimeData>
+#include <QPalette>
 
 #include <algorithm>
 #include <cstddef>
@@ -398,11 +399,16 @@ QVariant SidebarModel::data(const QModelIndex &index, int role) const
             return {};
         if (role == Qt::DisplayRole)
             return group->name;
+        // Groups are section headings, as in macOS sidebars: small, bold
+        // and grey.
         if (role == Qt::FontRole) {
             QFont font;
             font.setBold(true);
+            font.setPointSizeF(font.pointSizeF() * 0.85);
             return font;
         }
+        if (role == Qt::ForegroundRole)
+            return QPalette().color(QPalette::PlaceholderText);
         return {};
     }
     case Kind::Project: {

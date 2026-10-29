@@ -2,6 +2,7 @@
 
 #include "ui/SidebarDelegate.h"
 #include "ui/SidebarModel.h"
+#include "ui/SidebarTree.h"
 
 #include <QAction>
 #include <QEvent>
@@ -9,6 +10,7 @@
 #include <QIcon>
 #include <QLabel>
 #include <QMenu>
+#include <QPalette>
 #include <QPushButton>
 #include <QSet>
 #include <QTabBar>
@@ -166,6 +168,21 @@ Sidebar::Sidebar(const Model &model, const ItemTypeRegistry &types, QWidget *par
     : QWidget(parent)
     , d(std::make_unique<Private>())
 {
+    // A light grey behind the whole sidebar, a little darker than the window,
+    // as in macOS sidebars. The tree takes it as its background.
+    QPalette palette = this->palette();
+    for (const auto group : {QPalette::Active, QPalette::Inactive, QPalette::Disabled}) {
+        const QColor window = palette.color(group, QPalette::Window);
+        const QColor text = palette.color(group, QPalette::WindowText);
+        const qreal amount = 0.04;
+        palette.setColor(group, QPalette::Window,
+                         QColor::fromRgbF(float(window.redF() + (text.redF() - window.redF()) * amount),
+                                          float(window.greenF() + (text.greenF() - window.greenF()) * amount),
+                                          float(window.blueF() + (text.blueF() - window.blueF()) * amount)));
+    }
+    setPalette(palette);
+    setAutoFillBackground(true);
+
     d->model = new SidebarModel(model, types, this);
 
     // Header: title and the collapse button.
@@ -244,7 +261,7 @@ Sidebar::Sidebar(const Model &model, const ItemTypeRegistry &types, QWidget *par
     connect(d->focus, &QPushButton::clicked, this, &Sidebar::focusRequested);
 
     // The tree.
-    d->tree = new QTreeView(this);
+    d->tree = new SidebarTree(this);
     d->tree->setModel(d->model);
     d->tree->setItemDelegate(new SidebarDelegate(d->tree));
     d->tree->setHeaderHidden(true);
@@ -454,7 +471,7 @@ void Sidebar::setTrashMenuFiller(MenuFiller filler) { d->trashMenuFiller = std::
 
 bool Sidebar::showsTrash() const { return d->stateTabs->currentIndex() == TrashList; }
 
-// The delegate paints the tint. See SidebarDelegate::isHoverTinted().
+// SidebarTree paints the tint. See SidebarDelegate::isHoverTinted().
 void Sidebar::setHoverHighlight(const QString &id)
 {
     if (d->hoverId == id)

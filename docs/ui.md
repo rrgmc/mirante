@@ -34,7 +34,8 @@ The sidebar can be collapsed.
 - Projects and tasks appear in manual order. [Priority](data-model.md#priority) does not change their place; only Focus sorts by it. See [decision 0034](decisions/0034-manual-order-in-the-sidebar.md).
 - A coloured marker shows the priority level. Projects have a small rounded square and tasks a circle, so the two levels are easy to tell apart. Low items are dimmed.
 - Each task has two fixed children: **Dashboards**, with its task dashboards, then **Items**, with the task's items. They are there for every task, even when empty.
-- The selected row keeps its full highlight colour when the sidebar does not have the focus, so the dashboard on screen stays easy to see.
+- The selected row is a rounded shape in the highlight colour, inset from the sidebar's edges and as wide as the sidebar. It keeps its full colour when the sidebar does not have the focus, so the dashboard on screen stays easy to see.
+- Groups are section headings: small, bold and grey.
 - Four tabs at the bottom choose the task list. **Projects** lists active tasks under every project, including projects without any. **Active** lists the same tasks, but leaves out projects without active tasks. **Done** lists done and archived tasks under every project. **Trash** lists what is in the [trash](#trash). The first three lists leave out projects and tasks in the trash. A filter button right of the workspace title opens a menu with a checkbox for each priority. Unchecking one hides the projects and tasks of that priority in the Projects, Active and Done lists. The button looks pressed while it hides something. All priorities are shown at start.
 - A `+` button in the sidebar header opens a menu: New Group…, New Project… in the group of the selected row, and New Task… in the project of the selected row. The last two are disabled when the selection has no group or project.
 - Two buttons in the sidebar header expand or collapse every task at once, with its Dashboards and Items. Groups and projects are left as they are; they open and close by hand only.
@@ -43,7 +44,7 @@ The sidebar can be collapsed.
   - Dragging a group, project or task among its siblings changes its place. It never changes a priority. Nothing is dragged in the Trash list.
   - A task itself is not dragged onto dashboards. Drag one of its items, to show that item, or one of its dashboards, to show the task with that dashboard in a root dashboard. See [placing tasks](#placing-tasks-and-items).
 - The context menu holds new, edit, rename, set priority, set state and delete, and on a task dashboard "Set as default". On a task dashboard or an item it also holds "Open in new root dashboard", which makes a root dashboard showing just that dashboard or item.
-- Project rows have a light tinted background, so they stand out between groups and tasks.
+- Project rows have a light tinted background, a rounded shape like the selection, so they stand out between groups and tasks.
 - While the mouse is over a dashboard cell, the sidebar row of what the cell shows gets a soft tint: the item's row for an item cell, also one inside a task cell, and the task's row for a task cell. The tint goes when the mouse leaves the cell. The tree does not expand or scroll for it. If a collapsed row hides that row, the nearest row that can be seen takes the tint instead: the task of an item whose task or Items row is closed, or the project or group if that is closed. The tint follows as rows open and close.
 - "Delete project…" and "Delete task…" move the project or task to the [trash](#trash), without a question, since it can be undone. Holding `Shift` while choosing them deletes for good, after a confirmation. Every other delete, such as of a group, an item or a task dashboard, asks for confirmation first and cannot be undone.
 
@@ -82,6 +83,7 @@ Standard controls, such as buttons, menus, lists and dialogs, keep the platform'
 - **Close buttons on tabs** are on the right. They show on the current tab and on the tab under the mouse only.
 - **Cell borders** are a thin, light line with rounded corners.
 - **The warning bar** has a tinted background and no frame.
+- **The sidebar** has a light grey background, a little darker than the window, with rounded row shapes, as in macOS sidebars. See [sidebar tree](#sidebar-tree).
 
 ## Menus
 
