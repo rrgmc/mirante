@@ -10,7 +10,17 @@ An image, such as a screenshot or a diagram, with an optional link and an option
 
 The image is a file in the data folder's `files/` folder. The item's configuration holds its file name, the link and the memo.
 
-In M2 the type is a stub with an id, a name and an icon. Pasting from the clipboard arrives in M3, and the view in a later milestone.
+Since M3 the type declares its configuration fields, so items can be created and edited. Its view arrives in a later milestone.
+
+## Configuration
+
+| Key | Type | Description |
+|---|---|---|
+| `file` | image, required | The image's file name in the data folder's `files/` folder. |
+| `link` | URL | Optional address that a click on the image opens. |
+| `memo` | multi-line text | Optional plain text shown under the image. |
+
+The type returns `file` from `pastedImageField()`, so pasting an image onto a task dashboard creates an Image item with the pasted image in `file`.
 
 ## Connection kinds
 

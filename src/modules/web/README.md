@@ -8,7 +8,13 @@ Shows any web page as an item. See [item types](../../../docs/item-types.md#web-
 |---|---|---|
 | `web.page` | Web page | web |
 
-In M2 the type is a stub with an id, a name and an icon. Its view arrives in M4.
+Since M3 the type declares its configuration fields, so items can be created and edited. Its view arrives in M4.
+
+## Configuration
+
+| Key | Type | Description |
+|---|---|---|
+| `url` | URL, required | The page's address, starting with `http://` or `https://`. |
 
 ## Connection kinds
 

@@ -8,7 +8,13 @@ One of the project's folders, with its Git state and shortcuts to a terminal and
 |---|---|---|
 | `folder` | Folder / terminal | native |
 
-In M2 the type is a stub with an id, a name and an icon. Its view arrives in a later milestone.
+Since M3 the type declares its configuration fields, so items can be created and edited. Its view arrives in a later milestone.
+
+## Configuration
+
+| Key | Type | Description |
+|---|---|---|
+| `folder` | folder, required | The id of one of the project's folders. |
 
 ## Connection kinds
 
