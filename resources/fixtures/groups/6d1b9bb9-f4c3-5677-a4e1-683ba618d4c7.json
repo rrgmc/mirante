@@ -64,9 +64,6 @@
     "id": "6d1b9bb9-f4c3-5677-a4e1-683ba618d4c7",
     "name": "Work",
     "order": 0,
-    "profileOverrides": {
-        "figma.com": "shared",
-        "www.w3.org": "shared"
-    },
-    "schemaVersion": 1
+    "schemaVersion": 1,
+    "webProfile": "3f6c2a8e-5d1b-4c7a-9e2f-8b0d4a6c1e93"
 }

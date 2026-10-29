@@ -396,7 +396,7 @@ private slots:
         QCOMPARE(context.config().value(QStringLiteral("text")).toString(), QStringLiteral("two"));
 
         // Without a profile manager there is no page, but no crash either.
-        QVERIFY(!context.profile(QUrl(QStringLiteral("data:text/plain,x"))));
+        QVERIFY(!context.profile());
         std::unique_ptr<QWidget> web(context.createWebView(QUrl(QStringLiteral("data:text/plain,x")), nullptr));
         QVERIFY(qobject_cast<QLabel *>(web.get()));
 
@@ -406,6 +406,53 @@ private slots:
         QCOMPARE(label->text(), QStringLiteral("No connection"));
         QVERIFY(label->alignment() == Qt::AlignCenter);
         services.settings = nullptr;
+    }
+
+    // A web view is made again when the item's web profile changes: through
+    // the item, its group, or the workspace's list. A native view is not.
+    void webProfileChangeMakesTheViewAgain()
+    {
+        auto web = make(QStringLiteral("w1"));
+        auto native = make(QStringLiteral("n1"));
+        web->show();
+        native->show();
+        QPointer<QWidget> webView = web->view();
+        QPointer<QWidget> nativeView = native->view();
+        QVERIFY(webView && nativeView);
+
+        WebProfile work;
+        work.id = QStringLiteral("work");
+        work.name = QStringLiteral("Work");
+        WebProfile bank;
+        bank.id = QStringLiteral("bank");
+        bank.name = QStringLiteral("Bank");
+
+        // A new profile that nobody uses changes nothing.
+        model->setWebProfiles({work, bank});
+        QCOMPARE(web->view(), webView.data());
+
+        // The group's default.
+        Group group = *model->group(QStringLiteral("g1"));
+        group.webProfile = QStringLiteral("work");
+        model->setGroup(group);
+        QVERIFY(web->view() && web->view() != webView.data());
+        QCOMPARE(native->view(), nativeView.data());
+        webView = web->view();
+
+        // The item's own profile.
+        changeItem(*model, QStringLiteral("w1"), [](Item &item) { item.webProfile = QStringLiteral("bank"); });
+        QVERIFY(web->view() && web->view() != webView.data());
+        webView = web->view();
+
+        // The group's default no longer reaches it.
+        group.webProfile.clear();
+        model->setGroup(group);
+        QCOMPARE(web->view(), webView.data());
+
+        // Deleting its profile falls back to the group's, Default.
+        model->setWebProfiles({work});
+        QVERIFY(web->view() && web->view() != webView.data());
+        QCOMPARE(native->view(), nativeView.data());
     }
 
     void moduleOfTheType()
@@ -429,8 +476,7 @@ private slots:
 
             auto *panel = qobject_cast<WebPanel *>(placement->view());
             QVERIFY(panel);
-            QCOMPARE(panel->view()->page()->profile(),
-                     profiles->groupProfile(QStringLiteral("g1"), QStringLiteral("test")));
+            QCOMPARE(panel->view()->page()->profile(), profiles->profile(kDefaultWebProfile));
             QCOMPARE(header.count(), 1);
             QCOMPARE(header.at(0).at(0).value<QWidget *>(), panel->toolbar());
             QCOMPARE(placement->headerWidget(), panel->toolbar());

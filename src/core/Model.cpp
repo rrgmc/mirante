@@ -15,6 +15,7 @@ namespace mirante {
 struct Model::Private
 {
     QString workspaceName;
+    std::vector<WebProfile> webProfiles;
     std::map<QString, Group> groups;
     std::map<QString, Project> projects;
     std::map<QString, Task> tasks;
@@ -441,6 +442,25 @@ void Model::setWorkspaceName(const QString &name)
         return;
     d->workspaceName = name;
     emit workspaceNameChanged();
+}
+
+const std::vector<WebProfile> &Model::webProfiles() const { return d->webProfiles; }
+
+const WebProfile *Model::webProfile(const QString &id) const
+{
+    for (const WebProfile &profile : d->webProfiles) {
+        if (profile.id == id)
+            return &profile;
+    }
+    return nullptr;
+}
+
+void Model::setWebProfiles(const std::vector<WebProfile> &profiles)
+{
+    if (profiles == d->webProfiles)
+        return;
+    d->webProfiles = profiles;
+    emit webProfilesChanged();
 }
 
 } // namespace mirante

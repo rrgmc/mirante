@@ -97,7 +97,7 @@ struct ProfileManager::Private
     QString root;
     // Loaded profiles by storage name. The manager deletes them.
     QHash<QString, QWebEngineProfile *> profiles;
-    // Profiles of removed groups, waiting for deleteLater. Their folders are
+    // Removed profiles, waiting for deleteLater. Their folders are
     // removed once they are gone.
     std::vector<QPointer<QWebEngineProfile>> released;
     // Released profiles whose HTTP cache is still being cleared. Deleting a
@@ -142,7 +142,7 @@ ProfileManager::~ProfileManager()
         }
     }
     d->released.clear();
-    // One last try for folders of removed groups. Ones still locked stay.
+    // One last try for folders of removed profiles. Ones still locked stay.
     for (const QString &path : std::as_const(d->pendingFolders))
         QDir(path).removeRecursively();
 }
@@ -177,14 +177,18 @@ static QWebEngineProfile *profileNamed(ProfileManager *manager, QHash<QString, Q
     return profile;
 }
 
-QWebEngineProfile *ProfileManager::groupProfile(const QString &groupId, const QString &moduleId)
+QString ProfileManager::storageName(const QString &profileId)
 {
-    return profileNamed(this, d->profiles, QStringLiteral("g-%1-%2").arg(groupId, moduleId));
+    // Ids come from synced data, so one that is not a plain name, and could
+    // reach outside the profiles folder, uses Default instead.
+    static const QRegularExpression plain(QStringLiteral("^[A-Za-z0-9_-]+$"));
+    const QString id = plain.match(profileId).hasMatch() ? profileId : kDefaultWebProfile;
+    return QStringLiteral("p-%1").arg(id);
 }
 
-QWebEngineProfile *ProfileManager::sharedProfile(const QString &moduleId)
+QWebEngineProfile *ProfileManager::profile(const QString &profileId)
 {
-    return profileNamed(this, d->profiles, QStringLiteral("shared-%1").arg(moduleId));
+    return profileNamed(this, d->profiles, storageName(profileId.isEmpty() ? kDefaultWebProfile : profileId));
 }
 
 QWebEngineProfile *ProfileManager::appProfile()
@@ -192,61 +196,50 @@ QWebEngineProfile *ProfileManager::appProfile()
     return profileNamed(this, d->profiles, QStringLiteral("app"));
 }
 
-QWebEngineProfile *ProfileManager::profileFor(const Group &group, const QString &moduleId, const QUrl &url)
+void ProfileManager::removeStorage(const QString &storageName)
 {
-    const QString host = url.host();
-    if (!host.isEmpty()) {
-        for (auto it = group.profileOverrides.begin(); it != group.profileOverrides.end(); ++it) {
-            if (it.key().compare(host, Qt::CaseInsensitive) == 0
-                && it.value().toString() == QLatin1String("shared"))
-                return sharedProfile(moduleId);
-        }
+    const QString path = storagePath(storageName);
+    if (d->pendingFolders.contains(path))
+        return;
+    d->pendingFolders.append(path);
+
+    QWebEngineProfile *profile = d->profiles.take(storageName);
+    if (!profile) {
+        removeFolderSoon(this, path, kRemoveAttempts);
+        return;
     }
-    return groupProfile(group.id, moduleId);
+    // A loaded profile: clear what can be cleared now, then release it. Its
+    // folder is removed once the profile is gone.
+    connect(profile, &QObject::destroyed, this, [this, path] {
+        removeFolderSoon(this, path, kRemoveAttempts);
+    });
+    d->released.emplace_back(profile);
+    // The profile is deleted only once its cache is cleared; see clearing.
+    d->clearing.insert(profile);
+    connect(profile, &QWebEngineProfile::clearHttpCacheCompleted, this, [this, profile] {
+        d->clearing.remove(profile);
+        profile->deleteLater();
+    }, Qt::SingleShotConnection);
+    profile->cookieStore()->deleteAllCookies();
+    profile->clearHttpCache();
 }
 
-void ProfileManager::removeGroup(const QString &groupId)
+void ProfileManager::removeProfile(const QString &profileId)
 {
-    if (groupId.isEmpty())
+    if (profileId.isEmpty() || profileId == kDefaultWebProfile)
         return;
-    const QString prefix = QStringLiteral("g-%1-").arg(groupId);
+    const QString name = storageName(profileId);
+    if (name == storageName(kDefaultWebProfile))
+        return;
+    removeStorage(name);
+}
 
-    // Loaded profiles: clear what can be cleared now, then release them. Their
-    // folders are removed once the profiles are gone.
-    for (auto it = d->profiles.begin(); it != d->profiles.end();) {
-        if (!it.key().startsWith(prefix)) {
-            ++it;
-            continue;
-        }
-        QWebEngineProfile *profile = it.value();
-        const QString path = storagePath(it.key());
-        it = d->profiles.erase(it);
-
-        d->pendingFolders.append(path);
-        connect(profile, &QObject::destroyed, this, [this, path] {
-            removeFolderSoon(this, path, kRemoveAttempts);
-        });
-        d->released.emplace_back(profile);
-        // The profile is deleted only once its cache is cleared; see clearing.
-        d->clearing.insert(profile);
-        connect(profile, &QWebEngineProfile::clearHttpCacheCompleted, this, [this, profile] {
-            d->clearing.remove(profile);
-            profile->deleteLater();
-        }, Qt::SingleShotConnection);
-        profile->cookieStore()->deleteAllCookies();
-        profile->clearHttpCache();
-    }
-
-    // Folders of profiles that are not loaded, including those of modules
-    // missing from this build.
-    const QStringList folders = QDir(d->root).entryList({prefix + QLatin1Char('*')}, QDir::Dirs | QDir::NoDotAndDotDot);
-    for (const QString &folder : folders) {
-        const QString path = storagePath(folder);
-        if (d->pendingFolders.contains(path))
-            continue;
-        d->pendingFolders.append(path);
-        removeFolderSoon(this, path, kRemoveAttempts);
-    }
+void ProfileManager::removeOldProfiles()
+{
+    const QStringList folders = QDir(d->root).entryList({QStringLiteral("g-*"), QStringLiteral("shared-*")},
+                                                        QDir::Dirs | QDir::NoDotAndDotDot);
+    for (const QString &folder : folders)
+        removeStorage(folder);
 }
 
 QString ProfileManager::storagePath(const QString &storageName) const

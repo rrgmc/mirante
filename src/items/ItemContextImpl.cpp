@@ -3,6 +3,7 @@
 #include "core/Connections.h"
 #include "core/DeviceSettings.h"
 #include "core/Model.h"
+#include "core/WebProfiles.h"
 #include "items/UnknownItemType.h"
 #include "web/ProfileManager.h"
 #include "web/WebPanel.h"
@@ -98,7 +99,7 @@ QString ItemContextImpl::folderPath(const QString &folderId) const
 
 QWidget *ItemContextImpl::createWebView(const QUrl &url, QWidget *parent)
 {
-    QWebEngineProfile *webProfile = profile(url);
+    QWebEngineProfile *webProfile = profile();
     // Tests without a profile manager, or an item without a group, get a
     // message instead of a page.
     if (!webProfile)
@@ -109,17 +110,18 @@ QWidget *ItemContextImpl::createWebView(const QUrl &url, QWidget *parent)
     return panel;
 }
 
-QWebEngineProfile *ItemContextImpl::profile(const QUrl &url)
+QWebEngineProfile *ItemContextImpl::profile()
 {
     if (!m_services.profiles || !m_services.model)
         return nullptr;
-    const Item *item = m_services.model->item(m_taskId, m_itemId);
-    const Task *task = m_services.model->task(m_taskId);
-    const Project *project = task ? m_services.model->project(task->projectId) : nullptr;
-    const Group *group = project ? m_services.model->group(project->groupId) : nullptr;
+    const Model &model = *m_services.model;
+    const Item *item = model.item(m_taskId, m_itemId);
+    const Task *task = model.task(m_taskId);
+    const Project *project = task ? model.project(task->projectId) : nullptr;
+    const Group *group = project ? model.group(project->groupId) : nullptr;
     if (!item || !group)
         return nullptr;
-    return m_services.profiles->profileFor(*group, moduleOfType(item->type), url);
+    return m_services.profiles->profile(webprofiles::effective(model, *item, group));
 }
 
 QWidget *ItemContextImpl::createMessageView(const QString &text, QWidget *parent)

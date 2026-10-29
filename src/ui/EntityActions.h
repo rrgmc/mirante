@@ -19,6 +19,7 @@ class ItemTypeRegistry;
 class Model;
 class ProfileManager;
 class Store;
+class WebProfilesDialog;
 
 // Every command that creates, edits, moves or deletes a group, project, task,
 // item or task dashboard. The sidebar menus, the menu bar and drops in the
@@ -41,9 +42,16 @@ public:
     // Reads the keyboard modifiers when a menu command runs. The default is
     // QGuiApplication::queryKeyboardModifiers(); tests set their own.
     void setModifiers(std::function<Qt::KeyboardModifiers()> modifiers);
-    // The web profiles. Deleting a group then deletes its profiles too. Null,
-    // the default, leaves them alone. The manager must outlive this object.
+    // The web profiles. Deleting a web profile then deletes its logins on
+    // this device too. Null, the default, leaves them alone. The manager must
+    // outlive this object.
     void setProfiles(ProfileManager *profiles);
+    // Runs the web profiles dialog. The default calls exec(); tests work the
+    // dialog and return instead. The confirmation set with setConfirm() is used.
+    void setEditProfiles(std::function<void(WebProfilesDialog &dialog)> edit);
+
+    // Opens the web profiles dialog, File > Web Profiles…. See docs/ui.md#web-profiles.
+    void editWebProfiles();
 
     // Creating. Each opens the entity's dialog with a new value, and returns the
     // new id, or an empty string if the dialog was cancelled. A new task gets one

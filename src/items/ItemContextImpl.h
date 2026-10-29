@@ -34,7 +34,7 @@ public:
     std::optional<ConnectionDetails> connection(const QStringList &kinds) const override;
     QString folderPath(const QString &folderId) const override;
     QWidget *createWebView(const QUrl &url, QWidget *parent) override;
-    QWebEngineProfile *profile(const QUrl &url) override;
+    QWebEngineProfile *profile() override;
     QWidget *createMessageView(const QString &text, QWidget *parent) override;
     void updateConfig(const QJsonObject &config) override;
 

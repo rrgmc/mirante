@@ -27,9 +27,11 @@ All ids are UUIDs, created once and never reused.
 | `order` | Manual position in the sidebar |
 | `connections` | List of [connections](#connection) |
 | `defaultConnections` | For each connection kind, the id of the group default |
-| `profileOverrides` | Map from site host to `"shared"`. See [web views](web-views.md#profiles). |
+| `webProfile` | Optional. The id of the group's default [web profile](#web-profile). Without it, or if it names no profile in the list, the group uses Default. |
 
 Groups have no priority. They keep their manual order.
+
+Group files from before [decision 0042](decisions/0042-user-managed-web-profiles.md) may hold `profileOverrides`. It is no longer read, and is kept like any unknown key.
 
 ## Project
 
@@ -108,10 +110,37 @@ The sidebar's Trash list and its commands are in [ui](ui.md#trash).
 | `name` | Display name, shown in cell headers and tabs |
 | `config` | Object with the fields of the item type |
 | `connectionId` | Optional connection override |
+| `webProfile` | Optional. The id of a [web profile](#web-profile) that replaces the group's for this item. Offered only for types whose views are web views. |
 
 A task can hold any number of items of the same type, for example three Jira issues.
 
 An item whose type belongs to a module that is not in the build is shown as a placeholder. Its `type` and `config` are kept unchanged. See [missing modules](modules.md#missing-modules).
+
+## Web profile
+
+A web profile names a store of web logins, such as "Work" or "Personal". The list belongs to the workspace and is kept in `workspace.mirante`, under `webProfiles`. See [web views](web-views.md#profiles) and [decision 0042](decisions/0042-user-managed-web-profiles.md).
+
+| Field | Description |
+|---|---|
+| `id` | UUID |
+| `name` | Display name |
+
+```json
+{
+  "name": "My work",
+  "schemaVersion": 1,
+  "webProfiles": [
+    { "id": "3f6c2a8e-5d1b-4c7a-9e2f-8b0d4a6c1e93", "name": "Work" }
+  ]
+}
+```
+
+Rules:
+
+- **Default** always exists, with the id `default`. It is not stored in the list. An entry with that id, without an id, or with an id already listed is skipped when the file is read.
+- An item uses its own `webProfile`, else its group's, else Default. A step that names a profile not in the list is skipped, such as a deleted profile or one whose entry has not arrived yet.
+- Deleting a profile removes it from the list only. Groups and items that name it keep the id and fall back by the rule above.
+- The list is synced. The logins in each profile are not; they stay on each device.
 
 ## Priority
 
@@ -226,8 +255,9 @@ After every edit, the app cleans the tree:
 | Groups, projects, tasks, items, dashboards | Local path of each folder |
 | Layout trees, including size ratios | Geometry of detached root dashboard windows |
 | Connection details without tokens | Open root tabs and the preview tab |
-| Profile overrides | Tokens (in the keychain) |
+| Web profiles: the list, and each group's and item's choice | Tokens (in the keychain) |
 | Notes content | Terminal command template |
 | | Poll interval and other preferences |
+| | Web logins, in each web profile |
 
 Details are in [sync](sync.md).

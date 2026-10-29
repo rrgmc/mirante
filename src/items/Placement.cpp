@@ -1,6 +1,7 @@
 #include "items/Placement.h"
 
 #include "core/Model.h"
+#include "core/WebProfiles.h"
 #include "items/ItemContextImpl.h"
 #include "items/ItemTypeRegistry.h"
 #include "items/ViewPool.h"
@@ -67,11 +68,12 @@ struct Placement::Private
     // they may use still exists.
     std::vector<QPointer<QWidget>> dying;
 
-    // Set while the shown content was made for madeType and madeConfig: the
-    // view, or the placeholder of a type without one.
+    // Set while the shown content was made for madeType, madeConfig and
+    // madeProfile: the view, or the placeholder of a type without one.
     bool made = false;
     QString madeType;
     QJsonObject madeConfig;
+    QString madeProfile;                // the web profile id; empty for a type that is not web
     QLabel *typePlaceholder = nullptr;  // the placeholder of a type without a view, if shown
     bool gone = false;                  // the item or its task no longer exists
     bool inPool = false;
@@ -87,6 +89,16 @@ struct Placement::Private
     }
 
     const Item *item() const { return services.model ? services.model->item(taskId, itemId) : nullptr; }
+
+    // The web profile a view of the item would use now. Empty for a type
+    // whose views are not web views, so a change of profile leaves it alone.
+    QString profileOf(const Item &found) const
+    {
+        if (!services.types || !services.types->contains(found.type)
+            || services.types->type(found.type).rendering() != Rendering::Web)
+            return {};
+        return webprofiles::effective(*services.model, taskId, itemId);
+    }
 
     void retire(QWidget *widget)
     {
@@ -161,6 +173,7 @@ struct Placement::Private
         made = true;
         madeType = found->type;
         madeConfig = found->config;
+        madeProfile = profileOf(*found);
 
         const ItemType *type = services.types ? &services.types->type(found->type) : nullptr;
         QWidget *created = type ? type->createView(context, q) : nullptr;
@@ -213,8 +226,8 @@ struct Placement::Private
         dropView(placeholder);
     }
 
-    // The model changed. The view is made again when the item's type or
-    // configuration changed, and dropped when the item is gone. A hidden
+    // The model changed. The view is made again when the item's type,
+    // configuration or web profile changed, and dropped when the item is gone. A hidden
     // placement makes its new view when it is shown.
     void onModelChanged()
     {
@@ -232,7 +245,7 @@ struct Placement::Private
             dropView(nullptr);
         } else if (!made) {
             return;
-        } else if (found->type != madeType || found->config != madeConfig) {
+        } else if (found->type != madeType || found->config != madeConfig || profileOf(*found) != madeProfile) {
             dropView(nullptr);
         } else {
             // A new name changes only the placeholder's text.
@@ -268,6 +281,15 @@ Placement::Placement(const PlacementServices &services, const QString &taskId, c
                 d->onModelChanged();
         });
         connect(model, &Model::modelReset, this, [this] { d->onModelChanged(); });
+        // The web profile also depends on the group, the project's group and
+        // the workspace's list of profiles.
+        const auto profileMayChange = [this] {
+            if (d->made && !d->madeProfile.isEmpty())
+                d->onModelChanged();
+        };
+        connect(model, &Model::groupChanged, this, profileMayChange);
+        connect(model, &Model::projectChanged, this, profileMayChange);
+        connect(model, &Model::webProfilesChanged, this, profileMayChange);
     }
 }
 

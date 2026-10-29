@@ -4,6 +4,7 @@
 #include "core/Edits.h"
 #include "core/Model.h"
 #include "core/Store.h"
+#include "core/WebProfiles.h"
 #include "items/ItemTypeRegistry.h"
 #include "layout/Presets.h"
 #include "ui/DashboardDialog.h"
@@ -11,6 +12,7 @@
 #include "ui/ItemDialog.h"
 #include "ui/ProjectDialog.h"
 #include "ui/TaskDialog.h"
+#include "ui/WebProfilesDialog.h"
 #include "web/ProfileManager.h"
 
 #include <QActionGroup>
@@ -98,6 +100,7 @@ struct EntityActions::Private
     std::function<bool(const QString &)> confirm;
     std::function<Qt::KeyboardModifiers()> modifiers;
     ProfileManager *profiles = nullptr;
+    std::function<void(WebProfilesDialog &)> editProfiles;
 
     bool shiftHeld() const { return modifiers && (modifiers() & Qt::ShiftModifier); }
 
@@ -133,6 +136,24 @@ struct EntityActions::Private
         };
         context.loadImage = [s](const QString &name) { return QImage(s->filePath(name)); };
         return context;
+    }
+
+    // Offers the workspace's web profiles in a group dialog.
+    void offerProfiles(GroupDialog &dialog) const
+    {
+        dialog.setConnectionKinds(types.connectionKinds());
+        dialog.setWebProfiles(webprofiles::all(model));
+    }
+
+    // Offers the workspace's web profiles in an item dialog, naming the
+    // profile of the task's group.
+    void offerProfiles(ItemDialog &dialog, const QString &taskId) const
+    {
+        const Task *task = model.task(taskId);
+        const Project *project = task ? model.project(task->projectId) : nullptr;
+        const Group *group = project ? model.group(project->groupId) : nullptr;
+        const QString groupProfile = group ? webprofiles::groupDefault(model, *group) : kDefaultWebProfile;
+        dialog.setWebProfiles(webprofiles::all(model), webprofiles::nameOf(model, groupProfile));
     }
 
     // Runs the project dialog and applies its value and folder paths.
@@ -173,6 +194,30 @@ void EntityActions::setModifiers(std::function<Qt::KeyboardModifiers()> modifier
 
 void EntityActions::setProfiles(ProfileManager *profiles) { d->profiles = profiles; }
 
+void EntityActions::setEditProfiles(std::function<void(WebProfilesDialog &)> edit)
+{
+    d->editProfiles = std::move(edit);
+}
+
+// Web profiles.
+
+void EntityActions::editWebProfiles()
+{
+    WebProfilesDialog dialog(d->model, d->dialogParent);
+    dialog.setConfirm(d->confirm);
+    connect(&dialog, &WebProfilesDialog::profileDeleted, this, [this](const QString &id) {
+        // Its logins on this device go too. The placements that used it make
+        // new views at once, but delete the old ones later. The profile goes
+        // after those pages, or Qt warns.
+        if (ProfileManager *profiles = d->profiles)
+            QTimer::singleShot(0, profiles, [profiles, id] { profiles->removeProfile(id); });
+    });
+    if (d->editProfiles)
+        d->editProfiles(dialog);
+    else
+        dialog.exec();
+}
+
 // Creating.
 
 QString EntityActions::newGroup()
@@ -181,7 +226,7 @@ QString EntityActions::newGroup()
     group.id = edits::newId();
     group.order = orderAfterLast(d->model.groups());
     GroupDialog dialog(group, d->dialogParent);
-    dialog.setConnectionKinds(d->types.connectionKinds());
+    d->offerProfiles(dialog);
     if (!d->exec(dialog))
         return {};
     d->model.setGroup(dialog.value());
@@ -219,6 +264,7 @@ QString EntityActions::newItem(const QString &taskId)
     Item item;
     item.id = edits::newId();
     ItemDialog dialog(item, true, d->types, d->editorContext(taskId), d->dialogParent);
+    d->offerProfiles(dialog, taskId);
     if (!d->exec(dialog))
         return {};
     const Task *task = d->model.task(taskId);
@@ -261,7 +307,7 @@ void EntityActions::editGroup(const QString &id)
     if (!group)
         return;
     GroupDialog dialog(*group, d->dialogParent);
-    dialog.setConnectionKinds(d->types.connectionKinds());
+    d->offerProfiles(dialog);
     if (d->exec(dialog))
         d->model.setGroup(dialog.value());
 }
@@ -288,6 +334,7 @@ void EntityActions::editItem(const QString &taskId, const QString &itemId)
     if (!item)
         return;
     ItemDialog dialog(*item, false, d->types, d->editorContext(taskId), d->dialogParent);
+    d->offerProfiles(dialog, taskId);
     if (!d->exec(dialog))
         return;
     const Task *task = d->model.task(taskId);
@@ -459,11 +506,6 @@ void EntityActions::removeGroup(const QString &id)
     if (!d->confirm(question))
         return;
     d->model.removeGroup(id);
-    // Then its web logins go. Removing the group closes the tabs of its tasks
-    // at once, but the placements in other pages, detached windows included,
-    // delete their views later. The profiles go after those pages, or Qt warns.
-    if (ProfileManager *profiles = d->profiles)
-        QTimer::singleShot(0, profiles, [profiles, id] { profiles->removeGroup(id); });
 }
 
 void EntityActions::removeProject(const QString &id)

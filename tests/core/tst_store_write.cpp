@@ -4,9 +4,11 @@
 #include "core/Edits.h"
 #include "core/Model.h"
 #include "core/Store.h"
+#include "core/WebProfiles.h"
 
 #include <QDir>
 #include <QFile>
+#include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QRegularExpression>
@@ -84,6 +86,7 @@ private slots:
 
     void writesEachKind();
     void keepsWorkspaceKeys();
+    void writesWebProfiles();
     void removalsDeleteFiles();
     void trashSurvivesReload();
     void readOnly();
@@ -191,6 +194,36 @@ void TestStoreWrite::keepsWorkspaceKeys()
     store.flush();
     QVERIFY(store::isWorkspace(m_dir->path()));
     QCOMPARE(json(QStringLiteral("workspace.mirante")).value(QStringLiteral("futureField")).toInt(), 7);
+}
+
+void TestStoreWrite::writesWebProfiles()
+{
+    writeFile(path(QStringLiteral("workspace.mirante")),
+              R"({ "schemaVersion": 1, "name": "Old", "futureField": 7 })");
+    Model model;
+    Store store(model);
+    QVERIFY(store.open(m_dir->path()).empty());
+    QVERIFY(model.webProfiles().empty());
+
+    WebProfile work;
+    work.id = QStringLiteral("w1");
+    work.name = QStringLiteral("Work");
+    model.setWebProfiles({work});
+    store.flush();
+    QJsonObject written = json(QStringLiteral("workspace.mirante"));
+    QCOMPARE(written.value(QStringLiteral("name")).toString(), QStringLiteral("Old"));
+    QCOMPARE(written.value(QStringLiteral("futureField")).toInt(), 7);
+    QCOMPARE(written.value(QStringLiteral("webProfiles")).toArray(),
+             (QJsonArray{QJsonObject{{QStringLiteral("id"), QStringLiteral("w1")},
+                                     {QStringLiteral("name"), QStringLiteral("Work")}}}));
+
+    // Deleting the last one removes the key.
+    QVERIFY(webprofiles::remove(model, QStringLiteral("w1")));
+    store.flush();
+    written = json(QStringLiteral("workspace.mirante"));
+    QVERIFY(!written.contains(QStringLiteral("webProfiles")));
+    QCOMPARE(written.value(QStringLiteral("name")).toString(), QStringLiteral("Old"));
+    QCOMPARE(written.value(QStringLiteral("futureField")).toInt(), 7);
 }
 
 void TestStoreWrite::removalsDeleteFiles()

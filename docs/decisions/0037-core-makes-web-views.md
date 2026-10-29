@@ -1,6 +1,6 @@
 # 0037. The core makes web views; modules may take the profile instead
 
-- Status: Accepted
+- Status: Accepted; the profile is the item's, and `profile()` takes no URL, by [0042](0042-user-managed-web-profiles.md)
 - Date: 2026-10-29
 
 ## Context

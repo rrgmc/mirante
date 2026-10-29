@@ -47,16 +47,17 @@ public:
     // The local path of a project folder on this device, or empty.
     virtual QString folderPath(const QString &folderId) const = 0;
 
-    // A live web page of url, in the profile of the item's group and module
-    // for that host, with its toolbar in the cell header. The normal way for
-    // a web type to show a page. See docs/web-views.md.
+    // A live web page of url, in the item's web profile, with its toolbar in
+    // the cell header. The normal way for a web type to show a page. See
+    // docs/web-views.md.
     virtual QWidget *createWebView(const QUrl &url, QWidget *parent) = 0;
 
-    // The profile of the item's group and module for url's host, for a module
-    // that builds its own QWebEngineView. Declared, not defined, here; such a
-    // module links Qt WebEngine with QT_LIBS. See decisions 0037 and 0040 in
-    // docs/decisions/.
-    virtual QWebEngineProfile *profile(const QUrl &url) = 0;
+    // The item's web profile: its own, else its group's default, else
+    // Default. For a module that builds its own QWebEngineView. The profile
+    // holds the logins of every site its items visit, not only this module's.
+    // Declared, not defined, here; such a module links Qt WebEngine with
+    // QT_LIBS. See decisions 0037 and 0042 in docs/decisions/.
+    virtual QWebEngineProfile *profile() = 0;
 
     // A grey message in the middle of the cell, such as "No GitLab connection
     // in this group", in the style of the core's placeholders.

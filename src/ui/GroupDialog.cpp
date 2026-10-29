@@ -10,7 +10,6 @@
 #include <QHeaderView>
 #include <QLabel>
 #include <QLineEdit>
-#include <QListWidget>
 #include <QPushButton>
 #include <QTableWidget>
 #include <QUrl>
@@ -23,17 +22,6 @@ namespace mirante {
 namespace {
 
 enum Column { KindColumn, NameColumn, BaseUrlColumn, DefaultColumn, ColumnCount };
-
-const QString sharedProfile = QStringLiteral("shared");
-
-// A host name as typed: trimmed and in lowercase. A pasted URL gives its host.
-QString normaliseHost(const QString &text)
-{
-    const QString trimmed = text.trimmed();
-    if (trimmed.contains(QLatin1String("://")))
-        return QUrl(trimmed).host().toLower();
-    return trimmed.toLower();
-}
 
 bool isWebUrl(const QString &text)
 {
@@ -64,8 +52,7 @@ struct GroupDialog::Private
     QPushButton *addConnection = nullptr;
     QPushButton *removeConnection = nullptr;
     QLabel *noKinds = nullptr;             // shown when no item type uses a connection
-    QListWidget *sharedSites = nullptr;
-    QPushButton *removeSite = nullptr;
+    QComboBox *webProfile = nullptr;
     QLabel *message = nullptr;             // why OK was refused
 
     int indexOf(const QString &connectionId) const
@@ -240,33 +227,6 @@ struct GroupDialog::Private
         rows.erase(rows.begin() + index);
         fillTable();
     }
-
-    void addSite()
-    {
-        auto *item = new QListWidgetItem(sharedSites);
-        item->setFlags(item->flags() | Qt::ItemIsEditable);
-        sharedSites->setCurrentItem(item);
-        sharedSites->editItem(item);
-        removeSite->setEnabled(true);
-    }
-
-    void removeCurrentSite()
-    {
-        delete sharedSites->currentItem();
-        removeSite->setEnabled(sharedSites->count() > 0);
-    }
-
-    // The hosts in the list, normalised, without blanks or repeats.
-    QStringList hosts() const
-    {
-        QStringList result;
-        for (int i = 0; i < sharedSites->count(); ++i) {
-            const QString host = normaliseHost(sharedSites->item(i)->text());
-            if (!host.isEmpty() && !result.contains(host))
-                result << host;
-        }
-        return result;
-    }
 };
 
 GroupDialog::GroupDialog(const Group &group, QWidget *parent)
@@ -321,37 +281,13 @@ GroupDialog::GroupDialog(const Group &group, QWidget *parent)
     connectionLayout->addWidget(d->noKinds);
     connectionLayout->addLayout(connectionButtons);
 
-    // Sites in the shared profile.
-    d->sharedSites = new QListWidget(this);
-    d->sharedSites->setObjectName(QStringLiteral("sharedSites"));
-    for (auto it = group.profileOverrides.begin(); it != group.profileOverrides.end(); ++it) {
-        if (it.value().toString() != sharedProfile)
-            continue;
-        auto *item = new QListWidgetItem(it.key(), d->sharedSites);
-        item->setFlags(item->flags() | Qt::ItemIsEditable);
-    }
-
-    auto *addSite = new QPushButton(tr("Add site"), this);
-    addSite->setObjectName(QStringLiteral("addSite"));
-    d->removeSite = new QPushButton(tr("Remove site"), this);
-    d->removeSite->setObjectName(QStringLiteral("removeSite"));
-    d->removeSite->setEnabled(d->sharedSites->count() > 0);
-
-    auto *siteButtons = new QHBoxLayout;
-    siteButtons->addWidget(addSite);
-    siteButtons->addWidget(d->removeSite);
-    siteButtons->addStretch(1);
-
-    auto *siteHelp = new QLabel(tr("These sites share one login across all groups, such as acme.atlassian.net. "
-                                   "Other sites keep a login for each group. Each module still has its own login."),
-                                this);
-    siteHelp->setWordWrap(true);
-
-    auto *siteBox = new QGroupBox(tr("Sites in the shared profile"), this);
-    auto *siteLayout = new QVBoxLayout(siteBox);
-    siteLayout->addWidget(siteHelp);
-    siteLayout->addWidget(d->sharedSites, 1);
-    siteLayout->addLayout(siteButtons);
+    // The web profile.
+    d->webProfile = new QComboBox(this);
+    d->webProfile->setObjectName(QStringLiteral("webProfile"));
+    auto *profileHelp = new QLabel(tr("Web items of this group use this profile, unless an item chooses its own. "
+                                      "Manage profiles with File > Web Profiles…."),
+                                   this);
+    profileHelp->setWordWrap(true);
 
     d->message = new QLabel(this);
     d->message->setObjectName(QStringLiteral("message"));
@@ -360,6 +296,8 @@ GroupDialog::GroupDialog(const Group &group, QWidget *parent)
 
     auto *form = new QFormLayout;
     form->addRow(tr("Name:"), d->name);
+    form->addRow(tr("Web profile:"), d->webProfile);
+    form->addRow(QString(), profileHelp);
 
     auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
     connect(buttons, &QDialogButtonBox::accepted, this, &GroupDialog::accept);
@@ -369,18 +307,17 @@ GroupDialog::GroupDialog(const Group &group, QWidget *parent)
     connect(d->connections, &QTableWidget::cellChanged, this,
             [this](int row, int column) { d->cellChanged(row, column); });
     connect(d->connections, &QTableWidget::currentCellChanged, this, [this] { d->updateRemove(); });
-    connect(addSite, &QPushButton::clicked, this, [this] { d->addSite(); });
-    connect(d->removeSite, &QPushButton::clicked, this, [this] { d->removeCurrentSite(); });
 
     auto *layout = new QVBoxLayout(this);
     layout->addLayout(form);
-    layout->addWidget(connectionBox, 3);
-    layout->addWidget(siteBox, 2);
+    layout->addWidget(connectionBox, 1);
     layout->addWidget(d->message);
     layout->addWidget(buttons);
 
     // Until setConnectionKinds() is called, every connection is read-only.
     d->setKinds({});
+    // Until setWebProfiles() is called, only Default is offered.
+    setWebProfiles({});
     d->name->setFocus();
 }
 
@@ -400,19 +337,39 @@ Group GroupDialog::value() const
         group.connections.push_back(row.connection);
     group.defaultConnections = d->defaults;
 
-    // Hosts sent to the shared profile are replaced. Overrides with any other
-    // value are kept as they are.
-    for (const QString &host : group.profileOverrides.keys()) {
-        if (group.profileOverrides.value(host).toString() == sharedProfile)
-            group.profileOverrides.remove(host);
-    }
-    for (const QString &host : d->hosts())
-        group.profileOverrides.insert(host, sharedProfile);
+    // Default is stored as no profile.
+    const QString profile = d->webProfile->currentData().toString();
+    group.webProfile = profile == kDefaultWebProfile ? QString() : profile;
     return group;
 }
 
 void GroupDialog::setConnectionKinds(const QStringList &kinds) { d->setKinds(kinds); }
 void GroupDialog::setName(const QString &name) { d->name->setText(name); }
+
+void GroupDialog::setWebProfiles(const std::vector<WebProfile> &profiles)
+{
+    d->webProfile->clear();
+    bool hasDefault = false;
+    for (const WebProfile &profile : profiles) {
+        d->webProfile->addItem(profile.name, profile.id);
+        hasDefault = hasDefault || profile.id == kDefaultWebProfile;
+    }
+    if (!hasDefault)
+        d->webProfile->insertItem(0, tr("Default"), kDefaultWebProfile);
+    // A profile that is not listed, because it was deleted or has not arrived
+    // yet, is kept until another is chosen.
+    const QString current = d->group.webProfile.isEmpty() ? kDefaultWebProfile : d->group.webProfile;
+    if (d->webProfile->findData(current) < 0)
+        d->webProfile->addItem(tr("Unknown profile, uses Default"), current);
+    d->webProfile->setCurrentIndex(d->webProfile->findData(current));
+}
+
+void GroupDialog::setWebProfile(const QString &id)
+{
+    const int index = d->webProfile->findData(id);
+    if (index >= 0)
+        d->webProfile->setCurrentIndex(index);
+}
 
 void GroupDialog::accept()
 {
