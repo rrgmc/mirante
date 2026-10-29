@@ -31,12 +31,13 @@ Task addDashboard(Task task, const Dashboard &dashboard);
 Task removeDashboard(Task task, const QString &dashboardId);
 Task setDefaultDashboard(Task task, const QString &dashboardId);
 
-// Moves a project or task to index within the list of its siblings at the
-// given priority, and renumbers order in that list from 0. siblings are all
-// projects of one group, or all tasks of one project, in any order. Returns
-// every sibling whose priority or order changed, ready for the setters.
-std::vector<Project> moveProject(std::vector<Project> siblings, const QString &id, Priority priority, int index);
-std::vector<Task> moveTask(std::vector<Task> siblings, const QString &id, Priority priority, int index);
+// Moves a project or task to index within the list of its siblings, and
+// renumbers order in that list from 0. Priority is not changed. siblings are
+// all projects of one group, or all tasks of one project, in any order; the
+// index counts them all, hidden ones included. Returns every sibling whose
+// order changed, ready for the setters.
+std::vector<Project> moveProject(std::vector<Project> siblings, const QString &id, int index);
+std::vector<Task> moveTask(std::vector<Task> siblings, const QString &id, int index);
 // The same for groups, which have no priority.
 std::vector<Group> moveGroup(std::vector<Group> groups, const QString &id, int index);
 

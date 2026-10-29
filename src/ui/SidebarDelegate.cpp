@@ -13,12 +13,16 @@ namespace {
 // Opacity of Low projects and tasks, as in the prototype.
 constexpr qreal dimmedOpacity = 0.5;
 
-// A filled dot, half the size of the icon, drawn at any size.
+// Corner radius of the project marker, as a share of its side.
+constexpr qreal squareRadius = 0.25;
+
+// A filled dot or rounded square, half the size of the icon, drawn at any size.
 class MarkerIconEngine : public QIconEngine
 {
 public:
-    explicit MarkerIconEngine(const QColor &colour)
+    MarkerIconEngine(const QColor &colour, SidebarDelegate::MarkerShape shape)
         : m_colour(colour)
+        , m_shape(shape)
     {
     }
 
@@ -33,14 +37,18 @@ public:
         painter->setRenderHint(QPainter::Antialiasing);
         painter->setPen(Qt::NoPen);
         painter->setBrush(m_colour);
-        painter->drawEllipse(dot);
+        if (m_shape == SidebarDelegate::MarkerShape::RoundedSquare)
+            painter->drawRoundedRect(dot, side * squareRadius, side * squareRadius);
+        else
+            painter->drawEllipse(dot);
         painter->restore();
     }
 
-    QIconEngine *clone() const override { return new MarkerIconEngine(m_colour); }
+    QIconEngine *clone() const override { return new MarkerIconEngine(m_colour, m_shape); }
 
 private:
     QColor m_colour;
+    SidebarDelegate::MarkerShape m_shape;
 };
 
 bool isDimmed(const QModelIndex &index)
@@ -59,10 +67,22 @@ SidebarDelegate::SidebarDelegate(QObject *parent)
 {
     QColor normal(0x3b, 0x82, 0xf6);
     normal.setAlphaF(0.35f);
-    m_markers[int(Priority::Urgent)] = QIcon(new MarkerIconEngine(QColor(0xd9, 0x3b, 0x3b)));
-    m_markers[int(Priority::High)] = QIcon(new MarkerIconEngine(QColor(0xe8, 0x86, 0x2a)));
-    m_markers[int(Priority::Normal)] = QIcon(new MarkerIconEngine(normal));
-    m_markers[int(Priority::Low)] = QIcon(new MarkerIconEngine(QColor(0x9a, 0xa1, 0xad)));
+    QColor colours[4];
+    colours[int(Priority::Urgent)] = QColor(0xd9, 0x3b, 0x3b);
+    colours[int(Priority::High)] = QColor(0xe8, 0x86, 0x2a);
+    colours[int(Priority::Normal)] = normal;
+    colours[int(Priority::Low)] = QColor(0x9a, 0xa1, 0xad);
+    for (int priority = 0; priority < 4; ++priority) {
+        m_projectMarkers[priority] = QIcon(new MarkerIconEngine(colours[priority], MarkerShape::RoundedSquare));
+        m_taskMarkers[priority] = QIcon(new MarkerIconEngine(colours[priority], MarkerShape::Circle));
+    }
+}
+
+// Projects get a rounded square and tasks a circle, so the two levels are
+// easy to tell apart.
+SidebarDelegate::MarkerShape SidebarDelegate::markerShape(SidebarModel::Kind kind)
+{
+    return kind == SidebarModel::Kind::Project ? MarkerShape::RoundedSquare : MarkerShape::Circle;
 }
 
 void SidebarDelegate::paint(QPainter *painter, const QStyleOptionViewItem &option, const QModelIndex &index) const
@@ -115,10 +135,10 @@ void SidebarDelegate::initStyleOption(QStyleOptionViewItem *option, const QModel
         return;
 
     const int priority = index.data(SidebarModel::PriorityRole).toInt();
-    if (priority >= 0 && priority < 4)
-        option->icon = m_markers[priority];
-    else
+    if (priority < 0 || priority >= 4)
         return;
+    option->icon = markerShape(kind) == MarkerShape::RoundedSquare ? m_projectMarkers[priority]
+                                                                   : m_taskMarkers[priority];
     option->features |= QStyleOptionViewItem::HasDecoration;
 }
 

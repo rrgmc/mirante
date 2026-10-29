@@ -3,8 +3,7 @@
 #include "ui/SidebarDelegate.h"
 #include "ui/SidebarModel.h"
 
-#include <QDragMoveEvent>
-#include <QDropEvent>
+#include <QAction>
 #include <QEvent>
 #include <QHBoxLayout>
 #include <QIcon>
@@ -14,12 +13,12 @@
 #include <QSet>
 #include <QTabBar>
 #include <QToolButton>
-#include <QToolTip>
 #include <QTreeView>
 #include <QVBoxLayout>
 
 #include <functional>
 #include <utility>
+#include <vector>
 
 namespace mirante {
 
@@ -52,74 +51,14 @@ private:
     std::function<void()> m_onDoubleClick;
 };
 
-// The tree. While a project or task is dragged across a priority boundary, a
-// tooltip says which level it will take, since the drop changes its priority.
-class SidebarTree : public QTreeView
-{
-public:
-    using QTreeView::QTreeView;
-
-protected:
-    void dragMoveEvent(QDragMoveEvent *event) override
-    {
-        QTreeView::dragMoveEvent(event);
-        const QString hint = event->isAccepted() ? dropHint(event) : QString();
-        if (hint.isEmpty())
-            QToolTip::hideText();
-        else
-            QToolTip::showText(viewport()->mapToGlobal(event->position().toPoint() + QPoint(16, 16)), hint,
-                               viewport());
-    }
-
-    void dragLeaveEvent(QDragLeaveEvent *event) override
-    {
-        QToolTip::hideText();
-        QTreeView::dragLeaveEvent(event);
-    }
-
-    void dropEvent(QDropEvent *event) override
-    {
-        QToolTip::hideText();
-        QTreeView::dropEvent(event);
-    }
-
-private:
-    // The row and parent of the drop, as QAbstractItemView works them out from
-    // the drop indicator.
-    QString dropHint(const QDropEvent *event) const
-    {
-        const auto *sidebarModel = qobject_cast<const SidebarModel *>(model());
-        if (!sidebarModel)
-            return {};
-        const QModelIndex index = indexAt(event->position().toPoint());
-        int row = -1;
-        QModelIndex parent = index;
-        switch (dropIndicatorPosition()) {
-        case AboveItem:
-            row = index.row();
-            parent = index.parent();
-            break;
-        case BelowItem:
-            row = index.row() + 1;
-            parent = index.parent();
-            break;
-        case OnItem:
-            break;
-        case OnViewport:
-            parent = rootIndex();
-            break;
-        }
-        return sidebarModel->dropHint(event->mimeData(), row, parent);
-    }
-};
-
 } // namespace
 
 struct Sidebar::Private
 {
     SidebarModel *model = nullptr;
     QTreeView *tree = nullptr;
-    QToolButton *hideLow = nullptr;
+    QToolButton *priorityFilter = nullptr;          // its menu shows or hides each priority
+    std::vector<std::pair<Priority, QAction *>> shownPriorities;
     QLabel *title = nullptr;
     QTabBar *stateTabs = nullptr;       // the task lists: "Projects", "Active" and "Done"
     QPushButton *focus = nullptr;       // the Focus entry above the tree
@@ -172,7 +111,13 @@ struct Sidebar::Private
     void applyFilter()
     {
         SortFilter filter = model->filter();
-        filter.hideLow = hideLow->isChecked();
+        filter.hiddenPriorities.clear();
+        for (const auto &[priority, action] : shownPriorities) {
+            if (!action->isChecked())
+                filter.hiddenPriorities.insert(priority);
+        }
+        // The button looks pressed while it hides something.
+        priorityFilter->setChecked(!filter.hiddenPriorities.empty());
         filter.closedTasks = stateTabs->currentIndex() == DoneList;
         filter.hideEmptyProjects = stateTabs->currentIndex() == ActiveList;
         model->setFilter(filter);
@@ -218,9 +163,34 @@ Sidebar::Sidebar(const Model &model, const ItemTypeRegistry &types, QWidget *par
     collapseTasks->setAutoRaise(true);
     connect(collapseTasks, &QToolButton::clicked, this, &Sidebar::collapseAllTasks);
 
+    // Which priorities the tree shows, right of the title: a menu with a
+    // checkbox for each level.
+    d->priorityFilter = new QToolButton(this);
+    d->priorityFilter->setObjectName(QStringLiteral("priorityFilter"));
+    d->priorityFilter->setIcon(QIcon(QStringLiteral(":/icons/filter.svg")));
+    d->priorityFilter->setText(tr("Priorities shown"));
+    d->priorityFilter->setToolTip(tr("Choose which priorities the tree shows"));
+    d->priorityFilter->setAutoRaise(true);
+    d->priorityFilter->setCheckable(true);
+    d->priorityFilter->setPopupMode(QToolButton::InstantPopup);
+    auto *priorityMenu = new QMenu(d->priorityFilter);
+    const std::pair<Priority, QString> levels[] = {{Priority::Urgent, tr("Urgent")},
+                                                   {Priority::High, tr("High")},
+                                                   {Priority::Normal, tr("Normal")},
+                                                   {Priority::Low, tr("Low")}};
+    for (const auto &[priority, name] : levels) {
+        QAction *action = priorityMenu->addAction(name);
+        action->setCheckable(true);
+        action->setChecked(d->model->filter().hiddenPriorities.count(priority) == 0);
+        connect(action, &QAction::toggled, this, [this] { d->applyFilter(); });
+        d->shownPriorities.emplace_back(priority, action);
+    }
+    d->priorityFilter->setMenu(priorityMenu);
+
     auto *header = new QHBoxLayout;
     header->setContentsMargins(8, 4, 4, 4);
     header->addWidget(title, 1);
+    header->addWidget(d->priorityFilter);
     header->addWidget(expandTasks);
     header->addWidget(collapseTasks);
     header->addWidget(collapse);
@@ -235,7 +205,7 @@ Sidebar::Sidebar(const Model &model, const ItemTypeRegistry &types, QWidget *par
     connect(d->focus, &QPushButton::clicked, this, &Sidebar::focusRequested);
 
     // The tree.
-    d->tree = new SidebarTree(this);
+    d->tree = new QTreeView(this);
     d->tree->setModel(d->model);
     d->tree->setItemDelegate(new SidebarDelegate(d->tree));
     d->tree->setHeaderHidden(true);
@@ -255,15 +225,7 @@ Sidebar::Sidebar(const Model &model, const ItemTypeRegistry &types, QWidget *par
     d->tree->setExpandsOnDoubleClick(false);    // a double click on a task pins it
     d->tree->setContextMenuPolicy(Qt::CustomContextMenu);
 
-    // Footer: the filters.
-    d->hideLow = new QToolButton(this);
-    d->hideLow->setText(tr("Hide Low"));
-    d->hideLow->setToolTip(tr("Hide Low projects and tasks"));
-    d->hideLow->setCheckable(true);
-    d->hideLow->setChecked(d->model->filter().hideLow);
-    d->hideLow->setAutoRaise(true);
-
-    // Three task lists over the same groups: active tasks under every project,
+    // Footer: three task lists over the same groups: active tasks under every project,
     // active tasks only under projects that have some, and done and archived
     // tasks.
     d->stateTabs = new QTabBar(this);
@@ -279,14 +241,12 @@ Sidebar::Sidebar(const Model &model, const ItemTypeRegistry &types, QWidget *par
     d->stateTabs->setTabToolTip(DoneList, tr("Done and archived tasks"));
     d->stateTabs->setCurrentIndex(ProjectsList);
 
-    connect(d->hideLow, &QToolButton::toggled, this, [this] { d->applyFilter(); });
     connect(d->stateTabs, &QTabBar::currentChanged, this, [this] { d->applyFilter(); });
 
     auto *footer = new QHBoxLayout;
     footer->setContentsMargins(4, 0, 4, 4);
     footer->addWidget(d->stateTabs);
     footer->addStretch(1);
-    footer->addWidget(d->hideLow);
 
     auto *layout = new QVBoxLayout(this);
     layout->setContentsMargins(0, 0, 0, 0);
@@ -368,7 +328,8 @@ Sidebar::~Sidebar()
 {
     // The children outlive d, so their signals must not reach it.
     d->stateTabs->disconnect(this);
-    d->hideLow->disconnect(this);
+    for (const auto &[priority, action] : d->shownPriorities)
+        action->disconnect(this);
     d->tree->disconnect(this);
     d->model->disconnect(this);
 }

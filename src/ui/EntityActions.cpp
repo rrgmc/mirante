@@ -26,8 +26,8 @@ namespace mirante {
 
 namespace {
 
-// The order after the last of the entries with Normal priority, or after the
-// last group: the place of a new project, task or group.
+// The order after the last of the entries: the place of a new project, task
+// or group, at the end of its siblings whatever its priority.
 template <typename T>
 int orderAfterLast(const std::vector<const T *> &entries)
 {
@@ -35,17 +35,6 @@ int orderAfterLast(const std::vector<const T *> &entries)
     for (const T *entry : entries)
         order = std::max(order, entry->order);
     return order + 1;
-}
-
-template <typename T>
-std::vector<const T *> normalOnly(const std::vector<const T *> &entries)
-{
-    std::vector<const T *> normal;
-    for (const T *entry : entries) {
-        if (entry->priority == Priority::Normal)
-            normal.push_back(entry);
-    }
-    return normal;
 }
 
 template <typename T>
@@ -187,7 +176,7 @@ QString EntityActions::newProject(const QString &groupId)
     Project project;
     project.id = edits::newId();
     project.groupId = groupId;
-    project.order = orderAfterLast(normalOnly(d->model.projectsOfGroup(groupId)));
+    project.order = orderAfterLast(d->model.projectsOfGroup(groupId));
     return d->runProjectDialog(project) ? project.id : QString();
 }
 
@@ -196,7 +185,7 @@ QString EntityActions::newTask(const QString &projectId)
     if (!d->model.project(projectId))
         return {};
     Task task = edits::newTask(projectId, QString());
-    task.order = orderAfterLast(normalOnly(d->model.tasksOfProject(projectId)));
+    task.order = orderAfterLast(d->model.tasksOfProject(projectId));
     TaskDialog dialog(task, d->model, d->dialogParent);
     if (!d->exec(dialog))
         return {};
@@ -388,16 +377,18 @@ void EntityActions::removeDashboard(const QString &taskId, const QString &dashbo
         d->model.setTask(edits::removeDashboard(*current, dashboardId));
 }
 
-// Quick changes. A new priority puts the entity last among its new siblings.
+// Quick changes. A new priority changes the marker only; the entry keeps its place.
 
 void EntityActions::setPriority(const QString &projectOrTaskId, Priority priority)
 {
     if (const Project *project = d->model.project(projectOrTaskId)) {
-        if (project->priority != priority)
-            moveProject(projectOrTaskId, priority, INT_MAX);
+        Project changed = *project;
+        changed.priority = priority;
+        d->model.setProject(changed);
     } else if (const Task *task = d->model.task(projectOrTaskId)) {
-        if (task->priority != priority)
-            moveTask(projectOrTaskId, priority, INT_MAX);
+        Task changed = *task;
+        changed.priority = priority;
+        d->model.setTask(changed);
     }
 }
 
@@ -425,23 +416,23 @@ void EntityActions::moveGroup(const QString &id, int index)
         d->model.setGroup(group);
 }
 
-void EntityActions::moveProject(const QString &id, Priority priority, int index)
+void EntityActions::moveProject(const QString &id, int index)
 {
     const Project *project = d->model.project(id);
     if (!project)
         return;
     const auto siblings = copies(d->model.projectsOfGroup(project->groupId));
-    for (const Project &changed : edits::moveProject(siblings, id, priority, index))
+    for (const Project &changed : edits::moveProject(siblings, id, index))
         d->model.setProject(changed);
 }
 
-void EntityActions::moveTask(const QString &id, Priority priority, int index)
+void EntityActions::moveTask(const QString &id, int index)
 {
     const Task *task = d->model.task(id);
     if (!task)
         return;
     const auto siblings = copies(d->model.tasksOfProject(task->projectId));
-    for (const Task &changed : edits::moveTask(siblings, id, priority, index))
+    for (const Task &changed : edits::moveTask(siblings, id, index))
         d->model.setTask(changed);
 }
 

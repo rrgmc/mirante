@@ -2,10 +2,12 @@
 
 #include "core/Entities.h"
 
+#include <set>
 #include <vector>
 
-// Display order of projects and tasks: priority, then order.
-// See docs/data-model.md#priority. Implemented in Sorting.cpp.
+// Display order of projects and tasks: the user's manual order. Priority is
+// shown, not sorted by, except in Focus. See docs/data-model.md#priority and
+// docs/decisions/0034-manual-order-in-the-sidebar.md. Implemented in Sorting.cpp.
 
 namespace mirante {
 
@@ -13,9 +15,16 @@ class Model;
 
 struct SortFilter
 {
-    bool hideLow = false;       // hide Low projects and tasks
+    std::set<Priority> hiddenPriorities;    // projects and tasks of these levels are hidden
     bool closedTasks = false;   // false: only active tasks; true: only done and archived ones
     bool hideEmptyProjects = false;  // hide projects with no task in the list; used by the sidebar
+
+    bool operator==(const SortFilter &other) const
+    {
+        return hiddenPriorities == other.hiddenPriorities && closedTasks == other.closedTasks
+            && hideEmptyProjects == other.hideEmptyProjects;
+    }
+    bool operator!=(const SortFilter &other) const { return !(*this == other); }
 };
 
 bool projectBefore(const Project &a, const Project &b);

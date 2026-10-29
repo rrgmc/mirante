@@ -17,11 +17,13 @@
 #include <QDragEnterEvent>
 #include <QDropEvent>
 #include <QLabel>
+#include <QMenu>
 #include <QMimeData>
 #include <QSignalSpy>
 #include <QTabBar>
 #include <QTabWidget>
 #include <QTest>
+#include <QTimer>
 
 #include <memory>
 
@@ -280,25 +282,25 @@ private slots:
         QVERIFY(!refAt(work, {1, 1}));
     }
 
-    // A tab group with one tab can be removed; its content takes its place.
-    void removeTabGroupUnwrapsASingleTab()
+    // A tab group with one tab can be ungrouped; its content takes its place.
+    void ungroupUnwrapsASingleTab()
     {
         editor->cellCommand(work, {0}, CellCommand::WrapInTabs);
         QCOMPARE(node(work, {0}).kind, Kind::Tabs);
-        editor->tabCommand(work, {0}, 0, TabCommand::RemoveGroup);
+        editor->tabCommand(work, {0}, 0, TabCommand::Ungroup);
         QCOMPARE(node(work, {0}).kind, Kind::Cell);
         QCOMPARE(refAt(work, {0}), itemRef(claudeItem));
 
         // A group with several tabs is left alone.
         const std::size_t tabs = node(work, {1}).children.size();
-        editor->tabCommand(work, {1}, 0, TabCommand::RemoveGroup);
+        editor->tabCommand(work, {1}, 0, TabCommand::Ungroup);
         QCOMPARE(node(work, {1}).kind, Kind::Tabs);
         QCOMPARE(node(work, {1}).children.size(), tabs);
     }
 
-    void closeTabRemovesIt()
+    void deleteTabRemovesIt()
     {
-        editor->tabCommand(work, {1}, 2, TabCommand::Close);
+        editor->tabCommand(work, {1}, 2, TabCommand::Delete);
         QCOMPARE(node(work, {1}).titles, (std::vector<QString>{QStringLiteral("Issue"), QStringLiteral("Pipeline")}));
     }
 
@@ -318,13 +320,58 @@ private slots:
         QCOMPARE(json(work), before);
     }
 
-    void toggleCollapseSingle()
+    // The tab menu says "Delete tab", and offers "Ungroup" only for a group
+    // of one tab. "Collapse when single" is no longer offered.
+    void tabMenuCommands()
+    {
+        FakeFactory factory;
+        LayoutView view(&factory);
+        view.resize(800, 600);
+        view.setTree(tree(work));
+        editor->attach(&view, work);
+        view.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&view));
+        view.setEditMode(true);
+
+        const auto menuTexts = [&](const NodePath &tabsPath) {
+            QStringList texts;
+            QTimer::singleShot(0, [&texts] {
+                auto *menu = qobject_cast<QMenu *>(QApplication::activePopupWidget());
+                if (!menu)
+                    return;
+                for (QAction *action : menu->actions())
+                    if (!action->isSeparator())
+                        texts << action->text();
+                menu->close();
+            });
+            emit view.tabMenuRequested(tabsPath, 0, view.mapToGlobal(QPoint(10, 10)));
+            return texts;
+        };
+
+        const QStringList several = menuTexts({1});
+        QVERIFY2(several.contains(QStringLiteral("Delete tab")), qPrintable(several.join(u',')));
+        QVERIFY(!several.contains(QStringLiteral("Close")));
+        QVERIFY(!several.contains(QStringLiteral("Ungroup")));
+        QVERIFY(!several.contains(QStringLiteral("Collapse when single")));
+
+        editor->cellCommand(work, {0}, CellCommand::WrapInTabs);
+        const QStringList single = menuTexts({0});
+        QVERIFY2(single.contains(QStringLiteral("Ungroup")), qPrintable(single.join(u',')));
+        QVERIFY(single.contains(QStringLiteral("Delete tab")));
+        QVERIFY(!single.contains(QStringLiteral("Collapse when single")));
+        editor->detach(&view);
+    }
+
+    // A file may still set collapseSingle. The app no longer offers it, but
+    // honours it: a group of one tab with the flag is replaced by its content.
+    void collapseSingleFromAFileIsHonoured()
     {
         QVERIFY(!node(work, {1}).collapseSingle);
-        editor->tabCommand(work, {1}, 0, TabCommand::ToggleCollapseSingle);
+        model->setLayout(work, layout::setCollapseSingle(tree(work), {1}, true));
         QVERIFY(node(work, {1}).collapseSingle);
-        editor->tabCommand(work, {1}, 0, TabCommand::ToggleCollapseSingle);
-        QVERIFY(!node(work, {1}).collapseSingle);
+        editor->tabCommand(work, {1}, 2, TabCommand::Delete);
+        editor->tabCommand(work, {1}, 1, TabCommand::Delete);
+        QVERIFY(node(work, {1}).kind != Kind::Tabs);
     }
 
     void renameTab()

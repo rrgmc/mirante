@@ -879,17 +879,17 @@ struct MainWindow::Private
             sidebar->reveal(id);
     }
 
-    void onMoveRequested(SidebarModel::Kind kind, const QString &id, int priority, int index)
+    void onMoveRequested(SidebarModel::Kind kind, const QString &id, int index)
     {
         switch (kind) {
         case SidebarModel::Kind::Group:
             actions->moveGroup(id, index);
             break;
         case SidebarModel::Kind::Project:
-            actions->moveProject(id, Priority(priority), index);
+            actions->moveProject(id, index);
             break;
         case SidebarModel::Kind::Task:
-            actions->moveTask(id, Priority(priority), index);
+            actions->moveTask(id, index);
             break;
         default:
             break;
@@ -1259,9 +1259,7 @@ MainWindow::MainWindow(Model &model, const ItemTypeRegistry &types, Store &store
         d->actions->fillMenu(menu, kind, id, taskId);
     });
     connect(d->sidebar->model(), &SidebarModel::moveRequested, this,
-            [this](SidebarModel::Kind kind, const QString &id, int priority, int index) {
-                d->onMoveRequested(kind, id, priority, index);
-            });
+            [this](SidebarModel::Kind kind, const QString &id, int index) { d->onMoveRequested(kind, id, index); });
     d->sidebar->addHeaderWidget(d->buildNewButton());
     connect(&model, &Model::workspaceNameChanged, this, [this] { d->updateTitle(); });
     connect(d->showSidebarButton, &QToolButton::clicked, this, [this] { d->showSidebar(true); });

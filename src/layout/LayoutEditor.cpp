@@ -362,19 +362,19 @@ void LayoutEditor::Private::showTabMenu(LayoutView *view, const NodePath &tabsPa
         if (ok && !renamed.isEmpty())
             q->renameTab(dashboard, tabsPath, index, renamed);
     });
-    addCommand(&menu, commands, LayoutEditor::tr("Close"), [this, guard, dashboard, tabsPath, index, title] {
-        const QString question = LayoutEditor::tr("Close the tab \"%1\" and remove its content from the dashboard?")
+    addCommand(&menu, commands, LayoutEditor::tr("Delete tab"), [this, guard, dashboard, tabsPath, index, title] {
+        const QString question = LayoutEditor::tr("Delete the tab \"%1\" and remove its content from the dashboard?")
                                      .arg(title.isEmpty() ? LayoutEditor::tr("untitled") : title);
         if (guard && confirm(guard, question))
-            q->tabCommand(dashboard, tabsPath, index, TabCommand::Close);
+            q->tabCommand(dashboard, tabsPath, index, TabCommand::Delete);
     });
     command(LayoutEditor::tr("Move left"), TabCommand::MoveLeft)->setEnabled(index > 0);
     command(LayoutEditor::tr("Move right"), TabCommand::MoveRight)->setEnabled(index + 1 < int(tabs->children.size()));
-    menu.addSeparator();
-    command(LayoutEditor::tr("Remove tab group"), TabCommand::RemoveGroup)->setEnabled(tabs->children.size() == 1);
-    QAction *collapse = command(LayoutEditor::tr("Collapse when single"), TabCommand::ToggleCollapseSingle);
-    collapse->setCheckable(true);
-    collapse->setChecked(tabs->collapseSingle);
+    // Only a group of one tab can be ungrouped: its tab's content takes its place.
+    if (tabs->children.size() == 1) {
+        menu.addSeparator();
+        command(LayoutEditor::tr("Ungroup"), TabCommand::Ungroup);
+    }
 
     QAction *chosen = menu.exec(globalPos);
     const auto run = commands.find(chosen);
@@ -574,7 +574,7 @@ void LayoutEditor::tabCommand(const DashboardRef &dashboard, const NodePath &tab
     case TabCommand::AddTab:
         edited = layout::insertTab(*tree, tabsPath, index + 1, std::nullopt, tr("New tab")).tree;
         break;
-    case TabCommand::Close:
+    case TabCommand::Delete:
         edited = layout::removeNode(*tree, childOf(tabsPath, index));
         break;
     case TabCommand::MoveLeft:
@@ -587,14 +587,11 @@ void LayoutEditor::tabCommand(const DashboardRef &dashboard, const NodePath &tab
             return;
         edited = layout::moveTab(*tree, tabsPath, index, index + 1);
         break;
-    case TabCommand::RemoveGroup:
+    case TabCommand::Ungroup:
         // Normalisation replaces a collapsing group of one tab by its content.
         if (tabs->children.size() != 1)
             return;
         edited = layout::setCollapseSingle(*tree, tabsPath, true);
-        break;
-    case TabCommand::ToggleCollapseSingle:
-        edited = layout::setCollapseSingle(*tree, tabsPath, !tabs->collapseSingle);
         break;
     }
     d->model.setLayout(dashboard, edited);

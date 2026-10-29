@@ -27,7 +27,7 @@
         }
     },
     "name": "infra",
-    "order": 0,
+    "order": 2,
     "priority": 3,
     "schemaVersion": 1
 }

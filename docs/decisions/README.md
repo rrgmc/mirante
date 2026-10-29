@@ -14,7 +14,7 @@ Each file records one design decision: what was decided, what else was considere
 | [0006](0006-connections-per-group.md) | API connections per group, tokens in the keychain | Accepted |
 | [0007](0007-separate-item-types-per-rendering.md) | Separate item types for summary and page | Accepted |
 | [0008](0008-claude-sessions.md) | Claude sessions through web views and the terminal only | Accepted |
-| [0009](0009-priority-and-attention.md) | Four priority levels; attention as badges | Accepted |
+| [0009](0009-priority-and-attention.md) | Four priority levels; attention as badges | Accepted; sorting superseded by 0034 |
 | [0010](0010-folder-identity.md) | Folders stored as identities, mapped to paths per device | Accepted |
 | [0011](0011-root-cells-reference-task-dashboards.md) | Root dashboard cells refer to task dashboards | Accepted |
 | [0012](0012-html-prototype-first.md) | HTML prototype and Qt spike before features | Superseded by 0015 |
@@ -39,6 +39,7 @@ Each file records one design decision: what was decided, what else was considere
 | [0031](0031-conflict-copies-by-id-prefix.md) | Conflict copies are recognised by the id at the start of their name | Accepted |
 | [0032](0032-paste-images-into-root-dashboards.md) | Pasting an image into a root dashboard asks for its task | Accepted |
 | [0033](0033-cell-header-pills.md) | Cell headers show the type and the place as pills | Accepted |
+| [0034](0034-manual-order-in-the-sidebar.md) | The sidebar keeps the manual order; priority is a marker | Accepted |
 
 ## Template
 

@@ -31,17 +31,16 @@ The sidebar can be collapsed.
 ### Sidebar tree
 
 - Groups appear in manual order.
-- Projects and tasks are sorted by [priority](data-model.md#priority), then manual order.
-- A coloured marker shows the priority level. Low items are dimmed.
+- Projects and tasks appear in manual order. [Priority](data-model.md#priority) does not change their place; only Focus sorts by it. See [decision 0034](decisions/0034-manual-order-in-the-sidebar.md).
+- A coloured marker shows the priority level. Projects have a small rounded square and tasks a circle, so the two levels are easy to tell apart. Low items are dimmed.
 - Each task has two fixed children: **Dashboards**, with its task dashboards, then **Items**, with the task's items. They are there for every task, even when empty.
 - The selected row keeps its full highlight colour when the sidebar does not have the focus, so the dashboard on screen stays easy to see.
-- Three tabs at the bottom choose the task list. **Projects** lists active tasks under every project, including projects without any. **Active** lists the same tasks, but leaves out projects without active tasks. **Done** lists done and archived tasks under every project. A filter, off by default, hides Low items in all three.
+- Three tabs at the bottom choose the task list. **Projects** lists active tasks under every project, including projects without any. **Active** lists the same tasks, but leaves out projects without active tasks. **Done** lists done and archived tasks under every project. A filter button right of the workspace title opens a menu with a checkbox for each priority. Unchecking one hides the projects and tasks of that priority in all three lists. The button looks pressed while it hides something. All priorities are shown at start.
 - A `+` button in the sidebar header opens a menu: New Group…, New Project… in the group of the selected row, and New Task… in the project of the selected row. The last two are disabled when the selection has no group or project.
 - Two buttons in the sidebar header expand or collapse every task at once, with its Dashboards and Items. Groups and projects are left as they are; they open and close by hand only.
 - [Attention badges](#attention) appear on tasks, and are summed on projects and groups.
 - **Drag and drop:**
-  - Dragging within a priority level changes the order.
-  - Dragging across the boundary between two levels changes the priority. While the drop would do so, a tooltip next to the cursor names the new level, such as "Becomes Normal".
+  - Dragging a group, project or task among its siblings changes its place. It never changes a priority.
   - A task itself is not dragged onto dashboards. Drag one of its items, to show that item, or one of its dashboards, to show the task with that dashboard in a root dashboard. See [placing tasks](#placing-tasks-and-items).
 - The context menu holds new, edit, rename, set priority, set state and delete, and on a task dashboard "Set as default". On a task dashboard or an item it also holds "Open in new root dashboard", which makes a root dashboard showing just that dashboard or item.
 - Project rows have a light tinted background, so they stand out between groups and tasks.
@@ -129,10 +128,10 @@ When editing is on:
   - clear cell;
   - remove cell.
 
-  Clear cell, remove cell, and closing a tab of a tab group ask for confirmation, since they remove content from the layout.
-- **The tab context menu** offers add tab (an empty tab after the clicked one), rename, close, move to the left or right, "Remove tab group" and "Collapse when single".
-  - "Remove tab group" is enabled when the group has one tab. It unwraps the group once: the tab's content takes the group's place.
-  - "Collapse when single" is a setting of the group: whenever it has one tab, now or after closing others, the group is replaced by that tab's content.
+  Clear cell, remove cell, and deleting a tab of a tab group ask for confirmation, since they remove content from the layout.
+- **The tab context menu** offers add tab (an empty tab after the clicked one), rename, "Delete tab", move to the left or right, and "Ungroup".
+  - "Delete tab" removes the tab and its content from the layout.
+  - "Ungroup" appears only when the group has one tab. It removes the tab group: the tab's content takes the group's place.
 - **A `+` button** at the right of each tab group adds an empty tab at the end.
 - **Drag and drop:** drag a cell by its header, a tab by its tab, a whole tab group by the empty part of its tab bar, or an item from the sidebar. Cell headers and tab bars show an open hand while the dashboard is unlocked. Holding a drag over a tab that is not shown opens it, so a cell can be dropped beside its content. A tab group or a split moves within its own dashboard. A semi-transparent overlay shows five drop zones on the cell under the cursor:
   - the left, right, top or bottom edge splits the cell on that side;
@@ -158,7 +157,7 @@ Focus answers "what should I work on now?", across all projects.
 
 - The Focus entry in the sidebar opens Focus in a "Focus" tab at the start of the root tab bar. There is at most one Focus tab. It can be closed like any other tab.
 - It lists active tasks from all projects, or from one group, chosen in a combo box. The combo box holds "All groups", then the groups in manual order.
-- Each row shows the task title, then its project and group, dimmed, and the [priority](data-model.md#priority) marker of the sidebar. Low tasks are dimmed.
+- Each row shows the task title, then its project and group, dimmed, and the [priority](data-model.md#priority) marker of the sidebar, a circle as for every task. Low tasks are dimmed.
 - A right click on a task opens the task's menu from the sidebar: edit, set priority, set state, delete and the rest.
 - **Sort order:**
   1. task priority;

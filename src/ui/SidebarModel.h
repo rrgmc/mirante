@@ -59,16 +59,10 @@ public:
     bool dropMimeData(const QMimeData *data, Qt::DropAction action, int row, int column,
                       const QModelIndex &parent) override;
 
-    // What a drop of data at row under parent would do beyond reordering,
-    // shown while dragging: "Becomes High" when a project or task would land
-    // in another priority level. Empty otherwise.
-    QString dropHint(const QMimeData *data, int row, const QModelIndex &parent) const;
-
 signals:
-    // A dropped group, project or task. For projects and tasks, priority is
-    // the level it lands in, and index its place among the siblings of that
-    // level; for groups, priority is unused and index is its place among groups.
-    void moveRequested(mirante::SidebarModel::Kind kind, const QString &id, int priority, int index);
+    // A dropped group, project or task, and its new place among its siblings,
+    // hidden ones included. A drop never changes a priority.
+    void moveRequested(mirante::SidebarModel::Kind kind, const QString &id, int index);
 
 private:
     void emitChanged(const QModelIndex &parent);
