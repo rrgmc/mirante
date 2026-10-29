@@ -41,10 +41,11 @@ A heavy page such as claude.ai uses a few hundred MB.
 
 ## Page behaviour
 
-- **Popups.** `WebPanel` overrides `createWindow`. Login popups, for example OAuth sign-in, open in a small dialog using the same profile and close when the page closes them. Ordinary "open in new window" links open in the external browser.
-- **Permissions.** Clipboard access and notifications are asked once per host and per profile, and the answer is remembered. Camera, microphone and location are always denied.
+- **Popups.** The page handles `newWindowRequested`. A window that a page opens with a size or other features, as OAuth sign-in does, is a login popup. It opens in a dialog that uses the same profile. The dialog can be resized. It takes the size the page asks for, but at least 500 × 600 pixels, and no more than the screen. It closes when the page closes it. Every other new window or tab opens in the external browser, and no page is made for it. If such a window has no address yet, a hidden page waits for its first address, sends it to the external browser, and goes away.
+- **Permissions.** Clipboard access and notifications are asked once per site and per profile. A slim bar above the page asks, for example "example.com wants to show notifications.", with Allow and Deny. Qt keeps the answer in the profile, so the site is not asked again. Camera, microphone, screen capture, location, mouse lock and local fonts are denied without asking.
 - **Downloads.** Downloads go to the system download folder, after asking.
-- **Toolbar.** Each web cell header has back, reload, the current address, and open in external browser.
+- **Toolbar.** Each web cell header has back, reload, the current address, and open in external browser. Back is disabled when there is no history. The address is cut in the middle to fit. A click on it shows the whole address, selected, so it can be copied.
+- **Load failure.** When a page fails to load, a message with the error and a Reload button takes the place of the page. Chromium's own error page is turned off. A server's error page, such as a 404 page, is shown as it is.
 
 ## Known risk: logins in embedded browsers
 
