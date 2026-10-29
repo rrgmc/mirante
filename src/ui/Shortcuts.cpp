@@ -395,4 +395,9 @@ void Shortcuts::focusCell(QWidget *cell)
     d->setFocused(cellOf(cell));
 }
 
+// Stubs from M4 T0. T6 implements them.
+void Shortcuts::toggleMaximised(QWidget *) {}
+
+bool Shortcuts::isMaximised(const QWidget *) const { return false; }
+
 } // namespace mirante

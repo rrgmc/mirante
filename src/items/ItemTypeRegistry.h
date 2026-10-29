@@ -35,6 +35,11 @@ public:
     // The registered types, sorted by name.
     std::vector<const ItemType *> types() const;
 
+    // Every connection kind that a registered type lists in connectionKinds(),
+    // once each, sorted. The group dialog offers these. See
+    // docs/decisions/0038-read-connections-in-m4.md.
+    QStringList connectionKinds() const;
+
 private:
     struct Private;
     std::unique_ptr<Private> d;

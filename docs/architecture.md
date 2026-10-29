@@ -47,6 +47,7 @@ No core folder depends on a module. The core reaches modules only through the re
 | `FolderWatcher` | Watches the top of the data folder and its five subfolders, and reports files added, changed or removed by others, after 300 ms of quiet, and the conflict copies present |
 | `Migrations` | Upgrades files from older `schemaVersion` values, and refuses files of a newer one |
 | `ConflictNames` | Recognises a sync tool's conflict copy by the id at the start of its name. See [decision 0031](decisions/0031-conflict-copies-by-id-prefix.md). |
+| `Connections` | Finds the connection for an item by the [resolution order](data-model.md#connection). Used by `ItemContext` from M4, and by `ConnectionResolver` from M5. |
 | `Edits` | Changes to entities as pure functions, such as removing an item from a task and clearing its cells, for the `Model`'s setters |
 | `DeviceSettings` | Typed access to the `QSettings` values listed in [sync](sync.md#device-settings) |
 | `Sorting` | Priority and order sorting, used by the sidebar and Focus |
@@ -85,7 +86,7 @@ Native views are ordinary widgets. Lists use `QTableView` with a model fed from 
 
 | Class | Responsibility |
 |---|---|
-| `ProfileManager` | Creates and owns the group, shared and app profiles, and resolves which profile a URL uses. See [profiles](web-views.md#profiles). |
+| `ProfileManager` | Creates and owns the profiles: one per group and module, one shared per module, and the app profile. It resolves which profile a URL uses. See [profiles](web-views.md#profiles) and [decision 0040](decisions/0040-profiles-per-group-and-module.md). |
 | `WebPanel` | `QWebEngineView` with a toolbar, popup handling and permission handling |
 | `DashSchemeHandler` | Serves `dash://` from resources with the security headers |
 | `DashBridge` | The `QWebChannel` object `dash` used by built-in panels |
@@ -124,6 +125,7 @@ Code that differs per platform lives only here, behind these classes.
 | `ImagePaste` | Pastes an image from the clipboard into an image item, or as a new one. See [image](item-types.md#image). |
 | `QuickSwitcher` | `Ctrl+K` fuzzy search |
 | `QuickAdd` | Creates a task from a pasted link, using the modules' quick add handlers. See [quick add](ui.md#quick-add). |
+| `DashboardPage` | One tab's page: a `LayoutView` of one dashboard with its cell factory, or the Focus list. A detached window holds one too. |
 | `DetachedWindow` | A top-level window holding one detached root dashboard. See [decision 0024](decisions/0024-detach-root-dashboard-tabs.md). |
 | Dialogs | Group, project, task, item, connection and settings editors |
 

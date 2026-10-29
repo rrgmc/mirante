@@ -49,6 +49,7 @@ public:
         QStringList ids;            // root dashboard ids, and "focus", in tab order
         QString current;            // the id of the current tab
         bool saved = false;         // false if nothing was saved for this workspace yet
+        QStringList detached;       // root dashboards shown in their own windows; not in ids
     };
     Tabs openTabs(const QString &workspace) const;
     void setOpenTabs(const QString &workspace, const Tabs &tabs);
@@ -60,6 +61,17 @@ public:
     void setWindowMaximized(bool maximized);
     QByteArray sidebarSplitterState() const;
     void setSidebarSplitterState(const QByteArray &state);
+
+    // The window of a detached root dashboard, as QWidget::saveGeometry()
+    // returns it. Empty if none was saved. Root dashboard ids are UUIDs, so one
+    // map serves every workspace. See docs/decisions/0024-detach-root-dashboard-tabs.md.
+    QByteArray detachedGeometry(const QString &dashboardId) const;
+    void setDetachedGeometry(const QString &dashboardId, const QByteArray &geometry);
+
+    // The number of hidden web views kept loaded. 8 if not set.
+    // See docs/web-views.md#memory-policy.
+    int hiddenViewLimit() const;
+    void setHiddenViewLimit(int limit);
 
 private:
     struct Private;

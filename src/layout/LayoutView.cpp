@@ -685,4 +685,7 @@ void LayoutView::reattachCell(QWidget *cell)
     delete placeholder;
 }
 
+// Stub from M4 T0. T7 implements it.
+void LayoutView::remakeUnsafeCells() {}
+
 } // namespace mirante

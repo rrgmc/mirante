@@ -51,6 +51,11 @@ public:
     QWidget *detachCell(const NodePath &path);
     void reattachCell(QWidget *cell);
 
+    // Makes again every cell whose reference CellFactory::canReparent()
+    // refuses. Called after the whole view moved to another window, such as a
+    // detached one. See the M4 plan, part 8.
+    void remakeUnsafeCells();
+
 signals:
     // The user resized a split or changed a tab. Sizes are reported 300 ms
     // after the last splitter move.

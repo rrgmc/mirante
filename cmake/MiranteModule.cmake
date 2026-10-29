@@ -13,9 +13,14 @@
 #     TESTS     <files...>
 #     RESOURCES <files...>
 #     DEPENDS   <module ids...>
+#     QT_LIBS   <Qt components...>
 #     DEFAULT   ON|OFF)
+#
+# QT_LIBS links further Qt components, such as WebEngineWidgets for a module
+# that builds its own web view from ItemContext::profile(). See
+# docs/decisions/0037-core-makes-web-views.md.
 function(mirante_add_module id)
-    cmake_parse_arguments(ARG "" "DEFAULT" "SOURCES;TESTS;RESOURCES;DEPENDS" ${ARGN})
+    cmake_parse_arguments(ARG "" "DEFAULT" "SOURCES;TESTS;RESOURCES;DEPENDS;QT_LIBS" ${ARGN})
     if(ARG_UNPARSED_ARGUMENTS)
         message(FATAL_ERROR "Module ${id}: unknown arguments: ${ARG_UNPARSED_ARGUMENTS}")
     endif()
@@ -66,6 +71,9 @@ function(mirante_add_module id)
     set(target mirante_module_${id})
     add_library(${target} STATIC ${ARG_SOURCES})
     target_link_libraries(${target} PUBLIC mirante::module_api Qt6::Core Qt6::Gui Qt6::Widgets)
+    foreach(qt_lib IN LISTS ARG_QT_LIBS)
+        target_link_libraries(${target} PUBLIC Qt6::${qt_lib})
+    endforeach()
     mirante_set_warnings(${target})
 
     # Qt 6 links the resources of a static library as object files, so no
