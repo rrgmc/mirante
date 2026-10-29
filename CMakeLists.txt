@@ -12,7 +12,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
-find_package(Qt6 6.8 REQUIRED COMPONENTS Core Gui Widgets Test)
+find_package(Qt6 6.8 REQUIRED COMPONENTS Core Gui Widgets Network WebChannel WebEngineWidgets Test)
 qt_standard_project_setup()
 
 option(MIRANTE_WERROR "Treat compiler warnings as errors" OFF)

@@ -25,6 +25,12 @@ public:
     // Moves the focus to a cell, as if the user clicked it.
     void focusCell(QWidget *cell);
 
+    // Maximises a cell over the content area and focuses it, or restores it
+    // if it is the maximised one. The cell need not have the focus. See the
+    // M4 plan, part 6.
+    void toggleMaximised(QWidget *cell);
+    bool isMaximised(const QWidget *cell) const;
+
 private:
     struct Private;
     std::unique_ptr<Private> d;

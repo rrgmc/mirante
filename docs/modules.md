@@ -52,6 +52,7 @@ mirante_add_module(gitlab
     TESTS   tests/tst_urls.cpp tests/tst_attention.cpp
     RESOURCES icons/gitlab.svg
     DEPENDS          # other module ids, usually none
+    QT_LIBS          # further Qt components, usually none
     DEFAULT ON)
 ```
 
@@ -59,7 +60,7 @@ The function:
 
 1. creates the option `MIRANTE_MODULE_GITLAB`, with the given default;
 2. if the option is off, does nothing more;
-3. builds a static library `mirante_module_gitlab`, linked only to the module interface and Qt;
+3. builds a static library `mirante_module_gitlab`, linked only to the module interface and Qt: Core, Gui and Widgets, and the components in `QT_LIBS`, such as `WebEngineWidgets` for a module that builds its own web view from `profile()`;
 4. compiles the resources in, served as `:/modules/<id>/<path>`, such as `:/modules/gitlab/icons/gitlab.svg`;
 5. adds the module's tests to CTest, named `module_<id>_<file>`;
 6. adds the module to the list of enabled modules.
@@ -96,7 +97,7 @@ The module interface contains the headers below. The "Since" column gives the mi
 | Header | Contents | Since |
 |---|---|---|
 | `Module.h` | `ModuleRegistrar`, the object a module registers its parts with | M2 |
-| `ItemType.h` | The `ItemType` interface. See [item types](item-types.md#the-type-registry). `shortName()`, the short label in cell headers, was added after M3; see [decision 0033](decisions/0033-cell-header-pills.md). | M2 |
+| `ItemType.h` | The `ItemType` interface. See [item types](item-types.md#the-type-registry). `shortName()`, the short label in cell headers, was added after M3; see [decision 0033](decisions/0033-cell-header-pills.md). M4 adds `rendering()`, `connectionKinds()` and `createView()`. | M2 |
 | `Fields.h` | `Field`: a key, a label, a type, a default value, a required flag, and for a choice its values and labels. The types are text, multi-line text, URL, integer, boolean, choice, folder and image. Used for item configuration, and from M5 for connection fields and settings. See [decision 0028](decisions/0028-item-fields-in-m3.md). | M3 |
 | `ItemEditor.h` | `ItemEditor`, the base of an item type's own configuration editor, and `EditorContext`, what an editor can reach: the project's folders and a way to save an image into `files/` | M3 |
 | `ItemContext.h` | `ItemContext`, everything an item's code can reach. See [below](#item-context). | M4 |
@@ -125,20 +126,23 @@ The core builds every dialog from the field definitions, and checks the values a
 
 ## Item context
 
-Each item's code gets an `ItemContext`. It gives access to the configuration the core owns, without the core's classes.
+Each item's code gets an `ItemContext`. It gives access to the configuration the core owns, without the core's classes. The core makes one for each placement, and it outlives the placement's view. The "Since" column gives the milestone that adds each member.
 
-| Member | Description |
-|---|---|
-| `item()`, `task()`, `project()`, `group()` | Read-only views of the item and where it sits |
-| `projectSetting(key)` | A project setting the module declared, such as `project` for GitLab. Empty if the project does not set it. |
-| `deviceSetting(key)` | A device setting the module declared |
-| `connection(kind)` | The connection found by the [resolution order](data-model.md#connection), or an error: none set, token missing, or failing |
-| `status()` | This item's entry in the status cache: fetch, read cached data, report attention |
-| `profile()` | The web profile for a URL, for web item types |
-| `folderPath(folderId)` | The local path of a project folder on this device, or empty if not mapped |
-| `gitHead(path)` | The current branch of a folder |
-| `launchTerminal(dir, command)` | Starts a command in a terminal. See [terminal launch](integrations.md#terminal-launch). |
-| `updateConfig(config)` | Changes the item's configuration through `Model` |
+| Member | Description | Since |
+|---|---|---|
+| `itemName()`, `config()` | The item's name and configuration, read from the model on each call | M4 |
+| `item()`, `task()`, `project()`, `group()` | Read-only views of the item and where it sits | planned |
+| `projectSetting(key)` | A project setting the module declared, such as `project` for GitLab. Undefined if the project does not set it. | M4 |
+| `deviceSetting(key)` | A device setting the module declared | M7 |
+| `connection(kinds)` | The first connection of one of the kinds found by the [resolution order](data-model.md#connection). In M4 it gives the details without a token; from M5 the handle also signs requests, and reports a missing token or a failure. See [decision 0038](decisions/0038-read-connections-in-m4.md). | M4 |
+| `status()` | This item's entry in the status cache: fetch, read cached data, report attention | M5 |
+| `createWebView(url)` | A live web page in a plain `QWidget`, in the profile of the item's group and module, with popups, permissions, downloads and the toolbar handled by the core. The normal way for a web type to show a page. See [decision 0037](decisions/0037-core-makes-web-views.md). | M4 |
+| `profile(url)` | The profile of the item's group and module, for a module that builds its own `QWebEngineView`. Such a module links Qt WebEngine with `QT_LIBS`, and handles popups, permissions and downloads itself. A module reaches only its own module's profiles; see [decision 0040](decisions/0040-profiles-per-group-and-module.md). | M4 |
+| `createMessageView(text)` | A grey message in the cell, such as "No GitLab connection in this group" | M4 |
+| `folderPath(folderId)` | The local path of a project folder on this device, or empty if not mapped | M4 |
+| `gitHead(path)` | The current branch of a folder | M7 |
+| `launchTerminal(dir, command)` | Starts a command in a terminal. See [terminal launch](integrations.md#terminal-launch). | M7 |
+| `updateConfig(config)` | Changes the item's configuration through `Model` | M4 |
 
 ### Connections and tokens
 

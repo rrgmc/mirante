@@ -324,4 +324,19 @@ void CellFrameSingleView::update()
     m_showHere(false);
 }
 
+// Stubs from M4 T0. T7 implements them.
+void CellFrame::setBody(QWidget *body)
+{
+    if (body)
+        body->setParent(this);
+}
+
+QWidget *CellFrame::body() const { return nullptr; }
+
+void CellFrame::setHeaderWidget(QWidget *) {}
+
+void CellFrame::setMaximiseButtonVisible(bool) {}
+
+void CellFrame::setMaximised(bool) {}
+
 } // namespace mirante

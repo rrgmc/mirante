@@ -173,4 +173,13 @@ void DeviceSettings::setSidebarSplitterState(const QByteArray &state)
     d->settings->setValue(windowSplitterKey, state);
 }
 
+// Stubs from M4 T0. T3 implements them, and saves Tabs::detached.
+QByteArray DeviceSettings::detachedGeometry(const QString &) const { return {}; }
+
+void DeviceSettings::setDetachedGeometry(const QString &, const QByteArray &) {}
+
+int DeviceSettings::hiddenViewLimit() const { return 8; }
+
+void DeviceSettings::setHiddenViewLimit(int) {}
+
 } // namespace mirante

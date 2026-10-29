@@ -4,6 +4,7 @@
 
 #include <QIcon>
 #include <QString>
+#include <QStringList>
 
 #include <vector>
 
@@ -11,13 +12,16 @@ class QWidget;
 
 namespace mirante {
 
+class ItemContext;
 class ItemEditor;
 struct EditorContext;
 
+// How a type's views are made. Web views are the heavy ones that the memory
+// policy unloads. See docs/web-views.md#memory-policy.
+enum class Rendering { Native, Web };
+
 // One kind of item, such as a GitLab merge request summary. Modules register
 // their types through ModuleRegistrar. See docs/item-types.md.
-//
-// createView() and ItemContext arrive in M4.
 class ItemType
 {
 public:
@@ -59,6 +63,22 @@ public:
     // image onto a task dashboard creates an item of this type. See
     // docs/item-types.md#image.
     virtual QString pastedImageField() const { return {}; }
+
+    virtual Rendering rendering() const { return Rendering::Native; }
+
+    // The connection kinds the type can use, in order of preference, such as
+    // {"jira.cloud", "jira.dc"}. Empty for types that need no connection.
+    virtual QStringList connectionKinds() const { return {}; }
+
+    // Creates the view for one placement. The context outlives the view.
+    // Null shows the type's placeholder. Include <mirante/ItemContext.h> to
+    // implement it. See docs/item-types.md#the-view.
+    virtual QWidget *createView(ItemContext &context, QWidget *parent) const
+    {
+        Q_UNUSED(context)
+        Q_UNUSED(parent)
+        return nullptr;
+    }
 };
 
 } // namespace mirante
