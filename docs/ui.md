@@ -162,6 +162,8 @@ Layouts are locked by default, to prevent accidental changes while working. The 
 When editing is on:
 
 - **The cell context menu** offers, after "Maximise" and "Open Alone" for an item cell (see [a bigger view](#a-bigger-view-of-an-item)):
+  - "Edit Item…", for an item cell, which opens the item dialog;
+  - "Use Current Address", for an item cell that shows a web page, when the item's type has an address field. It saves the address the page shows now in that field, such as the Address of a Web page item. It is disabled when the two are already the same, and its tooltip shows the address;
   - split right;
   - split down;
   - wrap in tabs;

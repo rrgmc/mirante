@@ -1392,6 +1392,9 @@ MainWindow::MainWindow(Model &model, const ItemTypeRegistry &types, Store &store
             activateWindow();
         }
     };
+    d->services.editItem = [this](const QString &taskId, const QString &itemId) {
+        d->actions->editItem(taskId, itemId);
+    };
     d->editor->setServices(&d->services);
     d->actions->setProfiles(profiles);
 
