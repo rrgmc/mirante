@@ -200,7 +200,7 @@ private slots:
     {
         const QString one = dir->filePath(QStringLiteral("one"));
         DeviceSettings device(settings.get());
-        device.setOpenTabs(one, DeviceSettings::Tabs{{QStringLiteral("d1")}, QStringLiteral("d1"), true});
+        device.setOpenTabs(one, DeviceSettings::Tabs{{QStringLiteral("d1")}, QStringLiteral("d1"), true, {}});
         QString group;
         for (const QString &key : settings->allKeys()) {
             if (key.endsWith(QStringLiteral("/ids")))
@@ -210,7 +210,7 @@ private slots:
         settings->setValue(group + QStringLiteral("/previewTask"), QStringLiteral("t1"));
         settings->setValue(group + QStringLiteral("/previewDashboard"), QStringLiteral("td1"));
 
-        device.setOpenTabs(one, DeviceSettings::Tabs{{QStringLiteral("d1")}, QStringLiteral("d1"), true});
+        device.setOpenTabs(one, DeviceSettings::Tabs{{QStringLiteral("d1")}, QStringLiteral("d1"), true, {}});
         for (const QString &key : settings->allKeys())
             QVERIFY2(!key.contains(QStringLiteral("preview")), qPrintable(key));
     }
