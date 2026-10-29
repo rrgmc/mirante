@@ -9,6 +9,7 @@
 #include <QAbstractItemModelTester>
 #include <QIcon>
 #include <QMimeData>
+#include <QPushButton>
 #include <QSignalSpy>
 #include <QTabBar>
 #include <QTest>
@@ -38,6 +39,31 @@ QStringList childIds(const SidebarModel &model, const QModelIndex &parent)
     for (int row = 0; row < model.rowCount(parent); ++row)
         ids << model.index(row, 0, parent).data(SidebarModel::IdRole).toString();
     return ids;
+}
+
+// Drops id at row under parent and returns the move it asks for, as
+// "kind id priority index", or "refused". canDropMimeData must agree.
+QString drop(SidebarModel &sidebar, const QString &id, int row, const QModelIndex &parent)
+{
+    QSignalSpy spy(&sidebar, &SidebarModel::moveRequested);
+    std::unique_ptr<QMimeData> data(sidebar.mimeData({sidebar.indexOf(id)}));
+    const bool can = sidebar.canDropMimeData(data.get(), Qt::MoveAction, row, 0, parent);
+    const bool dropped = sidebar.dropMimeData(data.get(), Qt::MoveAction, row, 0, parent);
+    if (can != dropped || spy.count() != (dropped ? 1 : 0))
+        return QStringLiteral("inconsistent");
+    if (!dropped)
+        return QStringLiteral("refused");
+    const QList<QVariant> &args = spy.first();
+    return QStringLiteral("%1 %2 %3 %4")
+        .arg(int(args.at(0).value<SidebarModel::Kind>()))
+        .arg(args.at(1).toString())
+        .arg(args.at(2).toInt())
+        .arg(args.at(3).toInt());
+}
+
+QString move(SidebarModel::Kind kind, const QString &id, int priority, int index)
+{
+    return QStringLiteral("%1 %2 %3 %4").arg(int(kind)).arg(id).arg(priority).arg(index);
 }
 
 // Loads the fixtures and checks the model with QAbstractItemModelTester.
@@ -71,6 +97,8 @@ private slots:
     void roles();
     void findsIndexes();
     void dragging();
+    void drops();
+    void followsModelEdits();
     void resetsOnModelReset();
     void repaintsChangedTask();
     void sidebarWidget();
@@ -205,22 +233,33 @@ void TestSidebarModel::findsIndexes()
 void TestSidebarModel::dragging()
 {
     Fixture f;
-    QCOMPARE(f.sidebar->mimeTypes(), QStringList{QString::fromLatin1(dragMimeType)});
+    QVERIFY(f.sidebar->mimeTypes().contains(QString::fromLatin1(dragMimeType)));
 
-    // Items and dashboards are dragged; groups, projects, tasks and the two
-    // lists are not.
+    // Everything but the two lists is dragged.
     const QModelIndex group = f.sidebar->indexOf(workGroup);
+    const QModelIndex project = f.sidebar->indexOf(backendProject);
     const QModelIndex task = f.sidebar->indexOf(fixLoginTimeout);
     const QModelIndex items = f.sidebar->index(1, 0, task);
     const QModelIndex item = f.sidebar->index(0, 0, items);
     const QModelIndex dashboard = f.sidebar->index(0, 0, f.sidebar->index(0, 0, task));
-    for (const QModelIndex &index : {group, task, items})
-        QVERIFY(!f.sidebar->flags(index).testFlag(Qt::ItemIsDragEnabled));
-    QVERIFY(f.sidebar->flags(item).testFlag(Qt::ItemIsDragEnabled));
-    QVERIFY(f.sidebar->flags(dashboard).testFlag(Qt::ItemIsDragEnabled));
+    QVERIFY(!f.sidebar->flags(items).testFlag(Qt::ItemIsDragEnabled));
+    QVERIFY(!f.sidebar->mimeData({items}));
+    for (const QModelIndex &index : {group, project, task, item, dashboard})
+        QVERIFY(f.sidebar->flags(index).testFlag(Qt::ItemIsDragEnabled));
 
-    QVERIFY(!f.sidebar->mimeData({group}));
-    QVERIFY(!f.sidebar->mimeData({task}));
+    // Groups, projects and tasks only reorder the sidebar: dashboards do not
+    // take them.
+    for (const QModelIndex &index : {group, project, task}) {
+        std::unique_ptr<QMimeData> data(f.sidebar->mimeData({index}));
+        QVERIFY(data);
+        QVERIFY(!data->hasFormat(QString::fromLatin1(dragMimeType)));
+        QVERIFY(!dragPayload(data.get()));
+    }
+
+    // Items and dashboards are not dropped in the sidebar.
+    std::unique_ptr<QMimeData> itemDrop(f.sidebar->mimeData({item}));
+    QVERIFY(!f.sidebar->canDropMimeData(itemDrop.get(), Qt::CopyAction, 0, 0, items));
+    QVERIFY(!f.sidebar->canDropMimeData(itemDrop.get(), Qt::CopyAction, 0, 0, {}));
 
     std::unique_ptr<QMimeData> itemData(f.sidebar->mimeData({item}));
     QVERIFY(itemData);
@@ -236,6 +275,141 @@ void TestSidebarModel::dragging()
     QVERIFY(dashboardPayload->ref.isTask());
     QCOMPARE(dashboardPayload->ref.task, fixLoginTimeout);
     QCOMPARE(dashboardPayload->ref.dashboard, f.model.task(fixLoginTimeout)->dashboards.front().id);
+}
+
+// Drops of groups, projects and tasks among their siblings, on a small model:
+// groups g1 and g2; projects p1 and p2 in g1, p3 in g2; in p1 the tasks a and
+// b (High), then c and d (Normal), and e (Normal, done, so hidden).
+void TestSidebarModel::drops()
+{
+    Group g1;
+    g1.id = QStringLiteral("g1");
+    g1.order = 0;
+    Group g2 = g1;
+    g2.id = QStringLiteral("g2");
+    g2.order = 1;
+    Project p1;
+    p1.id = QStringLiteral("p1");
+    p1.groupId = g1.id;
+    p1.order = 0;
+    Project p2 = p1;
+    p2.id = QStringLiteral("p2");
+    p2.order = 1;
+    Project p3 = p1;
+    p3.id = QStringLiteral("p3");
+    p3.groupId = g2.id;
+    std::vector<Task> tasks;
+    const auto addTask = [&tasks, &p1](const QString &id, Priority priority, int order) {
+        Task task;
+        task.id = id;
+        task.projectId = p1.id;
+        task.title = id;
+        task.priority = priority;
+        task.order = order;
+        tasks.push_back(task);
+    };
+    addTask(QStringLiteral("a"), Priority::High, 0);
+    addTask(QStringLiteral("b"), Priority::High, 1);
+    addTask(QStringLiteral("c"), Priority::Normal, 0);
+    addTask(QStringLiteral("d"), Priority::Normal, 1);
+    addTask(QStringLiteral("e"), Priority::Normal, 2);
+    tasks.back().state = TaskState::Done;
+
+    Model model;
+    model.reset({g1, g2}, {p1, p2, p3}, tasks, {});
+    ItemTypeRegistry types;
+    SidebarModel sidebar(model, types);
+    QAbstractItemModelTester tester(&sidebar, QAbstractItemModelTester::FailureReportingMode::Fatal);
+    QVERIFY(sidebar.supportedDropActions().testFlag(Qt::MoveAction));
+
+    const QModelIndex project1 = sidebar.indexOf(p1.id);
+    QCOMPARE(childIds(sidebar, project1), (QStringList{"a", "b", "c", "d"}));
+    const auto task = SidebarModel::Kind::Task;
+    const int high = int(Priority::High);
+    const int normal = int(Priority::Normal);
+
+    // Within a level: first, and after the next row.
+    QCOMPARE(drop(sidebar, "b", 0, project1), move(task, "b", high, 0));
+    QCOMPARE(drop(sidebar, "a", 2, project1), move(task, "a", high, 1));
+    // Across a boundary, the row takes the level of the row above. The
+    // hidden done task e counts in the index, after d.
+    QCOMPARE(drop(sidebar, "a", 3, project1), move(task, "a", normal, 1));
+    QCOMPARE(drop(sidebar, "a", 4, project1), move(task, "a", normal, 2));
+    // Dropped first, it takes the level of the row below.
+    QCOMPARE(drop(sidebar, "d", 0, project1), move(task, "d", high, 0));
+    // A drop on a row of the same kind is a drop above it.
+    QCOMPARE(drop(sidebar, "d", -1, sidebar.indexOf("c")), move(task, "d", high, 2));
+
+    // Tasks stay in their project, and at their depth.
+    QCOMPARE(drop(sidebar, "a", 0, sidebar.indexOf(p2.id)), QStringLiteral("refused"));
+    QCOMPARE(drop(sidebar, "a", 0, {}), QStringLiteral("refused"));
+    QCOMPARE(drop(sidebar, "a", 0, sidebar.indexOf(g1.id)), QStringLiteral("refused"));
+    QCOMPARE(drop(sidebar, "a", -1, project1), QStringLiteral("refused"));
+    QCOMPARE(drop(sidebar, "a", 0, sidebar.index(0, 0, sidebar.indexOf("c"))), QStringLiteral("refused"));
+
+    // Projects among the projects of their group.
+    const QModelIndex group1 = sidebar.indexOf(g1.id);
+    QCOMPARE(drop(sidebar, "p2", 0, group1), move(SidebarModel::Kind::Project, "p2", normal, 0));
+    QCOMPARE(drop(sidebar, "p1", 2, group1), move(SidebarModel::Kind::Project, "p1", normal, 1));
+    QCOMPARE(drop(sidebar, "p3", 0, group1), QStringLiteral("refused"));
+    QCOMPARE(drop(sidebar, "p1", 0, {}), QStringLiteral("refused"));
+
+    // Groups among groups; the priority is unused.
+    QCOMPARE(drop(sidebar, "g2", 0, {}), move(SidebarModel::Kind::Group, "g2", 0, 0));
+    QCOMPARE(drop(sidebar, "g1", 2, {}), move(SidebarModel::Kind::Group, "g1", 0, 1));
+    QCOMPARE(drop(sidebar, "g2", 0, group1), QStringLiteral("refused"));
+
+    // A drop changes nothing itself.
+    QCOMPARE(childIds(sidebar, {}), (QStringList{"g1", "g2"}));
+    QCOMPARE(childIds(sidebar, project1), (QStringList{"a", "b", "c", "d"}));
+}
+
+// The tree follows the model's setters and removers.
+void TestSidebarModel::followsModelEdits()
+{
+    Fixture f;
+    const QModelIndex backend = f.sidebar->indexOf(backendProject);
+    QCOMPARE(childIds(*f.sidebar, backend).first(), fixLoginTimeout);
+
+    // A changed priority moves the task.
+    Task fix = *f.model.task(fixLoginTimeout);
+    fix.priority = Priority::Low;
+    fix.title = QStringLiteral("Fixed login timeout");
+    f.model.setTask(fix);
+    QStringList ids = childIds(*f.sidebar, f.sidebar->indexOf(backendProject));
+    QCOMPARE(ids.first(), addRateLimiting);
+    QVERIFY(ids.indexOf(fixLoginTimeout) > ids.indexOf(backendOverview));
+    QCOMPARE(f.sidebar->indexOf(fixLoginTimeout).data().toString(), QStringLiteral("Fixed login timeout"));
+
+    f.model.removeTask(addRateLimiting);
+    QVERIFY(!f.sidebar->indexOf(addRateLimiting).isValid());
+
+    // A renamed group is repainted.
+    QSignalSpy changed(f.sidebar.get(), &QAbstractItemModel::dataChanged);
+    Group work = *f.model.group(workGroup);
+    work.name = QStringLiteral("Job");
+    f.model.setGroup(work);
+    QCOMPARE(f.sidebar->indexOf(workGroup).data().toString(), QStringLiteral("Job"));
+    QCOMPARE(changed.count(), 1);
+
+    // New projects and tasks appear; removed ones go.
+    Project project;
+    project.id = QStringLiteral("new-project");
+    project.groupId = personalGroup;
+    project.name = QStringLiteral("New");
+    f.model.setProject(project);
+    QCOMPARE(f.sidebar->indexOf(project.id).parent(), f.sidebar->indexOf(personalGroup));
+    Task task;
+    task.id = QStringLiteral("new-task");
+    task.projectId = project.id;
+    task.title = QStringLiteral("New task");
+    f.model.setTask(task);
+    QCOMPARE(f.sidebar->indexOf(task.id).parent(), f.sidebar->indexOf(project.id));
+    f.model.removeProject(project.id);
+    QVERIFY(!f.sidebar->indexOf(project.id).isValid());
+    QVERIFY(!f.sidebar->indexOf(task.id).isValid());
+    f.model.removeGroup(personalGroup);
+    QCOMPARE(childIds(*f.sidebar, {}), QStringList{workGroup});
 }
 
 void TestSidebarModel::resetsOnModelReset()
@@ -288,6 +462,14 @@ void TestSidebarModel::sidebarWidget()
     QVERIFY(QTest::qWaitForWindowExposed(&sidebar));
     QTRY_VERIFY(tree->visualRect(sidebarModel->index(0, 0)).height() > 0);
     QVERIFY(tree->visualRect(sidebarModel->index(1, 0)).top() > tree->visualRect(sidebarModel->index(0, 0)).top());
+
+    // The Focus entry above the tree.
+    auto *focus = sidebar.findChild<QPushButton *>(QStringLiteral("focusEntry"));
+    QVERIFY(focus);
+    QCOMPARE(focus->text(), QStringLiteral("Focus"));
+    QSignalSpy focusRequested(&sidebar, &Sidebar::focusRequested);
+    focus->click();
+    QCOMPARE(focusRequested.count(), 1);
 
     const QString itemId = model.task(fixLoginTimeout)->items.front().id;
     sidebar.reveal(itemId);

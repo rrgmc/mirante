@@ -11,6 +11,7 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <optional>
 #include <utility>
 #include <vector>
 
@@ -106,6 +107,53 @@ Tree buildTree(const Model &model, const SortFilter &filter)
     return tree;
 }
 
+// A sidebar reorder drag of a group, project or task. It has a type of its own,
+// so dashboards, which accept only DragMime payloads, never take it.
+constexpr char moveMimeType[] = "application/x-mirante-sidebar-move";
+
+// What a reorder drop asks for.
+struct Move
+{
+    SidebarModel::Kind kind = SidebarModel::Kind::Group;
+    QString id;
+    int priority = 0;
+    int index = 0;
+};
+
+// The position of the entry with id in list, or -1.
+template <typename T>
+int positionOf(const std::vector<const T *> &list, const QString &id)
+{
+    const auto it = std::find_if(list.begin(), list.end(), [&id](const T *e) { return e->id == id; });
+    return it == list.end() ? -1 : int(it - list.begin());
+}
+
+// The priority and index of a project or task dropped between the rows above
+// and below, either of which may be absent. It takes the level of the row
+// above, or of the row below when dropped first. The index counts every
+// sibling at that level but the moved one, hidden ones included, as
+// edits::moveProject and moveTask do.
+template <typename T, typename Before>
+void placeAmong(Move &move, const std::vector<const T *> &siblings, const T *moved, const T *above, const T *below,
+                Before before)
+{
+    const T *neighbour = above ? above : below;
+    const Priority priority = neighbour ? neighbour->priority : moved->priority;
+    std::vector<const T *> level;
+    for (const T *sibling : siblings) {
+        if (sibling->id != moved->id && sibling->priority == priority)
+            level.push_back(sibling);
+    }
+    std::sort(level.begin(), level.end(), [&before](const T *a, const T *b) { return before(*a, *b); });
+    move.priority = int(priority);
+    if (above)
+        move.index = positionOf(level, above->id) + 1;
+    else if (below)
+        move.index = positionOf(level, below->id);
+    else
+        move.index = 0;
+}
+
 QString priorityName(Priority priority)
 {
     switch (priority) {
@@ -138,7 +186,81 @@ struct SidebarModel::Private
             return nullptr;
         return &tree.nodes[std::size_t(index.internalId())];
     }
+
+    const Node *node(const QString &id) const
+    {
+        const auto it = tree.byId.constFind(id);
+        return it == tree.byId.constEnd() ? nullptr : &tree.nodes[std::size_t(*it)];
+    }
+
+    std::optional<Move> move(const QMimeData *data, int row, const QModelIndex &parent) const;
 };
+
+// The move a drop of data at row under parent asks for, or nullopt if the
+// drop is refused. A drop on a row of the dragged row's kind is a drop above it.
+std::optional<Move> SidebarModel::Private::move(const QMimeData *data, int row, const QModelIndex &parent) const
+{
+    const QString type = QString::fromLatin1(moveMimeType);
+    if (!data || !data->hasFormat(type))
+        return std::nullopt;
+    const QString id = QString::fromUtf8(data->data(type));
+    const Node *moved = node(id);
+    if (!moved || (moved->kind != Kind::Group && moved->kind != Kind::Project && moved->kind != Kind::Task))
+        return std::nullopt;
+
+    if (parent.isValid() && !node(parent))
+        return std::nullopt;
+    int parentNode = parent.isValid() ? int(parent.internalId()) : -1;
+    if (row < 0) {
+        if (parentNode < 0)
+            return std::nullopt;
+        const Node &target = tree.nodes[std::size_t(parentNode)];
+        if (target.kind != moved->kind)
+            return std::nullopt;
+        row = target.row;
+        parentNode = target.parent;
+    }
+    // Only among the siblings it already has.
+    if (parentNode != moved->parent)
+        return std::nullopt;
+
+    // The visible siblings above and below the drop position.
+    const std::vector<int> &children = parentNode < 0 ? tree.roots : tree.nodes[std::size_t(parentNode)].children;
+    row = std::clamp(row, 0, int(children.size()));
+    std::vector<const Node *> others;
+    int position = 0;
+    for (int i = 0; i < int(children.size()); ++i) {
+        const Node *sibling = &tree.nodes[std::size_t(children[std::size_t(i)])];
+        if (sibling == moved)
+            continue;
+        if (i < row)
+            ++position;
+        others.push_back(sibling);
+    }
+    const Node *above = position > 0 ? others[std::size_t(position - 1)] : nullptr;
+    const Node *below = position < int(others.size()) ? others[std::size_t(position)] : nullptr;
+
+    Move result;
+    result.kind = moved->kind;
+    result.id = moved->id;
+    if (moved->kind == Kind::Group) {
+        result.index = position;
+    } else if (moved->kind == Kind::Project) {
+        const Project *project = model.project(id);
+        if (!project)
+            return std::nullopt;
+        placeAmong(result, model.projectsOfGroup(project->groupId), project,
+                   above ? model.project(above->id) : nullptr, below ? model.project(below->id) : nullptr,
+                   projectBefore);
+    } else {
+        const Task *task = model.task(id);
+        if (!task)
+            return std::nullopt;
+        placeAmong(result, model.tasksOfProject(task->projectId), task, above ? model.task(above->id) : nullptr,
+                   below ? model.task(below->id) : nullptr, taskBefore);
+    }
+    return result;
+}
 
 SidebarModel::SidebarModel(const Model &model, const ItemTypeRegistry &types, QObject *parent)
     : QAbstractItemModel(parent)
@@ -168,6 +290,25 @@ SidebarModel::SidebarModel(const Model &model, const ItemTypeRegistry &types, QO
             return;
         emitChanged(task);
     });
+
+    // The same for added and removed tasks, and for groups and projects,
+    // whose change repaints only their row.
+    const auto rebuild = [this](const QString &id) {
+        Tree tree = buildTree(d->model, d->filter);
+        if (!tree.sameShape(d->tree)) {
+            beginResetModel();
+            d->tree = std::move(tree);
+            endResetModel();
+            return;
+        }
+        d->tree = std::move(tree);
+        const QModelIndex index = indexOf(id);
+        if (index.isValid())
+            emit dataChanged(index, index);
+    };
+    for (const auto signal : {&Model::groupAdded, &Model::groupChanged, &Model::groupRemoved, &Model::projectAdded,
+                              &Model::projectChanged, &Model::projectRemoved, &Model::taskAdded, &Model::taskRemoved})
+        connect(&model, signal, this, rebuild);
 }
 
 SidebarModel::~SidebarModel() = default;
@@ -334,34 +475,75 @@ QVariant SidebarModel::data(const QModelIndex &index, int role) const
 
 Qt::ItemFlags SidebarModel::flags(const QModelIndex &index) const
 {
+    // The top level, groups and projects take drops among their children.
+    if (!index.isValid())
+        return Qt::ItemIsDropEnabled;
     const Node *node = d->node(index);
     if (!node)
         return Qt::NoItemFlags;
     Qt::ItemFlags flags = Qt::ItemIsEnabled | Qt::ItemIsSelectable;
-    if (node->kind == Kind::Item || node->kind == Kind::Dashboard)
+    switch (node->kind) {
+    case Kind::Item:
+    case Kind::Dashboard:
         flags |= Qt::ItemIsDragEnabled | Qt::ItemNeverHasChildren;
+        break;
+    case Kind::Group:
+    case Kind::Project:
+        flags |= Qt::ItemIsDragEnabled | Qt::ItemIsDropEnabled;
+        break;
+    case Kind::Task:
+        flags |= Qt::ItemIsDragEnabled;
+        break;
+    case Kind::ItemList:
+    case Kind::DashboardList:
+        break;
+    }
     return flags;
 }
 
-QStringList SidebarModel::mimeTypes() const { return {QString::fromLatin1(dragMimeType)}; }
-
-// Stubs written by T0 of the M3 plan. T10 implements them.
-Qt::DropActions SidebarModel::supportedDropActions() const { return Qt::IgnoreAction; }
-
-bool SidebarModel::canDropMimeData(const QMimeData *, Qt::DropAction, int, int, const QModelIndex &) const
+QStringList SidebarModel::mimeTypes() const
 {
-    return false;
+    return {QString::fromLatin1(dragMimeType), QString::fromLatin1(moveMimeType)};
 }
 
-bool SidebarModel::dropMimeData(const QMimeData *, Qt::DropAction, int, int, const QModelIndex &) { return false; }
+Qt::DropActions SidebarModel::supportedDropActions() const { return Qt::CopyAction | Qt::MoveAction; }
 
-// A drag carries one reference: the first item or dashboard among the indexes.
-// A dashboard is dropped as a task cell showing that dashboard.
+bool SidebarModel::canDropMimeData(const QMimeData *data, Qt::DropAction action, int row, int /*column*/,
+                                   const QModelIndex &parent) const
+{
+    if (action != Qt::CopyAction && action != Qt::MoveAction)
+        return false;
+    return d->move(data, row, parent).has_value();
+}
+
+bool SidebarModel::dropMimeData(const QMimeData *data, Qt::DropAction action, int row, int /*column*/,
+                                const QModelIndex &parent)
+{
+    if (action != Qt::CopyAction && action != Qt::MoveAction)
+        return false;
+    const std::optional<Move> move = d->move(data, row, parent);
+    if (!move)
+        return false;
+    emit moveRequested(move->kind, move->id, move->priority, move->index);
+    return true;
+}
+
+// A drag carries one entry: the first draggable one among the indexes. An
+// item or a dashboard is a DragMime reference, which dashboards accept; a
+// dashboard is dropped as a task cell showing that dashboard. A group, project
+// or task only reorders the sidebar, under a type dashboards do not accept.
 QMimeData *SidebarModel::mimeData(const QModelIndexList &indexes) const
 {
     for (const QModelIndex &index : indexes) {
         const Node *node = d->node(index);
-        if (!node || (node->kind != Kind::Item && node->kind != Kind::Dashboard))
+        if (!node)
+            continue;
+        if (node->kind == Kind::Group || node->kind == Kind::Project || node->kind == Kind::Task) {
+            auto *data = new QMimeData;
+            data->setData(QString::fromLatin1(moveMimeType), node->id.toUtf8());
+            return data;
+        }
+        if (node->kind != Kind::Item && node->kind != Kind::Dashboard)
             continue;
         DragPayload payload;
         payload.ref.task = node->taskId;
