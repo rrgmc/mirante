@@ -95,7 +95,7 @@ Item makeItem(const QString &id, const QString &type, const QJsonObject &config)
     return item;
 }
 
-// Group g1, which uses Default, with a GitLab connection in Default, project
+// Group g1, which uses Default, with a server in Default's settings, project
 // p1 with a setting of the test module, and task t1 with one item of each
 // type.
 void fill(Model &model)
@@ -103,16 +103,12 @@ void fill(Model &model)
     Group group;
     group.id = QStringLiteral("g1");
     group.name = QStringLiteral("Group");
-    Connection gitlab;
-    gitlab.id = QStringLiteral("c1");
-    gitlab.kind = QStringLiteral("gitlab");
-    gitlab.name = QStringLiteral("GitLab");
-    gitlab.baseUrl = QStringLiteral("https://gitlab.example.com");
-    gitlab.fields = QJsonObject{{QStringLiteral("x"), 1}};
     Profile standard;
     standard.id = kDefaultProfile;
-    standard.connections.push_back(gitlab);
-    standard.defaultConnections.insert(QStringLiteral("gitlab"), QStringLiteral("c1"));
+    standard.moduleSettings = QJsonObject{
+        {QStringLiteral("test"),
+         QJsonObject{{QStringLiteral("server"),
+                      QJsonObject{{QStringLiteral("baseUrl"), QStringLiteral("https://gitlab.example.com")}}}}}};
 
     Project project;
     project.id = QStringLiteral("p1");
@@ -382,14 +378,8 @@ private slots:
         QCOMPARE(context.folderPath(QStringLiteral("f1")), QStringLiteral("C:/src/app"));
         QVERIFY(context.folderPath(QStringLiteral("f2")).isEmpty());
 
-        const auto connection = context.connection({QStringLiteral("jira.cloud"), QStringLiteral("gitlab")});
-        QVERIFY(connection);
-        QCOMPARE(connection->id, QStringLiteral("c1"));
-        QCOMPARE(connection->kind, QStringLiteral("gitlab"));
-        QCOMPARE(connection->name, QStringLiteral("GitLab"));
-        QCOMPARE(connection->baseUrl, QUrl(QStringLiteral("https://gitlab.example.com")));
-        QCOMPARE(connection->fields.value(QStringLiteral("x")).toInt(), 1);
-        QVERIFY(!context.connection({QStringLiteral("jira.cloud")}));
+        QCOMPARE(context.moduleSettings(QStringLiteral("server")).value(QStringLiteral("baseUrl")).toString(),
+                 QStringLiteral("https://gitlab.example.com"));
 
         // Module settings of the item's own module, in the item's profile.
         QVERIFY(context.moduleSettings(QStringLiteral("general")).isEmpty());
@@ -406,8 +396,8 @@ private slots:
         QVERIFY(context.moduleSettings(QStringLiteral("none")).isEmpty());
         changeItem(*model, QStringLiteral("n1"), [](Item &item) { item.profile = QStringLiteral("work"); });
         QCOMPARE(context.moduleSettings(QStringLiteral("general")), workValues);
-        // The connections are those of the item's profile, which has none.
-        QVERIFY(!context.connection({QStringLiteral("gitlab")}));
+        // The server is that of the item's profile, which has none.
+        QVERIFY(context.moduleSettings(QStringLiteral("server")).isEmpty());
         changeItem(*model, QStringLiteral("n1"), [](Item &item) { item.profile.clear(); });
 
         // Read on each call, so a change shows at once.
@@ -478,13 +468,13 @@ private slots:
         model->setProfile(bank);
         QCOMPARE(web->view(), webView.data());
 
-        // A change of its profile's connections or module settings does: the
+        // A change of its profile's module settings does: the
         // view may have read them. Another profile's change does not.
         Profile changedWork = work;
         changedWork.moduleSettings = QJsonObject{{QStringLiteral("test"), QJsonObject{}}};
         model->setProfile(changedWork);
         QCOMPARE(web->view(), webView.data());
-        bank.connections = standard.connections;
+        bank.moduleSettings = standard.moduleSettings;
         model->setProfile(bank);
         QVERIFY(web->view() && web->view() != webView.data());
         webView = web->view();

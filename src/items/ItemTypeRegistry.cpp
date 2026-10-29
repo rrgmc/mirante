@@ -179,18 +179,7 @@ bool ItemTypeRegistry::usesProfile(const QString &typeId) const
     if (!contains(typeId))
         return false;
     const ItemType &itemType = type(typeId);
-    return itemType.rendering() == Rendering::Web || !itemType.connectionKinds().isEmpty()
-        || !settingsScreens(typeId.section(QLatin1Char('.'), 0, 0)).empty();
-}
-
-QStringList ItemTypeRegistry::connectionKinds() const
-{
-    QStringList kinds;
-    for (const auto &type : d->types)
-        kinds << type->connectionKinds();
-    kinds.removeDuplicates();
-    kinds.sort();
-    return kinds;
+    return itemType.rendering() == Rendering::Web || !settingsScreens(typeId.section(QLatin1Char('.'), 0, 0)).empty();
 }
 
 void ItemTypeRegistry::setSettingsReader(SettingsReader reader)

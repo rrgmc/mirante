@@ -11,7 +11,7 @@ src/
   layout/        the widgets that show and edit layout trees
   items/         item type interface and registry, module interface, placements
   web/           profiles, web panels, built-in panels
-  api/           connections, API client base, status cache, secrets
+  api/           API client base, status cache, secrets
   platform/      code that differs between Windows, macOS and Linux
   ui/            main window, sidebar, Focus, switcher, dialogs
   modules/       one folder per module of item types; see modules.md
@@ -40,16 +40,15 @@ No core folder depends on a module. The core reaches modules only through the re
 
 | Class | Responsibility |
 |---|---|
-| `Group`, `Project`, `Task`, `Item`, `Dashboard`, `Connection`, `Folder`, `Profile` | Plain value types matching the [data model](data-model.md), with JSON conversion |
-| `Model` | Holds all entities and the workspace's name and profiles, with their connections and module settings, looks them up by id, and emits signals such as `taskChanged(id)` and `taskRemoved(id)` |
+| `Group`, `Project`, `Task`, `Item`, `Dashboard`, `Folder`, `Profile` | Plain value types matching the [data model](data-model.md), with JSON conversion |
+| `Model` | Holds all entities and the workspace's name and profiles, with their module settings, looks them up by id, and emits signals such as `taskChanged(id)` and `taskRemoved(id)` |
 | `Store` | Loads the data folder into `Model`. It turns each model signal into a write of one file through `FileWriter`, applies the changes `FolderWatcher` reports through the model's setters, deletes image files whose last reference a local edit removed, and lists conflict copies. A resource folder, such as the sample data, opens read-only. See [sync](sync.md). |
 | `FileWriter` | Writes and deletes files in the data folder with `QSaveFile`, debounced by 500 ms, and remembers a hash of what it wrote so its own writes can be told apart |
 | `FolderWatcher` | Watches the top of the data folder and its five subfolders, and reports files added, changed or removed by others, after 300 ms of quiet, and the conflict copies present |
 | `Migrations` | Upgrades files from older `schemaVersion` values, and refuses files of a newer one |
 | `ConflictNames` | Recognises a sync tool's conflict copy by the id at the start of its name. See [decision 0031](decisions/0031-conflict-copies-by-id-prefix.md). |
-| `Connections` | Finds the connection for an item by the [resolution order](data-model.md#connection). Used by `ItemContext` from M4, and by `ConnectionResolver` from M5. |
 | `Profiles` | Finds the profile of an item by the [resolution order](data-model.md#profile), lists the profiles to offer, and removes one from the list |
-| `ProfileMigration` | Moves groups' connections and the workspace's module settings into profiles. See [migration to profiles](data-model.md#migration-to-profiles). |
+| `ProfileMigration` | Turns connections, of groups or profiles, into module settings, and moves the workspace's module settings into Default. See [migration to profiles](data-model.md#migration-to-profiles). |
 | `Edits` | Changes to entities as pure functions, such as removing an item from a task and clearing its cells, for the `Model`'s setters |
 | `DeviceSettings` | Typed access to the `QSettings` values listed in [sync](sync.md#device-settings) |
 | `GroupColours` | The colour of each group: its own, or a palette colour chosen by its id, and the colour for a new group. See [decision 0046](decisions/0046-group-colours.md). |
@@ -76,13 +75,13 @@ The same `LayoutView` shows task dashboards and root dashboards. A task cell ins
 
 | Class | Responsibility |
 |---|---|
-| `ItemType` | Interface: id, name, icon, fields, rendering, connection kind, status, actions, `fromUrl`, `createView`, and the view flags `singleView` and `reparentSafe`. See [the view](item-types.md#the-view). |
+| `ItemType` | Interface: id, name, icon, fields, rendering, status, actions, `fromUrl`, `createView`, and the view flags `singleView` and `reparentSafe`. See [the view](item-types.md#the-view). |
 | `ItemTypeRegistry` | Holds all types, finds a type by id, and finds the type that recognises a pasted URL. It also holds each module's name and settings screens, and gives each module a `ModuleSettings` that reads the model through a reader set in `main.cpp`. |
-| `ModuleRegistrar` | Receives what each module registers: item types, its name, settings screens, connection kinds, settings, quick add handlers, related-item finders. See [modules](modules.md#what-a-module-registers). |
-| `ItemContext` | What an item's code can reach: settings, connections, status, profile, folders, terminal. See [modules](modules.md#item-context). |
+| `ModuleRegistrar` | Receives what each module registers: item types, its name, settings screens, settings, quick add handlers, related-item finders. See [modules](modules.md#what-a-module-registers). |
+| `ItemContext` | What an item's code can reach: settings, module settings, status, profile, folders, terminal. See [modules](modules.md#item-context). |
 | `UnknownItemType` | Placeholder for an item whose module is not in this build. See [missing modules](modules.md#missing-modules). |
-| `Placement` | One shown instance of an item, and the body of its cell. It makes the view with the type's `createView` when it is first shown, and owns it. It makes the view again when the item's type, configuration or profile changes, or the connections and module settings of that profile, and drops it when the item goes. A web view is added to the `ViewPool`, and the placement tells the pool when it is shown or hidden. It reports the view's header widget, such as a web toolbar, with `headerWidgetChanged`. |
-| `ItemContextImpl` | The `ItemContext` of one placement. It reads the item, its project, its connection and its module settings from the `Model` on each call, folders from `DeviceSettings`, and web logins from the `ProfileManager`. `createWebView` makes a `WebPanel` and reports its toolbar to the placement. Without a `ProfileManager`, as in tests, it returns a message instead of a page. |
+| `Placement` | One shown instance of an item, and the body of its cell. It makes the view with the type's `createView` when it is first shown, and owns it. It makes the view again when the item's type, configuration or profile changes, or the module settings of that profile, and drops it when the item goes. A web view is added to the `ViewPool`, and the placement tells the pool when it is shown or hidden. It reports the view's header widget, such as a web toolbar, with `headerWidgetChanged`. |
+| `ItemContextImpl` | The `ItemContext` of one placement. It reads the item, its project and its module settings from the `Model` on each call, folders from `DeviceSettings`, and web logins from the `ProfileManager`. `createWebView` makes a `WebPanel` and reports its toolbar to the placement. Without a `ProfileManager`, as in tests, it returns a message instead of a page. |
 | `ViewPool` | Applies the [memory policy](web-views.md#memory-policy) to web views. When more hidden views are loaded than the limit, it asks the placements hidden longest to unload. |
 
 Native views are ordinary widgets. Lists use `QTableView` with a model fed from the `StatusCache`.
@@ -104,11 +103,9 @@ Native views are ordinary widgets. Lists use `QTableView` with a model fed from 
 
 | Class | Responsibility |
 |---|---|
-| `ConnectionKindRegistry` | Holds the connection kinds registered by modules |
-| `ConnectionResolver` | Finds the connection for an item: item, then project, then group. See [connections](data-model.md#connection). |
-| `SecretStore` | Reads and writes tokens through qtkeychain, asynchronously |
-| `ApiClient` | Shared base for the modules' clients: authentication through the connection kind, ETags, paging, rate limits, at most four parallel requests for each connection |
-| `StatusCache` | Polls, caches by connection and request, computes attention, and emits `statusChanged(itemRef)` |
+| `SecretStore` | Reads and writes tokens through qtkeychain, asynchronously: those of the settings screens' `Secret` fields, under `<profile id>/<module id>/<field key>`. See [servers and tokens](data-model.md#servers-and-tokens). |
+| `ApiClient` | Shared base for the modules' clients: authentication with the profile's token, ETags, paging, rate limits, at most four parallel requests for each server of a profile |
+| `StatusCache` | Polls, caches by profile, module and request, computes attention, and emits `statusChanged(itemRef)` |
 | `Attention` | Collects the attention reasons reported by item types, and feeds badges, Focus, the tray and notifications |
 
 ## platform
@@ -138,7 +135,7 @@ Code that differs per platform lives only here, behind these classes.
 | `DashboardPage` | One tab's or slot's page: a `LayoutView` of one dashboard with its cell factory, or the Focus list. A detached window holds one too. |
 | `DetachedWindow` | A top-level window holding one detached root dashboard. See [decision 0024](decisions/0024-detach-root-dashboard-tabs.md). |
 | `SettingsDialog` | The [settings window](ui.md#settings): options of this device, kept in `DeviceSettings`, in sections. Each change is saved at once and reported with `changed()`. |
-| Dialogs | Group, project, task, item, connection and settings editors, the [profiles](ui.md#profiles) list and its connections dialog, and the dialogs of module [settings screens](ui.md#modules) |
+| Dialogs | Group, project, task, item and settings editors, the [profiles](ui.md#profiles) list, and the dialogs of module [settings screens](ui.md#modules) |
 
 ## Data flow
 
@@ -147,7 +144,7 @@ Code that differs per platform lives only here, behind these classes.
 3. A user edit calls a `Model` method. `Model` emits a signal. `Store` writes the file, and the views update.
 4. An external file change makes `Store` reload the file into `Model`, which emits the same signals.
 5. Native item views ask the `StatusCache` for data and listen to `statusChanged`.
-6. Item types fetch data through the `StatusCache`, which uses `ConnectionResolver`, `SecretStore` and the modules' clients. Item types report attention, which feeds badges, Focus and the tray.
+6. Item types fetch data through the `StatusCache`, which uses the item's profile, `SecretStore` and the modules' clients. Item types report attention, which feeds badges, Focus and the tray.
 
 ## Ownership and lifetime
 
@@ -184,13 +181,13 @@ Qt Test covers the parts without widgets:
 
 - JSON conversion and migrations of all entities;
 - layout tree edits and normalisation;
-- connection resolution;
+- profile resolution, and the migration of connections into module settings;
 - URL recognition for every item type, in each module's own tests;
 - `Store` reload after an external change, and conflict copy detection;
 - priority sorting;
 - terminal command building for each platform;
 - attention rules on recorded API responses, in each module's own tests;
-- write-back of items, connections and settings from a missing module, unchanged.
+- write-back of items and settings from a missing module, unchanged.
 
 CTest runs the tests of the enabled modules only.
 

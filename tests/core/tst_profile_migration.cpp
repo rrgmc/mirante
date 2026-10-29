@@ -1,12 +1,12 @@
-// Tests the profile migration of decision 0050: groups' connections move to
-// the profile each group uses, with distinct names and project overrides
-// where two groups clash, module settings at the top of workspace.mirante
-// move to Default, running it again changes nothing, and the Store writes the
+// Tests the profile migration of decisions 0050 and 0054: connections, in
+// groups or in profiles, become the GitLab and Jira base URLs of the profile
+// each group uses, the default connection of a kind winning; connections of
+// other kinds are kept; module settings at the top of workspace.mirante move
+// to Default; running it again changes nothing; and the Store writes the
 // migrated files once, on open and on reload. The fixtures in
 // fixtures/legacy-profiles are the sample data's group files and
-// workspace.mirante from before the change; migrated, they must give the
+// workspace.mirante from before decision 0050; migrated, they must give the
 // sample data's current files.
-#include "core/Connections.h"
 #include "core/Model.h"
 #include "core/ProfileMigration.h"
 #include "core/Store.h"
@@ -64,31 +64,31 @@ void copyTree(const QString &from, const QString &to)
     }
 }
 
-Connection makeConnection(const QString &id, const QString &kind, const QString &name)
+QJsonObject connection(const QString &id, const QString &kind, const QString &baseUrl)
 {
-    Connection connection;
-    connection.id = id;
-    connection.kind = kind;
-    connection.name = name;
-    connection.baseUrl = QStringLiteral("https://%1.example.com").arg(id);
-    return connection;
+    return QJsonObject{{QStringLiteral("id"), id},
+                       {QStringLiteral("kind"), kind},
+                       {QStringLiteral("name"), id},
+                       {QStringLiteral("baseUrl"), baseUrl},
+                       {QStringLiteral("fields"), QJsonObject()}};
 }
 
-// A group from before decision 0050, with its connections in extra, as
-// Group::fromJson leaves them.
-Group oldGroup(const QString &id, const QString &name, int order, const QString &profile,
-               const std::vector<Connection> &connections, const QJsonObject &defaults)
+// The old keys, in a group's or a profile's extra.
+QJsonObject oldKeys(const QJsonArray &connections, const QJsonObject &defaults)
+{
+    return QJsonObject{{profilemigration::kOldConnections, connections},
+                       {profilemigration::kOldDefaultConnections, defaults}};
+}
+
+Group oldGroup(const QString &id, int order, const QString &profile, const QJsonArray &connections,
+               const QJsonObject &defaults)
 {
     Group group;
     group.id = id;
-    group.name = name;
+    group.name = id;
     group.order = order;
     group.profile = profile;
-    QJsonArray array;
-    for (const Connection &connection : connections)
-        array.append(connection.toJson());
-    group.extra.insert(profilemigration::kOldConnections, array);
-    group.extra.insert(profilemigration::kOldDefaultConnections, defaults);
+    group.extra = oldKeys(connections, defaults);
     return group;
 }
 
@@ -109,16 +109,21 @@ const Profile *find(const std::vector<Profile> &profiles, const QString &id)
     return nullptr;
 }
 
-QStringList namesOf(const Profile &profile)
+// The base URL of a module's General Configuration in a profile.
+QString baseUrl(const Profile &profile, const QString &module)
 {
-    QStringList names;
-    for (const Connection &connection : profile.connections)
-        names << connection.name;
-    return names;
+    return profile.moduleSettings.value(module)
+        .toObject()
+        .value(QStringLiteral("general"))
+        .toObject()
+        .value(QStringLiteral("baseUrl"))
+        .toString();
 }
 
 const QString gitlab = QStringLiteral("gitlab");
+const QString jira = QStringLiteral("jira");
 const QString cloud = QStringLiteral("jira.cloud");
+const QString dc = QStringLiteral("jira.dc");
 
 } // namespace
 
@@ -127,125 +132,100 @@ class TestProfileMigration : public QObject
     Q_OBJECT
 
 private slots:
-    // Each group's connections go to the profile it uses, keeping their ids,
-    // with its defaults. A group without a profile, or with one that is not
-    // listed, uses Default. The old keys leave the groups.
-    void movesToTheGroupsProfile()
+    // Each group's connections go to the profile it uses: a group without
+    // one, or with one that is not listed, uses Default. The default of the
+    // kind wins, else the first; Jira Cloud before Data Center. The old keys
+    // leave the groups.
+    void groupsGiveBaseUrls()
     {
         std::vector<Group> groups{
-            oldGroup(QStringLiteral("g1"), QStringLiteral("Work"), 0, QStringLiteral("work"),
-                     {makeConnection(QStringLiteral("c1"), gitlab, QStringLiteral("gitlab.com (work)")),
-                      makeConnection(QStringLiteral("c2"), cloud, QStringLiteral("Acme Jira"))},
-                     QJsonObject{{gitlab, QStringLiteral("c1")}, {cloud, QStringLiteral("c2")}}),
-            oldGroup(QStringLiteral("g2"), QStringLiteral("Home"), 1, QString(),
-                     {makeConnection(QStringLiteral("c3"), gitlab, QStringLiteral("gitlab.com (home)"))},
-                     QJsonObject{{gitlab, QStringLiteral("c3")}}),
-            oldGroup(QStringLiteral("g3"), QStringLiteral("Lost"), 2, QStringLiteral("gone"),
-                     {makeConnection(QStringLiteral("c4"), cloud, QStringLiteral("Lost Jira"))}, QJsonObject{})};
+            oldGroup(QStringLiteral("g1"), 0, QStringLiteral("work"),
+                     QJsonArray{connection(QStringLiteral("c1"), gitlab, QStringLiteral("https://gitlab.com")),
+                                connection(QStringLiteral("c2"), gitlab, QStringLiteral("https://git.acme.example")),
+                                connection(QStringLiteral("c3"), dc, QStringLiteral("https://jira.acme.example")),
+                                connection(QStringLiteral("c4"), cloud, QStringLiteral("https://acme.atlassian.net"))},
+                     QJsonObject{{gitlab, QStringLiteral("c2")}, {cloud, QStringLiteral("c4")},
+                                 {dc, QStringLiteral("c3")}}),
+            oldGroup(QStringLiteral("g2"), 1, QString(),
+                     QJsonArray{connection(QStringLiteral("c5"), gitlab, QStringLiteral("https://gitlab.com")),
+                                connection(QStringLiteral("c6"), dc, QStringLiteral("https://jira.home.example"))},
+                     QJsonObject{}),
+            oldGroup(QStringLiteral("g3"), 2, QStringLiteral("gone"), QJsonArray{}, QJsonObject{})};
         groups[2].extra.insert(QStringLiteral("futureField"), 1);
-        std::vector<Project> projects;
         std::vector<Profile> profiles{makeProfile(QStringLiteral("work"), QStringLiteral("Work"))};
 
-        const Changes changes = profilemigration::moveConnections(groups, projects, profiles);
+        const Changes changes = profilemigration::moveConnections(groups, profiles);
         QVERIFY(changes.profiles);
         QCOMPARE(changes.groups, (QStringList{QStringLiteral("g1"), QStringLiteral("g2"), QStringLiteral("g3")}));
-        QVERIFY(changes.projects.isEmpty());
 
-        // Default was added first.
         QCOMPARE(profiles.size(), std::size_t(2));
         QCOMPARE(profiles[0].id, kDefaultProfile);
         const Profile *work = find(profiles, QStringLiteral("work"));
-        QCOMPARE(namesOf(*work), (QStringList{QStringLiteral("gitlab.com (work)"), QStringLiteral("Acme Jira")}));
-        QCOMPARE(work->connections[0].id, QStringLiteral("c1"));
-        QCOMPARE(work->defaultConnections.value(gitlab), QStringLiteral("c1"));
-        QCOMPARE(work->defaultConnections.value(cloud), QStringLiteral("c2"));
+        QCOMPARE(baseUrl(*work, gitlab), QStringLiteral("https://git.acme.example"));
+        QCOMPARE(baseUrl(*work, jira), QStringLiteral("https://acme.atlassian.net"));
+        QVERIFY(work->extra.isEmpty());
         const Profile *standard = find(profiles, kDefaultProfile);
-        QCOMPARE(namesOf(*standard), (QStringList{QStringLiteral("gitlab.com (home)"), QStringLiteral("Lost Jira")}));
-        QCOMPARE(standard->defaultConnections.value(gitlab), QStringLiteral("c3"));
+        QCOMPARE(baseUrl(*standard, gitlab), QStringLiteral("https://gitlab.com"));
+        QCOMPARE(baseUrl(*standard, jira), QStringLiteral("https://jira.home.example"));
 
-        for (const Group &group : groups) {
+        for (const Group &group : groups)
             QVERIFY(!profilemigration::hasOldConnections(group));
-            QVERIFY(!group.toJson().contains(QStringLiteral("connections")));
-        }
         QCOMPARE(groups[2].extra, (QJsonObject{{QStringLiteral("futureField"), 1}}));
     }
 
-    // Two groups in one profile: a name already used gets the group's name,
-    // and again a number. The first group by order keeps its defaults; the
-    // other's projects get its default as an override, unless they have one.
-    void twoGroupsInOneProfile()
+    // Connections kept in a profile by decision 0050 move the same way. A
+    // base URL the profile already has wins. Other kinds stay, under the old
+    // keys, with their default.
+    void profileConnectionsGiveBaseUrls()
     {
-        std::vector<Group> groups{
-            oldGroup(QStringLiteral("g2"), QStringLiteral("Client"), 1, QStringLiteral("work"),
-                     {makeConnection(QStringLiteral("c3"), gitlab, QStringLiteral("gitlab.com")),
-                      makeConnection(QStringLiteral("c4"), gitlab, QStringLiteral("GitLab.com (Client)")),
-                      makeConnection(QStringLiteral("c5"), cloud, QStringLiteral("Jira"))},
-                     QJsonObject{{gitlab, QStringLiteral("c3")}, {cloud, QStringLiteral("c5")}}),
-            oldGroup(QStringLiteral("g1"), QStringLiteral("Work"), 0, QStringLiteral("work"),
-                     {makeConnection(QStringLiteral("c1"), gitlab, QStringLiteral("gitlab.com"))},
-                     QJsonObject{{gitlab, QStringLiteral("c1")}})};
-        Project plain;
-        plain.id = QStringLiteral("p1");
-        plain.groupId = QStringLiteral("g2");
-        Project overridden = plain;
-        overridden.id = QStringLiteral("p2");
-        overridden.connectionOverrides.insert(gitlab, QStringLiteral("c4"));
-        Project ofWork = plain;
-        ofWork.id = QStringLiteral("p3");
-        ofWork.groupId = QStringLiteral("g1");
-        std::vector<Project> projects{plain, overridden, ofWork};
-        std::vector<Profile> profiles{makeProfile(kDefaultProfile, QString()),
-                                      makeProfile(QStringLiteral("work"), QStringLiteral("Work"))};
+        Profile work = makeProfile(QStringLiteral("work"), QStringLiteral("Work"));
+        work.extra = oldKeys(
+            QJsonArray{connection(QStringLiteral("c1"), gitlab, QStringLiteral("https://gitlab.com")),
+                       connection(QStringLiteral("c2"), cloud, QStringLiteral("https://acme.atlassian.net")),
+                       connection(QStringLiteral("t1"), QStringLiteral("timetrack"), QStringLiteral("https://t.example"))},
+            QJsonObject{{gitlab, QStringLiteral("c1")}, {QStringLiteral("timetrack"), QStringLiteral("t1")}});
+        work.moduleSettings = parse(R"({ "jira": { "general": { "baseUrl": "https:\/\/mine.example" } } })");
+        std::vector<Group> groups;
+        std::vector<Profile> profiles{work};
 
-        const Changes changes = profilemigration::moveConnections(groups, projects, profiles);
-        const Profile *work = find(profiles, QStringLiteral("work"));
-        // g1 comes first by its order.
-        QCOMPARE(namesOf(*work), (QStringList{QStringLiteral("gitlab.com"), QStringLiteral("gitlab.com (Client)"),
-                                              QStringLiteral("GitLab.com (Client) (Client)"), QStringLiteral("Jira")}));
-        QCOMPARE(work->defaultConnections.value(gitlab), QStringLiteral("c1"));
-        QCOMPARE(work->defaultConnections.value(cloud), QStringLiteral("c5"));
-        QCOMPARE(changes.projects, QStringList{QStringLiteral("p1")});
-        QCOMPARE(projects[0].connectionOverrides.value(gitlab), QStringLiteral("c3"));
-        QVERIFY(!projects[0].connectionOverrides.contains(cloud));
-        QCOMPARE(projects[1].connectionOverrides.value(gitlab), QStringLiteral("c4"));
-        QVERIFY(projects[2].connectionOverrides.isEmpty());
-        QVERIFY(find(profiles, kDefaultProfile)->connections.empty());
-    }
+        QVERIFY(profilemigration::hasOldConnections(profiles[0]));
+        const Changes changes = profilemigration::moveConnections(groups, profiles);
+        QVERIFY(changes.profiles);
+        const Profile *moved = find(profiles, QStringLiteral("work"));
+        QCOMPARE(baseUrl(*moved, gitlab), QStringLiteral("https://gitlab.com"));
+        QCOMPARE(baseUrl(*moved, jira), QStringLiteral("https://mine.example"));
+        const QJsonArray kept = moved->extra.value(profilemigration::kOldConnections).toArray();
+        QCOMPARE(kept.size(), 1);
+        QCOMPARE(kept.at(0).toObject().value(QStringLiteral("id")).toString(), QStringLiteral("t1"));
+        QCOMPARE(moved->extra.value(profilemigration::kOldDefaultConnections).toObject(),
+                 (QJsonObject{{QStringLiteral("timetrack"), QStringLiteral("t1")}}));
+        QVERIFY(!profilemigration::hasOldConnections(*moved));
 
-    // A name taken twice gets a number after the group's name.
-    void numberedNames()
-    {
-        std::vector<Group> groups{oldGroup(QStringLiteral("g1"), QStringLiteral("Work"), 0, QString(),
-                                           {makeConnection(QStringLiteral("c9"), gitlab, QStringLiteral("G"))},
-                                           QJsonObject{})};
-        std::vector<Project> projects;
-        Profile standard = makeProfile(kDefaultProfile, QString());
-        standard.connections = {makeConnection(QStringLiteral("c1"), gitlab, QStringLiteral("G")),
-                                makeConnection(QStringLiteral("c2"), gitlab, QStringLiteral("G (Work)"))};
-        std::vector<Profile> profiles{standard};
-        profilemigration::moveConnections(groups, projects, profiles);
-        QCOMPARE(profiles[0].connections.back().name, QStringLiteral("G (Work 2)"));
+        // Again: nothing changes, and the other kind stays once.
+        const std::vector<Profile> once = profiles;
+        QVERIFY(!profilemigration::moveConnections(groups, profiles).any());
+        QCOMPARE(profiles, once);
     }
 
     // Running it again changes nothing. Groups whose old keys came back, for
     // example from a device with an older version, only lose them.
     void runsOnce()
     {
-        const Group original = oldGroup(QStringLiteral("g1"), QStringLiteral("Work"), 0, QString(),
-                                        {makeConnection(QStringLiteral("c1"), gitlab, QStringLiteral("G"))},
-                                        QJsonObject{{gitlab, QStringLiteral("c1")}});
+        const Group original = oldGroup(
+            QStringLiteral("g1"), 0, QString(),
+            QJsonArray{connection(QStringLiteral("c1"), gitlab, QStringLiteral("https://gitlab.com"))},
+            QJsonObject{{gitlab, QStringLiteral("c1")}});
         std::vector<Group> groups{original};
-        std::vector<Project> projects;
         std::vector<Profile> profiles;
-        QVERIFY(profilemigration::moveConnections(groups, projects, profiles).any());
+        QVERIFY(profilemigration::moveConnections(groups, profiles).any());
         const std::vector<Profile> once = profiles;
 
-        Changes again = profilemigration::moveConnections(groups, projects, profiles);
+        Changes again = profilemigration::moveConnections(groups, profiles);
         QVERIFY(!again.any());
         QCOMPARE(profiles, once);
 
         groups = {original};
-        again = profilemigration::moveConnections(groups, projects, profiles);
+        again = profilemigration::moveConnections(groups, profiles);
         QVERIFY(!again.profiles);
         QCOMPARE(again.groups, QStringList{QStringLiteral("g1")});
         QCOMPARE(profiles, once);
@@ -262,9 +242,8 @@ private slots:
         notArray.id = QStringLiteral("g2");
         notArray.extra = parse(R"({ "connections": 3 })");
         std::vector<Group> groups{group, notArray};
-        std::vector<Project> projects;
         std::vector<Profile> profiles;
-        QVERIFY(!profilemigration::moveConnections(groups, projects, profiles).any());
+        QVERIFY(!profilemigration::moveConnections(groups, profiles).any());
         QCOMPARE(groups[0].extra, group.extra);
         QCOMPARE(groups[1].extra, notArray.extra);
     }
@@ -281,7 +260,6 @@ private slots:
         QCOMPARE(profiles[0].moduleSettings, old);
         QVERIFY(profiles[1].moduleSettings.isEmpty());
 
-        // Again: nothing new.
         QVERIFY(!profilemigration::moveModuleSettings(old, profiles));
 
         profiles[0].moduleSettings = parse(R"({ "gitlab": { "general": { "projects": [ "mine" ] } } })");
@@ -311,24 +289,15 @@ private slots:
         // Nothing was written.
         QCOMPARE(readJson(dir.filePath(QStringLiteral("groups/6d1b9bb9-f4c3-5677-a4e1-683ba618d4c7.json"))), oldGroup);
 
-        // An item's connection still resolves, now through its profile.
-        const QString taskId = QStringLiteral("16d3c8ff-5fa8-5cf0-8090-c62592d1bd96");
-        const Task *task = migrated.task(taskId);
-        QVERIFY(task);
-        const Item *item = nullptr;
-        for (const Item &candidate : task->items) {
-            if (candidate.connectionId == QLatin1String("90d3f914-a970-57dc-ab52-a7fb83e824fc"))
-                item = &candidate;
-        }
-        QVERIFY(item);
-        const Connection *connection =
-            connections::resolve(migrated, taskId, *item, {QStringLiteral("jira.cloud"), QStringLiteral("jira.dc")});
-        QVERIFY(connection);
-        QCOMPARE(connection->name, QStringLiteral("Ops Jira (Data Center)"));
+        // The Work profile talks to gitlab.com and Acme's Jira Cloud.
+        const Profile *work = migrated.profile(QStringLiteral("3f6c2a8e-5d1b-4c7a-9e2f-8b0d4a6c1e93"));
+        QVERIFY(work);
+        QCOMPARE(baseUrl(*work, gitlab), QStringLiteral("https://gitlab.com"));
+        QCOMPARE(baseUrl(*work, jira), QStringLiteral("https://acme.atlassian.net"));
     }
 
     // Opening the folder writes the migrated files once: workspace.mirante
-    // with the connections, and the groups without them. They then equal the
+    // with the base URLs, and the groups without connections. They then equal the
     // sample data's current files. Opening again changes nothing.
     void openWritesOnce()
     {
@@ -387,7 +356,7 @@ private slots:
         QVERIFY(!store.open(dir.path()).empty());
         store.flush();
         QCOMPARE(readJson(groupFile), before);
-        QVERIFY(model.profile(kDefaultProfile)->connections.empty());
+        QVERIFY(model.profile(kDefaultProfile)->moduleSettings.isEmpty());
         QVERIFY(profilemigration::hasOldConnections(*model.group(QStringLiteral("80314e00-c02f-5f8b-977f-0756b76406ea"))));
     }
 
@@ -410,8 +379,7 @@ private slots:
             "defaultConnections": { "gitlab": "c1" } })");
         QTRY_VERIFY_WITH_TIMEOUT(model.group(QStringLiteral("g1")), kTimeout);
         const Profile *work = model.profile(QStringLiteral("work"));
-        QCOMPARE(work->connections.size(), std::size_t(1));
-        QCOMPARE(work->defaultConnections.value(gitlab), QStringLiteral("c1"));
+        QCOMPARE(baseUrl(*work, gitlab), QStringLiteral("https://g.example"));
         QVERIFY(!profilemigration::hasOldConnections(*model.group(QStringLiteral("g1"))));
 
         store.flush();
@@ -422,7 +390,18 @@ private slots:
                                         .value(QStringLiteral("profiles"))
                                         .toArray();
         QCOMPARE(profiles.size(), 1);
-        QCOMPARE(profiles.at(0).toObject().value(QStringLiteral("connections")).toArray().size(), 1);
+        QVERIFY(!profiles.at(0).toObject().contains(QStringLiteral("connections")));
+        QCOMPARE(profiles.at(0)
+                     .toObject()
+                     .value(QStringLiteral("moduleSettings"))
+                     .toObject()
+                     .value(gitlab)
+                     .toObject()
+                     .value(QStringLiteral("general"))
+                     .toObject()
+                     .value(QStringLiteral("baseUrl"))
+                     .toString(),
+                 QStringLiteral("https://g.example"));
     }
 };
 

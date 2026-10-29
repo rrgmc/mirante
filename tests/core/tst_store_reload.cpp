@@ -295,11 +295,12 @@ void TestStoreReload::workspaceFile()
     QCOMPARE(model.profile(QStringLiteral("w1"))->name, QStringLiteral("Work"));
     QCOMPARE(profilesChanged.count(), 1);
 
-    // So do their module settings and connections, which are not written back.
+    // So do their module settings, which are not written back. Connections
+    // from before decision 0054 become the base URL, in the model only.
     const QByteArray withSettings =
         R"({"schemaVersion":1,"name":"Mine","futureField":3,"profiles":[{"id":"w1","name":"Work",)"
         R"("connections":[{"id":"c1","kind":"gitlab","name":"G","baseUrl":"https:\/\/g.example","fields":{}}],)"
-        R"("moduleSettings":{"gitlab":{"general":{"projects":["acme/backend"]}}}}]})";
+        R"("moduleSettings":{"gitlab":{"general":{"projects":["acme\/backend"]}}}}]})";
     writeFile(path(QStringLiteral("workspace.mirante")), withSettings);
     QTRY_COMPARE_WITH_TIMEOUT(profilesChanged.count(), 2, kTimeout);
     QCOMPARE(model.moduleSettings(QStringLiteral("w1"), QStringLiteral("gitlab"), QStringLiteral("general"))
@@ -308,7 +309,10 @@ void TestStoreReload::workspaceFile()
                  .first()
                  .toString(),
              QStringLiteral("acme/backend"));
-    QCOMPARE(model.profile(QStringLiteral("w1"))->connections.size(), std::size_t(1));
+    QCOMPARE(model.moduleSettings(QStringLiteral("w1"), QStringLiteral("gitlab"), QStringLiteral("general"))
+                 .value(QStringLiteral("baseUrl"))
+                 .toString(),
+             QStringLiteral("https://g.example"));
     store.flush();
     QCOMPARE(readFile(path(QStringLiteral("workspace.mirante"))), withSettings);
 

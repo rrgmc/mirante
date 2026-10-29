@@ -7,49 +7,51 @@
 
 #include <vector>
 
-// Moves data from before decision 0050 into profiles: the connections of
-// groups, and the module settings at the top of workspace.mirante. The Store
-// runs it when it loads or reloads files, and writes the changed files once.
-// See docs/decisions/0050-profiles-hold-logins-connections-and-settings.md.
+// Moves data from before decisions 0050 and 0054 into profiles: connections,
+// first kept in groups and then in profiles, become the base URL in the
+// GitLab and Jira module settings of a profile; and the module settings at
+// the top of workspace.mirante move to Default. The Store runs it when it
+// loads or reloads files, and writes the changed files once. See
+// docs/decisions/0054-module-settings-replace-connections.md.
 // Implemented in ProfileMigration.cpp.
 namespace mirante::profilemigration {
 
-// The keys of a group file from before decision 0050. Group::fromJson keeps
-// them in extra.
+// The keys that held connections before decision 0054, in group files and in
+// the entries of workspace.mirante's profile list. Group::fromJson and
+// Profile::fromJson keep them in extra.
 inline const QString kOldConnections = QStringLiteral("connections");
 inline const QString kOldDefaultConnections = QStringLiteral("defaultConnections");
 
-// Whether the group still holds connections from before decision 0050.
+// Whether the group or the profile still holds connections.
 bool hasOldConnections(const Group &group);
+bool hasOldConnections(const Profile &profile);
 
 // What a migration changed, so the Store can write those files.
 struct Changes
 {
     bool profiles = false;   // the profile list changed: write workspace.mirante
     QStringList groups;      // groups whose old keys were removed
-    QStringList projects;    // projects given a connection override
 
-    bool any() const { return profiles || !groups.isEmpty() || !projects.isEmpty(); }
+    bool any() const { return profiles || !groups.isEmpty(); }
 };
 
-// Moves each group's connections to the profile the group uses, or to
-// Default if it names none in profiles. Groups are taken by their order, then
-// by id, so the result is the same on every device.
+// Turns connections into module settings.
 //
-// - A connection keeps its id, so items and project overrides that name it
-//   still find it. A connection whose id a profile already has is skipped:
-//   it was moved before, and running the migration again changes nothing.
-// - A connection whose name the profile already uses gets the group's name
-//   added, such as "gitlab.com (Personal)", so two groups' connections stay
-//   apart.
-// - A group default becomes the profile default of its kind if the profile
-//   has none yet. If the profile has another one, the group's projects that
-//   have no override for that kind get the group default as their override,
-//   so their items keep the same connection.
+// - First each profile's own connections, then each group's, by the group's
+//   order, then id. A group's go to the profile the group uses, or to
+//   Default if it names none in profiles.
+// - A connection of kind "gitlab" gives the base URL of the profile's GitLab
+//   settings, gitlab.general.baseUrl. One of kind "jira.cloud" or "jira.dc"
+//   gives jira.general.baseUrl. The default connection of the kind wins, else
+//   the first; a base URL the profile already has wins over all. The others
+//   are dropped, each with a line in the log.
+// - Connections of other kinds, which no module of this version reads, are
+//   kept in the profile's extra, under the old keys.
 // - A group whose old keys cannot be read is left as it is, and keeps them.
 //
-// profiles gets an empty Default first if it has none.
-Changes moveConnections(std::vector<Group> &groups, std::vector<Project> &projects, std::vector<Profile> &profiles);
+// Running it again changes nothing. profiles gets an empty Default first if
+// it has none.
+Changes moveConnections(std::vector<Group> &groups, std::vector<Profile> &profiles);
 
 // Moves the module settings stored at the top of workspace.mirante before
 // decision 0050 into Default. A screen that Default already has keeps

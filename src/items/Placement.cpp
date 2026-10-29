@@ -75,7 +75,7 @@ struct Placement::Private
     QString madeType;
     QJsonObject madeConfig;
     QString madeProfile;                // the profile id of a web view; empty for a type that is not web
-    QJsonObject madeProfileData;        // the profile's connections and settings, for a type that uses them
+    QJsonObject madeProfileData;        // the profile's module settings, for a type that uses them
     QLabel *typePlaceholder = nullptr;  // the placeholder of a type without a view, if shown
     bool gone = false;                  // the item or its task no longer exists
     QString waitingFor;                 // the profile being cleared, while the view waits for it
@@ -103,7 +103,7 @@ struct Placement::Private
         return mirante::profiles::effective(*services.model, taskId, itemId);
     }
 
-    // The connections and module settings of the profile the item uses, for
+    // The module settings of the profile the item uses, for
     // a type that uses a profile. A change of them makes the view again,
     // since the view may have read them. Empty for other types.
     QJsonObject profileDataOf(const Item &found) const
@@ -271,7 +271,7 @@ struct Placement::Private
     }
 
     // The model changed. The view is made again when the item's type,
-    // configuration or profile changed, or the connections and settings of
+    // configuration or profile changed, or the module settings of
     // that profile, and dropped when the item is gone. A hidden placement
     // makes its new view when it is shown.
     void onModelChanged()

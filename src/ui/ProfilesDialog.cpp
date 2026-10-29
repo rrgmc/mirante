@@ -1,7 +1,5 @@
 #include "ui/ProfilesDialog.h"
 
-#include "ui/ConnectionsDialog.h"
-
 #include "core/Edits.h"
 #include "core/Model.h"
 #include "core/Profiles.h"
@@ -35,11 +33,7 @@ struct ProfilesDialog::Private
     std::function<QString(const QString &, const QString &)> askName;
     std::function<bool(const QString &)> confirm;
     std::function<bool(const QString &)> confirmClear;
-    std::function<bool(ConnectionsDialog &)> editConnections;
-    QStringList connectionKinds;
     QListWidget *list = nullptr;
-    QLabel *details = nullptr;
-    QPushButton *connectionsButton = nullptr;
     QPushButton *renameButton = nullptr;
     QPushButton *deleteButton = nullptr;
     QPushButton *clearButton = nullptr;
@@ -73,25 +67,8 @@ struct ProfilesDialog::Private
         const bool editable = !id.isEmpty() && id != kDefaultProfile;
         renameButton->setEnabled(editable);
         deleteButton->setEnabled(editable);
-        // Any profile can be cleared, Default too, and have connections.
+        // Any profile can be cleared, Default too.
         clearButton->setEnabled(!id.isEmpty());
-        connectionsButton->setEnabled(!id.isEmpty());
-        showDetails(id);
-    }
-
-    // Names the selected profile's connections under the list.
-    void showDetails(const QString &id)
-    {
-        const Profile *profile = model->profile(id);
-        if (!profile) {
-            details->clear();
-            return;
-        }
-        QStringList names;
-        for (const Connection &connection : profile->connections)
-            names << connection.name;
-        details->setText(names.isEmpty() ? ProfilesDialog::tr("No connections.")
-                                         : ProfilesDialog::tr("Connections: %1.").arg(names.join(QStringLiteral(", "))));
     }
 
     // Why name cannot be used for the profile with id, or an empty string.
@@ -157,8 +134,8 @@ ProfilesDialog::ProfilesDialog(Model &model, QWidget *parent)
         // app's icon instead.
         box.setIconPixmap(style()->standardIcon(QStyle::SP_MessageBoxWarning, nullptr, this).pixmap(64));
         box.setInformativeText(tr("Its logins, cookies, cache and site data on this device are deleted, so every "
-                                  "site in it signs out. Pages in this profile reload. Its connections and "
-                                  "module settings stay. This cannot be undone."));
+                                  "site in it signs out. Pages in this profile reload. Its module "
+                                  "settings stay. This cannot be undone."));
         QPushButton *clear = box.addButton(tr("Clear Data"), QMessageBox::DestructiveRole);
         QPushButton *cancel = box.addButton(QMessageBox::Cancel);
         box.setDefaultButton(cancel);
@@ -166,15 +143,13 @@ ProfilesDialog::ProfilesDialog(Model &model, QWidget *parent)
         return box.clickedButton() == clear;
     };
 
-    d->editConnections = [](ConnectionsDialog &dialog) { return dialog.exec() == QDialog::Accepted; };
-
     setWindowTitle(tr("Profiles"));
     resize(480, 480);
 
-    auto *help = new QLabel(tr("A profile holds web logins, connections with their tokens, and module settings. "
-                               "Each group chooses a default profile, and each item can choose its own. The list, "
-                               "the connections and the settings are shared with the workspace; logins and tokens "
-                               "stay on this device."),
+    auto *help = new QLabel(tr("A profile holds web logins and module settings, such as the GitLab or Jira server "
+                               "and its token. Each group chooses a default profile, and each item can choose its "
+                               "own. The list and the settings are shared with the workspace; logins and tokens "
+                               "stay on this device. A profile's module settings are in the Profiles menu."),
                             this);
     help->setObjectName(QStringLiteral("help"));
     help->setWordWrap(true);
@@ -189,10 +164,10 @@ ProfilesDialog::ProfilesDialog(Model &model, QWidget *parent)
     const int iconSize = style()->pixelMetric(QStyle::PM_SmallIconSize, nullptr, this) * 2;
     icon->setPixmap(style()->standardIcon(QStyle::SP_MessageBoxWarning, nullptr, this).pixmap(iconSize));
     icon->setAlignment(Qt::AlignTop);
-    auto *warning = new QLabel(tr("Items in the same profile share its logins, connections and tokens. Every item "
+    auto *warning = new QLabel(tr("Items in the same profile share its logins, servers and tokens. Every item "
                                   "that uses a profile can read the logins and data of all sites in that profile, "
-                                  "and call the services of its connections. Use separate profiles for things you "
-                                  "do not trust together."),
+                                  "and call its servers with its tokens. Use separate profiles for things you do "
+                                  "not trust together."),
                                warningBox);
     warning->setObjectName(QStringLiteral("warning"));
     warning->setWordWrap(true);
@@ -205,14 +180,6 @@ ProfilesDialog::ProfilesDialog(Model &model, QWidget *parent)
     d->list = new QListWidget(this);
     d->list->setObjectName(QStringLiteral("profileList"));
 
-    d->details = new QLabel(this);
-    d->details->setObjectName(QStringLiteral("details"));
-    d->details->setWordWrap(true);
-    d->details->setForegroundRole(QPalette::PlaceholderText);
-
-    d->connectionsButton = new QPushButton(tr("Connections…"), this);
-    d->connectionsButton->setObjectName(QStringLiteral("profileConnections"));
-    d->connectionsButton->setToolTip(tr("The services this profile's items reach, such as GitLab or Jira"));
 
     auto *addButton = new QPushButton(tr("New profile…"), this);
     addButton->setObjectName(QStringLiteral("addProfile"));
@@ -233,7 +200,6 @@ ProfilesDialog::ProfilesDialog(Model &model, QWidget *parent)
     rowButtons->addWidget(addButton);
     rowButtons->addWidget(d->renameButton);
     rowButtons->addWidget(d->deleteButton);
-    rowButtons->addWidget(d->connectionsButton);
     rowButtons->addStretch(1);
     rowButtons->addWidget(d->clearButton);
 
@@ -244,7 +210,6 @@ ProfilesDialog::ProfilesDialog(Model &model, QWidget *parent)
     layout->addWidget(help);
     layout->addWidget(warningBox);
     layout->addWidget(d->list, 1);
-    layout->addWidget(d->details);
     layout->addLayout(rowButtons);
     layout->addWidget(d->message);
     layout->addWidget(buttons);
@@ -253,7 +218,6 @@ ProfilesDialog::ProfilesDialog(Model &model, QWidget *parent)
     connect(d->renameButton, &QPushButton::clicked, this, &ProfilesDialog::renameSelected);
     connect(d->deleteButton, &QPushButton::clicked, this, &ProfilesDialog::deleteSelected);
     connect(d->clearButton, &QPushButton::clicked, this, &ProfilesDialog::clearSelected);
-    connect(d->connectionsButton, &QPushButton::clicked, this, &ProfilesDialog::editConnectionsOfSelected);
     connect(d->list, &QListWidget::currentRowChanged, this, [this] { d->updateButtons(); });
     connect(d->list, &QListWidget::itemDoubleClicked, this, &ProfilesDialog::renameSelected);
     // A reload or another device may change the list while the dialog is open.
@@ -279,13 +243,6 @@ void ProfilesDialog::setConfirm(std::function<bool(const QString &)> confirm) { 
 void ProfilesDialog::setConfirmClear(std::function<bool(const QString &)> confirm)
 {
     d->confirmClear = std::move(confirm);
-}
-
-void ProfilesDialog::setConnectionKinds(const QStringList &kinds) { d->connectionKinds = kinds; }
-
-void ProfilesDialog::setEditConnections(std::function<bool(ConnectionsDialog &)> edit)
-{
-    d->editConnections = std::move(edit);
 }
 
 QStringList ProfilesDialog::ids() const
@@ -339,8 +296,8 @@ void ProfilesDialog::deleteSelected()
     if (!current || id == kDefaultProfile)
         return;
     const auto [groups, items] = d->users(id);
-    QString question = tr("Delete the profile \"%1\"? Its connections and module settings are deleted, and its "
-                          "logins and site data on this device.")
+    QString question = tr("Delete the profile \"%1\"? Its module settings are deleted, and its logins and "
+                          "site data on this device.")
                            .arg(current->name);
     if (groups > 0 || items > 0) {
         const QString users = groups > 0 && items > 0
@@ -364,27 +321,6 @@ void ProfilesDialog::clearSelected()
     if (id.isEmpty() || !d->confirmClear(profiles::nameOf(*d->model, id)))
         return;
     emit profileClearRequested(id);
-}
-
-void ProfilesDialog::editConnectionsOfSelected()
-{
-    const QString id = d->selectedId();
-    const Profile *current = d->model->profile(id);
-    if (!current)
-        return;
-    ConnectionsDialog dialog(*current, profiles::nameOf(*d->model, id), this);
-    dialog.setConnectionKinds(d->connectionKinds);
-    if (!d->editConnections(dialog))
-        return;
-    // The profile may have changed or gone while the dialog was open.
-    const Profile *now = d->model->profile(id);
-    if (!now)
-        return;
-    Profile changed = *now;
-    const Profile edited = dialog.value();
-    changed.connections = edited.connections;
-    changed.defaultConnections = edited.defaultConnections;
-    d->model->setProfile(changed);
 }
 
 } // namespace mirante

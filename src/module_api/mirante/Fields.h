@@ -9,8 +9,8 @@ namespace mirante {
 // One field of an item type's configuration, or of a module's settings
 // screen. The core builds a form from a list of fields and checks the values.
 // See docs/decisions/0028-item-fields-in-m3.md and
-// docs/decisions/0044-module-settings-in-the-workspace.md. Connection kinds
-// and project settings use the same struct from M5.
+// docs/decisions/0044-module-settings-in-the-workspace.md. Project settings
+// use the same struct from M5.
 struct Field
 {
     enum class Type {
@@ -23,6 +23,10 @@ struct Field
         Folder,         // the id of one of the project's folders
         Image,          // the name of a file in the data folder's files/
         TextList,       // a JSON array of one-line texts, edited one per line
+        // A token or password, edited hidden. Settings screens only. It is
+        // never part of the stored values: the core keeps it on this device,
+        // in the keychain under "<profile id>/<module id>/<key>". See decision 0054.
+        Secret,
     };
 
     QString key;                // the key in Item::config, or in a settings screen's values

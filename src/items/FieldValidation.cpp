@@ -21,6 +21,7 @@ bool holdsText(Field::Type type)
     case Field::Type::Choice:
     case Field::Type::Folder:
     case Field::Type::Image:
+    case Field::Type::Secret:
         return true;
     case Field::Type::Integer:
     case Field::Type::Bool:
@@ -75,6 +76,7 @@ QString check(const Field &field, const QJsonValue &value)
     case Field::Type::MultiLineText:
     case Field::Type::Folder:
     case Field::Type::Image:
+    case Field::Type::Secret:
         if (!value.isString())
             message = QT_TRANSLATE_NOOP("FieldValidation", "%1 must be text");
         break;

@@ -5,6 +5,7 @@
 // and gives the item the connection of the link's server.
 #include "core/DeviceSettings.h"
 #include "core/Model.h"
+#include "core/Profiles.h"
 #include "core/Store.h"
 #include "items/ItemTypeRegistry.h"
 #include "ui/EntityActions.h"
@@ -34,24 +35,24 @@ using namespace mirante;
 namespace {
 
 const QString fixLoginTimeout = QStringLiteral("760c8e20-8555-5a2c-bcbe-75e7fd08ca74");
-// The gitlab connections of the Work profile, which the Work group uses:
-// gitlab.com is the default.
-const QString gitlabCom = QStringLiteral("8ef145f6-9585-55de-a438-70969ec1bad0");
-const QString gitlabAcme = QStringLiteral("6a2269ce-1dd5-5ebf-b064-2ce63914bf73");
+// The Work profile, which the Work group of fixLoginTimeout uses.
+const QString workProfile = QStringLiteral("3f6c2a8e-5d1b-4c7a-9e2f-8b0d4a6c1e93");
+
+// The server of each profile, as a module keeps it in its settings.
+QMap<QString, QUrl> servers;
 
 const QString requestType = QStringLiteral("testmod.request");
 const QString pageType = QStringLiteral("testmod.page");
 const QString plainType = QStringLiteral("testmod.plain");
 
-// A merge request of a "gitlab" connection: <base>/<project>/-/merge_requests/<n>
-// below one of its base URLs, or on gitlab.example.
+// A merge request: <base>/<project>/-/merge_requests/<n> below the server of
+// the profile, or on gitlab.example.
 class RequestType : public ItemType
 {
 public:
     QString id() const override { return requestType; }
     QString name() const override { return QStringLiteral("Request"); }
     QIcon icon() const override { return {}; }
-    QStringList connectionKinds() const override { return {QStringLiteral("gitlab")}; }
 
     std::vector<Field> fields() const override
     {
@@ -69,9 +70,11 @@ public:
         return {project, iid, note};
     }
 
-    std::optional<UrlMatch> fromUrl(const QUrl &url, const QList<QUrl> &baseUrls) const override
+    std::optional<UrlMatch> fromUrl(const QUrl &url, const QString &profileId) const override
     {
-        QList<QUrl> bases = baseUrls;
+        QList<QUrl> bases;
+        if (servers.contains(profileId))
+            bases << servers.value(profileId);
         bases << QUrl(QStringLiteral("https://gitlab.example"));
         for (const QUrl &base : bases) {
             const std::optional<QString> path = pathBelow(url, base);
@@ -108,7 +111,7 @@ public:
         return {url};
     }
 
-    std::optional<UrlMatch> fromUrl(const QUrl &url, const QList<QUrl> &) const override
+    std::optional<UrlMatch> fromUrl(const QUrl &url, const QString &) const override
     {
         if (url.scheme() != QLatin1String("https"))
             return std::nullopt;
@@ -184,9 +187,8 @@ private slots:
     void filtering();
     void prefill();
     void typedNameKept();
-    void connectionOfTheLink();
+    void serverOfTheProfile();
     void pasteUrl();
-    void linkInAnotherProfile();
     void menuEntry();
 };
 
@@ -267,7 +269,6 @@ void TestItemFromUrl::prefill()
                                                  {QStringLiteral("iid"), 4},
                                                  {QStringLiteral("note"), QStringLiteral("default note")}}));
     QCOMPARE(nameOf(dialog), QStringLiteral("acme/app!4"));
-    QVERIFY(dialog.urlConnectionId().isEmpty());     // no connections given
 
     // The same type from the same link keeps what was entered.
     auto *form = qobject_cast<FieldForm *>(dialog.editor());
@@ -310,74 +311,23 @@ void TestItemFromUrl::typedNameKept()
     QCOMPARE(nameOf(dialog), QStringLiteral("Typed"));
 }
 
-void TestItemFromUrl::connectionOfTheLink()
+// A link is read with the server of the group's profile.
+void TestItemFromUrl::serverOfTheProfile()
 {
-    const Group *work = model.group(model.project(model.task(fixLoginTimeout)->projectId)->groupId);
-    QVERIFY(work);
-    const Profile *profile = model.profile(work->profile);
-    QVERIFY(profile);
+    servers.insert(workProfile, QUrl(QStringLiteral("https://gitlab.acme.internal")));
     ItemDialog dialog(Item{}, true, types, {});
-    dialog.setConnections(profile->connections);
+    dialog.setProfiles(profiles::all(model), workProfile, QStringLiteral("Work"));
     dialog.setUrl(QStringLiteral("https://gitlab.acme.internal/ops/infra/-/merge_requests/2"));
     QCOMPARE(shownTypes(dialog), (QStringList{requestType, pageType}));
     dialog.setType(requestType);
-    QCOMPARE(dialog.urlConnectionId(), gitlabAcme);
     QCOMPARE(dialog.value().config.value(QStringLiteral("project")).toString(), QStringLiteral("ops/infra"));
 
-    // A generic type names no connection.
-    dialog.back();
-    dialog.setType(pageType);
-    QVERIFY(dialog.urlConnectionId().isEmpty());
-}
-
-// The link is read with the connections of the group's profile. When the
-// item gets another profile in the dialog, it takes that profile's
-// connection of the same kind and base URL, or none.
-void TestItemFromUrl::linkInAnotherProfile()
-{
-    const Group *group = model.group(model.project(model.task(fixLoginTimeout)->projectId)->groupId);
-    const Profile *work = model.profile(group->profile);
-    QVERIFY(work);
-    Connection acme;
-    for (const Connection &connection : work->connections) {
-        if (connection.id == gitlabAcme)
-            acme = connection;
-    }
-    Connection com = acme;
-    com.id = QStringLiteral("other-com");
-    com.baseUrl = QStringLiteral("https://gitlab.com");
-    Connection otherAcme = acme;
-    otherAcme.id = QStringLiteral("other-acme");
-    Profile other;
-    other.id = QStringLiteral("other");
-    other.name = QStringLiteral("Other");
-    other.connections = {com, otherAcme};
-    other.defaultConnections.insert(QStringLiteral("gitlab"), com.id);
-    model.setProfile(other);
-
-    QString profileId = QStringLiteral("other");
-    actions->setExec([&profileId](QDialog &dialog) {
-        auto *item = qobject_cast<ItemDialog *>(&dialog);
-        if (!item)
-            return false;
-        item->setType(requestType);
-        item->setProfile(profileId);
-        item->accept();
-        return item->result() == QDialog::Accepted;
-    });
-    const QString link = QStringLiteral("https://gitlab.acme.internal/ops/infra/-/merge_requests/2");
-    QGuiApplication::clipboard()->setText(link);
-    const QString first = actions->pasteUrl(fixLoginTimeout);
-    QVERIFY(!first.isEmpty());
-    QCOMPARE(model.item(fixLoginTimeout, first)->profile, QStringLiteral("other"));
-    QCOMPARE(model.item(fixLoginTimeout, first)->connectionId, otherAcme.id);
-
-    // A profile without a connection on that server names none.
-    other.connections = {com};
-    model.setProfile(other);
-    const QString second = actions->pasteUrl(fixLoginTimeout);
-    QVERIFY(!second.isEmpty());
-    QVERIFY(model.item(fixLoginTimeout, second)->connectionId.isEmpty());
+    // In a group whose profile has another server, the link is only a page.
+    ItemDialog other(Item{}, true, types, {});
+    other.setProfiles(profiles::all(model), kDefaultProfile, QStringLiteral("Default"));
+    other.setUrl(QStringLiteral("https://gitlab.acme.internal/ops/infra/-/merge_requests/2"));
+    QCOMPARE(shownTypes(other), QStringList{pageType});
+    servers.clear();
 }
 
 void TestItemFromUrl::pasteUrl()
@@ -388,7 +338,8 @@ void TestItemFromUrl::pasteUrl()
     QVERIFY(actions->pasteUrl(fixLoginTimeout).isEmpty());
     QCOMPARE(execCount, 0);
 
-    // A link on a server that is not the group default names its connection.
+    // A link on the server of the group's profile.
+    servers.insert(workProfile, QUrl(QStringLiteral("https://gitlab.acme.internal")));
     QGuiApplication::clipboard()->setText(QStringLiteral("https://gitlab.acme.internal/ops/infra/-/merge_requests/2"));
     const QString acme = actions->pasteUrl(fixLoginTimeout);
     QVERIFY(!acme.isEmpty());
@@ -397,14 +348,9 @@ void TestItemFromUrl::pasteUrl()
     QVERIFY(item);
     QCOMPARE(item->type, requestType);
     QCOMPARE(item->name, QStringLiteral("ops/infra!2"));
-    QCOMPARE(item->connectionId, gitlabAcme);
-
-    // A link on the default server leaves the item to the resolution order.
-    QGuiApplication::clipboard()->setText(QStringLiteral("https://gitlab.com/acme/backend/-/merge_requests/5"));
-    const QString com = actions->pasteUrl(fixLoginTimeout);
-    QVERIFY(!com.isEmpty());
-    QVERIFY(model.item(fixLoginTimeout, com)->connectionId.isEmpty());
-    QCOMPARE(model.item(fixLoginTimeout, com)->config.value(QStringLiteral("iid")).toInt(), 5);
+    // The item names no connection: its profile has one server per module.
+    QVERIFY(!item->toJson().contains(QStringLiteral("connectionId")));
+    servers.clear();
 
     // A copied link, as a browser puts it on the clipboard, works too.
     auto *data = new QMimeData;
@@ -422,7 +368,7 @@ void TestItemFromUrl::menuEntry()
     QVERIFY(disabled);
     QVERIFY(!disabled->isEnabled());
 
-    QGuiApplication::clipboard()->setText(QStringLiteral("https://gitlab.com/acme/backend/-/merge_requests/8"));
+    QGuiApplication::clipboard()->setText(QStringLiteral("https://gitlab.example/acme/backend/-/merge_requests/8"));
     QMenu items;
     actions->fillMenu(&items, SidebarModel::Kind::ItemList, QString(), fixLoginTimeout);
     QAction *paste = actionNamed(items, QStringLiteral("Paste URL…"));
@@ -431,7 +377,7 @@ void TestItemFromUrl::menuEntry()
     const size_t before = model.task(fixLoginTimeout)->items.size();
     paste->trigger();
     QCOMPARE(execCount, 1);
-    QCOMPARE(dialogUrl, QStringLiteral("https://gitlab.com/acme/backend/-/merge_requests/8"));
+    QCOMPARE(dialogUrl, QStringLiteral("https://gitlab.example/acme/backend/-/merge_requests/8"));
     QCOMPARE(model.task(fixLoginTimeout)->items.size(), before + 1);
 }
 

@@ -7,15 +7,14 @@
 
 namespace mirante {
 
-class ConnectionsDialog;
 class Model;
 
 // Lists the workspace's profiles, Default first, and creates, renames and
-// deletes them, edits a profile's connections, and clears a profile's web data
-// on this device. Changes go to the model at once; the connections go when
-// their dialog is accepted. Default cannot be renamed or deleted, but can be
-// cleared and have connections. A warning says that items in one profile
-// share its logins, connections and tokens. Opened with File > Profiles….
+// deletes them, and clears a profile's web data on this device. Changes go to
+// the model at once. Default cannot be renamed or deleted, but can be
+// cleared. A warning says that items in one profile share its logins,
+// servers and tokens. Module settings are edited from the Profiles menu.
+// Opened with Profiles > Manage Profiles….
 // See docs/ui.md#profiles. Implemented in ProfilesDialog.cpp.
 class ProfilesDialog : public QDialog
 {
@@ -34,13 +33,6 @@ public:
     // default shows a warning with the warning icon; tests replace it.
     void setConfirmClear(std::function<bool(const QString &profileName)> confirm);
 
-    // The connection kinds the connections dialog offers, from
-    // ItemTypeRegistry::connectionKinds(). None by default.
-    void setConnectionKinds(const QStringList &kinds);
-    // Runs the connections dialog and says whether it was accepted. The
-    // default calls exec(); tests fill it in instead.
-    void setEditConnections(std::function<bool(ConnectionsDialog &dialog)> edit);
-
     // The ids in the list, in its order: Default first, then by name.
     QStringList ids() const;
     void select(const QString &id);
@@ -50,7 +42,6 @@ public:
     void renameSelected();
     void deleteSelected();
     void clearSelected();
-    void editConnectionsOfSelected();
 
 signals:
     // A profile was deleted from the list. Its web logins on this device go next.

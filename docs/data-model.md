@@ -34,7 +34,7 @@ A group without a `colour`, or with one that is not of the form `"#rrggbb"`, tak
 
 Group files from before [decision 0042](decisions/0042-user-managed-web-profiles.md) may hold `profileOverrides`. It is no longer read, and is kept like any unknown key.
 
-Group files from before [decision 0050](decisions/0050-profiles-hold-logins-connections-and-settings.md) name the profile `webProfile`, which is still read. They may also hold `connections` and `defaultConnections`. These move to a profile when the workspace is opened; see [migration](#migration-to-profiles).
+Group files from before [decision 0050](decisions/0050-profiles-hold-logins-connections-and-settings.md) name the profile `webProfile`, which is still read. They may also hold `connections` and `defaultConnections`. These become module settings of a profile when the workspace is opened; see [migration](#migration-to-profiles).
 
 ## Project
 
@@ -46,7 +46,6 @@ Group files from before [decision 0050](decisions/0050-profiles-hold-logins-conn
 | `order` | Manual position among its siblings |
 | `folders` | List of [folders](#folder); exactly one has `main: true` |
 | `moduleSettings` | Project settings declared by [modules](modules.md#what-a-module-registers), as one object per module id |
-| `connectionOverrides` | Optional map from connection kind to a connection id. It counts only if the item's profile has that connection. |
 | `trashedAt` | Optional. When the project went to the [trash](#trash), as an ISO 8601 UTC string |
 
 Module settings are defaults. Items in the project's tasks use them unless they set their own value. Quick add also uses them to choose the project for a pasted link. See [ui](ui.md#quick-add).
@@ -112,10 +111,11 @@ The sidebar's Trash list and its commands are in [ui](ui.md#trash).
 | `type` | Item type id, such as `gitlab.mr.summary`. See [item types](item-types.md). |
 | `name` | Display name, shown in cell headers and tabs |
 | `config` | Object with the fields of the item type |
-| `connectionId` | Optional. The id of a connection of the item's profile, which replaces the profile default |
-| `profile` | Optional. The id of a [profile](#profile) that replaces the group's for this item. Offered only for types that use a profile: types whose views are web views, that use connections, or whose module has settings screens. Items from before decision 0050 name it `webProfile`, which is still read. |
+| `profile` | Optional. The id of a [profile](#profile) that replaces the group's for this item. Offered only for types that use a profile: types whose views are web views, or whose module has settings screens. Items from before decision 0050 name it `webProfile`, which is still read. |
 
 A task can hold any number of items of the same type, for example three Jira issues.
+
+Items and projects from before [decision 0054](decisions/0054-module-settings-replace-connections.md) may hold `connectionId` and `connectionOverrides`. They are no longer read, and are kept like any unknown key.
 
 An item whose type belongs to a module that is not in the build is shown as a placeholder. Its `type` and `config` are kept unchanged. See [missing modules](modules.md#missing-modules).
 
@@ -124,17 +124,15 @@ An item whose type belongs to a module that is not in the build is shown as a pl
 A profile groups what belongs to one account or context, such as "Work" or "Personal":
 
 - its web logins, kept on each device (see [web views](web-views.md#profiles));
-- its [connections](#connection), with a default for each kind, and their tokens in the keychain;
-- the values of the modules' [settings screens](#module-settings).
+- the values of the modules' [settings screens](#module-settings), such as the [server](#servers-and-tokens) each module talks to;
+- the token for each such server, kept in the keychain of each device.
 
-The list belongs to the workspace and is kept in `workspace.mirante`, under `profiles`. See [decision 0050](decisions/0050-profiles-hold-logins-connections-and-settings.md), which extends [decision 0042](decisions/0042-user-managed-web-profiles.md).
+The list belongs to the workspace and is kept in `workspace.mirante`, under `profiles`. See decisions [0050](decisions/0050-profiles-hold-logins-connections-and-settings.md) and [0054](decisions/0054-module-settings-replace-connections.md), which extend [decision 0042](decisions/0042-user-managed-web-profiles.md).
 
 | Field | Description |
 |---|---|
 | `id` | UUID, or `default` for Default |
 | `name` | Display name. Default has none. |
-| `connections` | Optional. List of [connections](#connection), without tokens |
-| `defaultConnections` | Optional. For each connection kind, the id of the profile default |
 | `moduleSettings` | Optional. The values of the modules' settings screens; see [module settings](#module-settings) |
 
 ```json
@@ -142,12 +140,8 @@ The list belongs to the workspace and is kept in `workspace.mirante`, under `pro
   "name": "My work",
   "profiles": [
     {
-      "connections": [
-        { "baseUrl": "https://gitlab.com", "fields": {}, "id": "fbba0e51-92a5-52aa-983a-bc797ee4016b",
-          "kind": "gitlab", "name": "gitlab.com (personal)" }
-      ],
-      "defaultConnections": { "gitlab": "fbba0e51-92a5-52aa-983a-bc797ee4016b" },
-      "id": "default"
+      "id": "default",
+      "moduleSettings": { "gitlab": { "general": { "baseUrl": "https://gitlab.com" } } }
     },
     { "id": "3f6c2a8e-5d1b-4c7a-9e2f-8b0d4a6c1e93", "name": "Work" }
   ],
@@ -157,33 +151,35 @@ The list belongs to the workspace and is kept in `workspace.mirante`, under `pro
 
 Rules:
 
-- **Default** always exists, with the id `default`. It is listed only when it holds connections, settings or unknown keys, and its name is not stored. An entry without an id, or with an id already listed, is skipped when the file is read.
+- **Default** always exists, with the id `default`. It is listed only when it holds settings or unknown keys, and its name is not stored. An entry without an id, or with an id already listed, is skipped when the file is read.
 - An item uses its own `profile`, else its group's, else Default. A step that names a profile not in the list is skipped, such as a deleted profile or one whose entry has not arrived yet. The code is `profiles::effective` in `src/core/Profiles.h`.
-- Deleting a profile removes it from the list, with its connections and settings. Groups and items that name it keep the id and fall back by the rule above.
-- The list, the connections and the settings are synced. The logins and the tokens are not; they stay on each device.
+- Deleting a profile removes it from the list, with its settings. Groups and items that name it keep the id and fall back by the rule above.
+- The list and the settings are synced. The logins and the tokens are not; they stay on each device.
 - Keys of a profile that this version does not know are kept.
 
 ### Migration to profiles
 
-Before [decision 0050](decisions/0050-profiles-hold-logins-connections-and-settings.md) the list was under `webProfiles`, connections belonged to groups, and module settings were kept for the whole workspace, under `moduleSettings` at the top of `workspace.mirante`. When a workspace is opened, the app moves them, in `src/core/ProfileMigration.cpp`:
+Before [decision 0050](decisions/0050-profiles-hold-logins-connections-and-settings.md) the list was under `webProfiles`, connections belonged to groups, and module settings were kept for the whole workspace, under `moduleSettings` at the top of `workspace.mirante`. Between decisions 0050 and [0054](decisions/0054-module-settings-replace-connections.md), connections belonged to profiles. When a workspace is opened, the app moves them, in `src/core/ProfileMigration.cpp`:
 
 - `webProfiles` is read when there is no `profiles`, and written as `profiles`.
 - The module settings at the top go to Default. A screen that Default already has keeps Default's values.
-- Each group's connections go to the profile that group uses, or to Default. They keep their ids, so items and project overrides still find them. Groups are taken by their `order`, then by id. A name the profile already uses gets the group's name added, such as "gitlab.com (Personal)", and a number if that is taken too. A group default becomes the profile default when the profile has none of that kind. Otherwise each project of the group without an override for that kind gets the group default as its override.
-- `workspace.mirante` is written at once, then the changed group and project files. If `workspace.mirante` cannot be written yet, the groups keep their old keys on disk, and the next load moves them again.
-- A connection whose id a profile already has is skipped, so the migration can run again without changing anything. A group file with old keys that arrives later is migrated in the same way.
+- Connections become [servers](#servers-and-tokens). Those kept in a profile are taken first, then each group's, which go to the profile that group uses, or to Default. Groups are taken by their `order`, then by id.
+- A connection of kind `gitlab` gives the profile's `gitlab.general.baseUrl`, and one of kind `jira.cloud` or `jira.dc` its `jira.general.baseUrl`. The default connection of the kind wins, Jira Cloud before Data Center, else the first. A base URL the profile already has wins over all. Every other connection of these kinds is dropped, with a line in the log.
+- Connections of other kinds, which no module reads, stay in the profile under the old keys `connections` and `defaultConnections`.
+- `workspace.mirante` is written at once, then the changed group files. If `workspace.mirante` cannot be written yet, the groups keep their old keys on disk, and the next load moves them again.
+- The migration can run again without changing anything. A group file with old keys that arrives later is migrated in the same way.
 - Nothing is migrated while `workspace.mirante` was written by a newer version, which the app never writes over.
 
 ## Module settings
 
-A module can have [settings screens](modules.md#settings-screens), such as GitLab's "General Configuration". Each [profile](#profile) has its own values, kept in its entry in `workspace.mirante`, under `moduleSettings`: an object of module ids, each an object of screen ids, each the values of that screen. An item uses the values of its profile. See decisions [0044](decisions/0044-module-settings-in-the-workspace.md) and [0050](decisions/0050-profiles-hold-logins-connections-and-settings.md).
+A module can have [settings screens](modules.md#settings-screens), such as GitLab's "General Configuration". Each [profile](#profile) has its own values, kept in its entry in `workspace.mirante`, under `moduleSettings`: an object of module ids, each an object of screen ids, each the values of that screen. An item uses the values of its profile. See decisions [0044](decisions/0044-module-settings-in-the-workspace.md), [0050](decisions/0050-profiles-hold-logins-connections-and-settings.md) and [0054](decisions/0054-module-settings-replace-connections.md).
 
 ```json
 {
   "id": "3f6c2a8e-5d1b-4c7a-9e2f-8b0d4a6c1e93",
   "moduleSettings": {
     "gitlab": {
-      "general": { "projects": [ "acme/backend", "acme/web" ] }
+      "general": { "baseUrl": "https://gitlab.com", "projects": [ "acme/backend", "acme/web" ] }
     }
   },
   "name": "Work"
@@ -195,7 +191,7 @@ Rules:
 - The module decides the keys of each screen. The core stores them without knowing what they mean.
 - Keys that the screen's form or editor does not show are kept. So are the entries of modules and screens that this build does not have.
 - Saving a screen with no values removes its entry. A module left without screens is removed too, and so is `moduleSettings` when it is empty.
-- The values are synced. Secrets, such as tokens, are never stored here; they stay in the keychain.
+- The values are synced. Secrets, such as tokens, are never stored here. A screen asks for them in a field of type `Secret`, whose value goes to the keychain; see [servers and tokens](#servers-and-tokens).
 
 ## Priority
 
@@ -212,31 +208,17 @@ The sidebar lists projects and tasks by the manual `order` field only; the level
 
 Attention, such as a failed pipeline, is not a priority. It is computed from live data and shown as a badge. See [ui](ui.md#attention).
 
-## Connection
+## Servers and tokens
 
-A connection holds the details needed to call one API. Connections belong to a [profile](#profile).
+Each module that talks to a server keeps it in its settings, one server per profile. See [decision 0054](decisions/0054-module-settings-replace-connections.md), which replaces the connections of earlier versions.
 
-| Field | Description |
-|---|---|
-| `id` | UUID |
-| `kind` | A connection kind registered by a module, such as `gitlab`, `jira.cloud` or `jira.dc` (Data Center) |
-| `name` | For example "gitlab.com (work)" |
-| `baseUrl` | For example `https://gitlab.com` or `https://acme.atlassian.net` |
-| `fields` | Further fields declared by the kind, such as `email` for `jira.cloud` |
+| Module | Setting | Default |
+|---|---|---|
+| GitLab | `gitlab.general.baseUrl`, such as `https://gitlab.example.org/gitlab` | `https://gitlab.com` |
+| Jira | `jira.general.baseUrl`, the site, such as `https://acme.atlassian.net` | none |
 
-The token is never part of the synced data. It is stored in the operating system keychain. See [sync](sync.md#secrets).
-
-A profile can have several connections of the same kind. One of them is the profile default for that kind.
-
-To find the connection for an item, the app takes the first match in this order:
-
-1. The item's `connectionId`.
-2. The project's override for that kind.
-3. The profile's default for that kind.
-
-All three must belong to the item's profile and have the right kind. See decisions [0006](decisions/0006-connections-per-group.md) and [0050](decisions/0050-profiles-hold-logins-connections-and-settings.md).
-
-The item's profile is found by the [resolution order](#profile): its own, else its group's, else Default. The item's group is the group of the project of the item's task. An item type lists the connection kinds it can use, in order of preference, such as `jira.cloud` and then `jira.dc`. At each step the app tries these kinds in that order. Only then does it move to the next step, so a project override of the second kind wins over a profile default of the first. A step that names a connection of another kind, of another profile, or one that no longer exists is skipped. If no step matches, the item has no connection. The code is `connections::resolve` in `src/core/Connections.h`.
+- An item uses the server of its [profile](#profile): its own, else its group's, else Default's.
+- The token for the server is entered on the same screen, in a `Secret` field. It is never part of the synced data. The keychain keeps it under the key `<profile id>/<module id>/<field key>`, such as `default/gitlab/token`. See [sync](sync.md#secrets).
 
 ## Dashboard
 
@@ -309,9 +291,9 @@ After every edit, the app cleans the tree:
 |---|---|
 | Groups, projects, tasks, items, dashboards | Local path of each folder |
 | Layout trees, including size ratios | Geometry of detached root dashboard windows |
-| Connection details without tokens | Open root tabs and the preview tab |
-| Profiles: the list, and each group's and item's choice | Tokens (in the keychain) |
-| Each profile's connections and module settings | Terminal command template |
+| Profiles: the list, and each group's and item's choice | Open root tabs and the preview tab |
+| Each profile's module settings, with its servers | Tokens (in the keychain) |
+| | Terminal command template |
 | Notes content | |
 | | Poll interval and other preferences |
 | | Web logins, in each profile |

@@ -94,27 +94,6 @@ private slots:
         QVERIFY(folder->main);
     }
 
-    // Connection
-
-    void connectionDefaults()
-    {
-        const auto connection = Connection::fromJson(parse(R"({ "id": "c-1" })"));
-        QVERIFY(connection);
-        QCOMPARE(connection->toJson(), parse(
-            R"({ "id": "c-1", "kind": "", "name": "", "baseUrl": "", "fields": {} })"));
-    }
-
-    void connectionFields()
-    {
-        const auto connection = Connection::fromJson(parse(R"({ "id": "c-1", "kind": "jira.cloud",
-            "name": "Acme", "baseUrl": "https:\/\/acme.atlassian.net", "fields": { "email": "a@b.c" } })"));
-        QVERIFY(connection);
-        QCOMPARE(connection->kind, QStringLiteral("jira.cloud"));
-        QCOMPARE(connection->name, QStringLiteral("Acme"));
-        QCOMPARE(connection->baseUrl, QStringLiteral("https://acme.atlassian.net"));
-        QCOMPARE(connection->fields.value(QStringLiteral("email")).toString(), QStringLiteral("a@b.c"));
-    }
-
     // Group
 
     void groupDefaults()
@@ -190,8 +169,7 @@ private slots:
         QVERIFY(project);
         QCOMPARE(project->priority, Priority::Normal);
         QCOMPARE(project->toJson(), parse(R"({ "id": "p-1", "groupId": "g-1", "name": "",
-            "priority": 2, "order": 0, "folders": [], "moduleSettings": {},
-            "connectionOverrides": {} })"));
+            "priority": 2, "order": 0, "folders": [], "moduleSettings": {} })"));
     }
 
     void projectFields()
@@ -208,7 +186,9 @@ private slots:
         QCOMPARE(project->folders.size(), std::size_t(1));
         QVERIFY(project->folders[0].main);
         QVERIFY(project->moduleSettings.contains(QStringLiteral("timetrack")));
-        QCOMPARE(project->connectionOverrides.value(QStringLiteral("jira.cloud")), QStringLiteral("c-9"));
+        // Overrides from before decision 0054 are kept as an unknown key.
+        QCOMPARE(project->extra.value(QStringLiteral("connectionOverrides")).toObject().value(QStringLiteral("jira.cloud")).toString(),
+                 QStringLiteral("c-9"));
     }
 
     // trashedAt is written only when set, and read back as a field, not as extra.
@@ -255,7 +235,7 @@ private slots:
     {
         const auto item = Item::fromJson(parse(R"({ "id": "i-1", "type": "notes.note" })"));
         QVERIFY(item);
-        // connectionId and profile are omitted when empty.
+        // profile is omitted when empty.
         QCOMPARE(item->toJson(), parse(
             R"({ "id": "i-1", "type": "notes.note", "name": "", "config": {} })"));
     }
@@ -268,7 +248,9 @@ private slots:
         QCOMPARE(item->type, QStringLiteral("jira.issue"));
         QCOMPARE(item->name, QStringLiteral("ACME-1"));
         QCOMPARE(item->config.value(QStringLiteral("key")).toString(), QStringLiteral("ACME-1"));
-        QCOMPARE(item->connectionId, QStringLiteral("c-3"));
+        // connectionId is from before decision 0054, and kept as an unknown key.
+        QCOMPARE(item->extra.value(QStringLiteral("connectionId")).toString(), QStringLiteral("c-3"));
+        QCOMPARE(item->toJson().value(QStringLiteral("connectionId")).toString(), QStringLiteral("c-3"));
         QCOMPARE(item->profile, QStringLiteral("w-2"));
 
         // Items from before decision 0050 name it "webProfile".
@@ -287,15 +269,15 @@ private slots:
         QVERIFY(profile);
         QCOMPARE(profile->id, QStringLiteral("w-1"));
         QCOMPARE(profile->name, QStringLiteral("Work"));
-        QVERIFY(profile->connections.empty());
         QVERIFY(profile->hasData());   // the unknown "color"
-        // Empty connections, defaults and settings are omitted.
+        // Empty settings are omitted.
         QCOMPARE(profile->toJson(), json);
         QVERIFY(!Profile::fromJson(parse(R"({ "name": "No id" })")));
         QVERIFY(!Profile::fromJson(parse(R"({ "id": "w-2", "name": "Plain" })"))->hasData());
     }
 
-    void profileWithConnectionsAndSettings()
+    // Connections from before decision 0054 stay in extra, for the migration.
+    void profileWithSettings()
     {
         const QJsonObject json = parse(R"({ "id": "w-1", "name": "Work",
             "connections": [ { "id": "c-1", "kind": "gitlab", "name": "gitlab.com",
@@ -304,17 +286,11 @@ private slots:
             "moduleSettings": { "gitlab": { "general": { "projects": [ "acme/web" ] } } } })");
         const auto profile = Profile::fromJson(json);
         QVERIFY(profile);
-        QCOMPARE(profile->connections.size(), std::size_t(1));
-        QCOMPARE(profile->connections[0].baseUrl, QStringLiteral("https://gitlab.com"));
-        QCOMPARE(profile->defaultConnections.value(QStringLiteral("gitlab")), QStringLiteral("c-1"));
         QVERIFY(profile->moduleSettings.contains(QStringLiteral("gitlab")));
-        QVERIFY(profile->extra.isEmpty());
+        QVERIFY(profile->extra.contains(QStringLiteral("connections")));
+        QVERIFY(profile->extra.contains(QStringLiteral("defaultConnections")));
         QVERIFY(profile->hasData());
         QCOMPARE(profile->toJson(), json);
-
-        QString error;
-        QVERIFY(!Profile::fromJson(parse(R"({ "id": "w-1", "connections": [ { "kind": "x" } ] })"), &error));
-        QVERIFY2(error.contains(QStringLiteral("connections[0]")), qPrintable(error));
     }
 
     // Dashboard and RootDashboard
@@ -393,7 +369,7 @@ private slots:
         QCOMPARE(task->priority, Priority::High);
         QCOMPARE(task->order, 4);
         QCOMPARE(task->items.size(), std::size_t(2));
-        QCOMPARE(task->items[0].connectionId, QStringLiteral("c-2"));
+        QCOMPARE(task->items[0].extra.value(QStringLiteral("connectionId")).toString(), QStringLiteral("c-2"));
         QCOMPARE(task->dashboards.size(), std::size_t(2));
         QCOMPARE(task->dashboards[0].layout.kind, LayoutNode::Kind::Split);
         QCOMPARE(task->defaultDashboardId, QStringLiteral("d-1"));
@@ -430,8 +406,8 @@ private slots:
         const auto profile = Profile::fromJson(parse(R"({ "id": "w-1", "color": "red",
             "schemaVersion": 1, "connections": [ { "id": "c-1", "token": { "x": 1 } } ] })"));
         QVERIFY(profile);
-        QCOMPARE(profile->extra, parse(R"({ "color": "red", "schemaVersion": 1 })"));
-        QCOMPARE(profile->connections[0].extra, parse(R"({ "token": { "x": 1 } })"));
+        QCOMPARE(profile->extra, parse(R"({ "color": "red", "schemaVersion": 1,
+            "connections": [ { "id": "c-1", "token": { "x": 1 } } ] })"));
         const QJsonObject json = profile->toJson();
         QCOMPARE(json.value(QStringLiteral("color")).toString(), QStringLiteral("red"));
         QCOMPARE(json.value(QStringLiteral("schemaVersion")).toInt(), 1);
@@ -494,7 +470,6 @@ private slots:
         QVERIFY(project);
         QVERIFY(project->folders.empty());
         QVERIFY(project->moduleSettings.isEmpty());
-        QVERIFY(project->connectionOverrides.isEmpty());
         QCOMPARE(project->extra.size(), 3);
         QCOMPARE(project->toJson(), parse(R"({ "id": "p-1", "groupId": "g-1", "name": "",
             "priority": 2, "order": 0, "folders": "none", "moduleSettings": [1],
@@ -517,19 +492,10 @@ private slots:
         QVERIFY(folder->remoteUrl.isEmpty());
         QCOMPARE(folder->toJson(), parse(R"({ "id": "f-1", "name": "", "main": 1, "remoteUrl": false })"));
 
-        const QJsonObject connectionJson = parse(R"({ "id": "c-1", "kind": 1, "baseUrl": {}, "fields": "x" })");
-        const auto connection = Connection::fromJson(connectionJson);
-        QVERIFY(connection);
-        QVERIFY(connection->kind.isEmpty());
-        QVERIFY(connection->fields.isEmpty());
-        QCOMPARE(connection->toJson(), parse(
-            R"({ "id": "c-1", "kind": 1, "name": "", "baseUrl": {}, "fields": "x" })"));
-
         const QJsonObject itemJson = parse(R"({ "id": "i-1", "type": "x", "config": "a=b", "connectionId": 4 })");
         const auto item = Item::fromJson(itemJson);
         QVERIFY(item);
         QVERIFY(item->config.isEmpty());
-        QVERIFY(item->connectionId.isEmpty());
         QCOMPARE(item->toJson(), parse(R"({ "id": "i-1", "type": "x", "name": "", "config": "a=b", "connectionId": 4 })"));
 
         const auto root = RootDashboard::fromJson(parse(R"({ "id": "r-1", "order": "first" })"));
@@ -547,14 +513,10 @@ private slots:
         QTest::addColumn<QString>("errorPart");
 
         QTest::newRow("folder no id") << "Folder" << QByteArray(R"({ "name": "a" })") << "\"id\"";
-        QTest::newRow("connection no id") << "Connection" << QByteArray(R"({ "kind": "gitlab" })") << "\"id\"";
         QTest::newRow("group no id") << "Group" << QByteArray(R"({})") << "\"id\"";
         QTest::newRow("group id number") << "Group" << QByteArray(R"({ "id": 5 })") << "\"id\"";
         QTest::newRow("group id empty") << "Group" << QByteArray(R"({ "id": "" })") << "\"id\"";
         QTest::newRow("profile no id") << "Profile" << QByteArray(R"({ "name": "a" })") << "\"id\"";
-        QTest::newRow("profile bad connection") << "Profile"
-            << QByteArray(R"({ "id": "w", "connections": [ { "id": "c" }, { "kind": "x" } ] })")
-            << "connections[1]: missing or invalid \"id\"";
         QTest::newRow("project no id") << "Project" << QByteArray(R"({ "groupId": "g" })") << "\"id\"";
         QTest::newRow("project no groupId") << "Project" << QByteArray(R"({ "id": "p" })") << "\"groupId\"";
         QTest::newRow("project bad folder") << "Project"
@@ -586,8 +548,6 @@ private slots:
         bool failed = false;
         if (entity == QLatin1String("Folder"))
             failed = !Folder::fromJson(json, &error) && !Folder::fromJson(json);
-        else if (entity == QLatin1String("Connection"))
-            failed = !Connection::fromJson(json, &error) && !Connection::fromJson(json);
         else if (entity == QLatin1String("Group"))
             failed = !Group::fromJson(json, &error) && !Group::fromJson(json);
         else if (entity == QLatin1String("Profile"))

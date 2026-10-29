@@ -11,7 +11,6 @@ namespace mirante {
 
 class ItemType;
 class ItemTypeRegistry;
-struct Connection;
 
 // Asks the item types what they make of a pasted web address. The new item
 // dialog and "Paste URL…" use it. See decision 0049. Implemented in
@@ -27,17 +26,12 @@ struct TypeMatch
 {
     const ItemType *type = nullptr;
     UrlMatch match;
-    // The connection of the group whose base URL is match.baseUrl, among the
-    // type's connection kinds; empty if there is none.
-    QString connectionId;
 };
 
 // The types of the registry that take url, best first: the types of modules
-// before generic ones, such as Web page, and otherwise by name. connections
-// are those of the new item's group; each type gets the base URLs of those of
-// its connection kinds.
-std::vector<TypeMatch> match(const ItemTypeRegistry &types, const QUrl &url,
-                             const std::vector<Connection> &connections);
+// before generic ones, such as Web page, and otherwise by name. profileId is
+// the profile the new item would use; each type reads its servers there.
+std::vector<TypeMatch> match(const ItemTypeRegistry &types, const QUrl &url, const QString &profileId);
 
 } // namespace urlmatches
 } // namespace mirante

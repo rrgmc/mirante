@@ -1,9 +1,8 @@
-// Tests the group, project, task, item, dashboard, profiles and connections
-// dialogs: values read back, refusal of an empty name, the group's profile,
+// Tests the group, project, task, item, dashboard and profiles dialogs: values read back, refusal of an empty name, the group's profile,
 // the one main folder, the item editor paths (a form from fields, a type's own
 // editor, an item of a missing module), the type grid of a new item, the
 // item's profile and the form fields of that profile, creating, renaming and
-// deleting profiles, and a profile's connections.
+// deleting profiles.
 #include "core/DeviceSettings.h"
 #include "core/GroupColours.h"
 #include "core/Model.h"
@@ -11,8 +10,6 @@
 #include "core/Profiles.h"
 #include "items/ItemTypeRegistry.h"
 #include "layout/Presets.h"
-#include "ui/ConnectionEditor.h"
-#include "ui/ConnectionsDialog.h"
 #include "ui/DashboardDialog.h"
 #include "ui/FieldForm.h"
 #include "ui/GroupDialog.h"
@@ -145,7 +142,7 @@ Profile profile(const QString &id, const QString &name)
 }
 
 // A type whose form offers the id of the profile the item would use, as the
-// suggestions of its "project" field. It uses a connection, so it uses a
+// suggestions of its "project" field. Its views are web views, so it uses a
 // profile.
 class ProfileFieldsType : public ItemType
 {
@@ -153,7 +150,7 @@ public:
     QString id() const override { return QStringLiteral("sugg.thing"); }
     QString name() const override { return QStringLiteral("Suggesting"); }
     QIcon icon() const override { return {}; }
-    QStringList connectionKinds() const override { return {QStringLiteral("gitlab")}; }
+    Rendering rendering() const override { return Rendering::Web; }
 
     std::vector<Field> fields() const override
     {
@@ -201,8 +198,6 @@ private slots:
     void cleanup();
 
     void group();
-    void connectionsWithoutKinds();
-    void connections();
     void groupProfile();
     void groupColour();
     void project();
@@ -218,7 +213,6 @@ private slots:
     void itemProfile();
     void itemFieldsOfTheProfile();
     void profilesDialog();
-    void profileConnections();
     void dashboard();
 };
 
@@ -260,7 +254,7 @@ void TestDialogs::group()
     expected.name = QStringLiteral("Office");
     QCOMPARE(dialog.value(), expected);
 
-    // Connections belong to profiles now, not to groups.
+    // Groups have no connections.
     QVERIFY(!dialog.findChild<QTableWidget *>(QStringLiteral("connections")));
 }
 
@@ -313,125 +307,6 @@ void TestDialogs::groupColour()
     QVERIFY(secondCustom->isVisibleTo(&second));
     QVERIFY(secondCustom->isChecked());
     QCOMPARE(second.value(), coloured);
-}
-
-void TestDialogs::connectionsWithoutKinds()
-{
-    // No kinds are offered, so every connection is shown read-only and kept.
-    const Profile original = *model.profile(QStringLiteral("3f6c2a8e-5d1b-4c7a-9e2f-8b0d4a6c1e93"));
-    ConnectionsDialog dialog(original, QStringLiteral("Work"));
-    auto *table = dialog.editor()->table();
-    QCOMPARE(table->rowCount(), 5);
-    QCOMPARE(table->item(4, 0)->text(), QStringLiteral("timetrack"));
-    QVERIFY(!(table->item(0, 1)->flags() & Qt::ItemIsEditable));
-    QVERIFY(!(table->item(0, 3)->flags() & Qt::ItemIsEnabled));
-    QCOMPARE(table->item(0, 3)->checkState(), Qt::Checked);   // the gitlab default
-    QCOMPARE(table->item(1, 3)->checkState(), Qt::Unchecked);
-    QVERIFY(!dialog.findChild<QPushButton *>(QStringLiteral("addConnection"))->isEnabled());
-    QVERIFY(dialog.findChild<QLabel *>(QStringLiteral("noKinds"))->isVisibleTo(&dialog));
-    auto *remove = dialog.findChild<QPushButton *>(QStringLiteral("removeConnection"));
-    table->setCurrentCell(1, 1);
-    QVERIFY(!remove->isEnabled());
-    remove->click();
-
-    // Their fields and extra survive, and OK is not refused for them.
-    dialog.accept();
-    QCOMPARE(dialog.result(), int(QDialog::Accepted));
-    QCOMPARE(dialog.value(), original);
-
-    // The help names the profile and says where tokens are kept.
-    auto *help = dialog.findChild<QLabel *>(QStringLiteral("help"));
-    QVERIFY(help->text().contains(QStringLiteral("\"Work\"")));
-    QVERIFY(help->text().contains(QStringLiteral("keychain")));
-    QCOMPARE(dialog.windowTitle(), QStringLiteral("Connections of Work"));
-}
-
-void TestDialogs::connections()
-{
-    const Profile original = *model.profile(QStringLiteral("3f6c2a8e-5d1b-4c7a-9e2f-8b0d4a6c1e93"));
-    const QString gitlab = QStringLiteral("gitlab");
-    const QString cloud = QStringLiteral("jira.cloud");
-    const QString dc = QStringLiteral("jira.dc");
-    ConnectionsDialog dialog(original, QStringLiteral("Work"));
-    dialog.setConnectionKinds({gitlab, cloud, dc});
-    QCOMPARE(dialog.value(), original);
-
-    // Rows: gitlab.com, Acme self-hosted, Jira Cloud, Jira DC, time tracking.
-    auto *table = dialog.editor()->table();
-    const auto kindBox = [table](int row) { return qobject_cast<QComboBox *>(table->cellWidget(row, 0)); };
-    const auto check = [table](int row) { return table->item(row, 3); };
-    QVERIFY(kindBox(0));
-    QCOMPARE(kindBox(0)->count(), 3);
-    QCOMPARE(kindBox(0)->currentText(), gitlab);
-    QVERIFY(!kindBox(4));   // time tracking: no type uses it
-    QVERIFY(!(table->item(4, 1)->flags() & Qt::ItemIsEditable));
-    QVERIFY(table->item(1, 1)->flags() & Qt::ItemIsEditable);
-
-    // Edit in place.
-    table->item(1, 1)->setText(QStringLiteral(" Acme GitLab "));
-    table->item(1, 2)->setText(QStringLiteral("https://git.acme.example"));
-    Profile expected = original;
-    expected.connections[1].name = QStringLiteral("Acme GitLab");
-    expected.connections[1].baseUrl = QStringLiteral("https://git.acme.example");
-    QCOMPARE(dialog.value(), expected);
-
-    // One default per kind. Unchecking leaves the kind without one.
-    check(1)->setCheckState(Qt::Checked);
-    QCOMPARE(dialog.value().defaultConnections.value(gitlab), original.connections[1].id);
-    QCOMPARE(check(0)->checkState(), Qt::Unchecked);
-    check(1)->setCheckState(Qt::Unchecked);
-    QVERIFY(!dialog.value().defaultConnections.contains(gitlab));
-    check(1)->setCheckState(Qt::Checked);
-
-    // Removing the default clears it. A read-only connection is not removed.
-    auto *remove = dialog.findChild<QPushButton *>(QStringLiteral("removeConnection"));
-    table->setCurrentCell(4, 1);
-    QVERIFY(!remove->isEnabled());
-    table->setCurrentCell(1, 1);
-    QVERIFY(remove->isEnabled());
-    remove->click();
-    QCOMPARE(table->rowCount(), 4);
-    QVERIFY(!dialog.value().defaultConnections.contains(gitlab));
-
-    // Changing the kind of a default clears it. The new kind keeps its own.
-    kindBox(1)->setCurrentText(dc);
-    QCOMPARE(dialog.value().connections[1].kind, dc);
-    QVERIFY(!dialog.value().defaultConnections.contains(cloud));
-    QCOMPARE(dialog.value().defaultConnections.value(dc), original.connections[3].id);
-
-    // A new connection gets an id, the first kind, and becomes the default of
-    // a kind without one.
-    dialog.findChild<QPushButton *>(QStringLiteral("addConnection"))->click();
-    QCOMPARE(table->rowCount(), 5);
-    const Connection added = dialog.value().connections.back();
-    QVERIFY(!added.id.isEmpty());
-    QCOMPARE(added.kind, gitlab);
-    QCOMPARE(dialog.value().defaultConnections.value(gitlab), added.id);
-
-    // It needs a name and a web base URL.
-    dialog.accept();
-    QCOMPARE(dialog.result(), int(QDialog::Rejected));
-    QVERIFY(dialog.findChild<QLabel *>(QStringLiteral("message"))->text().contains(QStringLiteral("name")));
-    table->item(4, 1)->setText(QStringLiteral("GitLab (new)"));
-    table->item(4, 2)->setText(QStringLiteral("gitlab.example"));
-    dialog.accept();
-    QCOMPARE(dialog.result(), int(QDialog::Rejected));
-    table->item(4, 2)->setText(QStringLiteral("https://gitlab.example"));
-    dialog.accept();
-    QCOMPARE(dialog.result(), int(QDialog::Accepted));
-
-    expected = original;
-    expected.connections.erase(expected.connections.begin() + 1);
-    expected.connections[1].kind = dc;
-    Connection newConnection;
-    newConnection.id = added.id;
-    newConnection.kind = gitlab;
-    newConnection.name = QStringLiteral("GitLab (new)");
-    newConnection.baseUrl = QStringLiteral("https://gitlab.example");
-    expected.connections.push_back(newConnection);
-    expected.defaultConnections.remove(cloud);
-    expected.defaultConnections.insert(gitlab, added.id);
-    QCOMPARE(dialog.value(), expected);   // time tracking and its default unchanged
 }
 
 void TestDialogs::groupProfile()
@@ -601,19 +476,19 @@ void TestDialogs::profilesDialog()
     QSignalSpy deleted(&dialog, &ProfilesDialog::profileDeleted);
     QCOMPARE(dialog.windowTitle(), QStringLiteral("Profiles"));
 
-    // The warning is shown: items in one profile share its logins,
-    // connections and tokens.
+    // The warning is shown: items in one profile share its logins, servers
+    // and tokens.
     auto *warning = dialog.findChild<QLabel *>(QStringLiteral("warning"));
     QVERIFY(warning);
     QVERIFY(warning->text().contains(QStringLiteral("can read the logins and data of all sites")));
-    QVERIFY(warning->text().contains(QStringLiteral("share its logins, connections and tokens")));
+    QVERIFY(warning->text().contains(QStringLiteral("share its logins, servers and tokens")));
 
     // Default is first, and cannot be renamed or deleted.
     QCOMPARE(dialog.ids(), (QStringList{kDefaultProfile, QStringLiteral("work")}));
     dialog.select(kDefaultProfile);
     QVERIFY(!dialog.findChild<QPushButton *>(QStringLiteral("renameProfile"))->isEnabled());
     QVERIFY(!dialog.findChild<QPushButton *>(QStringLiteral("deleteProfile"))->isEnabled());
-    QVERIFY(dialog.findChild<QPushButton *>(QStringLiteral("profileConnections"))->isEnabled());
+    QVERIFY(!dialog.findChild<QPushButton *>(QStringLiteral("profileConnections")));
     answer = QStringLiteral("Other");
     dialog.renameSelected();
     dialog.deleteSelected();
@@ -650,7 +525,7 @@ void TestDialogs::profilesDialog()
     dialog.deleteSelected();
     QCOMPARE(questions.size(), 1);
     QVERIFY2(questions.front().contains(QStringLiteral("used by 1 group")), qPrintable(questions.front()));
-    QVERIFY2(questions.front().contains(QStringLiteral("connections and module settings")),
+    QVERIFY2(questions.front().contains(QStringLiteral("module settings are deleted")),
              qPrintable(questions.front()));
     QVERIFY(local.profile(QStringLiteral("work")));
     QCOMPARE(deleted.count(), 0);
@@ -682,49 +557,6 @@ void TestDialogs::profilesDialog()
     QCOMPARE(clearRequested.count(), 1);
     QCOMPARE(clearRequested.at(0).at(0).toString(), kDefaultProfile);
     QCOMPARE(dialog.ids(), (QStringList{kDefaultProfile, bank}));
-}
-
-// Connections… edits the selected profile's connections in their own
-// dialog. OK stores them in the model; Cancel changes nothing.
-void TestDialogs::profileConnections()
-{
-    Model local;
-    local.setProfiles({profile(QStringLiteral("work"), QStringLiteral("Work"))});
-    ProfilesDialog dialog(local);
-    dialog.setConnectionKinds({QStringLiteral("gitlab")});
-    auto *details = dialog.findChild<QLabel *>(QStringLiteral("details"));
-    dialog.select(QStringLiteral("work"));
-    QCOMPARE(details->text(), QStringLiteral("No connections."));
-
-    QString title;
-    bool accept = false;
-    dialog.setEditConnections([&](ConnectionsDialog &connections) {
-        title = connections.windowTitle();
-        connections.editor()->addConnection();
-        QTableWidget *table = connections.editor()->table();
-        table->item(0, 1)->setText(QStringLiteral("gitlab.com"));
-        table->item(0, 2)->setText(QStringLiteral("https://gitlab.com"));
-        return accept;
-    });
-    dialog.editConnectionsOfSelected();
-    QCOMPARE(title, QStringLiteral("Connections of Work"));
-    QVERIFY(local.profile(QStringLiteral("work"))->connections.empty());
-
-    accept = true;
-    dialog.editConnectionsOfSelected();
-    const Profile *work = local.profile(QStringLiteral("work"));
-    QCOMPARE(work->connections.size(), std::size_t(1));
-    QCOMPARE(work->connections[0].name, QStringLiteral("gitlab.com"));
-    QCOMPARE(work->defaultConnections.value(QStringLiteral("gitlab")), work->connections[0].id);
-    QCOMPARE(work->name, QStringLiteral("Work"));
-    QCOMPARE(details->text(), QStringLiteral("Connections: gitlab.com."));
-
-    // Default has connections too.
-    dialog.select(kDefaultProfile);
-    dialog.editConnectionsOfSelected();
-    QCOMPARE(title, QStringLiteral("Connections of Default"));
-    QCOMPARE(local.profile(kDefaultProfile)->connections.size(), std::size_t(1));
-    QVERIFY(local.profile(kDefaultProfile)->name.isEmpty());
 }
 
 void TestDialogs::project()

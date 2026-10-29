@@ -28,6 +28,9 @@ public:
 
     void setConfig(const QJsonObject &config) override;
     QJsonObject config() const override;
+    // The values typed into Secret fields, by key; only those changed and
+    // not empty. config() never holds them. See decision 0054.
+    QJsonObject secrets() const;
     // The messages of validate() for the current values.
     QStringList problems() const override;
 

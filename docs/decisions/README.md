@@ -11,7 +11,7 @@ Each file records one design decision: what was decided, what else was considere
 | [0003](0003-view-per-placement.md) | One live view per placement | Accepted |
 | [0004](0004-file-per-entity-sync.md) | One JSON file per entity in an externally synced folder | Accepted |
 | [0005](0005-profiles-per-group.md) | One web login profile per group, with a shared option | Superseded by 0042 |
-| [0006](0006-connections-per-group.md) | API connections per group, tokens in the keychain | Accepted; in part superseded by 0050 |
+| [0006](0006-connections-per-group.md) | API connections per group, tokens in the keychain | Superseded by 0054 |
 | [0007](0007-separate-item-types-per-rendering.md) | Separate item types for summary and page | Accepted |
 | [0008](0008-claude-sessions.md) | Claude sessions through web views and the terminal only | Accepted |
 | [0009](0009-priority-and-attention.md) | Four priority levels; attention as badges | Accepted; sorting superseded by 0034 |
@@ -42,7 +42,7 @@ Each file records one design decision: what was decided, what else was considere
 | [0034](0034-manual-order-in-the-sidebar.md) | The sidebar keeps the manual order; priority is a marker | Accepted |
 | [0036](0036-trash-for-tasks-and-projects.md) | Deleted tasks and projects go to a trash | Accepted |
 | [0037](0037-core-makes-web-views.md) | The core makes web views; modules may take the profile instead | Accepted; the item's profile by 0042 |
-| [0038](0038-read-connections-in-m4.md) | Connections are read in M4, without tokens | Accepted |
+| [0038](0038-read-connections-in-m4.md) | Connections are read in M4, without tokens | Accepted; connections superseded by 0054 |
 | [0039](0039-profiles-deleted-only-by-local-delete.md) | A group's web profile is deleted only when the group is deleted on this device | Accepted; for web profiles by 0042 |
 | [0040](0040-profiles-per-group-and-module.md) | One web login profile per group and module | Superseded by 0042 |
 | [0041](0041-own-look-for-tabs-and-tool-buttons.md) | Mirante draws its own tabs and tool buttons | Accepted |
@@ -53,11 +53,12 @@ Each file records one design decision: what was decided, what else was considere
 | [0046](0046-group-colours.md) | Each group has a colour | Accepted; item cell headers by 0047 |
 | [0047](0047-item-headers-in-group-colours.md) | Item cell headers take their group's colour | Accepted |
 | [0048](0048-focus-and-preview-slots.md) | Focus and the preview have fixed slots right of the tabs | Accepted; pinning by 0052; the sidebar's Focus entry by 0053 |
-| [0049](0049-items-from-a-pasted-link.md) | Item types read a pasted link, and the item dialog offers the types that take it | Accepted; connections of the profile by 0050 |
-| [0050](0050-profiles-hold-logins-connections-and-settings.md) | Profiles hold logins, connections and module settings | Accepted |
+| [0049](0049-items-from-a-pasted-link.md) | Item types read a pasted link, and the item dialog offers the types that take it | Accepted; connections superseded by 0054 |
+| [0050](0050-profiles-hold-logins-connections-and-settings.md) | Profiles hold logins, connections and module settings | Accepted; connections superseded by 0054 |
 | [0051](0051-paste-images-from-the-items-menu.md) | Pasted images become items of a task, not cells of a dashboard | Accepted |
 | [0052](0052-no-pinning.md) | The preview is never pinned | Accepted |
 | [0053](0053-no-focus-entry-in-the-sidebar.md) | The sidebar has no Focus entry | Accepted |
+| [0054](0054-module-settings-replace-connections.md) | Module settings replace connections | Accepted |
 
 ## Template
 

@@ -36,30 +36,34 @@ Do these first. They test the [known risk](../web-views.md#known-risk-logins-in-
 
 ## Profiles
 
-These check the profiles of decisions [0042](../decisions/0042-user-managed-web-profiles.md) and [0050](../decisions/0050-profiles-hold-logins-connections-and-settings.md). A profile holds web logins, connections and module settings. Its web data is under the app's local data folder, in `profiles/`, with one folder `p-<id>` for each profile.
+These check the profiles of decisions [0042](../decisions/0042-user-managed-web-profiles.md), [0050](../decisions/0050-profiles-hold-logins-connections-and-settings.md) and [0054](../decisions/0054-module-settings-replace-connections.md). A profile holds web logins and module settings, with the GitLab and Jira servers. Its web data is under the app's local data folder, in `profiles/`, with one folder `p-<id>` for each profile.
 
 - [ ] After the update, the folders `g-*` and `shared-*` under `profiles/` are gone after a few seconds. The items of the Logins checks ask for a login again, once per profile.
-- [ ] File > Profiles… opens the list. Default is first. Rename… and Delete… are disabled while Default is selected. Connections… and Clear Data… are enabled.
-- [ ] The dialog shows the warning that items in the same profile share its logins, connections and tokens, and that every item in a profile can read the logins and data of all sites in it.
+- [ ] Profiles > Manage Profiles… opens the list. File has no Profiles… entry. Default is first. Rename… and Delete… are disabled while Default is selected. Clear Data… is enabled. There is no Connections… button.
+- [ ] The dialog shows the warning that items in the same profile share its logins, servers and tokens, and that every item in a profile can read the logins and data of all sites in it.
 - [ ] New profile… creates "Work". A blank name, or "default" in any case, is refused with a message.
-- [ ] Rename… changes "Work" to "Office". The new name shows in the group dialog, the item dialog and the Modules dialogs.
+- [ ] Rename… changes "Work" to "Office". The new name shows in the group dialog, the item dialog and the Profiles menu.
 - [ ] A Web page item and a Claude session (web) item with the same claude.ai URL, both in group A with Default: a login in one is visible in the other.
 - [ ] In the group dialog of group B, choose "Office" as the profile. The claude.ai item in group B asks for a login: Default's login is not visible in "Office". A new folder `p-<id>` appears.
 - [ ] In the item dialog of a web item in group A, the Profile list starts with "The group's profile (Default)". Choose "Office". The page reloads and is signed in with the login from group B.
 - [ ] Items of types that use no profile, such as Notes, have no Profile choice in the item dialog. GitLab and Jira items have one, also the summary types.
-- [ ] Delete "Office" in File > Profiles…. The question says that its connections and module settings go, and names the group and the item that use it. After Yes, those pages reload in the profile they fall back to: the group B item in Default, the group A item in its group's profile, Default. Its folder `p-<id>` is gone after a few seconds.
-- [ ] With two devices on one synced workspace, a profile created on one appears in the list on the other, with its connections and settings, without its logins.
+- [ ] Delete "Office" in Profiles > Manage Profiles…. The question says that its module settings go, and names the group and the item that use it. After Yes, those pages reload in the profile they fall back to: the group B item in Default, the group A item in its group's profile, Default. Its folder `p-<id>` is gone after a few seconds.
+- [ ] With two devices on one synced workspace, a profile created on one appears in the list on the other, with its settings, without its logins.
 - [ ] Delete group A. No folder under `profiles/` goes.
-- [ ] Select Default and choose Clear Data…. A warning with the warning icon asks first, with Cancel as the default. After "Clear Data", the claude.ai pages in Default show "Clearing this profile's data…", then load again signed out. Other profiles stay signed in. Default's connections stay.
+- [ ] Select Default and choose Clear Data…. A warning with the warning icon asks first, with Cancel as the default. After "Clear Data", the claude.ai pages in Default show "Clearing this profile's data…", then load again signed out. Other profiles stay signed in. Default's module settings stay.
 
-### Connections and settings in profiles
+### Servers and settings in profiles
 
 - [ ] The group dialog has a name, a colour and a profile, and no Connections box.
-- [ ] Select "Office" and choose Connections…. Add a GitLab connection with a name and `https://gitlab.com`; it becomes the default. OK refuses a missing name or a base URL without `https://`. After OK, the line under the list names the connection.
-- [ ] A GitLab MR (page) item in group B, which uses "Office", opens its page on that connection. Set the item's profile to Default, which has no GitLab connection: the cell says "No GitLab connection in this profile."
-- [ ] Modules > GitLab > General Configuration… shows a Profile list with Default chosen. Enter paths for Default, choose "Office", enter other paths, and press OK. Both are kept: open the dialog again and switch between them.
+- [ ] The menu bar has Profiles after View, and no Modules menu. Profiles has Manage Profiles…, a separator, then Default and the other profiles by name. A new or renamed profile shows there at once.
+- [ ] Profiles > Office > Modules > GitLab > General Configuration… opens "Office: GitLab General Configuration", without a profile list, with Base URL, `https://gitlab.com` for a new profile, Token, and Project paths. Profiles > Office > Modules > Jira > General Configuration… shows Base URL, empty, and Token.
+- [ ] For "Office", set the GitLab base URL to your server and type a token. After OK, `workspace.mirante` holds the base URL and no token, and the log says that storing secrets comes in M5. Opened again, the token field is empty.
+- [ ] A GitLab MR (page) item in group B, which uses "Office", opens its page on that server. Set the item's profile to Default: the page opens on gitlab.com. Set Default's GitLab base URL to `gitlab`: the cell says "Set the GitLab base URL in this profile's Modules > GitLab > General Configuration, in the Profiles menu."
+- [ ] A Jira Issue (page) item in a profile without a Jira base URL says "Set the Jira base URL in this profile's Modules > Jira > General Configuration, in the Profiles menu."
+- [ ] Enter project paths for Default and other paths for "Office" in GitLab's General Configuration. Both are kept.
 - [ ] Edit a GitLab item of group B: the project path list offers the paths of "Office". Choose Default as the item's profile in the same dialog: the list offers Default's paths, and the typed path stays.
-- [ ] Open a workspace saved by the previous version, with connections in its groups and GitLab paths in General Configuration. Its connections now show under Connections… of the profile each group used, or of Default. Two groups in one profile with connections of the same name show the second with the group's name added. The GitLab paths show in Default. `workspace.mirante` has `profiles` and no `webProfiles` or top-level `moduleSettings`, and the group files have no `connections`.
+- [ ] In a task of group B, Paste URL… with a merge request link on the "Office" server offers the GitLab types, and the new item has no `connectionId`.
+- [ ] Open a workspace saved by an earlier version, with connections in its groups or profiles and GitLab paths in General Configuration. The GitLab and Jira base URLs of each profile come from its default connections, the GitLab paths show in Default, and the log names every connection that was dropped. `workspace.mirante` has `profiles`, no `webProfiles`, no top-level `moduleSettings`, and no `gitlab` or `jira` connections; the group files have no `connections`.
 
 ## Views
 
@@ -69,7 +73,7 @@ These check the profiles of decisions [0042](../decisions/0042-user-managed-web-
 - [ ] An address that does not load, such as `https://nonexistent.invalid`, shows the error with a Reload button.
 - [ ] A site asking to show notifications shows a bar above the page with Allow and Deny. After an answer it does not ask again, also after a restart.
 - [ ] A hidden tab does not load its pages until it is opened.
-- [ ] A GitLab MR (page) item in a profile without a GitLab connection says "No GitLab connection in this profile."
+- [ ] A GitLab MR (page) item in a profile whose GitLab base URL is not a web address says "Set the GitLab base URL in this profile's Modules > GitLab > General Configuration, in the Profiles menu."
 
 ## Memory policy
 

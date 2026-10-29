@@ -2,60 +2,17 @@
     "name": "Sample data",
     "profiles": [
         {
-            "connections": [
-                {
-                    "baseUrl": "https://gitlab.com",
-                    "fields": {},
-                    "id": "fbba0e51-92a5-52aa-983a-bc797ee4016b",
-                    "kind": "gitlab",
-                    "name": "gitlab.com (personal)"
+            "id": "default",
+            "moduleSettings": {
+                "gitlab": {
+                    "general": {
+                        "baseUrl": "https://gitlab.com"
+                    }
                 }
-            ],
-            "defaultConnections": {
-                "gitlab": "fbba0e51-92a5-52aa-983a-bc797ee4016b"
-            },
-            "id": "default"
+            }
         },
         {
             "connections": [
-                {
-                    "baseUrl": "https://gitlab.com",
-                    "fields": {},
-                    "id": "8ef145f6-9585-55de-a438-70969ec1bad0",
-                    "kind": "gitlab",
-                    "name": "gitlab.com (work)"
-                },
-                {
-                    "baseUrl": "https://gitlab.acme.internal",
-                    "fields": {
-                        "apiVersion": "v4"
-                    },
-                    "futureField": {
-                        "addedIn": 7,
-                        "tls": {
-                            "pinned": true
-                        }
-                    },
-                    "id": "6a2269ce-1dd5-5ebf-b064-2ce63914bf73",
-                    "kind": "gitlab",
-                    "name": "GitLab (Acme self-hosted)"
-                },
-                {
-                    "baseUrl": "https://acme.atlassian.net",
-                    "fields": {
-                        "email": "dev@acme.example"
-                    },
-                    "id": "4a4110cf-dc32-5070-b993-1f27604765b1",
-                    "kind": "jira.cloud",
-                    "name": "Acme Jira Cloud"
-                },
-                {
-                    "baseUrl": "https://jira.acme.internal",
-                    "fields": {},
-                    "id": "90d3f914-a970-57dc-ab52-a7fb83e824fc",
-                    "kind": "jira.dc",
-                    "name": "Ops Jira (Data Center)"
-                },
                 {
                     "baseUrl": "https://time.acme.example",
                     "fields": {
@@ -67,12 +24,21 @@
                 }
             ],
             "defaultConnections": {
-                "gitlab": "8ef145f6-9585-55de-a438-70969ec1bad0",
-                "jira.cloud": "4a4110cf-dc32-5070-b993-1f27604765b1",
-                "jira.dc": "90d3f914-a970-57dc-ab52-a7fb83e824fc",
                 "timetrack": "e4977249-d87d-5c68-9a67-55ecadcf9381"
             },
             "id": "3f6c2a8e-5d1b-4c7a-9e2f-8b0d4a6c1e93",
+            "moduleSettings": {
+                "gitlab": {
+                    "general": {
+                        "baseUrl": "https://gitlab.com"
+                    }
+                },
+                "jira": {
+                    "general": {
+                        "baseUrl": "https://acme.atlassian.net"
+                    }
+                }
+            },
             "name": "Work"
         }
     ],

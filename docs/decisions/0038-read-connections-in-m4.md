@@ -1,6 +1,6 @@
 # 0038. Connections are read in M4, without tokens
 
-- Status: Accepted
+- Status: Accepted; the connection parts superseded by [0054](0054-module-settings-replace-connections.md)
 - Date: 2026-10-29
 
 ## Context

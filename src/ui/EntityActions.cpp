@@ -1,6 +1,5 @@
 #include "ui/EntityActions.h"
 
-#include "core/Connections.h"
 #include "core/DeviceSettings.h"
 #include "core/Edits.h"
 #include "core/GroupColours.h"
@@ -10,7 +9,6 @@
 #include "items/ItemTypeRegistry.h"
 #include "items/UrlMatches.h"
 #include "layout/Presets.h"
-#include "ui/ConnectionsDialog.h"
 #include "ui/DashboardDialog.h"
 #include "ui/GroupDialog.h"
 #include "ui/ImagePaste.h"
@@ -111,6 +109,7 @@ struct EntityActions::Private
     ProfileManager *profiles = nullptr;
     std::function<void(ProfilesDialog &)> editProfiles;
     std::function<QImage()> clipboardImage;
+    std::function<void(const QString &key, const QString &secret)> saveSecret;
     ImagePaste imagePaste{model, store, types};
 
     bool shiftHeld() const { return modifiers && (modifiers() & Qt::ShiftModifier); }
@@ -186,6 +185,11 @@ EntityActions::EntityActions(Model &model, Store &store, const ItemTypeRegistry 
         return QMessageBox::question(d->dialogParent, tr("Delete"), question) == QMessageBox::Yes;
     };
     d->modifiers = [] { return QGuiApplication::queryKeyboardModifiers(); };
+    d->saveSecret = [](const QString &key, const QString &) {
+        // Tokens are stored with qtkeychain from M5. Until then the value is
+        // dropped; it is never written to the workspace or the log.
+        qInfo("A secret for %s was entered; storing secrets comes in M5, so it was not kept.", qUtf8Printable(key));
+    };
     d->clipboardImage = [] {
         const QClipboard *clipboard = QGuiApplication::clipboard();
         return clipboard ? clipboard->image() : QImage();
@@ -210,6 +214,16 @@ void EntityActions::setClipboardImage(std::function<QImage()> clipboardImage)
 
 void EntityActions::setProfileManager(ProfileManager *manager) { d->profiles = manager; }
 
+void EntityActions::setSaveSecret(std::function<void(const QString &key, const QString &secret)> save)
+{
+    d->saveSecret = std::move(save);
+}
+
+QString EntityActions::secretKey(const QString &profileId, const QString &moduleId, const QString &fieldKey)
+{
+    return profileId + QLatin1Char('/') + moduleId + QLatin1Char('/') + fieldKey;
+}
+
 void EntityActions::setEditProfiles(std::function<void(ProfilesDialog &)> edit)
 {
     d->editProfiles = std::move(edit);
@@ -221,8 +235,6 @@ void EntityActions::editProfiles()
 {
     ProfilesDialog dialog(d->model, d->dialogParent);
     dialog.setConfirm(d->confirm);
-    dialog.setConnectionKinds(d->types.connectionKinds());
-    dialog.setEditConnections([this](ConnectionsDialog &connections) { return d->exec(connections); });
     connect(&dialog, &ProfilesDialog::profileDeleted, this, [this](const QString &id) {
         // Its logins on this device go too. The placements that used it make
         // new views at once, but delete the old ones later. The profile goes
@@ -240,21 +252,20 @@ void EntityActions::editProfiles()
         dialog.exec();
 }
 
-void EntityActions::editModuleSettings(const QString &moduleId, const QString &screenId)
+void EntityActions::editModuleSettings(const QString &profileId, const QString &moduleId, const QString &screenId)
 {
     const SettingsScreen *screen = d->types.settingsScreen(moduleId, screenId);
-    if (!screen)
+    if (!screen || !d->model.profile(profileId))
         return;
-    Model *model = &d->model;
-    ModuleSettingsDialog dialog(d->types.moduleName(moduleId), *screen, profiles::all(*model),
-                                [model, moduleId, screenId](const QString &profileId) {
-                                    return model->moduleSettings(profileId, moduleId, screenId);
-                                },
-                                d->dialogParent);
+    ModuleSettingsDialog dialog(profiles::nameOf(d->model, profileId), d->types.moduleName(moduleId), *screen,
+                                d->model.moduleSettings(profileId, moduleId, screenId), d->dialogParent);
     if (!d->exec(dialog))
         return;
-    for (const auto &[profileId, values] : dialog.values())
-        d->model.setModuleSettings(profileId, moduleId, screenId, values);
+    d->model.setModuleSettings(profileId, moduleId, screenId, dialog.values());
+    // Secrets, such as tokens, stay on this device, in the keychain.
+    const QJsonObject secrets = dialog.secrets();
+    for (auto it = secrets.begin(); it != secrets.end(); ++it)
+        d->saveSecret(secretKey(profileId, moduleId, it.key()), it.value().toString());
 }
 
 // Creating.
@@ -306,47 +317,13 @@ QString EntityActions::newItem(const QString &taskId, const QString &url)
     item.id = edits::newId();
     ItemDialog dialog(item, true, d->types, d->editorContext(taskId), d->dialogParent);
     d->offerProfiles(dialog, taskId);
-    // A link is read with the connections of the profile a new item of the
-    // task uses: its group's.
-    const QString groupProfile = profiles::effectiveFor(d->model, taskId, QString());
-    std::vector<Connection> offered;
-    if (const Profile *profile = d->model.profile(groupProfile))
-        offered = profile->connections;
-    dialog.setConnections(offered);
     dialog.setUrl(url);
     if (!d->exec(dialog))
         return {};
     const Task *task = d->model.task(taskId);
     if (!task)
         return {};
-    Item value = dialog.value();
-    // The server of the link decides the connection, if the item's profile
-    // has one for it. The item names it only if it would otherwise use
-    // another. If the user chose another profile, its connection of the same
-    // kind and base URL is used, if it has one.
-    const QString linkedId = dialog.urlConnectionId();
-    const auto linked = std::find_if(offered.begin(), offered.end(),
-                                     [&linkedId](const Connection &c) { return c.id == linkedId; });
-    if (!linkedId.isEmpty() && linked != offered.end()) {
-        QString chosen;
-        if (const Profile *profile = d->model.profile(profiles::effectiveFor(d->model, taskId, value.profile))) {
-            for (const Connection &connection : profile->connections) {
-                if (connection.id == linked->id
-                    || (connection.kind == linked->kind && connection.baseUrl == linked->baseUrl)) {
-                    chosen = connection.id;
-                    break;
-                }
-            }
-        }
-        if (!chosen.isEmpty()) {
-            Item unnamed = value;
-            unnamed.connectionId.clear();
-            const Connection *resolved =
-                connections::resolve(d->model, taskId, unnamed, d->types.type(value.type).connectionKinds());
-            if (!resolved || resolved->id != chosen)
-                value.connectionId = chosen;
-        }
-    }
+    const Item value = dialog.value();
     d->model.setTask(edits::addItem(*task, value));
     return item.id;
 }

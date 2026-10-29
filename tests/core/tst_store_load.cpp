@@ -192,9 +192,9 @@ void TestStoreLoad::profiles()
     QVERIFY(store::load(QStringLiteral(MIRANTE_FIXTURES_DIR), model).empty());
     QCOMPARE(model.profiles().size(), std::size_t(2));
     QCOMPARE(model.profiles()[0].id, kDefaultProfile);
-    QCOMPARE(model.profiles()[0].connections.size(), std::size_t(1));
+    QVERIFY(model.profiles()[0].moduleSettings.contains(QStringLiteral("gitlab")));
     QCOMPARE(model.profiles()[1].name, QStringLiteral("Work"));
-    QCOMPARE(model.profiles()[1].connections.size(), std::size_t(5));
+    QVERIFY(model.profiles()[1].moduleSettings.contains(QStringLiteral("jira")));
 
     QTemporaryDir dir;
     QVERIFY(dir.isValid());

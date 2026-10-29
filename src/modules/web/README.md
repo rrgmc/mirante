@@ -20,10 +20,6 @@ Since M3 the type declares its configuration fields, so items can be created and
 |---|---|---|
 | `url` | URL, required | The page's address, starting with `http://` or `https://`. |
 
-## Connection kinds
-
-None.
-
 ## Settings
 
 None.

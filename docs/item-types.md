@@ -20,7 +20,7 @@ A module registers each of its types in the `ItemTypeRegistry` with:
 | `createEditor` | Optional: an editor of the type's own for the configuration, used instead of the form built from `fields`. It receives the project's folders and a way to save an image into `files/`. |
 | `pastedImageField` | Optional: the key of an image field that a pasted image fills. If set, "Paste Image…" in a task's Items menu creates an item of this type, and `Ctrl+V` replaces the image of such an item. See [Image](#image). |
 | `rendering` | `native` (a Qt widget) or `web` (a [web view](web-views.md)). The [memory policy](web-views.md#memory-policy) unloads web views. |
-| `connectionKinds` | The kinds of [connection](data-model.md#connection) it can use, in order of preference, such as `jira.cloud` then `jira.dc`. Empty if it needs none. |
+
 | `status` | Optional: how to fetch status and attention from the [status cache](integrations.md#polling-and-caching) |
 | `actions` | Optional: the light actions it offers |
 | `fromUrl` | Optional: recognises a pasted web address and returns a configuration, a suggested name and the base URL of its server. See [items from a link](#items-from-a-link). |
@@ -28,7 +28,7 @@ A module registers each of its types in the `ItemTypeRegistry` with:
 | `singleView` | Optional, off by default: the item can have only one view at a time |
 | `reparentSafe` | Optional, on by default: the view can be moved to another cell without being created again |
 
-A new item starts with a grid of the registered types, where the user picks one, then edits the item of that type; see [the item dialog](ui.md#item-dialog). The item dialog keeps the configuration keys that its form or editor does not show. For a type that uses a [profile](data-model.md#profile), the dialog also offers a **Profile** choice: "The group's profile (<name>)", which is the default, or any profile of the list. A type uses a profile when its `rendering` is web, it lists `connectionKinds`, or its module has settings screens. The choice is stored in the item's `profile`, not in its configuration. See [web views](web-views.md#profiles). An item whose module is missing has neither fields nor an editor; its dialog edits the name only and keeps the configuration unchanged.
+A new item starts with a grid of the registered types, where the user picks one, then edits the item of that type; see [the item dialog](ui.md#item-dialog). The item dialog keeps the configuration keys that its form or editor does not show. For a type that uses a [profile](data-model.md#profile), the dialog also offers a **Profile** choice: "The group's profile (<name>)", which is the default, or any profile of the list. A type uses a profile when its `rendering` is web or its module has settings screens. The choice is stored in the item's `profile`, not in its configuration. See [web views](web-views.md#profiles). An item whose module is missing has neither fields nor an editor; its dialog edits the name only and keeps the configuration unchanged.
 
 New types are added by registering a class in a module. No core code changes. See [adding a module](modules.md#adding-a-module).
 
@@ -36,7 +36,7 @@ When a field has a project default, the type uses it when the field is empty. Fo
 
 ## Items from a link
 
-A pasted web address can make an item. The new item dialog asks every type's `fromUrl` about it, and offers the types that take it: types of modules first, then Web page. Choosing one fills its configuration and name. If the address is on the server of one of the connections of the group's profile, the item uses that connection. See [decision 0049](decisions/0049-items-from-a-pasted-link.md), [the item dialog](ui.md#item-dialog) and [modules](modules.md#items-from-a-link).
+A pasted web address can make an item. The new item dialog asks every type's `fromUrl` about it, and offers the types that take it: types of modules first, then Web page. Choosing one fills its configuration and name. Each type reads the address with the server in its module settings, in the profile of the group. See [decision 0049](decisions/0049-items-from-a-pasted-link.md), [the item dialog](ui.md#item-dialog) and [modules](modules.md#items-from-a-link).
 
 | Address | Types that take it | Configuration filled | Name |
 |---|---|---|---|
@@ -49,8 +49,8 @@ A pasted web address can make an item. The new item dialog asks every type's `fr
 | `https://claude.ai/...` | Claude session (web) | `url` | "Claude session" |
 | any `http` or `https` address | Web page | `url` | the host, without `www.` |
 
-- **GitLab servers.** `<base>` is the base URL of one of the group's `gitlab` connections, so a server installed at a path is read correctly. Without a matching connection, `gitlab.com` and any other server are still read, because the `/-/` in the path is GitLab's own; the base is then the server without a path.
-- **Jira servers.** `<base>` is the base URL of one of the group's `jira.cloud` or `jira.dc` connections, or any `atlassian.net` site. Any other server is read only from `/browse/<key>`, with Jira taken to be installed at the path before it. Keys are read in upper case.
+- **GitLab servers.** `<base>` is the GitLab base URL of the group's profile, so a server installed at a path is read correctly. On another server, `gitlab.com` and any other server are still read, because the `/-/` in the path is GitLab's own; the base is then the server without a path.
+- **Jira servers.** `<base>` is the Jira base URL of the group's profile, or any `atlassian.net` site. Any other server is read only from `/browse/<key>`, with Jira taken to be installed at the path before it. Keys are read in upper case.
 
 ## The view
 
@@ -75,7 +75,7 @@ Anything else uses the "Open page" button. It opens the matching page type in th
 
 ## GitLab
 
-Module `gitlab`. All GitLab types need a `gitlab` connection. In the item dialog, every `project` field offers the project paths of Modules > GitLab > General Configuration in an editable list, so a path is chosen instead of typed. Another path can still be typed. See [settings screens](modules.md#settings-screens).
+Module `gitlab`. All GitLab types talk to the GitLab server of the item's profile, set in its GitLab General Configuration: a base URL, `https://gitlab.com` by default, and a token. In the item dialog, every `project` field offers the project paths of that screen in an editable list, so a path is chosen instead of typed. Another path can still be typed. See [settings screens](modules.md#settings-screens).
 
 ### GitLab MR (summary)
 
@@ -95,8 +95,8 @@ Module `gitlab`. All GitLab types need a `gitlab` connection. In the item dialog
 
 `gitlab.mr.page`, web. The merge request's web page, in the item's [profile](web-views.md#profiles). Its configuration is the summary's: `project` and `iid`.
 
-- **Address:** `<baseUrl>/<project>/-/merge_requests/<iid>`, where `baseUrl` is the connection's base URL. An empty `project` uses the project's `gitlab.project` setting.
-- **Without a `gitlab` connection,** the cell says "No GitLab connection in this profile."
+- **Address:** `<baseUrl>/<project>/-/merge_requests/<iid>`, where `baseUrl` is the GitLab base URL of the item's profile. An empty `project` uses the project's `gitlab.project` setting.
+- **With a base URL that is not a web address,** the cell says "Set the GitLab base URL in this profile's Modules > GitLab > General Configuration, in the Profiles menu."
 - **Without a project or a number,** the cell says "Set the project and number in the item's settings."
 
 ### GitLab MR List
@@ -139,7 +139,7 @@ Module `gitlab`. All GitLab types need a `gitlab` connection. In the item dialog
 
 ## Jira
 
-Module `jira`. Jira types need a `jira.cloud` or `jira.dc` connection.
+Module `jira`. Jira types talk to the Jira site of the item's profile, set in its Jira General Configuration: a base URL, without a default, and a token.
 
 ### Jira Issue (summary)
 
@@ -159,8 +159,8 @@ Module `jira`. Jira types need a `jira.cloud` or `jira.dc` connection.
 
 `jira.issue.page`, web. The issue's web page. Its configuration is the summary's: `key`.
 
-- **Address:** `<baseUrl>/browse/<key>`, where `baseUrl` is the connection's base URL. A `jira.cloud` connection is used first, then a `jira.dc` one.
-- **Without a Jira connection,** the cell says "No Jira connection in this profile."
+- **Address:** `<baseUrl>/browse/<key>`, where `baseUrl` is the Jira base URL of the item's profile.
+- **Without a Jira base URL,** the cell says "Set the Jira base URL in this profile's Modules > Jira > General Configuration, in the Profiles menu."
 - **Without an issue key,** the cell says "Set the issue key in the item's settings."
 
 ### Jira List

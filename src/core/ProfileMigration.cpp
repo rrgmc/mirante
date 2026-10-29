@@ -2,6 +2,7 @@
 
 #include <QJsonArray>
 #include <QJsonValue>
+#include <QDebug>
 #include <QMap>
 #include <QSet>
 
@@ -11,6 +12,30 @@
 namespace mirante::profilemigration {
 
 namespace {
+
+const QString kId = QStringLiteral("id");
+const QString kKind = QStringLiteral("kind");
+const QString kName = QStringLiteral("name");
+const QString kBaseUrl = QStringLiteral("baseUrl");
+const QString kGeneral = QStringLiteral("general");
+
+// The modules whose settings take the place of connections, and the
+// connection kinds each read, in order of preference. These are the only
+// connection kinds there ever were. See decision 0054.
+struct ModuleKinds
+{
+    QString module;
+    QStringList kinds;
+};
+
+const std::vector<ModuleKinds> &moduleKinds()
+{
+    static const std::vector<ModuleKinds> list{
+        {QStringLiteral("gitlab"), {QStringLiteral("gitlab")}},
+        {QStringLiteral("jira"), {QStringLiteral("jira.cloud"), QStringLiteral("jira.dc")}},
+    };
+    return list;
+}
 
 // The index of Default in profiles, added first if missing.
 std::size_t defaultIndex(std::vector<Profile> &profiles)
@@ -37,58 +62,29 @@ Profile &targetOf(const Group &group, std::vector<Profile> &profiles)
     return profiles[standard];
 }
 
-bool nameUsed(const Profile &profile, const QString &name)
-{
-    return std::any_of(profile.connections.begin(), profile.connections.end(), [&name](const Connection &c) {
-        return c.name.compare(name, Qt::CaseInsensitive) == 0;
-    });
-}
-
-// name, or name with the group's name added if the profile uses it already.
-QString distinctName(const Profile &profile, const QString &name, const QString &groupName)
-{
-    if (!nameUsed(profile, name))
-        return name;
-    const QString base = QStringLiteral("%1 (%2)").arg(name, groupName);
-    QString candidate = base;
-    for (int n = 2; nameUsed(profile, candidate); ++n)
-        candidate = QStringLiteral("%1 (%2 %3)").arg(name, groupName).arg(n);
-    return candidate;
-}
-
-const Connection *connectionOf(const Profile &profile, const QString &id, const QString &kind)
-{
-    for (const Connection &connection : profile.connections) {
-        if (connection.id == id)
-            return connection.kind == kind ? &connection : nullptr;
-    }
-    return nullptr;
-}
-
-// The old keys of a group, or nullopt if they cannot be read.
+// The old keys of a group or profile, or nullopt if they cannot be read.
+// Each connection is kept as its JSON object.
 struct OldKeys
 {
-    std::vector<Connection> connections;
+    std::vector<QJsonObject> connections;
     QMap<QString, QString> defaults;
 };
 
-std::optional<OldKeys> readOldKeys(const Group &group)
+std::optional<OldKeys> readOldKeys(const QJsonObject &extra)
 {
     OldKeys keys;
-    const QJsonValue connections = group.extra.value(kOldConnections);
+    const QJsonValue connections = extra.value(kOldConnections);
     if (!connections.isUndefined()) {
         if (!connections.isArray())
             return std::nullopt;
         for (const QJsonValue &value : connections.toArray()) {
-            if (!value.isObject())
+            const QJsonObject connection = value.toObject();
+            if (!value.isObject() || connection.value(kId).toString().isEmpty())
                 return std::nullopt;
-            std::optional<Connection> connection = Connection::fromJson(value.toObject());
-            if (!connection)
-                return std::nullopt;
-            keys.connections.push_back(std::move(*connection));
+            keys.connections.push_back(connection);
         }
     }
-    const QJsonValue defaults = group.extra.value(kOldDefaultConnections);
+    const QJsonValue defaults = extra.value(kOldDefaultConnections);
     if (!defaults.isUndefined()) {
         if (!defaults.isObject())
             return std::nullopt;
@@ -102,6 +98,89 @@ std::optional<OldKeys> readOldKeys(const Group &group)
     return keys;
 }
 
+bool isModuleKind(const QString &kind)
+{
+    return std::any_of(moduleKinds().begin(), moduleKinds().end(),
+                       [&kind](const ModuleKinds &entry) { return entry.kinds.contains(kind); });
+}
+
+void logDropped(const QJsonObject &connection, const QString &profileId, const QString &reason)
+{
+    qInfo().noquote() << QStringLiteral("Dropped the connection \"%1\" (%2, %3) of profile %4: %5")
+                                         .arg(connection.value(kName).toString(), connection.value(kKind).toString(),
+                                              connection.value(kBaseUrl).toString(), profileId, reason);
+}
+
+// Moves connections into profile: the base URL of each module, and the
+// connections of other kinds into its extra.
+void apply(Profile &profile, const OldKeys &old)
+{
+    for (const ModuleKinds &entry : moduleKinds()) {
+        std::vector<QJsonObject> candidates;
+        for (const QJsonObject &connection : old.connections) {
+            if (entry.kinds.contains(connection.value(kKind).toString()))
+                candidates.push_back(connection);
+        }
+        if (candidates.empty())
+            continue;
+
+        // The default of the first kind that has one, else the first.
+        std::optional<QJsonObject> winner;
+        for (const QString &kind : entry.kinds) {
+            const QString id = old.defaults.value(kind);
+            for (const QJsonObject &connection : candidates) {
+                if (!winner && !id.isEmpty() && connection.value(kId).toString() == id
+                    && connection.value(kKind).toString() == kind)
+                    winner = connection;
+            }
+        }
+        if (!winner)
+            winner = candidates.front();
+
+        QJsonObject module = profile.moduleSettings.value(entry.module).toObject();
+        QJsonObject general = module.value(kGeneral).toObject();
+        const QString existing = general.value(kBaseUrl).toString();
+        const QString baseUrl = winner->value(kBaseUrl).toString();
+        const bool take = existing.isEmpty() && !baseUrl.isEmpty();
+        if (take) {
+            general.insert(kBaseUrl, baseUrl);
+            module.insert(kGeneral, general);
+            profile.moduleSettings.insert(entry.module, module);
+        }
+        for (const QJsonObject &connection : candidates) {
+            if ((take && connection == *winner) || connection.value(kBaseUrl).toString() == existing)
+                continue;
+            logDropped(connection, profile.id,
+                       take ? QStringLiteral("the profile keeps one server per module")
+                            : QStringLiteral("the profile already has a base URL"));
+        }
+    }
+
+    // Other kinds stay, under the old keys, unless the profile has them.
+    QJsonArray kept = profile.extra.value(kOldConnections).toArray();
+    QSet<QString> ids;
+    for (const QJsonValue &value : std::as_const(kept))
+        ids.insert(value.toObject().value(kId).toString());
+    QJsonObject keptDefaults = profile.extra.value(kOldDefaultConnections).toObject();
+    for (const QJsonObject &connection : old.connections) {
+        const QString kind = connection.value(kKind).toString();
+        if (isModuleKind(kind) || ids.contains(connection.value(kId).toString()))
+            continue;
+        kept.append(connection);
+        ids.insert(connection.value(kId).toString());
+    }
+    for (auto it = old.defaults.begin(); it != old.defaults.end(); ++it) {
+        if (!isModuleKind(it.key()) && !keptDefaults.contains(it.key()))
+            keptDefaults.insert(it.key(), it.value());
+    }
+    profile.extra.remove(kOldConnections);
+    profile.extra.remove(kOldDefaultConnections);
+    if (!kept.isEmpty())
+        profile.extra.insert(kOldConnections, kept);
+    if (!keptDefaults.isEmpty())
+        profile.extra.insert(kOldDefaultConnections, keptDefaults);
+}
+
 } // namespace
 
 bool hasOldConnections(const Group &group)
@@ -109,15 +188,30 @@ bool hasOldConnections(const Group &group)
     return group.extra.contains(kOldConnections) || group.extra.contains(kOldDefaultConnections);
 }
 
-Changes moveConnections(std::vector<Group> &groups, std::vector<Project> &projects, std::vector<Profile> &profiles)
+bool hasOldConnections(const Profile &profile)
+{
+    const std::optional<OldKeys> old = readOldKeys(profile.extra);
+    if (!old)
+        return false;
+    return std::any_of(old->connections.begin(), old->connections.end(), [](const QJsonObject &connection) {
+        return isModuleKind(connection.value(kKind).toString());
+    });
+}
+
+Changes moveConnections(std::vector<Group> &groups, std::vector<Profile> &profiles)
 {
     Changes changes;
     defaultIndex(profiles);
 
-    QSet<QString> known;
-    for (const Profile &profile : profiles) {
-        for (const Connection &connection : profile.connections)
-            known.insert(connection.id);
+    for (Profile &profile : profiles) {
+        if (!hasOldConnections(profile))
+            continue;
+        const std::optional<OldKeys> old = readOldKeys(profile.extra);
+        const Profile before = profile;
+        profile.extra.remove(kOldConnections);
+        profile.extra.remove(kOldDefaultConnections);
+        apply(profile, *old);
+        changes.profiles = changes.profiles || profile != before;
     }
 
     std::vector<Group *> ordered;
@@ -130,44 +224,13 @@ Changes moveConnections(std::vector<Group> &groups, std::vector<Project> &projec
     });
 
     for (Group *group : ordered) {
-        const std::optional<OldKeys> old = readOldKeys(*group);
+        const std::optional<OldKeys> old = readOldKeys(group->extra);
         if (!old)
             continue;
         Profile &target = targetOf(*group, profiles);
-
-        for (Connection connection : old->connections) {
-            if (known.contains(connection.id))
-                continue;
-            connection.name = distinctName(target, connection.name, group->name);
-            target.connections.push_back(connection);
-            known.insert(connection.id);
-            changes.profiles = true;
-        }
-
-        for (auto it = old->defaults.begin(); it != old->defaults.end(); ++it) {
-            const QString &kind = it.key();
-            const QString &id = it.value();
-            if (!connectionOf(target, id, kind))
-                continue;   // a default that names no connection of its kind
-            const QString current = target.defaultConnections.value(kind);
-            if (current == id)
-                continue;
-            if (!connectionOf(target, current, kind)) {
-                target.defaultConnections.insert(kind, id);
-                changes.profiles = true;
-                continue;
-            }
-            // The profile has another default: the group's projects keep
-            // theirs through an override.
-            for (Project &project : projects) {
-                if (project.groupId != group->id || project.connectionOverrides.contains(kind))
-                    continue;
-                project.connectionOverrides.insert(kind, id);
-                if (!changes.projects.contains(project.id))
-                    changes.projects << project.id;
-            }
-        }
-
+        const Profile before = target;
+        apply(target, *old);
+        changes.profiles = changes.profiles || target != before;
         group->extra.remove(kOldConnections);
         group->extra.remove(kOldDefaultConnections);
         changes.groups << group->id;

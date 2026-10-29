@@ -1,6 +1,6 @@
 # 0006. API connections per group, tokens in the keychain
 
-- Status: Accepted; superseded in part by [0050](0050-profiles-hold-logins-connections-and-settings.md): connections and tokens belong to profiles
+- Status: Superseded by [0054](0054-module-settings-replace-connections.md); earlier, in part, by [0050](0050-profiles-hold-logins-connections-and-settings.md)
 - Date: 2026-10-28
 
 ## Context

@@ -92,12 +92,10 @@ struct ItemDialog::Private
     // Making an item from a pasted link. See decision 0049.
     QLineEdit *urlEdit = nullptr;       // only when creating
     QLabel *typeHint = nullptr;         // only when creating
-    std::vector<Connection> connections;
     QUrl url;                           // the link in urlEdit, if it is a web address
     std::vector<urlmatches::TypeMatch> matches;     // the types that take url, best first
     QUrl editorUrl;                     // the link the editor was filled from, if any
     QString filledName;                 // the name last filled from a link
-    QString urlConnectionId;            // the chosen type's connection from the link
 
     const urlmatches::TypeMatch *matchFor(const QString &id) const
     {
@@ -116,7 +114,8 @@ struct ItemDialog::Private
         const QString selected = current ? current->data(Qt::UserRole).toString() : QString();
 
         url = urlmatches::webAddress(urlEdit->text());
-        matches = urlmatches::match(*types, url, connections);
+        // A link is read in the profile a new item uses: its group's.
+        matches = urlmatches::match(*types, url, groupProfile);
         std::vector<const ItemType *> shown;
         if (url.isEmpty()) {
             shown = types->types();
@@ -256,7 +255,6 @@ struct ItemDialog::Private
                 name->setText(suggested);
                 filledName = suggested;
             }
-            urlConnectionId = found->connectionId;
         } else {
             if (id != editorType || !editorUrl.isEmpty()) {
                 // The configuration given with the item belongs to its own type.
@@ -264,7 +262,6 @@ struct ItemDialog::Private
                 makeEditor(given ? original.config : defaultConfig(types->type(id).fields()));
                 editorUrl.clear();
             }
-            urlConnectionId.clear();
         }
         showTypeName();
         showProfile();
@@ -363,7 +360,7 @@ ItemDialog::ItemDialog(const Item &item, bool creating, const ItemTypeRegistry &
 
     d->profile = new QComboBox(d->itemPage);
     d->profile->setObjectName(QStringLiteral("profile"));
-    d->profile->setToolTip(tr("The item uses the logins, connections and module settings of its profile. It can "
+    d->profile->setToolTip(tr("The item uses the logins and module settings of its profile. It can "
                               "read the logins and data of every site in the profile."));
     form->addRow(tr("Profile:"), d->profile);
 
@@ -457,20 +454,11 @@ ItemDialog::~ItemDialog()
         d->urlEdit->disconnect(this);
 }
 
-void ItemDialog::setConnections(const std::vector<Connection> &connections)
-{
-    d->connections = connections;
-    if (d->urlEdit)
-        d->fillTypeList();
-}
-
 void ItemDialog::setUrl(const QString &text)
 {
     if (d->urlEdit)
         d->urlEdit->setText(text.trimmed());
 }
-
-QString ItemDialog::urlConnectionId() const { return d->urlConnectionId; }
 
 Item ItemDialog::value() const
 {
@@ -524,8 +512,11 @@ void ItemDialog::setProfiles(const std::vector<Profile> &profiles, const QString
     if (d->profile->findData(current) < 0)
         d->profile->addItem(tr("Unknown profile, uses the group's"), current);
     d->profile->setCurrentIndex(d->profile->findData(current));
-    // The form may offer values of the profile.
+    // The form may offer values of the profile, and a link is read in the
+    // group's profile.
     d->profileChosen();
+    if (d->urlEdit && !d->urlEdit->text().trimmed().isEmpty())
+        d->fillTypeList();
 }
 
 void ItemDialog::setProfile(const QString &id)

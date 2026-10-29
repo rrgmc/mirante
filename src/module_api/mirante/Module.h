@@ -25,8 +25,9 @@ public:
     // with the module id and a dot, and must not be registered twice.
     virtual void addItemType(std::unique_ptr<ItemType> type) = 0;
 
-    // The module's name for the user, such as "GitLab". The Modules menu names
-    // the module's submenu with it. Defaults to the module id.
+    // The module's name for the user, such as "GitLab". Each profile's
+    // Modules submenu names the module's submenu with it. Defaults to the
+    // module id.
     virtual void setModuleName(const QString &name) = 0;
 
     // Takes ownership of a configuration screen. Its id must be lowercase

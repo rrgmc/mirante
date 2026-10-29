@@ -32,7 +32,6 @@ public:
     QJsonObject config() const override { return itemConfig; }
     QJsonValue projectSetting(const QString &) const override { return {}; }
     QJsonObject moduleSettings(const QString &) const override { return {}; }
-    std::optional<mirante::ConnectionDetails> connection(const QStringList &) const override { return {}; }
     QString folderPath(const QString &) const override { return {}; }
 
     QWidget *createWebView(const QUrl &url, QWidget *parent) override
@@ -99,7 +98,6 @@ private slots:
 
         const mirante::ItemType &type = registry.type(QStringLiteral("web.page"));
         QVERIFY(type.rendering() == mirante::Rendering::Web);
-        QVERIFY(type.connectionKinds().isEmpty());
     }
 
     void viewShowsPageOrMessage_data()
