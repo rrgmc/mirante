@@ -23,7 +23,10 @@ if ($env:MIRANTE_QT_ROOT -and $env:MIRANTE_QT_ROOT -notmatch '^([A-Za-z]:[\\/]|[
 $QtDir = Join-Path $QtRoot "$QtVersion\$QtArchDir"
 
 # qtsvg provides the plugin that loads the SVG icons of item types.
-if (-not (Test-Path (Join-Path $QtDir 'lib\cmake\Qt6Svg'))) {
+# Qt WebEngine shows web items; it needs qtdeclarative, qtwebchannel and
+# qtpositioning. The check looks for WebEngine, so an older Qt without it
+# is completed.
+if (-not (Test-Path (Join-Path $QtDir 'lib\cmake\Qt6WebEngineWidgets'))) {
     if (-not (Get-Command uvx -ErrorAction SilentlyContinue)) {
         throw 'uv is required to download Qt. Install it from https://docs.astral.sh/uv/ and run this script again.'
     }
@@ -31,7 +34,7 @@ if (-not (Test-Path (Join-Path $QtDir 'lib\cmake\Qt6Svg'))) {
     # uvx and aqt print progress on stderr, which Windows PowerShell turns into
     # errors. Pass it on as text and check the exit code instead.
     $ErrorActionPreference = 'Continue'
-    & uvx --from aqtinstall aqt install-qt windows desktop $QtVersion $QtArch -O $QtRoot --archives qtbase qtsvg 2>&1 |
+    & uvx --from aqtinstall aqt install-qt windows desktop $QtVersion $QtArch -O $QtRoot --archives qtbase qtsvg qtdeclarative -m qtwebengine qtwebchannel qtpositioning 2>&1 |
         ForEach-Object { "$_" } | Out-Host
     $ErrorActionPreference = 'Stop'
     if ($LASTEXITCODE -ne 0) { throw "aqtinstall failed with exit code $LASTEXITCODE" }
