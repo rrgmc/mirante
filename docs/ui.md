@@ -151,6 +151,7 @@ Standard controls, such as buttons, menus, lists and dialogs, keep the platform'
 - **Close buttons on tabs** are on the right. They show on the current tab and on the tab under the mouse only.
 - **Cell borders** are a thin, light line with rounded corners.
 - **The warning bar** has a tinted background and no frame.
+- **Push buttons** show no focus ring. On macOS the ring is drawn outside the button, and a dialog's layout cut it into stray bars around the default button. The default button still shows by its colour.
 - **Dialogs on macOS** are attached to the main window or the detached window they belong to, as child windows. They stay directly above that window and come forward with it, so no other app's window can come between them. A dialog opened from another dialog follows its parent dialog. On Windows and Linux nothing changes. Sheets, which slide down from the title bar, were tried first, but Qt decides whether a dialog is a sheet before an app-wide hook can see that it is modal. The code is in `src/platform/AttachedDialogs.cpp` and `AttachedDialogsMac.mm`.
 - **Forms** in dialogs fill the dialog's width and start at its top left on every platform. On macOS, Qt would otherwise keep each field at its natural width and centre the form, which cuts long values, such as addresses, short.
 - **The sidebar** has a light grey background, a little darker than the window, with rounded row shapes, as in macOS sidebars. See [sidebar tree](#sidebar-tree).
