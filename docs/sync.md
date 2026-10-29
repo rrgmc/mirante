@@ -44,7 +44,14 @@ A single SQLite database is not used. Sync tools copy database files whole and c
 Sync tools create conflict copies when two devices change the same file before syncing:
 
 - Syncthing: `<name>.sync-conflict-<date>-<time>-<device>.json`.
-- OneDrive and Dropbox add a device name or "conflicted copy" to the file name.
+- OneDrive: `<name>-<device>.json`.
+- Dropbox: `<name> (<user>'s conflicted copy <date>).json`.
+
+The app does not match these formats, because they differ between tools, versions and languages. It recognises a copy by the start of its name instead. See [decision 0031](decisions/0031-conflict-copies-by-id-prefix.md).
+
+- Entity files and images are named after a UUID. A file whose name starts with a UUID, but is not exactly `<uuid>.json` or `<uuid>.<ext>`, is a conflict copy of the file with that UUID.
+- The original has the extension that ends the copy's name. For example, `<uuid>.sync-conflict-20261028-101500-ABCDEFG.json` is a copy of `<uuid>.json`.
+- A file whose name starts with `workspace` and ends with `.mirante`, other than `workspace.mirante`, is a conflict copy of `workspace.mirante`.
 
 The app does not load conflict copies. It lists them in a warning bar with three choices:
 
