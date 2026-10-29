@@ -114,9 +114,9 @@ struct Placement::Private
             services.model->profile(mirante::profiles::effective(*services.model, taskId, itemId));
         if (!profile)
             return {};
-        QJsonObject data = profile->toJson();
-        data.remove(QStringLiteral("name"));
-        return data;
+        QJsonObject json = profile->toJson();
+        json.remove(QStringLiteral("name"));
+        return json;
     }
 
     void retire(QWidget *widget)
