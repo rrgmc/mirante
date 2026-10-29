@@ -167,15 +167,10 @@ static QWebEngineProfile *profileNamed(ProfileManager *manager, QHash<QString, Q
     QDir().mkpath(path);
     auto *profile = new QWebEngineProfile(name, manager);
     // A named profile makes an empty folder under the default data path
-    // before it can be moved. Qt 6.8 has no way to name it without that, so
-    // the empty folders are removed again. rmdir leaves folders that are not
-    // empty alone.
-    const QString defaultPath = profile->persistentStoragePath();
+    // before it can be moved. Qt 6.8 has no way to name it without that. The
+    // folder stays: Chromium keeps using that path for some storage, and on
+    // Windows it stops the app if the folder is gone.
     profile->setPersistentStoragePath(path);
-    if (QDir::cleanPath(defaultPath) != QDir::cleanPath(path)) {
-        QDir().rmdir(defaultPath);
-        QDir().rmdir(QFileInfo(defaultPath).absolutePath());
-    }
     profile->setCachePath(QDir(path).filePath(QStringLiteral("cache")));
     profile->setPersistentCookiesPolicy(QWebEngineProfile::ForcePersistentCookies);
     profile->setPersistentPermissionsPolicy(QWebEngineProfile::PersistentPermissionsPolicy::StoreOnDisk);

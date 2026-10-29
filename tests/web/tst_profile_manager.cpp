@@ -13,6 +13,7 @@
 #include <QPointer>
 #include <QSet>
 #include <QSignalSpy>
+#include <QStandardPaths>
 #include <QTemporaryDir>
 #include <QTest>
 #include <QUrl>
@@ -160,6 +161,18 @@ private slots:
             QVERIFY(!profile->httpUserAgent().contains(QLatin1String("QtWebEngine")));
             QVERIFY(profile->httpUserAgent().contains(QLatin1String("Chrome/")));
         }
+    }
+
+    // Chromium keeps using a named profile's first folder, under Qt's default
+    // data path, after the profile moves. On Windows it stops the app when
+    // that folder is gone, so the manager must leave it.
+    void defaultFolderStays()
+    {
+        QWebEngineProfile *profile = manager->profile(QStringLiteral("stays"));
+        QVERIFY(profile);
+        const QString defaultPath = QDir(QStandardPaths::writableLocation(QStandardPaths::AppDataLocation))
+                                        .filePath(QStringLiteral("QtWebEngine/") + profile->storageName());
+        QVERIFY2(QDir(defaultPath).exists(), qPrintable(defaultPath));
     }
 
     // Ids come from synced files, so one that could name another folder gives
