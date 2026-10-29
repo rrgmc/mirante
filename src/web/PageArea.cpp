@@ -10,6 +10,7 @@
 #include <QVBoxLayout>
 #include <QWebEngineLoadingInfo>
 #include <QWebEngineView>
+#include <QtDebug>
 
 #include <deque>
 
@@ -20,6 +21,17 @@ namespace {
 // Chromium's code for a load that was stopped, for example by a new load or
 // by a download. It is not a failure to show.
 constexpr int kAbortedErrorCode = -3;
+
+// Whether a failed load shows the failure message instead of the page.
+// Chromium's network errors, such as a host that does not resolve, have
+// negative codes. A positive code is an HTTP status, such as 404: the server
+// sent a page, which Chrome shows, so the panel shows it too.
+bool showsFailure(QWebEngineLoadingInfo::ErrorDomain domain, int code)
+{
+    if (domain == QWebEngineLoadingInfo::HttpStatusCodeDomain)
+        return false;
+    return code < 0 && code != kAbortedErrorCode;
+}
 
 QString permissionQuestion(const QWebEnginePermission &permission)
 {
@@ -141,16 +153,19 @@ struct PageArea::Private
         case QWebEngineLoadingInfo::LoadSucceededStatus:
             stack->setCurrentWidget(view);
             break;
-        case QWebEngineLoadingInfo::LoadFailedStatus:
-            // A server's error page, such as a 404, has content to show.
-            if (info.errorCode() == kAbortedErrorCode
-                || info.errorDomain() == QWebEngineLoadingInfo::HttpStatusCodeDomain)
+        case QWebEngineLoadingInfo::LoadFailedStatus: {
+            qInfo().noquote() << "Load failed:" << info.url().toDisplayString() << "domain" << info.errorDomain()
+                              << "code" << info.errorCode() << info.errorString();
+            if (!showsFailure(info.errorDomain(), info.errorCode()))
                 break;
             failedUrl = info.url();
-            failureText->setText(tr("Could not load %1\n%2")
-                                     .arg(info.url().toDisplayString(), info.errorString()));
+            const QString reason = info.errorString().isEmpty()
+                ? tr("Error %1").arg(info.errorCode())
+                : info.errorString();
+            failureText->setText(tr("Could not load %1\n%2").arg(info.url().toDisplayString(), reason));
             stack->setCurrentWidget(failure);
             break;
+        }
         case QWebEngineLoadingInfo::LoadStoppedStatus:
             break;
         }
