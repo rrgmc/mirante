@@ -1,8 +1,10 @@
 // Tests DeviceSettings on a QSettings in a temporary INI file: the keys M2
-// used, the recent list, folder paths and the open tabs of each workspace.
+// used, the recent list, folder paths, the open tabs of each workspace, the
+// windows of detached dashboards and the hidden-view limit.
 #include "core/DeviceSettings.h"
 
 #include <QDir>
+#include <QFile>
 #include <QFileInfo>
 #include <QSettings>
 #include <QTemporaryDir>
@@ -54,6 +56,9 @@ private slots:
         const DeviceSettings::Tabs tabs = device.openTabs(QStringLiteral("C:/work"));
         QVERIFY(!tabs.saved);
         QVERIFY(tabs.ids.isEmpty());
+        QVERIFY(tabs.detached.isEmpty());
+        QVERIFY(device.detachedGeometry(QStringLiteral("d1")).isEmpty());
+        QCOMPARE(device.hiddenViewLimit(), 8);
     }
 
     // The --settings option: settings kept in an INI file of their own.
@@ -239,6 +244,101 @@ private slots:
         reopen();
         const DeviceSettings reread(settings.get());
         QCOMPARE(reread.openTabs(workspace).ids, tabs.ids);
+    }
+
+    void detachedTabsRoundTrip()
+    {
+        const QString one = dir->filePath(QStringLiteral("one"));
+        const QString two = dir->filePath(QStringLiteral("two"));
+        DeviceSettings::Tabs tabs;
+        tabs.ids = {QStringLiteral("d1")};
+        tabs.current = QStringLiteral("d1");
+        tabs.detached = {QStringLiteral("d2"), QStringLiteral("d3")};
+        {
+            DeviceSettings device(settings.get());
+            device.setOpenTabs(one, tabs);
+            DeviceSettings::Tabs other;
+            other.ids = {QStringLiteral("d4")};
+            device.setOpenTabs(two, other);
+        }
+        reopen();
+        DeviceSettings device(settings.get());
+        const DeviceSettings::Tabs read = device.openTabs(one);
+        QCOMPARE(read.ids, tabs.ids);
+        QCOMPARE(read.current, tabs.current);
+        QCOMPARE(read.detached, tabs.detached);
+        // Another workspace has its own list.
+        QVERIFY(device.openTabs(two).detached.isEmpty());
+
+        // Saving again without detached dashboards clears the list.
+        tabs.detached.clear();
+        device.setOpenTabs(one, tabs);
+        reopen();
+        QVERIFY(DeviceSettings(settings.get()).openTabs(one).detached.isEmpty());
+    }
+
+    void detachedGeometry()
+    {
+        const QString id = QStringLiteral("0b6c3c1e-8f5a-4d1e-9c1a-2f7d3e4b5a6c");
+        const QByteArray geometry("\x01\xd9\xd0\xcb\x00\x03geometry", 14);
+        {
+            DeviceSettings device(settings.get());
+            device.setDetachedGeometry(id, geometry);
+            device.setDetachedGeometry(QStringLiteral("other"), QByteArray("g2"));
+            // An empty id is ignored.
+            device.setDetachedGeometry(QString(), QByteArray("g3"));
+        }
+        reopen();
+        DeviceSettings device(settings.get());
+        QCOMPARE(device.detachedGeometry(id), geometry);
+        QCOMPARE(device.detachedGeometry(QStringLiteral("other")), QByteArray("g2"));
+        QVERIFY(device.detachedGeometry(QString()).isEmpty());
+        QVERIFY(device.detachedGeometry(QStringLiteral("missing")).isEmpty());
+        // An empty geometry removes the entry.
+        device.setDetachedGeometry(id, QByteArray());
+        QVERIFY(device.detachedGeometry(id).isEmpty());
+        QVERIFY(!settings->contains(QStringLiteral("detached/") + id));
+        QCOMPARE(device.detachedGeometry(QStringLiteral("other")), QByteArray("g2"));
+    }
+
+    void hiddenViewLimit()
+    {
+        {
+            DeviceSettings device(settings.get());
+            device.setHiddenViewLimit(3);
+        }
+        reopen();
+        DeviceSettings device(settings.get());
+        QCOMPARE(device.hiddenViewLimit(), 3);
+        device.setHiddenViewLimit(20);
+        QCOMPARE(device.hiddenViewLimit(), 20);
+    }
+
+    // The limit is set by hand in the settings file, so a value that is not a
+    // positive number counts as not set.
+    void hiddenViewLimitFromFile_data()
+    {
+        QTest::addColumn<QString>("text");
+        QTest::addColumn<int>("limit");
+        QTest::newRow("number") << QStringLiteral("2") << 2;
+        QTest::newRow("zero") << QStringLiteral("0") << 8;
+        QTest::newRow("negative") << QStringLiteral("-4") << 8;
+        QTest::newRow("text") << QStringLiteral("many") << 8;
+        QTest::newRow("empty") << QString() << 8;
+    }
+
+    void hiddenViewLimitFromFile()
+    {
+        QFETCH(QString, text);
+        QFETCH(int, limit);
+        settings.reset();
+        {
+            QFile file(iniPath());
+            QVERIFY(file.open(QIODevice::WriteOnly | QIODevice::Truncate));
+            file.write("[webViews]\nhiddenLimit=" + text.toUtf8() + "\n");
+        }
+        settings = std::make_unique<QSettings>(iniPath(), QSettings::IniFormat);
+        QCOMPARE(DeviceSettings(settings.get()).hiddenViewLimit(), limit);
     }
 };
 
