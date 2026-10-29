@@ -1,7 +1,9 @@
 #include "core/Model.h"
 
 #include <QHash>
+#include <QStringList>
 
+#include <algorithm>
 #include <map>
 #include <utility>
 
@@ -30,6 +32,35 @@ struct Model::Private
         const auto it = rootDashboards.find(id);
         return it == rootDashboards.end() ? nullptr : &it->second;
     }
+
+    // Maps each item of task to the task, unless another task holds it first.
+    void indexItems(const Task &task)
+    {
+        for (const Item &item : task.items) {
+            if (!taskIdOfItem.contains(item.id))
+                taskIdOfItem.insert(item.id, task.id);
+        }
+    }
+
+    // Removes the items of task from the index. An item id that a task in
+    // tasks also holds is mapped to that task instead.
+    void unindexItems(const Task &task)
+    {
+        for (const Item &item : task.items) {
+            const auto it = taskIdOfItem.find(item.id);
+            if (it == taskIdOfItem.end() || it.value() != task.id)
+                continue;
+            taskIdOfItem.erase(it);
+            for (const auto &[otherId, other] : tasks) {
+                const bool holds = std::any_of(other.items.begin(), other.items.end(),
+                                               [&item](const Item &i) { return i.id == item.id; });
+                if (holds) {
+                    taskIdOfItem.insert(item.id, otherId);
+                    break;
+                }
+            }
+        }
+    }
 };
 
 namespace {
@@ -48,6 +79,28 @@ Dashboard *findDashboard(Task &task, const QString &dashboardId)
             return &dashboard;
     }
     return nullptr;
+}
+
+const Dashboard *findDashboard(const Task &task, const QString &dashboardId)
+{
+    for (const Dashboard &dashboard : task.dashboards) {
+        if (dashboard.id == dashboardId)
+            return &dashboard;
+    }
+    return nullptr;
+}
+
+// Normalises the layout of a dashboard given to a setter. old is the stored
+// dashboard with the same id, or null. A "layout" kept in extra, because the
+// file's layout could not be read, is stale once the layout changes. It is
+// dropped if it came from old; one that came with the new value is kept.
+void normaliseLayout(Dashboard &dashboard, const Dashboard *old, const RefExists &exists)
+{
+    dashboard.layout = layout::normalise(dashboard.layout, exists);
+    const QString key = QStringLiteral("layout");
+    if (old && dashboard.extra.contains(key) && old->extra.value(key) == dashboard.extra.value(key)
+        && layoutToJson(dashboard.layout) != layoutToJson(old->layout))
+        dashboard.extra.remove(key);
 }
 
 // Stores a new layout. extra wins when the dashboard is written, so a stale
@@ -89,12 +142,8 @@ void Model::reset(std::vector<Group> groups, std::vector<Project> projects, std:
         const QString id = dashboard.id;
         d->rootDashboards.insert_or_assign(id, std::move(dashboard));
     }
-    for (const auto &[taskId, task] : d->tasks) {
-        for (const Item &item : task.items) {
-            if (!d->taskIdOfItem.contains(item.id))
-                d->taskIdOfItem.insert(item.id, taskId);
-        }
-    }
+    for (const auto &entry : d->tasks)
+        d->indexItems(entry.second);
     emit modelReset();
 }
 
@@ -236,14 +285,139 @@ void Model::removeRootDashboard(const QString &id)
     emit rootDashboardRemoved(id);
 }
 
-// Stubs written by T0 of the M3 plan. T1 implements them.
-void Model::setGroup(const Group &) {}
-void Model::setProject(const Project &) {}
-void Model::setTask(const Task &) {}
-void Model::setRootDashboard(const RootDashboard &) {}
-void Model::removeGroup(const QString &) {}
-void Model::removeProject(const QString &) {}
-void Model::removeTask(const QString &) {}
+void Model::setGroup(const Group &group)
+{
+    if (group.id.isEmpty())
+        return;
+    const auto it = d->groups.find(group.id);
+    if (it == d->groups.end()) {
+        d->groups.emplace(group.id, group);
+        emit groupAdded(group.id);
+        return;
+    }
+    if (it->second == group)
+        return;
+    it->second = group;
+    emit groupChanged(group.id);
+}
+
+void Model::setProject(const Project &project)
+{
+    if (project.id.isEmpty())
+        return;
+    const auto it = d->projects.find(project.id);
+    if (it == d->projects.end()) {
+        d->projects.emplace(project.id, project);
+        emit projectAdded(project.id);
+        return;
+    }
+    if (it->second == project)
+        return;
+    it->second = project;
+    emit projectChanged(project.id);
+}
+
+void Model::setTask(const Task &task)
+{
+    if (task.id.isEmpty())
+        return;
+    const auto it = d->tasks.find(task.id);
+    const Task *stored = it == d->tasks.end() ? nullptr : &it->second;
+
+    // Normalises against the new task's items, as setTaskDashboardLayout()
+    // does against the stored ones.
+    const RefExists exists = [this, &task](const CellRef &ref) {
+        if (ref.isItem()) {
+            if (!ref.task.isEmpty() && ref.task != task.id)
+                return false;
+            return std::any_of(task.items.begin(), task.items.end(),
+                               [&ref](const Item &item) { return item.id == ref.item; });
+        }
+        return refExists(ref);
+    };
+    Task normalised = task;
+    for (Dashboard &dashboard : normalised.dashboards)
+        normaliseLayout(dashboard, stored ? findDashboard(*stored, dashboard.id) : nullptr, exists);
+
+    const QString id = task.id;
+    if (!stored) {
+        d->indexItems(d->tasks.emplace(id, std::move(normalised)).first->second);
+        emit taskAdded(id);
+        return;
+    }
+    if (*stored == normalised)
+        return;
+    // Replaced first, so unindexing maps a shared item id to the new value.
+    const Task old = std::exchange(it->second, std::move(normalised));
+    d->unindexItems(old);
+    d->indexItems(it->second);
+    emit taskChanged(id);
+}
+
+void Model::setRootDashboard(const RootDashboard &dashboard)
+{
+    if (dashboard.id.isEmpty())
+        return;
+    const auto it = d->rootDashboards.find(dashboard.id);
+    RootDashboard normalised = dashboard;
+    normaliseLayout(normalised, it == d->rootDashboards.end() ? nullptr : &it->second,
+                    [this](const CellRef &ref) { return refExists(ref); });
+    const QString id = dashboard.id;
+    if (it == d->rootDashboards.end()) {
+        d->rootDashboards.emplace(id, std::move(normalised));
+        emit rootDashboardAdded(id);
+        return;
+    }
+    if (it->second == normalised)
+        return;
+    it->second = std::move(normalised);
+    emit rootDashboardChanged(id);
+}
+
+// Each remover copies the id first, because the caller may pass the id of the
+// entity it removes. Children are collected before any is removed, because a
+// slot connected to a removed signal may change the model.
+
+void Model::removeGroup(const QString &groupId)
+{
+    const QString id = groupId;
+    if (d->groups.count(id) == 0)
+        return;
+    QStringList projectIds;
+    for (const Project *project : projectsOfGroup(id))
+        projectIds.append(project->id);
+    for (const QString &projectId : projectIds)
+        removeProject(projectId);
+    d->groups.erase(id);
+    emit groupRemoved(id);
+}
+
+void Model::removeProject(const QString &projectId)
+{
+    const QString id = projectId;
+    if (d->projects.count(id) == 0)
+        return;
+    QStringList taskIds;
+    for (const Task *task : tasksOfProject(id))
+        taskIds.append(task->id);
+    for (const QString &taskId : taskIds)
+        removeTask(taskId);
+    d->projects.erase(id);
+    emit projectRemoved(id);
+}
+
+void Model::removeTask(const QString &taskId)
+{
+    const QString id = taskId;
+    const auto it = d->tasks.find(id);
+    if (it == d->tasks.end())
+        return;
+    // Erased first, so unindexing maps a shared item id to another task only.
+    const Task removed = std::move(it->second);
+    d->tasks.erase(it);
+    d->unindexItems(removed);
+    emit taskRemoved(id);
+}
 
 QString Model::workspaceName() const { return d->workspaceName; }
 
