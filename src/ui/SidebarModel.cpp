@@ -1,9 +1,11 @@
 #include "ui/SidebarModel.h"
 
+#include "core/GroupColours.h"
 #include "core/Model.h"
 #include "items/ItemTypeRegistry.h"
 #include "layout/DragMime.h"
 
+#include <QColor>
 #include <QFont>
 #include <QIcon>
 #include <QHash>
@@ -317,6 +319,14 @@ SidebarModel::SidebarModel(const Model &model, const ItemTypeRegistry &types, QO
     for (const auto signal : {&Model::groupAdded, &Model::groupChanged, &Model::groupRemoved, &Model::projectAdded,
                               &Model::projectChanged, &Model::projectRemoved, &Model::taskAdded, &Model::taskRemoved})
         connect(&model, signal, this, rebuild);
+    // The project rows of a group are tinted with its colour, so they are
+    // repainted too.
+    connect(&model, &Model::groupChanged, this, [this](const QString &id) {
+        const QModelIndex group = indexOf(id);
+        const int rows = rowCount(group);
+        if (group.isValid() && rows > 0)
+            emit dataChanged(index(0, 0, group), index(rows - 1, 0, group));
+    });
 }
 
 SidebarModel::~SidebarModel() = default;
@@ -399,6 +409,8 @@ QVariant SidebarModel::data(const QModelIndex &index, int role) const
             return {};
         if (role == Qt::DisplayRole)
             return group->name;
+        if (role == GroupColourRole)
+            return QColor(groupcolours::of(*group));
         // Groups are section headings, as in macOS sidebars: small, bold
         // and grey.
         if (role == Qt::FontRole) {
@@ -419,6 +431,10 @@ QVariant SidebarModel::data(const QModelIndex &index, int role) const
             return project->name;
         if (role == PriorityRole)
             return int(project->priority);
+        if (role == GroupColourRole) {
+            const Group *group = d->model.group(project->groupId);
+            return group ? QVariant(QColor(groupcolours::of(*group))) : QVariant();
+        }
         if (role == Qt::ToolTipRole)
             return tr("Priority: %1").arg(priorityName(project->priority));
         return {};

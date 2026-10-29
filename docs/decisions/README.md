@@ -47,7 +47,10 @@ Each file records one design decision: what was decided, what else was considere
 | [0040](0040-profiles-per-group-and-module.md) | One web login profile per group and module | Superseded by 0042 |
 | [0041](0041-own-look-for-tabs-and-tool-buttons.md) | Mirante draws its own tabs and tool buttons | Accepted |
 | [0042](0042-user-managed-web-profiles.md) | Web profiles are a list the user manages | Accepted |
+| [0043](0043-pick-the-item-type-first.md) | A new item starts by picking its type in an icon grid | Accepted |
 | [0044](0044-module-settings-in-the-workspace.md) | Modules have settings screens, stored in the workspace | Accepted |
+| [0045](0045-preview-and-crop-pasted-images.md) | Pasted images open a preview with a crop first | Accepted |
+| [0046](0046-group-colours.md) | Each group has a colour | Accepted |
 
 ## Template
 

@@ -1,6 +1,7 @@
 #include "ui/FieldForm.h"
 
 #include "items/FieldValidation.h"
+#include "ui/ImagePasteDialog.h"
 
 #include <QCheckBox>
 #include <QClipboard>
@@ -54,6 +55,7 @@ struct FieldForm::Private
     };
 
     EditorContext context;
+    ImagePasteDialog::Exec exec = ImagePasteDialog::defaultExec();     // see setExec()
     std::vector<Row> rows;
     QJsonObject config;
     bool loading = false;
@@ -303,8 +305,11 @@ FieldForm::FieldForm(std::vector<Field> fields, EditorContext context, QWidget *
                     image.scaled(thumbnailSize, Qt::KeepAspectRatio, Qt::SmoothTransformation)));
                 edited();
             };
-            connect(paste, &QPushButton::clicked, this, [useImage] {
-                useImage(QGuiApplication::clipboard()->image());
+            // A pasted image opens the paste dialog first, to preview and crop it.
+            connect(paste, &QPushButton::clicked, this, [this, useImage] {
+                const QImage image = QGuiApplication::clipboard()->image();
+                if (!image.isNull())
+                    useImage(ImagePasteDialog::ask(image, this, d->exec));
             });
             connect(choose, &QPushButton::clicked, this, [this, useImage] {
                 QStringList patterns;
@@ -332,6 +337,8 @@ FieldForm::FieldForm(std::vector<Field> fields, EditorContext context, QWidget *
 }
 
 FieldForm::~FieldForm() = default;
+
+void FieldForm::setExec(std::function<bool(QDialog &dialog)> exec) { d->exec = std::move(exec); }
 
 void FieldForm::setConfig(const QJsonObject &config)
 {

@@ -21,7 +21,7 @@ Mirante is a personal desktop dashboard for all of one person's work, built with
 
 ## Glossary
 
-**Group.** The top level, such as "Personal" or "Work". A group holds projects, [connections](data-model.md#connection) and web login settings.
+**Group.** The top level, such as "Personal" or "Work". A group holds projects, [connections](data-model.md#connection) and web login settings. It has a colour, which tints the title bars of its task dashboards.
 
 **Project.** A unit of work inside a group, usually one repository. A project has a main folder, optional extra folders and a priority.
 

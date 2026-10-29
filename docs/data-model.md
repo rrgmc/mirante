@@ -28,8 +28,11 @@ All ids are UUIDs, created once and never reused.
 | `connections` | List of [connections](#connection) |
 | `defaultConnections` | For each connection kind, the id of the group default |
 | `webProfile` | Optional. The id of the group's default [web profile](#web-profile). Without it, or if it names no profile in the list, the group uses Default. |
+| `colour` | Optional. The group's colour, as `"#rrggbb"`, such as `"#3b82f6"`. Title bars of its task dashboards and its projects in the sidebar are tinted with it. |
 
-Groups have no priority. They keep their manual order.
+Groups have no priority.
+
+A group without a `colour`, or with one that is not of the form `"#rrggbb"`, takes one of eight palette colours, chosen by a hash of its id. The choice is the same on every device, so existing groups get colours without their files changing. A new group takes the first palette colour that no group uses yet, and stores it. See [decision 0046](decisions/0046-group-colours.md). They keep their manual order.
 
 Group files from before [decision 0042](decisions/0042-user-managed-web-profiles.md) may hold `profileOverrides`. It is no longer read, and is kept like any unknown key.
 

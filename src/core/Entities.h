@@ -78,6 +78,7 @@ struct Group
     std::vector<Connection> connections;
     QMap<QString, QString> defaultConnections;   // connection kind to connection id
     QString webProfile;                          // id of the default web profile; empty for Default
+    QString colour;                              // "#rrggbb"; empty or invalid uses a palette colour
     QJsonObject extra;
 
     static std::optional<Group> fromJson(const QJsonObject &json, QString *error = nullptr);

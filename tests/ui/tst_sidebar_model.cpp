@@ -1,4 +1,5 @@
 // Tests SidebarModel on the fixtures: structure, order, filters, roles and resets.
+#include "core/GroupColours.h"
 #include "core/Model.h"
 #include "core/Store.h"
 #include "items/ItemTypeRegistry.h"
@@ -102,6 +103,7 @@ private slots:
     void followsModelEdits();
     void resetsOnModelReset();
     void repaintsChangedTask();
+    void groupColours();
     void sidebarWidget();
     void emptyProjects();
     void trashList();
@@ -382,13 +384,15 @@ void TestSidebarModel::followsModelEdits()
     f.model.removeTask(addRateLimiting);
     QVERIFY(!f.sidebar->indexOf(addRateLimiting).isValid());
 
-    // A renamed group is repainted.
+    // A renamed group is repainted, and so are its project rows, which carry
+    // its colour.
     QSignalSpy changed(f.sidebar.get(), &QAbstractItemModel::dataChanged);
     Group work = *f.model.group(workGroup);
     work.name = QStringLiteral("Job");
     f.model.setGroup(work);
     QCOMPARE(f.sidebar->indexOf(workGroup).data().toString(), QStringLiteral("Job"));
-    QCOMPARE(changed.count(), 1);
+    QCOMPARE(changed.count(), 2);
+    QCOMPARE(changed.at(0).at(0).value<QModelIndex>(), f.sidebar->indexOf(workGroup));
 
     // New projects and tasks appear; removed ones go.
     Project project;
@@ -438,6 +442,36 @@ void TestSidebarModel::repaintsChangedTask()
     QCOMPARE(changed.at(0).at(0).value<QModelIndex>(), f.sidebar->indexOf(fixLoginTimeout));
     for (const QList<QVariant> &signal : changed)
         QCOMPARE(signal.at(0).value<QModelIndex>().data(SidebarModel::TaskIdRole).toString(), fixLoginTimeout);
+}
+
+// Groups and their projects carry the group colour: Work its palette colour,
+// Personal the one it stores. A new colour repaints the group and its projects.
+void TestSidebarModel::groupColours()
+{
+    Fixture f;
+    const QModelIndex work = f.sidebar->indexOf(workGroup);
+    const QModelIndex personal = f.sidebar->indexOf(personalGroup);
+    const QModelIndex backend = f.sidebar->indexOf(backendProject);
+    QCOMPARE(work.data(SidebarModel::GroupColourRole).value<QColor>(), QColor(groupcolours::fallback(workGroup)));
+    QCOMPARE(personal.data(SidebarModel::GroupColourRole).value<QColor>(), QColor(QStringLiteral("#22c55e")));
+    QCOMPARE(backend.data(SidebarModel::GroupColourRole).value<QColor>(), QColor(groupcolours::fallback(workGroup)));
+    QVERIFY(!f.sidebar->indexOf(fixLoginTimeout).data(SidebarModel::GroupColourRole).isValid());
+
+    QSignalSpy changed(f.sidebar.get(), &QAbstractItemModel::dataChanged);
+    Group group = *f.model.group(workGroup);
+    group.colour = QStringLiteral("#ff0000");
+    f.model.setGroup(group);
+    QCOMPARE(f.sidebar->indexOf(backendProject).data(SidebarModel::GroupColourRole).value<QColor>(),
+             QColor(Qt::red));
+    bool projectsRepainted = false;
+    for (const QList<QVariant> &signal : changed) {
+        const QModelIndex first = signal.at(0).value<QModelIndex>();
+        const QModelIndex last = signal.at(1).value<QModelIndex>();
+        if (first.parent() == f.sidebar->indexOf(workGroup) && first.row() == 0
+            && last.row() == f.sidebar->rowCount(f.sidebar->indexOf(workGroup)) - 1)
+            projectsRepainted = true;
+    }
+    QVERIFY(projectsRepainted);
 }
 
 // The widget: reveal selects the entry, and the filter buttons change the model.

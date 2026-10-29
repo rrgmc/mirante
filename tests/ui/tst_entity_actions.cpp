@@ -3,6 +3,7 @@
 // confirmation, the last dashboard), priority and state, moves, the trash, and
 // the commands each kind of sidebar row gets in its context menu.
 #include "core/DeviceSettings.h"
+#include "core/GroupColours.h"
 #include "core/Model.h"
 #include "core/Store.h"
 #include "items/ItemTypeRegistry.h"
@@ -261,6 +262,11 @@ void TestEntityActions::newGroup()
     QVERIFY(group);
     QCOMPARE(group->name, QStringLiteral("Office"));
     QCOMPARE(group->order, 2);   // after Work (0) and Personal (1)
+    // The first palette colour that Work (its fallback) and Personal (its own)
+    // do not use, stored in the group.
+    QVERIFY(group->colour != groupcolours::of(*model.group(QStringLiteral("6d1b9bb9-f4c3-5677-a4e1-683ba618d4c7"))));
+    QVERIFY(group->colour != QStringLiteral("#22c55e"));
+    QCOMPARE(group->colour, groupcolours::palette().at(0));
 }
 
 void TestEntityActions::newProject()

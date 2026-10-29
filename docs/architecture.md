@@ -51,6 +51,7 @@ No core folder depends on a module. The core reaches modules only through the re
 | `WebProfiles` | Finds the web profile of an item by the [resolution order](web-views.md#profiles), lists the profiles to offer, and removes one from the list |
 | `Edits` | Changes to entities as pure functions, such as removing an item from a task and clearing its cells, for the `Model`'s setters |
 | `DeviceSettings` | Typed access to the `QSettings` values listed in [sync](sync.md#device-settings) |
+| `GroupColours` | The colour of each group: its own, or a palette colour chosen by its id, and the colour for a new group. See [decision 0046](decisions/0046-group-colours.md). |
 | `Sorting` | Priority and order sorting, used by the sidebar and Focus |
 | `LayoutTree` | The [layout tree](data-model.md#layout-tree): split, tabs and cell nodes, with JSON conversion, edit operations and normalisation. It lives in `core` because `Dashboard` holds one. |
 | `FuzzyMatch` | Scores text against a query for the quick switcher |
@@ -130,6 +131,7 @@ Code that differs per platform lives only here, behind these classes.
 | `FocusView` | The [Focus](ui.md#focus-view) list |
 | `ConflictBar` | One line for each conflict copy, with "Keep current", "Use other" and "Compare". See [sync](sync.md#conflict-copies). |
 | `ImagePaste` | Pastes an image from the clipboard into an image item, or as a new one. See [image](item-types.md#image). |
+| `ImagePasteDialog` | The paste dialog: a preview of a pasted image, with an `ImageCropView` to crop it. See [pasting images](ui.md#pasting-images). |
 | `QuickSwitcher` | `Ctrl+K` fuzzy search |
 | `QuickAdd` | Creates a task from a pasted link, using the modules' quick add handlers. See [quick add](ui.md#quick-add). |
 | `DashboardPage` | One tab's page: a `LayoutView` of one dashboard with its cell factory, or the Focus list. A detached window holds one too. |

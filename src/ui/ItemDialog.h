@@ -12,19 +12,29 @@ namespace mirante {
 
 class ItemTypeRegistry;
 
-// Creates or edits an item: its type (only when creating), its name, its web
-// profile (only for a type whose views are web views), and its configuration, edited by the type's own editor or else a FieldForm. Changing
-// the type while creating replaces the editor and starts from the new type's
-// defaults. An item of a missing module shows its name only and keeps its
-// configuration. OK is refused while the name is empty or the editor reports
-// problems. See the M3 plan, part 5. Implemented in ItemDialog.cpp.
+// Creates or edits an item.
+//
+// Creating takes two steps on two pages of one dialog. The first page picks
+// the type in a grid of large icons, with Next, a double click or Enter going
+// on. The second page edits the item of that type, with Back to choose again.
+// Choosing another type replaces the editor and starts from the new type's
+// defaults; choosing the same one keeps what was entered. Editing an existing
+// item shows the second page only, and its type cannot change.
+//
+// The second page holds the name, the web profile (only for a type whose views
+// are web views), and the configuration, edited by the type's own editor or
+// else a FieldForm. An item of a missing module shows its name only and keeps
+// its configuration. OK is refused while the name is empty or the editor
+// reports problems. See docs/ui.md#item-dialog and decision 0043.
+// Implemented in ItemDialog.cpp.
 class ItemDialog : public QDialog
 {
     Q_OBJECT
 
 public:
-    // creating: whether item is new, so its type can be chosen. An empty type
-    // in a new item means the first type of the registry.
+    // creating: whether item is new, so its type is chosen first. The type
+    // grid starts with the item's type selected, or else the first type of
+    // the registry, by name.
     ItemDialog(const Item &item, bool creating, const ItemTypeRegistry &types, EditorContext context,
                QWidget *parent = nullptr);
     ~ItemDialog() override;
@@ -40,10 +50,17 @@ public:
     // For tests.
     void setWebProfile(const QString &id);   // empty for the group's profile
     bool showsWebProfile() const;
+    // Chooses a registered type while creating, as the type page does, and
+    // shows the item's page. Does nothing while editing.
     void setType(const QString &typeId);
+    // Whether the type page shows.
+    bool choosingType() const;
+    // Goes back to the type page while creating.
+    void back();
     void setName(const QString &name);
     ItemEditor *editor() const;     // null for an item of a missing module
 
+    // On the type page, chooses the selected type instead of accepting.
     void accept() override;
 
 private:
