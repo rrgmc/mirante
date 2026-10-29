@@ -16,6 +16,8 @@ namespace mirante {
 
 class DashboardCellFactory;
 class FocusView;
+class HeaderPill;
+class HeaderRow;
 class LayoutView;
 
 // One tab's page: a LayoutView of one dashboard, with its factory, or the
@@ -44,8 +46,12 @@ public:
     const std::unique_ptr<DashboardCellFactory> factory;
     FocusView *focus = nullptr;     // set for the Focus page
     LayoutView *view = nullptr;     // null for the Focus page
-    QLabel *title = nullptr;        // task dashboards and items only
-    QLabel *context = nullptr;      // task dashboards and items only: the project
+    // The title bar of task dashboards and items, in pills as in cell
+    // headers: the task, the dashboard or the item, and the project.
+    HeaderRow *headerRow = nullptr;
+    HeaderPill *title = nullptr;    // the task, bold
+    HeaderPill *part = nullptr;     // the dashboard, or the item with its type's colour
+    HeaderPill *context = nullptr;  // the project, in a grey pill
     QToolButton *lock = nullptr;    // task dashboards only
     // The model's layout of a task dashboard when it was last shown, to tell
     // an edit of this dashboard from other changes to its task.
