@@ -91,19 +91,20 @@ Modules do not register themselves through static objects. The linker drops unre
 
 A module links to one CMake target, `mirante::module_api`. It holds the only core headers a module may include. A module that includes any other core header does not compile, because the include path is not available to it.
 
-The module interface contains:
+The module interface contains the headers below. The "Since" column gives the milestone that adds each header, or "planned" where the [roadmap](roadmap.md) does not name one yet.
 
-| Header | Contents |
-|---|---|
-| `Module.h` | `ModuleRegistrar`, the object a module registers its parts with |
-| `ItemType.h` | The `ItemType` interface. See [item types](item-types.md#the-type-registry). |
-| `ItemContext.h` | `ItemContext`, everything an item's code can reach. See [below](#item-context). |
-| `Fields.h` | Field definitions: type, default, validation. Used for item configuration, connection fields and settings. |
-| `ConnectionKind.h` | The `ConnectionKind` interface |
-| `ApiClient.h` | The shared HTTP client base: ETags, paging, rate limits, request limits |
-| `Status.h` | Status results and attention reasons for the [status cache](integrations.md#polling-and-caching) |
-| `QuickAdd.h` | Quick add handlers and related-item finders |
-| `Values.h` | Read-only views of a group, project, task, item and folder |
+| Header | Contents | Since |
+|---|---|---|
+| `Module.h` | `ModuleRegistrar`, the object a module registers its parts with | M2 |
+| `ItemType.h` | The `ItemType` interface. See [item types](item-types.md#the-type-registry). | M2 |
+| `Fields.h` | `Field`: a key, a label, a type, a default value, a required flag, and for a choice its values and labels. The types are text, multi-line text, URL, integer, boolean, choice, folder and image. Used for item configuration, and from M5 for connection fields and settings. See [decision 0028](decisions/0028-item-fields-in-m3.md). | M3 |
+| `ItemEditor.h` | `ItemEditor`, the base of an item type's own configuration editor, and `EditorContext`, what an editor can reach: the project's folders and a way to save an image into `files/` | M3 |
+| `ItemContext.h` | `ItemContext`, everything an item's code can reach. See [below](#item-context). | M4 |
+| `ConnectionKind.h` | The `ConnectionKind` interface | M5 |
+| `ApiClient.h` | The shared HTTP client base: ETags, paging, rate limits, request limits | M5 |
+| `Status.h` | Status results and attention reasons for the [status cache](integrations.md#polling-and-caching) | M5 |
+| `QuickAdd.h` | Quick add handlers and related-item finders | M7 |
+| `Values.h` | Read-only views of a group, project, task, item and folder | planned |
 
 Modules see entities only through read-only views. Changes go through actions on `ItemContext`, which call the core's `Model` methods.
 
@@ -113,14 +114,14 @@ The register function receives a `ModuleRegistrar` and adds any of the following
 
 | Part | Description |
 |---|---|
-| Item types | One object per type, with the properties listed in [item types](item-types.md#the-type-registry) |
+| Item types | One object per type, with the properties listed in [item types](item-types.md#the-type-registry). For each type the module chooses how its configuration is edited: it lists its fields, and the core builds the form, or it returns an editor of its own. See [decision 0028](decisions/0028-item-fields-in-m3.md). |
 | Connection kinds | Fields of the connection, how to sign a request, how to test the connection |
 | Project settings | Fields shown in the project dialog, such as the GitLab project path. They are defaults for the module's items. |
 | Device settings | Fields kept on each device, such as an editor command |
 | Quick add handlers | Recognise pasted text and propose a task. See [quick add](#quick-add). |
 | Related-item finders | Find items related to a piece of text, such as merge requests whose branch contains a Jira key |
 
-The core builds every dialog from the field definitions. It stores and edits the values without knowing what they mean.
+The core builds every dialog from the field definitions, and checks the values against them. It stores and edits the values without knowing what they mean. The one exception is an item type with its own editor: the item dialog shows that editor instead of a form. Either way, keys of the configuration that the form or editor does not show are kept unchanged.
 
 ## Item context
 
