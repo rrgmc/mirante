@@ -15,7 +15,7 @@ namespace mirante::cellstyle {
 void tintHeader(QWidget *header, qreal strength);
 
 // The style sheet border of a cell: dashed in the highlight colour in edit
-// mode, solid and thicker when the cell has the focus, and a thin line
+// mode, solid and thicker when the cell has the focus, and a thin, light line
 // otherwise. selector is the cell's class, such as "mirante--CellFrame".
 QString border(const QString &selector, const QPalette &palette, bool editMode, bool focused);
 

@@ -73,6 +73,16 @@ Tokens, the fields of each kind and testing a connection come in M5.
 
 The window opens centred on the screen, at the size it had when it was last closed on this device, maximized if it was. The sidebar width is kept too. The app's icon, a temporary one, is a blue square with three dashboard panes.
 
+## Look
+
+Standard controls, such as buttons, menus, lists and dialogs, keep the platform's own look. Mirante draws a few controls itself, in the same way on every platform, so the app looks calm on macOS as well as on Windows and Linux. See [decision 0041](decisions/0041-own-look-for-tabs-and-tool-buttons.md).
+
+- **Tool buttons** outside a toolbar, such as the sidebar buttons, the cell header buttons and the web toolbar, are flat. A light rounded fill shows when the mouse is over one, and a stronger one while it is pressed or on.
+- **Tabs**, in the root tab bar, in tab groups and at the foot of the sidebar, are rounded fills. The current tab has a light grey fill and keeps the normal text colour. The tab under the mouse has a lighter fill.
+- **Close buttons on tabs** are on the right. They show on the current tab and on the tab under the mouse only.
+- **Cell borders** are a thin, light line with rounded corners.
+- **The warning bar** has a tinted background and no frame.
+
 ## Menus
 
 The menu bar has three menus.

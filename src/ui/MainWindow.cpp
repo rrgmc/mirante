@@ -1236,7 +1236,7 @@ struct MainWindow::Private
     {
         warningBar = new QFrame;
         warningBar->setObjectName(QStringLiteral("warningBar"));
-        warningBar->setFrameShape(QFrame::StyledPanel);
+        warningBar->setFrameShape(QFrame::NoFrame);
         warningBar->setAutoFillBackground(true);
         QPalette palette = warningBar->palette();
         palette.setColor(QPalette::Window, palette.color(QPalette::ToolTipBase));
