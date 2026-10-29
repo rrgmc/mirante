@@ -521,8 +521,8 @@ private slots:
     }
 
     // The open tabs of a workspace are saved when another one opens, and come
-    // back when it opens again: root dashboards and Focus in order, the
-    // preview, and the current tab.
+    // back when it opens again: root dashboards and Focus in order, and the
+    // current tab. The preview tab is not kept.
     void openTabsRestored()
     {
         QTemporaryDir dir;
@@ -538,26 +538,26 @@ private slots:
         f.window->openTaskPreview(kFixLoginTask);
         QCOMPARE(f.bar()->count(), 3);
 
+        // The preview was current, so the first tab is current now.
         f.window->openSampleData();
         f.window->openWorkspace(dir.path());
-        QCOMPARE(f.bar()->count(), 3);
+        QCOMPARE(f.bar()->count(), 2);
         QCOMPARE(f.tabText(0), QStringLiteral("Focus"));
         QCOMPARE(f.tabText(1), QStringLiteral("Morning"));
-        QCOMPARE(f.tabText(2), QStringLiteral("Fix login timeout / Work"));
-        QCOMPARE(f.bar()->previewIndex(), 2);
-        QCOMPARE(f.bar()->currentIndex(), 2);
+        QCOMPARE(f.bar()->previewIndex(), -1);
+        QCOMPARE(f.bar()->currentIndex(), 0);
 
         // Reloading keeps them, and so does a new window on the same settings.
         f.window->openRootDashboard(kMorning);
         f.window->reloadWorkspace();
-        QCOMPARE(f.bar()->count(), 3);
+        QCOMPARE(f.bar()->count(), 2);
         QCOMPARE(f.bar()->currentIndex(), 1);
         f.window->close();
         f.window.reset();
         f.dataStore.close();    // as at start: nothing is open yet
         f.window = std::make_unique<MainWindow>(f.model, f.types, f.dataStore, f.settings);
         f.window->openWorkspace(dir.path());
-        QCOMPARE(f.bar()->count(), 3);
+        QCOMPARE(f.bar()->count(), 2);
         QCOMPARE(f.tabText(0), QStringLiteral("Focus"));
         QCOMPARE(f.bar()->currentIndex(), 1);
     }

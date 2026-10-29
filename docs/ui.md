@@ -81,7 +81,7 @@ The menu bar has three menus.
 - When a task tab comes to the front, the sidebar selects its dashboard under its task.
 - Opening a task dashboard that already has a tab switches to that tab instead of opening a preview.
 
-The open tabs are stored on each device for each workspace, not synced: the root dashboard tabs and the Focus tab in order, the task dashboard in the preview tab, and the current tab. They are saved when another workspace opens and when the window closes, and come back when the workspace opens again. Pinned task tabs and item tabs are not kept. The first time a workspace opens on a device, every root dashboard opens.
+The open tabs are stored on each device for each workspace, not synced: the root dashboard tabs and the Focus tab in order, and the current tab. The preview tab is not kept; if it was current, the first tab is current next time. They are saved when another workspace opens and when the window closes, and come back when the workspace opens again. Pinned task tabs and item tabs are not kept either. The first time a workspace opens on a device, every root dashboard opens.
 
 ## Root dashboards
 

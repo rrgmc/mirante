@@ -42,13 +42,12 @@ public:
     // An empty path removes the mapping.
     void setFolderPath(const QString &folderId, const QString &path);
 
-    // The open tabs of one workspace, keyed by its folder.
+    // The open root tabs of one workspace, keyed by its folder. The preview
+    // tab is not kept.
     struct Tabs
     {
         QStringList ids;            // root dashboard ids, and "focus", in tab order
-        QString current;            // the id of the current tab, or empty for the preview
-        QString previewTask;        // the task dashboard in the preview tab, if any
-        QString previewDashboard;
+        QString current;            // the id of the current tab
         bool saved = false;         // false if nothing was saved for this workspace yet
     };
     Tabs openTabs(const QString &workspace) const;

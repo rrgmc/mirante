@@ -688,8 +688,8 @@ struct MainWindow::Private
     }
 
     // The open tabs, as DeviceSettings keeps them: root dashboards and Focus in
-    // tab order, the current one, and the task dashboard in the preview tab.
-    // Pinned task tabs and item tabs are not kept.
+    // tab order, and the current one. The preview tab, pinned task tabs and
+    // item tabs are not kept.
     DeviceSettings::Tabs openTabs() const
     {
         DeviceSettings::Tabs tabs;
@@ -700,18 +700,13 @@ struct MainWindow::Private
             else if (page->isRoot())
                 tabs.ids << page->ref.dashboardId;
         }
-        if (preview && preview->itemId.isEmpty()) {
-            tabs.previewTask = preview->ref.taskId;
-            tabs.previewDashboard = preview->ref.dashboardId;
-        }
-        // The current tab, or empty for the preview. Another current tab, which
-        // is not kept, falls back to the first.
+        // Another current tab, which is not kept, falls back to the first.
         const DashboardPage *current = currentPage();
         if (current && current->isFocus())
             tabs.current = focusTabId;
         else if (current && current->isRoot())
             tabs.current = current->ref.dashboardId;
-        else if (!(current && current == preview && !tabs.previewTask.isEmpty()) && !tabs.ids.isEmpty())
+        else if (!tabs.ids.isEmpty())
             tabs.current = tabs.ids.front();
         return tabs;
     }
@@ -729,16 +724,11 @@ struct MainWindow::Private
                 insertTab(int(pages.size()), makePage(DashboardRef{QString(), id}));
             }
         }
-        if (!tabs.previewTask.isEmpty())
-            q->openTaskPreview(tabs.previewTask, tabs.previewDashboard);
-
         const DashboardPage *current = nullptr;
         if (tabs.current == focusTabId)
             current = focusPage();
         else if (!tabs.current.isEmpty())
             current = rootPage(tabs.current);
-        else
-            current = preview;
         if (!current && !pages.empty())
             current = pages.front();
         if (current)

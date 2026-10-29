@@ -125,8 +125,6 @@ DeviceSettings::Tabs DeviceSettings::openTabs(const QString &workspace) const
     if (tabs.saved) {
         tabs.ids = settings.value(QStringLiteral("ids")).toStringList();
         tabs.current = settings.value(QStringLiteral("current")).toString();
-        tabs.previewTask = settings.value(QStringLiteral("previewTask")).toString();
-        tabs.previewDashboard = settings.value(QStringLiteral("previewDashboard")).toString();
     }
     settings.endGroup();
     return tabs;
@@ -136,13 +134,12 @@ void DeviceSettings::setOpenTabs(const QString &workspace, const Tabs &tabs)
 {
     QSettings &settings = *d->settings;
     settings.beginGroup(tabsGroup(workspace));
+    // Clearing the group also drops the preview keys earlier versions wrote.
     settings.remove(QString());
     // The path itself, so a person reading the settings can tell the groups apart.
     settings.setValue(QStringLiteral("path"), QDir::cleanPath(QFileInfo(workspace).absoluteFilePath()));
     settings.setValue(QStringLiteral("ids"), tabs.ids);
     settings.setValue(QStringLiteral("current"), tabs.current);
-    settings.setValue(QStringLiteral("previewTask"), tabs.previewTask);
-    settings.setValue(QStringLiteral("previewDashboard"), tabs.previewDashboard);
     settings.endGroup();
 }
 
