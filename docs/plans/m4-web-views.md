@@ -332,3 +332,7 @@ The [roadmap](../roadmap.md#m4-web-views) asks for the login risk to be tested e
 - Keyboard shortcuts inside focused web pages: M8.
 - The `dash://` scheme, the `app` profile's panels and `DashBridge`: M9. `appProfile()` exists from M4 but nothing uses it yet.
 - Deleting profile folders of groups removed by another device.
+
+## Ideas for later
+
+- **Sign-in hosts always open in the login dialog.** Some sites open their sign-in with a plain `window.open` and no window features, which Chromium reports as a new tab. Part 3 sends such a window to the external browser, so the sign-in cookies land there and the login in the profile fails. A list of known sign-in hosts, such as `accounts.google.com`, `login.microsoftonline.com`, `id.atlassian.com` and `github.com/login`, could always open in the login dialog, whatever kind of window the page asks for. Worth adding if a login check in T9 shows the problem.
