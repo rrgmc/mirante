@@ -32,9 +32,11 @@ struct WebProfilesDialog::Private
     Model *model = nullptr;
     std::function<QString(const QString &, const QString &)> askName;
     std::function<bool(const QString &)> confirm;
+    std::function<bool(const QString &)> confirmClear;
     QListWidget *list = nullptr;
     QPushButton *renameButton = nullptr;
     QPushButton *deleteButton = nullptr;
+    QPushButton *clearButton = nullptr;
     QLabel *message = nullptr;
 
     QString selectedId() const
@@ -65,6 +67,8 @@ struct WebProfilesDialog::Private
         const bool editable = !id.isEmpty() && id != kDefaultWebProfile;
         renameButton->setEnabled(editable);
         deleteButton->setEnabled(editable);
+        // Any profile can be cleared, Default too.
+        clearButton->setEnabled(!id.isEmpty());
     }
 
     // Why name cannot be used for the profile with id, or an empty string.
@@ -123,6 +127,20 @@ WebProfilesDialog::WebProfilesDialog(Model &model, QWidget *parent)
     d->confirm = [this](const QString &question) {
         return QMessageBox::question(this, tr("Delete web profile"), question) == QMessageBox::Yes;
     };
+    d->confirmClear = [this](const QString &name) {
+        QMessageBox box(QMessageBox::Warning, tr("Clear web profile data"),
+                        tr("Clear all data of the web profile \"%1\"?").arg(name), QMessageBox::NoButton, this);
+        // The warning icon itself: the native alert on macOS would show the
+        // app's icon instead.
+        box.setIconPixmap(style()->standardIcon(QStyle::SP_MessageBoxWarning, nullptr, this).pixmap(64));
+        box.setInformativeText(tr("Its logins, cookies, cache and site data on this device are deleted, so every "
+                                  "site in it signs out. Pages in this profile reload. This cannot be undone."));
+        QPushButton *clear = box.addButton(tr("Clear Data"), QMessageBox::DestructiveRole);
+        QPushButton *cancel = box.addButton(QMessageBox::Cancel);
+        box.setDefaultButton(cancel);
+        box.exec();
+        return box.clickedButton() == clear;
+    };
 
     setWindowTitle(tr("Web profiles"));
     resize(440, 440);
@@ -162,6 +180,9 @@ WebProfilesDialog::WebProfilesDialog(Model &model, QWidget *parent)
     d->renameButton->setObjectName(QStringLiteral("renameProfile"));
     d->deleteButton = new QPushButton(tr("Delete…"), this);
     d->deleteButton->setObjectName(QStringLiteral("deleteProfile"));
+    d->clearButton = new QPushButton(tr("Clear Data…"), this);
+    d->clearButton->setObjectName(QStringLiteral("clearProfile"));
+    d->clearButton->setToolTip(tr("Sign out of every site in this profile, on this device"));
 
     d->message = new QLabel(this);
     d->message->setObjectName(QStringLiteral("message"));
@@ -173,6 +194,7 @@ WebProfilesDialog::WebProfilesDialog(Model &model, QWidget *parent)
     rowButtons->addWidget(d->renameButton);
     rowButtons->addWidget(d->deleteButton);
     rowButtons->addStretch(1);
+    rowButtons->addWidget(d->clearButton);
 
     auto *buttons = new QDialogButtonBox(QDialogButtonBox::Close, this);
     connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
@@ -188,6 +210,7 @@ WebProfilesDialog::WebProfilesDialog(Model &model, QWidget *parent)
     connect(addButton, &QPushButton::clicked, this, &WebProfilesDialog::addProfile);
     connect(d->renameButton, &QPushButton::clicked, this, &WebProfilesDialog::renameSelected);
     connect(d->deleteButton, &QPushButton::clicked, this, &WebProfilesDialog::deleteSelected);
+    connect(d->clearButton, &QPushButton::clicked, this, &WebProfilesDialog::clearSelected);
     connect(d->list, &QListWidget::currentRowChanged, this, [this] { d->updateButtons(); });
     connect(d->list, &QListWidget::itemDoubleClicked, this, &WebProfilesDialog::renameSelected);
     // A reload or another device may change the list while the dialog is open.
@@ -209,6 +232,11 @@ void WebProfilesDialog::setAskName(std::function<QString(const QString &, const 
 }
 
 void WebProfilesDialog::setConfirm(std::function<bool(const QString &)> confirm) { d->confirm = std::move(confirm); }
+
+void WebProfilesDialog::setConfirmClear(std::function<bool(const QString &)> confirm)
+{
+    d->confirmClear = std::move(confirm);
+}
 
 QStringList WebProfilesDialog::ids() const
 {
@@ -280,6 +308,14 @@ void WebProfilesDialog::deleteSelected()
     d->message->hide();
     if (webprofiles::remove(*d->model, id))
         emit profileDeleted(id);
+}
+
+void WebProfilesDialog::clearSelected()
+{
+    const QString id = d->selectedId();
+    if (id.isEmpty() || !d->confirmClear(webprofiles::nameOf(*d->model, id)))
+        return;
+    emit profileClearRequested(id);
 }
 
 } // namespace mirante

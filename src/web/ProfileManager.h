@@ -3,6 +3,7 @@
 #include <QObject>
 #include <QString>
 
+#include <functional>
 #include <memory>
 
 class QWebEngineProfile;
@@ -43,6 +44,15 @@ public:
     // Default is never removed.
     void removeProfile(const QString &profileId);
 
+    // Deletes a profile's logins, cookies, cache and site data on this device,
+    // Default's too, and keeps the profile. Qt cannot clear site storage of a
+    // loaded profile, so the profile is released and its folder removed, as
+    // for removeProfile(). profileClearing() comes first, so views drop their
+    // pages, and profileCleared() at the end, so they can load them again.
+    // While it runs, profile() gives a temporary profile that keeps nothing.
+    void clearProfile(const QString &profileId);
+    bool isClearing(const QString &profileId) const;
+
     // Removes the folders of the profiles from before decision 0042,
     // "g-<groupId>-<moduleId>" and "shared-<moduleId>". main.cpp calls it at
     // start. Once they are gone, it finds nothing.
@@ -51,9 +61,14 @@ public:
     // The data folder of a profile, by its storage name.
     QString storagePath(const QString &storageName) const;
 
+signals:
+    void profileClearing(const QString &profileId);
+    void profileCleared(const QString &profileId);
+
 private:
-    // Removes the profile with this storage name, loaded or not, and its folder.
-    void removeStorage(const QString &storageName);
+    // Removes the profile with this storage name, loaded or not, and its
+    // folder. done runs once the folder is gone, or the attempts ran out.
+    void removeStorage(const QString &storageName, std::function<void()> done = {});
 
     struct Private;
     std::unique_ptr<Private> d;

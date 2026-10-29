@@ -50,6 +50,7 @@ These check the web profiles of [decision 0042](../decisions/0042-user-managed-w
 - [ ] Delete "Office" in File > Web Profiles…. The question names the group and the item that use it. After Yes, those pages reload in the profile they fall back to: the group B item in Default, the group A item in its group's profile, Default. Its folder `p-<id>` is gone after a few seconds.
 - [ ] With two devices on one synced workspace, a profile created on one appears in the list on the other, without its logins.
 - [ ] Delete group A. No folder under `profiles/` goes.
+- [ ] Select Default and choose Clear Data…. A warning with the warning icon asks first, with Cancel as the default. After "Clear Data", the claude.ai pages in Default show "Clearing this profile's data…", then load again signed out. Other profiles stay signed in.
 
 ## Views
 

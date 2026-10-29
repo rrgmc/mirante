@@ -212,6 +212,10 @@ void EntityActions::editWebProfiles()
         if (ProfileManager *profiles = d->profiles)
             QTimer::singleShot(0, profiles, [profiles, id] { profiles->removeProfile(id); });
     });
+    connect(&dialog, &WebProfilesDialog::profileClearRequested, this, [this](const QString &id) {
+        if (ProfileManager *profiles = d->profiles)
+            profiles->clearProfile(id);
+    });
     if (d->editProfiles)
         d->editProfiles(dialog);
     else

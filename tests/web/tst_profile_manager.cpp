@@ -215,6 +215,54 @@ private slots:
         QCOMPARE(manager->profile(kDefaultWebProfile)->storageName(), QStringLiteral("p-default"));
     }
 
+    // Clearing a profile deletes its data and keeps the profile: views are
+    // told to drop their pages first, and may make them again at the end.
+    // Meanwhile the profile is a temporary one that keeps nothing.
+    void clearProfileEmptiesItsFolder()
+    {
+        QWebEngineProfile *defaultProfile = manager->profile(kDefaultWebProfile);
+        {
+            CookieNames before(defaultProfile);
+            QVERIFY(before.load());
+            before.set("session");
+            QVERIFY(before.waitFor(QStringLiteral("session")));
+        }
+        const QString folder = manager->storagePath(QStringLiteral("p-default"));
+        QVERIFY(QDir(folder).exists());
+
+        QSignalSpy clearing(manager.get(), &ProfileManager::profileClearing);
+        QSignalSpy cleared(manager.get(), &ProfileManager::profileCleared);
+        QPointer<QWebEngineProfile> released(defaultProfile);
+        manager->clearProfile(QString());
+        QCOMPARE(clearing.count(), 1);
+        QCOMPARE(clearing.at(0).at(0).toString(), kDefaultWebProfile);
+        QVERIFY(manager->isClearing(kDefaultWebProfile));
+        QVERIFY(manager->profile(kDefaultWebProfile)->isOffTheRecord());
+        // A second request while it runs does nothing more.
+        manager->clearProfile(kDefaultWebProfile);
+        QCOMPARE(clearing.count(), 1);
+
+        QTRY_COMPARE_WITH_TIMEOUT(cleared.count(), 1, 15000);
+        QVERIFY(released.isNull());
+        QVERIFY(!QDir(folder).exists());
+        QVERIFY(!manager->isClearing(kDefaultWebProfile));
+
+        // The profile comes back empty, in its own folder, and can be cleared again.
+        QWebEngineProfile *again = manager->profile(kDefaultWebProfile);
+        QVERIFY(!again->isOffTheRecord());
+        QCOMPARE(again->storageName(), QStringLiteral("p-default"));
+        {
+            // Setting a cookie loads all of them; the old one is not among them.
+            CookieNames after(again);
+            QVERIFY(after.load());
+            after.set("fresh");
+            QVERIFY(after.waitFor(QStringLiteral("fresh")));
+            QVERIFY2(!after.names.contains(QStringLiteral("session")), qPrintable(joined(after.names)));
+        }
+        manager->clearProfile(kDefaultWebProfile);
+        QTRY_COMPARE_WITH_TIMEOUT(cleared.count(), 2, 15000);
+    }
+
     // The folders of the profiles per group and module, and the shared ones,
     // go at start. The new profiles and the app profile stay.
     void oldProfilesGo()
