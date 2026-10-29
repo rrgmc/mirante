@@ -188,7 +188,7 @@ Local sessions exist on one device only. On other devices the panel shows the de
 `web.page`, web, module `web`.
 
 - **Configuration:** `url`, the page's address, required.
-- **Shows:** the page, using the group's profile, or the shared profile if the host is overridden.
+- **Shows:** the page, using the group's profile, or the shared profile if the host is overridden. If `url` is empty or is not an `http` or `https` address, the cell says "Set the address in the item's settings."
 
 ### Notes
 

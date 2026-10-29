@@ -1,5 +1,8 @@
 // The web module: any web page as an item. See README.md.
+#include "WebUrls.h"
+
 #include <mirante/Fields.h>
+#include <mirante/ItemContext.h>
 #include <mirante/ItemType.h>
 #include <mirante/Module.h>
 
@@ -12,11 +15,12 @@ namespace mirante::modules::web {
 
 namespace {
 
-// A type with an id, a name, an icon and its configuration fields. The view arrives in M4.
-class StubItemType : public ItemType
+// The web page type: a web view of its address, or a message when the address
+// is missing or is not an http or https address. It uses no connection.
+class PageItemType : public ItemType
 {
 public:
-    StubItemType(const QString &id, const QString &name)
+    PageItemType(const QString &id, const QString &name)
         : m_id(id)
         , m_name(name)
         , m_icon(QStringLiteral(":/modules/web/icons/web.svg"))
@@ -39,6 +43,19 @@ public:
         return {url};
     }
 
+    Rendering rendering() const override { return Rendering::Web; }
+    QStringList connectionKinds() const override { return {}; }
+
+    QWidget *createView(ItemContext &context, QWidget *parent) const override
+    {
+        const QUrl url = pageUrl(context.config());
+        if (url.isEmpty()) {
+            return context.createMessageView(
+                QCoreApplication::translate("web", "Set the address in the item's settings."), parent);
+        }
+        return context.createWebView(url, parent);
+    }
+
 private:
     QString m_id;
     QString m_name;
@@ -49,7 +66,7 @@ private:
 
 void registerModule(ModuleRegistrar &registrar)
 {
-    registrar.addItemType(std::make_unique<StubItemType>(
+    registrar.addItemType(std::make_unique<PageItemType>(
         QStringLiteral("web.page"), QCoreApplication::translate("web", "Web page")));
 }
 
