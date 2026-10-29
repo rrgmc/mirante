@@ -15,12 +15,20 @@ const QString recentWorkspacesKey = QStringLiteral("workspace/recent");
 const QString windowSizeKey = QStringLiteral("window/size");
 const QString windowMaximizedKey = QStringLiteral("window/maximized");
 const QString windowSplitterKey = QStringLiteral("window/splitter");
+const QString hiddenViewLimitKey = QStringLiteral("webViews/hiddenLimit");
+
+constexpr int defaultHiddenViewLimit = 8;
 
 constexpr int maxRecent = 10;
 
 QString folderKey(const QString &folderId)
 {
     return QStringLiteral("folders/") + folderId;
+}
+
+QString detachedKey(const QString &dashboardId)
+{
+    return QStringLiteral("detached/") + dashboardId;
 }
 
 // The group holding one workspace's open tabs. A path can hold characters a
@@ -125,6 +133,7 @@ DeviceSettings::Tabs DeviceSettings::openTabs(const QString &workspace) const
     if (tabs.saved) {
         tabs.ids = settings.value(QStringLiteral("ids")).toStringList();
         tabs.current = settings.value(QStringLiteral("current")).toString();
+        tabs.detached = settings.value(QStringLiteral("detached")).toStringList();
     }
     settings.endGroup();
     return tabs;
@@ -140,6 +149,7 @@ void DeviceSettings::setOpenTabs(const QString &workspace, const Tabs &tabs)
     settings.setValue(QStringLiteral("path"), QDir::cleanPath(QFileInfo(workspace).absoluteFilePath()));
     settings.setValue(QStringLiteral("ids"), tabs.ids);
     settings.setValue(QStringLiteral("current"), tabs.current);
+    settings.setValue(QStringLiteral("detached"), tabs.detached);
     settings.endGroup();
 }
 
@@ -173,13 +183,36 @@ void DeviceSettings::setSidebarSplitterState(const QByteArray &state)
     d->settings->setValue(windowSplitterKey, state);
 }
 
-// Stubs from M4 T0. T3 implements them, and saves Tabs::detached.
-QByteArray DeviceSettings::detachedGeometry(const QString &) const { return {}; }
+QByteArray DeviceSettings::detachedGeometry(const QString &dashboardId) const
+{
+    if (dashboardId.isEmpty())
+        return {};
+    return d->settings->value(detachedKey(dashboardId)).toByteArray();
+}
 
-void DeviceSettings::setDetachedGeometry(const QString &, const QByteArray &) {}
+// An empty geometry removes the entry.
+void DeviceSettings::setDetachedGeometry(const QString &dashboardId, const QByteArray &geometry)
+{
+    if (dashboardId.isEmpty())
+        return;
+    if (geometry.isEmpty())
+        d->settings->remove(detachedKey(dashboardId));
+    else
+        d->settings->setValue(detachedKey(dashboardId), geometry);
+}
 
-int DeviceSettings::hiddenViewLimit() const { return 8; }
+// The value is edited by hand in the settings file, so anything that is not a
+// positive whole number counts as not set.
+int DeviceSettings::hiddenViewLimit() const
+{
+    bool ok = false;
+    const int limit = d->settings->value(hiddenViewLimitKey).toInt(&ok);
+    return ok && limit > 0 ? limit : defaultHiddenViewLimit;
+}
 
-void DeviceSettings::setHiddenViewLimit(int) {}
+void DeviceSettings::setHiddenViewLimit(int limit)
+{
+    d->settings->setValue(hiddenViewLimitKey, limit);
+}
 
 } // namespace mirante

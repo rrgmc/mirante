@@ -88,7 +88,7 @@ Settings that only make sense on one device are stored with `QSettings`, outside
 - the local path of each project [folder](data-model.md#folder);
 - the main window's size, whether it is maximized, and the sidebar width;
 - detached root dashboard window geometry;
-- the open root tabs and the current tab of each workspace;
+- the open root tabs, the current tab and the detached root dashboards of each workspace;
 - terminal command template, editor command;
 - poll interval, the hidden-view limit;
 - the global hotkey;
