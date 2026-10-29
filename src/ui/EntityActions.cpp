@@ -11,6 +11,7 @@
 #include "ui/ItemDialog.h"
 #include "ui/ProjectDialog.h"
 #include "ui/TaskDialog.h"
+#include "web/ProfileManager.h"
 
 #include <QActionGroup>
 #include <QBuffer>
@@ -20,6 +21,7 @@
 #include <QImage>
 #include <QMenu>
 #include <QMessageBox>
+#include <QTimer>
 
 #include <algorithm>
 #include <climits>
@@ -95,6 +97,7 @@ struct EntityActions::Private
     std::function<bool(QDialog &)> exec;
     std::function<bool(const QString &)> confirm;
     std::function<Qt::KeyboardModifiers()> modifiers;
+    ProfileManager *profiles = nullptr;
 
     bool shiftHeld() const { return modifiers && (modifiers() & Qt::ShiftModifier); }
 
@@ -167,6 +170,8 @@ void EntityActions::setModifiers(std::function<Qt::KeyboardModifiers()> modifier
 {
     d->modifiers = std::move(modifiers);
 }
+
+void EntityActions::setProfiles(ProfileManager *profiles) { d->profiles = profiles; }
 
 // Creating.
 
@@ -451,8 +456,14 @@ void EntityActions::removeGroup(const QString &id)
             question = tr("Delete group %1, its %2 and %3?").arg(group->name, projectsText, tasksText);
         }
     }
-    if (d->confirm(question))
-        d->model.removeGroup(id);
+    if (!d->confirm(question))
+        return;
+    d->model.removeGroup(id);
+    // Then its web logins go. Removing the group closes the tabs of its tasks
+    // at once, but the placements in other pages, detached windows included,
+    // delete their views later. The profiles go after those pages, or Qt warns.
+    if (ProfileManager *profiles = d->profiles)
+        QTimer::singleShot(0, profiles, [profiles, id] { profiles->removeGroup(id); });
 }
 
 void EntityActions::removeProject(const QString &id)

@@ -26,8 +26,9 @@ public:
     void focusCell(QWidget *cell);
 
     // Maximises a cell over the content area and focuses it, or restores it
-    // if it is the maximised one. The cell need not have the focus. See the
-    // M4 plan, part 6.
+    // if it is the maximised one. The cell need not have the focus. A cell in
+    // a detached window is maximised over that window's page instead. See the
+    // M4 plan, part 6, and docs/ui.md#detached-windows.
     void toggleMaximised(QWidget *cell);
     bool isMaximised(const QWidget *cell) const;
 

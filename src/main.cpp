@@ -4,17 +4,22 @@
 #include "core/Store.h"
 #include "items/EnabledModules.h"
 #include "items/ItemTypeRegistry.h"
+#include "items/ViewPool.h"
 #include "ui/MainWindow.h"
+#include "web/ProfileManager.h"
 
 #include <QApplication>
 #include <QCommandLineParser>
 #include <QDir>
 #include <QIcon>
+#include <QStandardPaths>
 
 #include <memory>
 
 int main(int argc, char *argv[])
 {
+    // Qt WebEngine asks for shared OpenGL contexts, set before the application.
+    QCoreApplication::setAttribute(Qt::AA_ShareOpenGLContexts);
     QApplication app(argc, argv);
     QApplication::setApplicationName(QStringLiteral(MIRANTE_APP_NAME));
     QApplication::setOrganizationName(QStringLiteral(MIRANTE_ORGANISATION));
@@ -48,7 +53,13 @@ int main(int argc, char *argv[])
 
     mirante::Model model;
     mirante::Store store(model);
-    mirante::MainWindow window(model, types, store, settings);
+    // The web profiles outlive the window, and with it every page that uses
+    // them. The pool's limit is read once, at start.
+    mirante::ProfileManager profiles(QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation)
+                                     + QStringLiteral("/profiles"));
+    mirante::ViewPool pool;
+    pool.setLimit(settings.hiddenViewLimit());
+    mirante::MainWindow window(model, types, store, settings, &profiles, &pool);
 
     // Pending writes reach the disk before the app quits.
     QObject::connect(&app, &QCoreApplication::aboutToQuit, &store, &mirante::Store::flush);

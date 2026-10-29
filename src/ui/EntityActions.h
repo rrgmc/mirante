@@ -17,6 +17,7 @@ namespace mirante {
 class DeviceSettings;
 class ItemTypeRegistry;
 class Model;
+class ProfileManager;
 class Store;
 
 // Every command that creates, edits, moves or deletes a group, project, task,
@@ -40,6 +41,9 @@ public:
     // Reads the keyboard modifiers when a menu command runs. The default is
     // QGuiApplication::queryKeyboardModifiers(); tests set their own.
     void setModifiers(std::function<Qt::KeyboardModifiers()> modifiers);
+    // The web profiles. Deleting a group then deletes its profiles too. Null,
+    // the default, leaves them alone. The manager must outlive this object.
+    void setProfiles(ProfileManager *profiles);
 
     // Creating. Each opens the entity's dialog with a new value, and returns the
     // new id, or an empty string if the dialog was cancelled. A new task gets one

@@ -186,6 +186,7 @@ A root dashboard tab can be detached into its own operating system window. Nothi
 - The detached root dashboards are saved with the [open tabs](#opening-tasks). When the workspace opens again, they open again in their windows.
 - Opening another workspace closes the detached windows, after saving them. Closing the main window puts them back, after saving them, so they open detached next time.
 - The keyboard shortcuts of the main window, such as moving the focus between cells and maximising a cell, work in the main window only.
+- The maximise button and the cell menu entries "Maximise" and "Restore" work in a detached window too. The cell is maximised over the window's dashboard, below its toolbar, and stays in that window. Changing the main window's tab leaves it maximised. "Open Alone" opens the item in the main window's preview tab and brings the main window to the front.
 
 If the same item is shown in two places, each place has its own live view. See [decision 0003](decisions/0003-view-per-placement.md).
 
