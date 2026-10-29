@@ -15,6 +15,14 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 find_package(Qt6 6.8 REQUIRED COMPONENTS Core Gui Widgets Test)
 qt_standard_project_setup()
 
+# Qt 6.8's FindWrapOpenGL links the AGL framework, which Xcode 26 no longer
+# ships. Nothing here uses AGL, so drop it.
+if(APPLE AND TARGET WrapOpenGL::WrapOpenGL)
+    get_target_property(_gl_libs WrapOpenGL::WrapOpenGL INTERFACE_LINK_LIBRARIES)
+    list(FILTER _gl_libs EXCLUDE REGEX "AGL")
+    set_target_properties(WrapOpenGL::WrapOpenGL PROPERTIES INTERFACE_LINK_LIBRARIES "${_gl_libs}")
+endif()
+
 option(MIRANTE_WERROR "Treat compiler warnings as errors" OFF)
 
 include(MiranteTargets)
