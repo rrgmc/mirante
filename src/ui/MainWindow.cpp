@@ -6,7 +6,6 @@
 #include "core/LayoutTree.h"
 #include "core/LogBuffer.h"
 #include "core/Model.h"
-#include "core/Sorting.h"
 #include "items/ItemTypeRegistry.h"
 #include "items/Placement.h"
 #include "layout/CellFrame.h"
@@ -40,7 +39,6 @@
 #include <QAction>
 #include <QApplication>
 #include <QClipboard>
-#include <QComboBox>
 #include <QCursor>
 #include <QCloseEvent>
 #include <QDesktopServices>
@@ -1010,47 +1008,6 @@ struct MainWindow::Private
         updateWarnings();
     }
 
-    // Asks which task an image pasted onto a root dashboard belongs to. It
-    // offers the active tasks in sidebar order, with the task of the sidebar's
-    // selection chosen. Returns the task's id, an empty id if there is no
-    // active task, or nullopt if the user cancels.
-    // The active tasks a pasted image can go to, as "Project / Task" labels
-    // and ids, in sidebar order.
-    std::pair<QStringList, QStringList> tasksForImage() const
-    {
-        QStringList labels;
-        QStringList ids;
-        const SortFilter activeTasks;
-        for (const Group *group : model->groups()) {
-            for (const Project *project : sortedProjects(model->projectsOfGroup(group->id), activeTasks)) {
-                for (const Task *task : sortedTasks(model->tasksOfProject(project->id), activeTasks)) {
-                    labels.append(MainWindow::tr("%1 / %2").arg(project->name, task->title));
-                    ids.append(task->id);
-                }
-            }
-        }
-        return {labels, ids};
-    }
-
-    // Asks which of the tasks a pasted image goes to, with the task of the
-    // sidebar's selection chosen. Returns its id, or nullopt if cancelled.
-    std::optional<QString> askTaskForImage(const QStringList &labels, const QStringList &ids)
-    {
-        const QString selected = sidebar->currentIndex().data(SidebarModel::TaskIdRole).toString();
-        QInputDialog dialog(q);
-        dialog.setWindowTitle(MainWindow::tr("Paste Image"));
-        dialog.setLabelText(MainWindow::tr("Add the image to the task:"));
-        dialog.setComboBoxItems(labels);
-        dialog.setComboBoxEditable(false);
-        dialog.setTextValue(labels.at(std::max(0, int(ids.indexOf(selected)))));
-        if (!exec(dialog))
-            return std::nullopt;
-        // The combo box's index, since two tasks can share a label.
-        const auto *combo = dialog.findChild<QComboBox *>();
-        const int index = combo ? combo->currentIndex() : int(labels.indexOf(dialog.textValue()));
-        return ids.value(index);
-    }
-
     // The group and project the sidebar's selection belongs to, for the +
     // menu. Each is empty if the selection has none.
     std::pair<QString, QString> selectedGroupAndProject() const
@@ -1551,7 +1508,10 @@ MainWindow::MainWindow(Model &model, const ItemTypeRegistry &types, Store &store
     // A new task dashboard opens in the preview tab, ready to fill.
     connect(d->actions, &EntityActions::dashboardCreated, this,
             [this](const QString &taskId, const QString &dashboardId) { openTaskPreview(taskId, dashboardId); });
-    d->imagePaste = std::make_unique<ImagePaste>(model, store, types, *d->locks);
+    // "Paste Image…" in a task's menus reports its refusals in the status bar.
+    connect(d->actions, &EntityActions::message, this,
+            [this](const QString &message) { statusBar()->showMessage(message, 5000); });
+    d->imagePaste = std::make_unique<ImagePaste>(model, store, types);
     d->tracker = new SingleViewTracker(this);
     d->services.model = &model;
     d->services.types = &types;
@@ -2077,37 +2037,20 @@ void MainWindow::pasteImage(const QImage &image)
             statusBar()->showMessage(message, 5000);
     };
 
-    // A paste that cannot happen says why before any dialog opens.
+    // Only the image of a focused image item is replaced; nothing is added
+    // to a dashboard. A paste that cannot happen says why before any dialog
+    // opens. See docs/decisions/0051-paste-images-from-the-items-menu.md.
     ImagePaste::Result result = itemId.isEmpty() ? d->imagePaste->check(ref, path)
                                                  : d->imagePaste->checkItem(ref.taskId, itemId);
-    // A root dashboard has no task of its own, so the image needs one.
-    QStringList taskLabels;
-    QStringList taskIds;
-    if (result == ImagePaste::Result::RootDashboard) {
-        std::tie(taskLabels, taskIds) = d->tasksForImage();
-        if (taskIds.isEmpty()) {
-            showMessage(result);
-            return;
-        }
-    } else if (result != ImagePaste::Result::ReplacedImage && result != ImagePaste::Result::CreatedItem) {
+    if (result != ImagePaste::Result::ReplacedImage) {
         showMessage(result);
         return;
     }
 
-    // The preview and the crop first, then the task, so the user sees the
-    // image before deciding where it goes.
     const QImage cropped = ImagePasteDialog::ask(image, this, d->exec);
     if (cropped.isNull())
         return;
-    QString rootTaskId;
-    if (result == ImagePaste::Result::RootDashboard) {
-        const std::optional<QString> taskId = d->askTaskForImage(taskLabels, taskIds);
-        if (!taskId)
-            return;
-        rootTaskId = *taskId;
-    }
-
-    result = itemId.isEmpty() ? d->imagePaste->paste(cropped, ref, path, rootTaskId)
+    result = itemId.isEmpty() ? d->imagePaste->paste(cropped, ref, path)
                               : d->imagePaste->pasteIntoItem(cropped, ref.taskId, itemId);
     showMessage(result);
 }

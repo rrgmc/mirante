@@ -98,7 +98,8 @@ The module interface contains the headers below. The "Since" column gives the mi
 |---|---|---|
 | `Module.h` | `ModuleRegistrar`, the object a module registers its parts with. `setModuleName()`, `addSettingsScreen()` and `settings()` were added after M4; see [settings screens](#settings-screens). | M2 |
 | `ModuleSettings.h` | `SettingsScreen`, one configuration screen of a module, and `ModuleSettings`, which reads the values of the module's screens. See [settings screens](#settings-screens). | after M4 |
-| `ItemType.h` | The `ItemType` interface. See [item types](item-types.md#the-type-registry). `shortName()`, the short label in cell headers, was added after M3; see [decision 0033](decisions/0033-cell-header-pills.md). M4 adds `rendering()`, `connectionKinds()` and `createView()`. | M2 |
+| `ItemType.h` | The `ItemType` interface. See [item types](item-types.md#the-type-registry). `shortName()`, the short label in cell headers, was added after M3; see [decision 0033](decisions/0033-cell-header-pills.md). M4 adds `rendering()`, `connectionKinds()` and `createView()`. `fromUrl()` was added after M4; see [items from a link](#items-from-a-link). | M2 |
+| `UrlMatch.h` | `UrlMatch`, what an item type makes of a pasted web address, and `pathBelow()`, which reads an address below a connection's base URL. See [items from a link](#items-from-a-link). | after M4 |
 | `Fields.h` | `Field`: a key, a label, a type, a default value, a required flag, and for a choice its values and labels. The types are text, multi-line text, URL, integer, boolean, choice, folder, image and text list. A text field can offer `suggestions` in an editable drop-down list. Used for item configuration and settings screens, and from M5 for connection fields and project settings. See decisions [0028](decisions/0028-item-fields-in-m3.md) and [0044](decisions/0044-module-settings-in-the-workspace.md). | M3 |
 | `ItemEditor.h` | `ItemEditor`, the base of an item type's own configuration editor, and `EditorContext`, what an editor can reach: the project's folders and a way to save an image into `files/` | M3 |
 | `ItemContext.h` | `ItemContext`, everything an item's code can reach. See [below](#item-context). | M4 |
@@ -155,6 +156,29 @@ void registerModule(ModuleRegistrar &registrar)
 - **No secrets.** A screen never asks for a token or a password. Those stay in the keychain, as for [connections](#connections-and-tokens).
 - **Reading.** `registrar.settings()` returns a `ModuleSettings`, which lives as long as the module's item types. `values(screenId)` reads the current values of one of the module's screens on each call, so code reads them where it needs them: in `fields()`, an editor or a view. It returns an empty object when nothing is stored.
 - **Menu.** The core adds a submenu named after the module to the [Modules menu](ui.md#modules), with one entry per screen. A module without screens does not appear there.
+
+## Items from a link
+
+An item type can read a web address that the user pasted, such as a merge request's page, and return the configuration that shows it. The new item dialog then offers only the types that take the address, and fills the chosen one. See [decision 0049](decisions/0049-items-from-a-pasted-link.md) and [the item dialog](ui.md#item-dialog).
+
+```cpp
+std::optional<UrlMatch> fromUrl(const QUrl &url, const QList<QUrl> &baseUrls) const override
+{
+    for (const QUrl &base : baseUrls) {
+        if (const std::optional<QString> path = pathBelow(url, base)) {
+            // Read *path, such as "group/project/-/merge_requests/42".
+        }
+    }
+    return std::nullopt;     // not an address of this type
+}
+```
+
+- **The address.** `url` is an `http` or `https` address with a host. The default `fromUrl()` takes none.
+- **Base URLs.** `baseUrls` are the base URLs of the connections, of the type's connection kinds, in the new item's group. They let a type read a self-hosted server, including one installed at a path. `pathBelow(url, base)` returns the path of `url` below `base`, or nothing if `url` is on another server.
+- **The match.** `config` holds the keys of the type's own fields; keys left out take the fields' defaults. Map the address only to fields the type already has. `name` is a suggested item name, such as `acme/backend!42`. `baseUrl` is the base URL of the server the address belongs to; the core gives the item the group's connection with that base URL, if there is one. `generic` marks a type that takes any address, such as Web page; the dialog lists such types last.
+- **Tests.** Test `fromUrl()` with good addresses and with addresses it must refuse.
+
+The types that take addresses so far are listed in [item types](item-types.md#items-from-a-link).
 
 ## Item context
 
@@ -234,7 +258,7 @@ Everything is written back exactly as it was loaded. See [sync](sync.md#the-data
 
 1. Create `src/modules/<id>/` with a `CMakeLists.txt` that calls `mirante_add_module()`.
 2. Write `registerModule(ModuleRegistrar &)` in the namespace `mirante::modules::<id>`.
-3. Give the module a name with `setModuleName()`. Register the item types and any settings screens, connection kinds, settings and quick add handlers. Give each item type a short label with `shortName()`, such as "MR", for its cell headers.
+3. Give the module a name with `setModuleName()`. Register the item types and any settings screens, connection kinds, settings and quick add handlers. Give each item type a short label with `shortName()`, such as "MR", for its cell headers. If a type shows something that has a web address, implement `fromUrl()`; see [items from a link](#items-from-a-link).
 4. Add tests and a `README.md`.
 5. Add the module's item types to [item types](item-types.md) and the module to the table at the top of this document.
 6. Build once with the module on and once with it off. Both must build and pass the tests.

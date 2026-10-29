@@ -1,6 +1,6 @@
 # 0032. Pasting an image into a root dashboard asks for its task
 
-- Status: Accepted
+- Status: Superseded by [0051](0051-paste-images-from-the-items-menu.md)
 - Date: 2026-10-29
 
 ## Context

@@ -96,13 +96,13 @@ public:
     // The next (step 1) or previous (step -1) page, wrapping: the tabs of the
     // root tab bar in order, then Focus, then the preview if there is one.
     void switchPage(int step);
-    // Pastes an image onto the dashboard or into the item of the current tab,
-    // through ImagePaste, and shows its message in the status bar. Ctrl+V calls
-    // it when the clipboard holds an image. If the paste can happen, the paste
-    // dialog shows the image and lets the user crop it first; on a root
-    // dashboard a second dialog then asks for the task.
+    // Ctrl+V with an image on the clipboard. Replaces the image of the image
+    // item in the focused cell or the current item tab, through ImagePaste,
+    // after the paste dialog. It never adds an item to a dashboard: on any
+    // other cell the status bar points to "Paste Image…" in a task's Items
+    // menu. See docs/decisions/0051-paste-images-from-the-items-menu.md.
     void pasteImage(const QImage &image);
-    // Runs the dialogs of pasteImage() and says whether each was accepted.
+    // Runs the dialog of pasteImage() and says whether it was accepted.
     // The default calls exec(); tests work the dialog and return instead.
     void setExec(std::function<bool(QDialog &dialog)> exec);
     // Saves the open tabs of the open workspace on this device.

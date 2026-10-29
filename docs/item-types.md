@@ -17,12 +17,12 @@ A module registers each of its types in the `ItemTypeRegistry` with:
 | `shortName` | Optional: a short label, one word if possible, such as "MR" or "Jira". Cell headers show it with the icon in the type pill. Defaults to `name`. See [decision 0033](decisions/0033-cell-header-pills.md). |
 | `fields` | The configuration fields: key, label, type, default, whether it is required, and for a choice its values and labels. The core builds the item dialog's form from them and checks the values. See [decision 0028](decisions/0028-item-fields-in-m3.md). |
 | `createEditor` | Optional: an editor of the type's own for the configuration, used instead of the form built from `fields`. It receives the project's folders and a way to save an image into `files/`. |
-| `pastedImageField` | Optional: the key of an image field that a pasted image fills. If set, pasting an image onto a task dashboard creates an item of this type. See [Image](#image). |
+| `pastedImageField` | Optional: the key of an image field that a pasted image fills. If set, "Paste Image…" in a task's Items menu creates an item of this type, and `Ctrl+V` replaces the image of such an item. See [Image](#image). |
 | `rendering` | `native` (a Qt widget) or `web` (a [web view](web-views.md)). The [memory policy](web-views.md#memory-policy) unloads web views. |
 | `connectionKinds` | The kinds of [connection](data-model.md#connection) it can use, in order of preference, such as `jira.cloud` then `jira.dc`. Empty if it needs none. |
 | `status` | Optional: how to fetch status and attention from the [status cache](integrations.md#polling-and-caching) |
 | `actions` | Optional: the light actions it offers |
-| `fromUrl` | Optional: recognises a pasted URL and returns a configuration |
+| `fromUrl` | Optional: recognises a pasted web address and returns a configuration, a suggested name and the base URL of its server. See [items from a link](#items-from-a-link). |
 | `createView` | Creates the item's view for one placement. See [the view](#the-view). |
 | `singleView` | Optional, off by default: the item can have only one view at a time |
 | `reparentSafe` | Optional, on by default: the view can be moved to another cell without being created again |
@@ -32,6 +32,24 @@ A new item starts with a grid of the registered types, where the user picks one,
 New types are added by registering a class in a module. No core code changes. See [adding a module](modules.md#adding-a-module).
 
 When a field has a project default, the type uses it when the field is empty. For example, an empty project path in an MR List uses the project's `gitlab.project` setting. See [module settings](data-model.md#project).
+
+## Items from a link
+
+A pasted web address can make an item. The new item dialog asks every type's `fromUrl` about it, and offers the types that take it: types of modules first, then Web page. Choosing one fills its configuration and name. If the address is on the server of one of the group's connections, the item uses that connection. See [decision 0049](decisions/0049-items-from-a-pasted-link.md), [the item dialog](ui.md#item-dialog) and [modules](modules.md#items-from-a-link).
+
+| Address | Types that take it | Configuration filled | Name |
+|---|---|---|---|
+| `<base>/<project>/-/merge_requests/<iid>` | GitLab MR (summary), GitLab MR (page), GitLab CI Pipeline | `project`, `iid`; the pipeline also `branchSource` = `mergeRequest` | `group/project!42`; the pipeline `group/project!42 CI` |
+| `<base>/<project>/-/issues/<iid>` | GitLab Issue (summary), GitLab Issue (page) | `project`, `iid` | `group/project#7` |
+| `<base>/<project>/-/merge_requests`, `<base>/<project>/-/issues` | GitLab MR List, GitLab Issue List | `scope` = `project`, `project`, `preset` = `allOpen` | `group/project MRs`, `group/project issues` |
+| `<base>/<project>/-/pipelines[/<id>][?ref=<branch>]` | GitLab CI Pipeline | `project`, `branchSource` = `fixed`, `branch` from `ref`. The pipeline's id is not kept, because the type follows a branch. | `group/project <branch> CI` |
+| `<base>/browse/<key>`, `.../issues/<key>`, or `?selectedIssue=<key>` | Jira Issue (summary), Jira Issue (page) | `key` | the key |
+| a Jira address with `?jql=<query>` | Jira List | `preset` = `jql`, `jql` | "Jira search" |
+| `https://claude.ai/...` | Claude session (web) | `url` | "Claude session" |
+| any `http` or `https` address | Web page | `url` | the host, without `www.` |
+
+- **GitLab servers.** `<base>` is the base URL of one of the group's `gitlab` connections, so a server installed at a path is read correctly. Without a matching connection, `gitlab.com` and any other server are still read, because the `/-/` in the path is GitLab's own; the base is then the server without a path.
+- **Jira servers.** `<base>` is the base URL of one of the group's `jira.cloud` or `jira.dc` connections, or any `atlassian.net` site. Any other server is read only from `/browse/<key>`, with Jira taken to be installed at the path before it. Keys are read in upper case.
 
 ## The view
 
@@ -203,13 +221,11 @@ Local sessions exist on one device only. On other devices the panel shows the de
 
 - **Configuration:** `file`, the image's file in the data folder's `files/` folder, required; `link`, an optional URL; `memo`, optional plain text. The type returns `file` from `pastedImageField`.
 - **Shows:** the image, scaled to fit the cell, with the memo under it. A click on the image opens the link, if there is one.
-- **Paste:** `Ctrl+V` with an image on the clipboard. The [paste dialog](ui.md#pasting-images) opens first, to preview the image and crop it. The cropped image is saved as PNG in `files/`, and the item's `file` is set to the new file's name. `ImagePaste` does the work, and the main window shows its message in the status bar. The "Paste" button of the item dialog's image field opens the same dialog.
-  - If the focused cell shows an Image item, or the item is shown alone in a tab, its image is replaced. This is an item edit, so it works on a locked dashboard, and in a root dashboard cell that shows the item. The old file is deleted when no item refers to it any more ([decision 0030](decisions/0030-deleting-image-files.md)).
-  - Otherwise, on an unlocked dashboard, a new Image item is created, named "Image", or "Image 2", "Image 3" and so on if the task already has an item with that name. An empty focused cell holds it. Any other focused cell is split, with the new item on the right. Without a focused cell, a dashboard of one empty cell holds it; any other layout is split as a whole, with the new item on the right.
-  - On a task dashboard the new item belongs to that task. A root dashboard has no task of its own, so a second dialog, after the paste dialog, asks for one among the active tasks, in sidebar order, with the task of the sidebar's selection chosen. The item is added to that task, and the root dashboard's cell refers to it with that task. Cancel pastes nothing. Without any active task, no dialog opens and the status bar says "A pasted image belongs to a task. Add an active task first." See [decision 0032](decisions/0032-paste-images-into-root-dashboards.md).
-  - On a locked dashboard, no dialog opens and the status bar says "Unlock the dashboard to paste an image into it."
+- **Paste:** an image on the clipboard is pasted in one of two ways. The [paste dialog](ui.md#pasting-images) opens first, to preview the image and crop it. The cropped image is saved as PNG in `files/`, and the item's `file` is set to the new file's name. `ImagePaste` does the work, and the status bar shows its message. The "Paste" button of the item dialog's image field opens the same dialog. A pasted image is never added straight to a dashboard. See [decision 0051](decisions/0051-paste-images-from-the-items-menu.md).
+  - **Paste Image…**, in the context menu of a task or its Items row, adds a new Image item to that task, named "Image", or "Image 2", "Image 3" and so on if the task already has an item with that name. No dashboard changes. The user drags the item from the sidebar onto a dashboard if wanted.
+  - `Ctrl+V` replaces the image of the Image item in the focused cell, or of the item shown alone in a tab. This is an item edit, so it works on a locked dashboard, and in a root dashboard cell that shows the item. The old file is deleted when no item refers to it any more ([decision 0030](decisions/0030-deleting-image-files.md)). On any other cell, or without a focused cell, nothing changes, no dialog opens, and the status bar says "To add an image, use Paste Image… in a task's Items menu."
   - The new item is of the first type, by name, whose `pastedImageField` is set. In a build without such a type, such as one without the `image` module, nothing is pasted and the status bar says "This build cannot show images."
-  - If the image cannot be saved, for example in the read-only sample data, nothing changes and the status bar says "The image could not be saved."
+  - If the image cannot be saved, for example in the read-only sample data, nothing changes and the status bar says "The image could not be saved." For the read-only sample data this shows before any dialog opens.
 
 ### Folder / terminal
 

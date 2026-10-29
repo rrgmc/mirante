@@ -4,11 +4,13 @@
 #include "ui/SidebarModel.h"
 
 #include <QObject>
+#include <QUrl>
 
 #include <functional>
 #include <memory>
 
 class QDialog;
+class QImage;
 class QMenu;
 class QWidget;
 
@@ -64,8 +66,27 @@ public:
     QString newGroup();
     QString newProject(const QString &groupId);
     QString newTask(const QString &projectId);
-    QString newItem(const QString &taskId);
+    // url fills the link field of the item dialog's type page. An item made
+    // from a link on a server of one of the group's connections uses that
+    // connection, unless it is already the one the item would use. See
+    // decision 0049.
+    QString newItem(const QString &taskId, const QString &url = QString());
+    // "Paste URL…": newItem() with the web address on the clipboard. Nothing
+    // happens, and an empty string is returned, if the clipboard holds none.
+    QString pasteUrl(const QString &taskId);
+    // The web address on the clipboard: its first http or https URL, else its
+    // text if that is one. Empty if it holds none.
+    static QUrl clipboardUrl();
     QString newDashboard(const QString &taskId);
+    // "Paste Image…": opens the paste dialog on the clipboard's image, then
+    // adds the cropped image to the task as a new Image item, on no
+    // dashboard. A paste that cannot happen, such as in the read-only sample
+    // data, emits message() instead of opening the dialog. Returns the new
+    // item's id, or an empty string. See docs/decisions/0051-paste-images-from-the-items-menu.md.
+    QString pasteImage(const QString &taskId);
+    // Reads the clipboard's image for pasteImage() and its menu entry. The
+    // default reads the system clipboard; tests set their own.
+    void setClipboardImage(std::function<QImage()> clipboardImage);
 
     // Editing, through the entity's dialog.
     void editGroup(const QString &id);
@@ -110,7 +131,9 @@ public:
     void moveTask(const QString &id, int index);
 
     // Adds the commands for a sidebar row to menu: new, edit, rename, set
-    // priority, set state, delete, and on dashboards "Set as default". Fits
+    // priority, set state, delete, and on dashboards "Set as default". A task
+    // and its Items row also get "Paste Image…", enabled while the clipboard
+    // holds an image. Fits
     // Sidebar::MenuFiller. "Delete project…" and "Delete task…" move to the
     // trash, or delete for good while Shift is held.
     void fillMenu(QMenu *menu, SidebarModel::Kind kind, const QString &id, const QString &taskId);
@@ -121,8 +144,13 @@ public:
 signals:
     // A task dashboard made with newDashboard, so the window can show it.
     void dashboardCreated(const QString &taskId, const QString &dashboardId);
+    // A short message for the status bar, such as why an image was not pasted.
+    void message(const QString &text);
 
 private:
+    // Adds "Paste Image…" for the task, enabled while the clipboard holds an image.
+    void addPasteImage(QMenu *menu, const QString &taskId);
+
     struct Private;
     std::unique_ptr<Private> d;
 };

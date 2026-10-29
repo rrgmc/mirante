@@ -5,6 +5,7 @@
 #include <QAbstractButton>
 #include <QCursor>
 #include <QEvent>
+#include <QFormLayout>
 #include <QPainter>
 #include <QPainterPath>
 #include <QStyleOption>
@@ -211,9 +212,19 @@ int AppStyle::pixelMetric(PixelMetric metric, const QStyleOption *option, const 
 int AppStyle::styleHint(StyleHint hint, const QStyleOption *option, const QWidget *widget,
                         QStyleHintReturn *returnData) const
 {
-    if (hint == SH_TabBar_CloseButtonPosition)
+    switch (hint) {
+    case SH_TabBar_CloseButtonPosition:
         return QTabBar::RightSide;
-    return QProxyStyle::styleHint(hint, option, widget, returnData);
+    // Forms fill their dialog, as on Windows and Linux. The macOS style keeps
+    // fields at their natural width and centres the form, which cuts long
+    // values such as addresses short.
+    case SH_FormLayoutFieldGrowthPolicy:
+        return QFormLayout::AllNonFixedFieldsGrow;
+    case SH_FormLayoutFormAlignment:
+        return int(Qt::AlignLeft | Qt::AlignTop);
+    default:
+        return QProxyStyle::styleHint(hint, option, widget, returnData);
+    }
 }
 
 void AppStyle::polish(QWidget *widget)

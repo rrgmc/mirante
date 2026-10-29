@@ -46,6 +46,12 @@ public:
     Rendering rendering() const override { return Rendering::Web; }
     QStringList connectionKinds() const override { return {}; }
 
+    std::optional<UrlMatch> fromUrl(const QUrl &url, const QList<QUrl> &baseUrls) const override
+    {
+        Q_UNUSED(baseUrls)
+        return matchUrl(url);
+    }
+
     QWidget *createView(ItemContext &context, QWidget *parent) const override
     {
         const QUrl url = pageUrl(context.config());

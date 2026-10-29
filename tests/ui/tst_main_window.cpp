@@ -1008,9 +1008,10 @@ private slots:
         QCOMPARE(saved.pixelColor(39, 29), QColor(Qt::green));
     }
 
-    // On a root dashboard the paste dialog comes first, then the task
-    // question. Cancelling either pastes nothing.
-    void pasteImageIntoRootDashboard()
+    // Ctrl+V never adds an image to a dashboard. On an unlocked root or task
+    // dashboard without a focused image item, the status bar points to the
+    // Items menu, no dialog opens, and nothing changes.
+    void pasteImageNeverAddsToDashboard()
     {
         QTemporaryDir dir;
         QVERIFY(dir.isValid());
@@ -1018,6 +1019,16 @@ private slots:
         Fixture f;
         f.types.registerModule(QStringLiteral("image"), &registerTestImage);
         f.window->openWorkspace(dir.path());
+        int dialogs = 0;
+        f.window->setExec([&dialogs](QDialog &) {
+            ++dialogs;
+            return true;
+        });
+        const Task taskBefore = *f.model.task(kImageTask);
+        const RootDashboard rootBefore = *f.model.rootDashboard(kMorning);
+        QImage image(30, 20, QImage::Format_RGB32);
+        image.fill(Qt::red);
+
         f.window->openRootDashboard(kMorning);
         QToolButton *rootLock = nullptr;
         for (QToolButton *button : f.window->findChildren<QToolButton *>(QStringLiteral("lockButton")))
@@ -1025,37 +1036,100 @@ private slots:
         QVERIFY(rootLock);
         rootLock->click();
         QVERIFY(f.window->currentLayoutView()->editMode());
-        f.window->revealInSidebar(kImageTask);
-        const size_t itemsBefore = f.model.task(kImageTask)->items.size();
+        f.window->pasteImage(image);
+        QCOMPARE(f.window->statusBar()->currentMessage(), ImagePaste::message(ImagePaste::Result::NoImageItem));
 
+        f.window->openTaskPreview(kImageTask);
+        f.window->pasteImage(image);
+        QCOMPARE(f.window->statusBar()->currentMessage(), ImagePaste::message(ImagePaste::Result::NoImageItem));
+
+        QCOMPARE(dialogs, 0);
+        QVERIFY(*f.model.task(kImageTask) == taskBefore);
+        QVERIFY(*f.model.rootDashboard(kMorning) == rootBefore);
+    }
+
+    // "Paste Image…" in a task's Items menu opens the paste dialog, then adds
+    // the cropped image to the task as a new Image item. No dashboard
+    // changes. Cancel adds nothing.
+    void pasteImageFromItemsMenu()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        QVERIFY(copyFixtures(dir.path()));
+        Fixture f;
+        f.types.registerModule(QStringLiteral("image"), &registerTestImage);
+        f.window->openWorkspace(dir.path());
+        EntityActions *actions = f.window->entityActions();
         QImage image(300, 200, QImage::Format_RGB32);
-        image.fill(Qt::red);
+        image.fill(Qt::blue);
+        QPainter(&image).fillRect(QRect(100, 50, 40, 30), Qt::green);
+        actions->setClipboardImage([&image] { return image; });
 
-        // The order of the dialogs, and the answer to the second.
-        QStringList dialogs;
-        bool acceptTask = false;
-        f.window->setExec([&dialogs, &acceptTask](QDialog &dialog) {
-            dialogs << QString::fromLatin1(dialog.metaObject()->className());
-            if (auto *paste = qobject_cast<ImagePasteDialog *>(&dialog)) {
-                paste->setCrop(QRect(0, 0, 50, 20));
-                return true;
+        const Task before = *f.model.task(kImageTask);
+        const auto roots = [&f] {
+            std::vector<RootDashboard> values;
+            for (const RootDashboard *root : f.model.rootDashboards())
+                values.push_back(*root);
+            return values;
+        };
+        const std::vector<RootDashboard> rootsBefore = roots();
+        const auto trigger = [actions] {
+            QMenu menu;
+            actions->fillMenu(&menu, SidebarModel::Kind::ItemList, QString(), kImageTask);
+            QAction *paste = nullptr;
+            for (QAction *action : menu.actions()) {
+                if (action->text() == QStringLiteral("Paste Image…"))
+                    paste = action;
             }
-            return acceptTask;
-        });
-        f.window->pasteImage(image);
-        QCOMPARE(dialogs, (QStringList{QStringLiteral("mirante::ImagePasteDialog"), QStringLiteral("QInputDialog")}));
-        QCOMPARE(f.model.task(kImageTask)->items.size(), itemsBefore);
+            QVERIFY(paste && paste->isEnabled());
+            paste->trigger();
+        };
 
-        dialogs.clear();
-        acceptTask = true;
-        f.window->pasteImage(image);
-        QCOMPARE(dialogs.size(), 2);
+        QStringList dialogs;
+        actions->setExec([&dialogs](QDialog &dialog) {
+            dialogs << QString::fromLatin1(dialog.metaObject()->className());
+            return false;
+        });
+        trigger();
+        QCOMPARE(dialogs, QStringList{QStringLiteral("mirante::ImagePasteDialog")});
+        QVERIFY(*f.model.task(kImageTask) == before);
+
+        actions->setExec(cropTo(QRect(100, 50, 40, 30)));
+        trigger();
         const Task *task = f.model.task(kImageTask);
-        QCOMPARE(task->items.size(), itemsBefore + 1);
+        QCOMPARE(task->items.size(), before.items.size() + 1);
         const Item &item = task->items.back();
         QCOMPARE(item.type, QStringLiteral("image"));
         const QImage saved(f.dataStore.filePath(item.config.value(QStringLiteral("file")).toString()));
-        QCOMPARE(saved.size(), QSize(50, 20));
+        QCOMPARE(saved.size(), QSize(40, 30));
+        QCOMPARE(saved.pixelColor(0, 0), QColor(Qt::green));
+        // The item is on no dashboard: the task's dashboards and the root
+        // dashboards are unchanged.
+        QVERIFY(task->dashboards == before.dashboards);
+        QVERIFY(roots() == rootsBefore);
+    }
+
+    // In read-only data, such as the sample data, "Paste Image…" says why in
+    // the status bar and opens no dialog.
+    void pasteImageFromItemsMenuReadOnly()
+    {
+        Fixture f;
+        f.types.registerModule(QStringLiteral("image"), &registerTestImage);
+        QVERIFY(f.dataStore.readOnly());
+        EntityActions *actions = f.window->entityActions();
+        QImage image(30, 20, QImage::Format_RGB32);
+        image.fill(Qt::red);
+        actions->setClipboardImage([&image] { return image; });
+        int dialogs = 0;
+        actions->setExec([&dialogs](QDialog &) {
+            ++dialogs;
+            return true;
+        });
+        const size_t itemsBefore = f.model.task(kImageTask)->items.size();
+        QVERIFY(actions->pasteImage(kImageTask).isEmpty());
+        QCOMPARE(dialogs, 0);
+        QCOMPARE(f.window->statusBar()->currentMessage(), ImagePaste::message(ImagePaste::Result::SaveFailed));
+        QCOMPARE(f.model.task(kImageTask)->items.size(), itemsBefore);
     }
 
     // A deleted task's tabs and preview close.
