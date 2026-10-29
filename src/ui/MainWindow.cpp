@@ -17,6 +17,7 @@
 #include "layout/SingleViewTracker.h"
 #include "layout/TaskCell.h"
 #include "ui/ConflictBar.h"
+#include "ui/DashboardPage.h"
 #include "ui/EntityActions.h"
 #include "ui/FocusView.h"
 #include "ui/ImagePaste.h"
@@ -73,90 +74,6 @@
 namespace mirante {
 
 namespace {
-
-// One tab's page: a LayoutView of one dashboard, with its factory, or the
-// Focus list. A task dashboard's page has a title bar with its own lock,
-// because a task dashboard is edited on its own (decision 0020). A root
-// dashboard's lock is the one at the end of the tab bar row.
-class DashboardPage : public QWidget
-{
-public:
-    // The Focus page. Its ref is empty and it has no view.
-    DashboardPage(FocusView *focusView, QWidget *parent)
-        : QWidget(parent)
-        , focus(focusView)
-    {
-        auto *layout = new QVBoxLayout(this);
-        layout->setContentsMargins(0, 0, 0, 0);
-        focusView->setParent(this);
-        layout->addWidget(focusView);
-    }
-
-    // With an item id, the page shows only that item of the task, read-only.
-    DashboardPage(const LayoutServices &services, const DashboardRef &dashboard, QWidget *parent,
-                  const QString &item = QString())
-        : QWidget(parent)
-        , ref(dashboard)
-        , itemId(item)
-        , factory(std::make_unique<DashboardCellFactory>(services, dashboard))
-    {
-        auto *layout = new QVBoxLayout(this);
-        layout->setContentsMargins(0, 0, 0, 0);
-        layout->setSpacing(0);
-        if (!dashboard.isRoot()) {
-            auto *header = new QWidget(this);
-            header->setObjectName(QStringLiteral("taskDashboardHeader"));
-            cellstyle::tintHeader(header, 0.22);
-            auto *headerLayout = new QHBoxLayout(header);
-            headerLayout->setContentsMargins(6, 2, 2, 2);
-            title = new QLabel(header);
-            QFont font = title->font();
-            font.setBold(true);
-            title->setFont(font);
-            title->setMinimumWidth(1);
-            headerLayout->addWidget(title);
-            // The task's project, dimmed after the title, as in a task cell.
-            context = new QLabel(header);
-            context->setObjectName(QStringLiteral("taskDashboardContext"));
-            context->setTextFormat(Qt::PlainText);
-            context->setForegroundRole(QPalette::PlaceholderText);
-            context->setMinimumWidth(1);
-            context->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
-            headerLayout->addWidget(context, 1);
-            if (item.isEmpty()) {
-                lock = new QToolButton(header);
-                lock->setObjectName(QStringLiteral("taskLockButton"));
-                lock->setAutoRaise(true);
-                headerLayout->addWidget(lock);
-            }
-            layout->addWidget(header);
-        }
-        view = new LayoutView(factory.get(), this);
-        layout->addWidget(view, 1);
-    }
-
-    ~DashboardPage() override
-    {
-        // The view goes before the factory it uses.
-        delete view;
-    }
-
-    bool isFocus() const { return focus != nullptr; }
-    // A root dashboard's page. The Focus page has an empty ref too, but is not one.
-    bool isRoot() const { return ref.isRoot() && !focus; }
-
-    const DashboardRef ref;
-    const QString itemId;           // set for an item page
-    const std::unique_ptr<DashboardCellFactory> factory;
-    FocusView *focus = nullptr;     // set for the Focus page
-    LayoutView *view = nullptr;     // null for the Focus page
-    QLabel *title = nullptr;        // task dashboards and items only
-    QLabel *context = nullptr;      // task dashboards and items only: the project
-    QToolButton *lock = nullptr;    // task dashboards only
-    // The model's layout of a task dashboard when it was last shown, to tell
-    // an edit of this dashboard from other changes to its task.
-    QJsonObject shownLayout;
-};
 
 // Shows a lock's state on its button. The icon shows the state, so the button
 // is not checkable: a checked button's accent fill would hide the icon. The
