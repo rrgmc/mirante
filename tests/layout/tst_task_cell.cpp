@@ -287,6 +287,16 @@ void TestTaskCell::removedTask()
     m_model->reset({}, {}, {}, {});
     QVERIFY(!present.view());
     QVERIFY(!present.findChild<QLabel *>(QStringLiteral("removedLabel"))->isHidden());
+
+    // The next layout change normalises the cell into one without a
+    // reference, marked removed. It still reads "Removed", not "Empty".
+    DashboardCellFactory factory(m_services, {QString(), kMorningRoot});
+    std::unique_ptr<QWidget> normalised(factory.createCell(std::nullopt, true, nullptr));
+    QStringList texts;
+    for (const QLabel *label : normalised->findChildren<QLabel *>())
+        texts.append(label->text());
+    QVERIFY(texts.contains(QStringLiteral("Removed")));
+    QVERIFY(!texts.contains(QStringLiteral("Empty")));
 }
 
 void TestTaskCell::headerMenuAndDrag()

@@ -155,10 +155,10 @@ CellFrame::CellFrame(const std::optional<CellRef> &ref, bool removed, const Item
     layout->addWidget(d->body, 1);
 
     QString text;
-    if (!ref) {
-        text = tr("Empty");
-    } else if (removed) {
+    if (removed) {
         text = tr("Removed");
+    } else if (!ref) {
+        text = tr("Empty");
     } else if (const auto *unknown = dynamic_cast<const UnknownItemType *>(type)) {
         text = tr("This item needs the %1 module, which this build does not include.").arg(unknown->moduleId());
     } else if (ref->isItem()) {

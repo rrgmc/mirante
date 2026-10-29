@@ -580,6 +580,10 @@ void TestLayoutView::frameTexts()
     CellFrame removed(itemRef(QStringLiteral("gone")), true, nullptr, QString());
     QVERIFY(labelTexts(&removed).contains(QStringLiteral("Removed")));
 
+    // Normalisation drops the reference of a removed cell.
+    CellFrame normalised(std::nullopt, true, nullptr, QString());
+    QVERIFY(labelTexts(&normalised).contains(QStringLiteral("Removed")));
+
     CellFrame missing(itemRef(QStringLiteral("i1")), false, &unknown, QStringLiteral("Hours"));
     QVERIFY(bodyContains(&missing, QStringLiteral("needs the timetrack module")));
 
