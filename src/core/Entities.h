@@ -20,6 +20,8 @@
 // - fromJson() moves every key it does not know into extra. toJson() writes
 //   every known field and then extra, so nothing is lost.
 // - schemaVersion is read and written by the Store, not by the entities.
+// - operator== compares every field, including extra. The Model uses it to
+//   skip changes that change nothing.
 
 namespace mirante {
 
@@ -132,5 +134,23 @@ struct Task
     static std::optional<Task> fromJson(const QJsonObject &json, QString *error = nullptr);
     QJsonObject toJson() const;
 };
+
+bool operator==(const Folder &a, const Folder &b);
+bool operator==(const Connection &a, const Connection &b);
+bool operator==(const Group &a, const Group &b);
+bool operator==(const Project &a, const Project &b);
+bool operator==(const Item &a, const Item &b);
+bool operator==(const Dashboard &a, const Dashboard &b);
+bool operator==(const RootDashboard &a, const RootDashboard &b);
+bool operator==(const Task &a, const Task &b);
+
+inline bool operator!=(const Folder &a, const Folder &b) { return !(a == b); }
+inline bool operator!=(const Connection &a, const Connection &b) { return !(a == b); }
+inline bool operator!=(const Group &a, const Group &b) { return !(a == b); }
+inline bool operator!=(const Project &a, const Project &b) { return !(a == b); }
+inline bool operator!=(const Item &a, const Item &b) { return !(a == b); }
+inline bool operator!=(const Dashboard &a, const Dashboard &b) { return !(a == b); }
+inline bool operator!=(const RootDashboard &a, const RootDashboard &b) { return !(a == b); }
+inline bool operator!=(const Task &a, const Task &b) { return !(a == b); }
 
 } // namespace mirante

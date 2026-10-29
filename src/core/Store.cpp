@@ -259,4 +259,51 @@ bool createWorkspace(const QString &dir, const QString &name, QString *error)
     return saveWorkspaceName(dir, name, error);
 }
 
+// Stubs written by T0 of the M3 plan. T11 implements them.
+
+std::optional<QJsonObject> fileFor(const Model &, const QString &) { return std::nullopt; }
+
+QByteArray toBytes(const QJsonObject &json) { return QJsonDocument(json).toJson(QJsonDocument::Indented); }
+
 } // namespace mirante::store
+
+namespace mirante {
+
+// Stubs written by T0 of the M3 plan. T11 implements them. open() loads, so
+// the app keeps working until then.
+struct Store::Private
+{
+    Model *model = nullptr;
+    QString dir;
+    std::vector<LoadProblem> problems;
+};
+
+Store::Store(Model &model, QObject *parent)
+    : QObject(parent)
+    , d(std::make_unique<Private>())
+{
+    d->model = &model;
+}
+
+Store::~Store() = default;
+
+std::vector<LoadProblem> Store::open(const QString &dir)
+{
+    d->dir = dir;
+    d->problems = store::load(dir, *d->model);
+    emit problemsChanged();
+    return d->problems;
+}
+
+void Store::close() {}
+QString Store::dir() const { return d->dir; }
+bool Store::readOnly() const { return d->dir.startsWith(QLatin1Char(':')); }
+void Store::flush() {}
+std::vector<LoadProblem> Store::problems() const { return d->problems; }
+QString Store::saveFile(const QByteArray &, const QString &, QString *) { return {}; }
+QString Store::filePath(const QString &name) const { return d->dir + QStringLiteral("/files/") + name; }
+std::vector<Store::Conflict> Store::conflicts() const { return {}; }
+void Store::keepCurrent(const Conflict &) {}
+void Store::useCopy(const Conflict &) {}
+
+} // namespace mirante

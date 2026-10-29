@@ -67,6 +67,22 @@ public:
     // Whether a cell reference still refers to something. Used for normalisation.
     bool refExists(const CellRef &ref) const;
 
+    // Changes from M3. See the M3 plan, part 1. Every UI edit copies an entity,
+    // changes the copy and calls a setter; the Store's reload calls the same
+    // setters. A setter adds the entity, or replaces the one with the same id,
+    // and emits the added or changed signal. A value equal to the stored one
+    // emits nothing.
+    void setGroup(const Group &group);
+    void setProject(const Project &project);   // a new groupId moves the project
+    void setTask(const Task &task);            // normalises its dashboards; a new projectId moves it
+    void setRootDashboard(const RootDashboard &dashboard);   // normalises its layout
+    // Removers. Each emits the removed signal for every entity it removes,
+    // children first. Root dashboards that show a removed task are not changed:
+    // their cells show "Removed" through refExists().
+    void removeGroup(const QString &id);       // and its projects and their tasks
+    void removeProject(const QString &id);     // and its tasks
+    void removeTask(const QString &id);
+
     // Changes in M2. Each normalises the tree before storing it.
     void setTaskDashboardLayout(const QString &taskId, const QString &dashboardId, const LayoutNode &tree);
     void setRootDashboardLayout(const QString &id, const LayoutNode &tree);
@@ -78,7 +94,15 @@ public:
 signals:
     void modelReset();
     void workspaceNameChanged();
+    void groupAdded(const QString &id);
+    void groupChanged(const QString &id);
+    void groupRemoved(const QString &id);
+    void projectAdded(const QString &id);
+    void projectChanged(const QString &id);
+    void projectRemoved(const QString &id);
+    void taskAdded(const QString &taskId);
     void taskChanged(const QString &taskId);
+    void taskRemoved(const QString &taskId);
     void rootDashboardChanged(const QString &id);
     void rootDashboardAdded(const QString &id);
     void rootDashboardRemoved(const QString &id);

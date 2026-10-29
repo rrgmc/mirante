@@ -1,0 +1,61 @@
+#pragma once
+
+#include "core/LayoutTree.h"
+#include "core/Model.h"
+
+#include <QString>
+
+#include <memory>
+#include <optional>
+
+class QImage;
+
+namespace mirante {
+
+class ItemTypeRegistry;
+class LockState;
+class Store;
+
+// Pasting an image from the clipboard onto a dashboard or into an item. See
+// docs/decisions/0021-image-items-as-files.md and the M3 plan, part 7.
+// MainWindow calls it on Ctrl+V when the clipboard holds an image.
+// Implemented in ImagePaste.cpp.
+class ImagePaste
+{
+public:
+    ImagePaste(Model &model, Store &store, const ItemTypeRegistry &types, const LockState &locks);
+    ~ImagePaste();
+    ImagePaste(const ImagePaste &) = delete;
+    ImagePaste &operator=(const ImagePaste &) = delete;
+
+    enum class Result {
+        ReplacedImage,      // the focused item's image was replaced
+        CreatedItem,        // a new item holds the image
+        Locked,             // a new item was needed, but the dashboard is locked
+        RootDashboard,      // a new item was needed, but this is a root dashboard
+        NoImageType,        // no registered type has a pastedImageField
+        SaveFailed,         // the image could not be saved, for example read-only data
+    };
+
+    // Pastes onto the dashboard in front. focusedCell is the path of the
+    // focused cell in it, if any. If that cell holds an item whose type has a
+    // pastedImageField, its image is replaced, even when locked. Otherwise, on
+    // an unlocked task dashboard, a new item of the first such type is made,
+    // named "Image" and numbered if needed: an empty focused cell holds it, any
+    // other focused cell is split to the right, and without a focused cell the
+    // root of the layout is split.
+    Result paste(const QImage &image, const DashboardRef &dashboard, const std::optional<NodePath> &focusedCell);
+
+    // Pastes into an item shown alone in a tab: replaces its image if its type
+    // has a pastedImageField; otherwise returns NoImageType.
+    Result pasteIntoItem(const QImage &image, const QString &taskId, const QString &itemId);
+
+    // A short message for the status bar, or empty for success.
+    static QString message(Result result);
+
+private:
+    struct Private;
+    std::unique_ptr<Private> d;
+};
+
+} // namespace mirante

@@ -9,6 +9,8 @@
 
 namespace mirante {
 
+class Model;
+
 struct SortFilter
 {
     bool hideLow = false;       // hide Low projects and tasks
@@ -25,5 +27,10 @@ bool taskVisible(const Task &task, const SortFilter &filter);
 // Filters and sorts. The input order does not matter.
 std::vector<const Project *> sortedProjects(std::vector<const Project *> projects, const SortFilter &filter);
 std::vector<const Task *> sortedTasks(std::vector<const Task *> tasks, const SortFilter &filter);
+
+// The Focus order of docs/ui.md#focus-view: active tasks only, by task
+// priority, then project priority, then the task's order. model gives each
+// task's project. The input order does not matter.
+std::vector<const Task *> focusOrder(std::vector<const Task *> tasks, const Model &model);
 
 } // namespace mirante

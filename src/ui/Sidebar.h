@@ -1,8 +1,13 @@
 #pragma once
 
+#include "ui/SidebarModel.h"
+
 #include <QWidget>
 
+#include <functional>
 #include <memory>
+
+class QMenu;
 
 namespace mirante {
 
@@ -32,7 +37,18 @@ public:
     void expandAllTasks();
     void collapseAllTasks();
 
+    SidebarModel *model() const;
+
+    // Fills the context menu of a row with the entity commands, such as
+    // EntityActions::fillMenu. The sidebar adds its own commands, such as "Open
+    // in new root dashboard", after them. Without a filler, only its own appear.
+    using MenuFiller = std::function<void(QMenu *menu, SidebarModel::Kind kind, const QString &id,
+                                          const QString &taskId)>;
+    void setMenuFiller(MenuFiller filler);
+
 signals:
+    // The Focus entry above the tree was activated.
+    void focusRequested();
     // A double click, or Enter, opens an item or a task dashboard. On every
     // other row, tasks included, it expands or collapses the row. A single
     // click only selects.
