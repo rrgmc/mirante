@@ -4,7 +4,7 @@ This plan implements [milestone M7](../roadmap.md#m7-quick-add-claude-local-fold
 
 ## Decisions
 
-Proposed with this plan, for the user to accept before T0 starts:
+All accepted:
 
 - [Decision 0078](../decisions/0078-quick-add-dialog.md): quick add is a dialog that runs the modules' handlers and finders asynchronously, in a profile the user can change, and creates a task with the chosen items in one cell of its dashboard.
 - [Decision 0079](../decisions/0079-module-device-settings.md): modules declare device settings as fields. The settings window edits them, and they are kept in `QSettings`, never synced.

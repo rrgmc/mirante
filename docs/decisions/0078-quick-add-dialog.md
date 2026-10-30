@@ -1,6 +1,6 @@
 # 0078. Quick add is a dialog that reads text through the modules
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-10-30
 
 ## Context

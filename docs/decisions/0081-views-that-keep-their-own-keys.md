@@ -1,6 +1,6 @@
 # 0081. A view can keep configuration keys it writes itself
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-10-30
 
 ## Context

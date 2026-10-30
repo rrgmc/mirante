@@ -1,6 +1,6 @@
 # 0080. The core reads Git state for modules
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-10-30
 
 ## Context
