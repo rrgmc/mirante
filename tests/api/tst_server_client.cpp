@@ -218,6 +218,9 @@ private slots:
     void settingsChangeResumes();
     void forbiddenGetPauses();
     void forbiddenPostDoesNotPause();
+    void putSendsMethodAndBody();
+    void putSendsNoEtag();
+    void forbiddenPutDoesNotPause();
     void errorsMapped();
     void destroyedReceiverGetsNoCallback();
     void clearDropsRequestsInFlight();
@@ -561,6 +564,63 @@ void TestServerClient::forbiddenPostDoesNotPause()
     ApiReply result;
     bool answered = false;
     client()->post(QStringLiteral("approve"), {}, this, [&](const ApiReply &reply) {
+        result = reply;
+        answered = true;
+    });
+    QTRY_VERIFY(answered);
+    QCOMPARE(result.error, ApiReply::Error::Forbidden);
+    QVERIFY(!m_clients->failing(kProfile, kModule));
+    QVERIFY(changed.isEmpty());
+}
+
+void TestServerClient::putSendsMethodAndBody()
+{
+    m_network->handler = [](const FakeNetwork::Sent &) { return Answer{200, R"({"id":2})", {}}; };
+    ApiReply result;
+    bool answered = false;
+    client()->put(QStringLiteral("api/v4/things/2"), QJsonDocument(QJsonObject{{QStringLiteral("state_event"), QStringLiteral("close")}}),
+                  this, [&](const ApiReply &reply) {
+                      result = reply;
+                      answered = true;
+                  });
+    QTRY_VERIFY(answered);
+    QVERIFY(result.ok());
+    QCOMPARE(result.json.object().value(QStringLiteral("id")).toInt(), 2);
+
+    QCOMPARE(m_network->sent.size(), 1);
+    const auto &sent = m_network->sent.at(0);
+    QCOMPARE(sent.op, QNetworkAccessManager::PutOperation);
+    QCOMPARE(m_network->url(0), QStringLiteral("https://git.example/api/v4/things/2"));
+    QCOMPARE(sent.body, QByteArray(R"({"state_event":"close"})"));
+    QCOMPARE(sent.request.header(QNetworkRequest::ContentTypeHeader).toByteArray(), QByteArray("application/json"));
+    QCOMPARE(header(sent, "X-Token"), QByteArray("secret-1"));
+}
+
+void TestServerClient::putSendsNoEtag()
+{
+    m_network->handler = [](const FakeNetwork::Sent &) { return Answer{200, "{}", {{"ETag", "\"v1\""}}}; };
+    QVERIFY(getAndWait(QStringLiteral("thing")).ok());
+
+    bool answered = false;
+    client()->put(QStringLiteral("thing"), {}, this, [&](const ApiReply &) { answered = true; });
+    QTRY_VERIFY(answered);
+    QCOMPARE(m_network->sent.size(), 2);
+    QVERIFY(header(m_network->sent.at(1), "If-None-Match").isEmpty());
+
+    // The PUT's answer is not kept, so the next GET still sends the old ETag.
+    answered = false;
+    client()->get(QStringLiteral("thing"), {}, {}, this, [&](const ApiReply &) { answered = true; });
+    QTRY_VERIFY(answered);
+    QCOMPARE(header(m_network->sent.at(2), "If-None-Match"), QByteArray("\"v1\""));
+}
+
+void TestServerClient::forbiddenPutDoesNotPause()
+{
+    m_network->handler = [](const FakeNetwork::Sent &) { return Answer{403, {}, {}}; };
+    QSignalSpy changed(m_clients.get(), &ServerClients::failingChanged);
+    ApiReply result;
+    bool answered = false;
+    client()->put(QStringLiteral("close"), {}, this, [&](const ApiReply &reply) {
         result = reply;
         answered = true;
     });

@@ -13,12 +13,15 @@
 #include <mirante/Status.h>
 
 #include <QGuiApplication>
+#include <QHBoxLayout>
 #include <QHideEvent>
 #include <QLabel>
 #include <QPointer>
 #include <QPushButton>
 #include <QShowEvent>
 #include <QTimer>
+#include <QToolButton>
+#include <QUrl>
 #include <QVBoxLayout>
 
 #include <algorithm>
@@ -96,6 +99,12 @@ struct Placement::Private
     QPointer<QWidget> view;
     QPointer<QWidget> header;
     QMetaObject::Connection headerDestroyed;
+    // The page of showPage(), shown in place of the view, which stays alive
+    // and hidden. See decision 0069.
+    QPointer<QWidget> page;
+    QPointer<QWidget> pageHeader;       // the back button and the page's toolbar
+    QPointer<QWidget> viewHeader;       // the view's header widget, while a page is shown
+    QString pageProfile;                // the profile the page was made in
     // Widgets deleted later, so that a view can change the model from its own
     // slot. The destructor deletes those still waiting, while the context
     // they may use still exists.
@@ -112,6 +121,7 @@ struct Placement::Private
     bool gone = false;                  // the item or its task no longer exists
     QString waitingFor;                 // the profile being cleared, while the view waits for it
     bool inPool = false;
+    bool heavyView = false;             // the view is a web view, which the pool may unload
     QObject *watcher = nullptr;
 
     // Status. See the M5 plan, part 8.
@@ -198,8 +208,109 @@ struct Placement::Private
         emit q->headerWidgetChanged(widget);
     }
 
-    // Removes the view, its header widget and its pool entry, and shows
-    // replacement instead.
+    // Web views and pages are heavy, so the pool may unload them while hidden.
+    // A placement has one entry: the page while one is shown, else a web view.
+    void updatePool()
+    {
+        if (!services.pool)
+            return;
+        if (!page && !heavyView) {
+            if (inPool) {
+                inPool = false;
+                services.pool->remove(q);
+            }
+            return;
+        }
+        inPool = true;
+        services.pool->add(q, [this] {
+            // The pool has already forgotten this placement.
+            inPool = false;
+            if (page)
+                closePage();
+            else
+                unload();
+        });
+        if (!q->isVisible())
+            services.pool->setVisible(q, false);
+    }
+
+    // Deletes the page and its header widget later, as for a view. The page
+    // goes first, because its signals use the toolbar in the header widget.
+    void discardPage()
+    {
+        retire(page);
+        retire(pageHeader);
+        page = nullptr;
+        pageHeader = nullptr;
+    }
+
+    // The header widget of showPage(): the way back, then the page's toolbar.
+    // It has no parent until the cell header takes it, as for a toolbar.
+    QWidget *createPageHeader(QWidget *toolbar)
+    {
+        auto *bar = new QWidget;
+        bar->setObjectName(QStringLiteral("pageHeader"));
+        auto *row = new QHBoxLayout(bar);
+        row->setContentsMargins(0, 0, 0, 0);
+        row->setSpacing(2);
+        auto *back = new QToolButton(bar);
+        back->setObjectName(QStringLiteral("backToSummary"));
+        back->setText(Placement::tr("Back to summary"));
+        QObject::connect(back, &QToolButton::clicked, q, [this] { closePage(); });
+        row->addWidget(back);
+        if (toolbar)
+            row->addWidget(toolbar, 1);
+        else
+            row->addStretch(1);
+        return bar;
+    }
+
+    // Shows a page in place of the view. A further page replaces the one
+    // shown, and a placement without a live view has nothing to come back to.
+    void openPage(const QUrl &url)
+    {
+        if (!view || !item())
+            return;
+        if (page)
+            discardPage();
+        else
+            viewHeader = header;
+        QWidget *toolbar = nullptr;
+        page = context.createPage(url, q, toolbar);
+        page->setObjectName(QStringLiteral("itemPage"));
+        pageProfile = mirante::profiles::effective(*services.model, taskId, itemId);
+        pageHeader = createPageHeader(toolbar);
+        view->hide();
+        layout->addWidget(page);
+        page->show();
+        setHeader(pageHeader);
+        updatePool();
+    }
+
+    // Drops the page and shows the view again, as it was.
+    void closePage()
+    {
+        if (!page)
+            return;
+        setHeader(viewHeader);
+        viewHeader = nullptr;
+        discardPage();
+        if (view)
+            view->show();
+        updatePool();
+    }
+
+    // The view gave a header widget. While a page is shown, it waits.
+    void setViewHeader(QWidget *widget)
+    {
+        if (page)
+            viewHeader = widget;
+        else
+            setHeader(widget);
+    }
+
+    // Removes the view, its page, its header widget and its pool entry, and
+    // shows replacement instead.
     void dropView(QWidget *replacement)
     {
         if (inPool) {
@@ -207,7 +318,10 @@ struct Placement::Private
             if (services.pool)
                 services.pool->remove(q);
         }
+        heavyView = false;
         setHeader(nullptr);
+        viewHeader = nullptr;
+        discardPage();
         if (view) {
             if (content == view)
                 content = nullptr;
@@ -249,17 +363,8 @@ struct Placement::Private
         view = created;
         setContent(created);
 
-        // Web views are heavy, so the pool may unload them while hidden.
-        if (type->rendering() == Rendering::Web && services.pool) {
-            inPool = true;
-            services.pool->add(q, [this] {
-                // The pool has already forgotten this placement.
-                inPool = false;
-                unload();
-            });
-            if (!q->isVisible())
-                services.pool->setVisible(q, false);
-        }
+        heavyView = type->rendering() == Rendering::Web;
+        updatePool();
     }
 
     // The item's type, if it reports status and there is a status cache.
@@ -408,6 +513,9 @@ struct Placement::Private
     // the profile can be released, and comes back when the clearing is done.
     void onProfileClearing(const QString &profileId)
     {
+        // A page in that profile goes too, even when its view uses no profile.
+        if (page && pageProfile == profileId)
+            closePage();
         const Item *found = item();
         const QString profile = made ? madeProfile : (found ? profileOf(*found) : QString());
         if (profile.isEmpty() || profile != profileId)
@@ -465,6 +573,10 @@ struct Placement::Private
                    || profileDataOf(*found) != madeProfileData) {
             dropView(nullptr);
         } else {
+            // A view that uses no profile stays, but its page must not outlive
+            // the profile it was made in.
+            if (page && mirante::profiles::effective(*services.model, taskId, itemId) != pageProfile)
+                closePage();
             // A new name changes only the placeholder's text.
             if (typePlaceholder) {
                 const ItemType *type = services.types ? &services.types->type(found->type) : nullptr;
@@ -485,7 +597,8 @@ Placement::Placement(const PlacementServices &services, const QString &taskId, c
     d->layout->setContentsMargins(0, 0, 0, 0);
     d->layout->setSpacing(0);
 
-    d->context.onHeaderWidget = [this](QWidget *widget) { d->setHeader(widget); };
+    d->context.onHeaderWidget = [this](QWidget *widget) { d->setViewHeader(widget); };
+    d->context.onShowPage = [this](const QUrl &url) { d->openPage(url); };
     d->watcher = new VisibilityWatcher(this, [this](bool shown) { d->onVisibilityChanged(shown); });
 
     if (Model *model = services.model) {
@@ -501,7 +614,7 @@ Placement::Placement(const PlacementServices &services, const QString &taskId, c
         // The profile also depends on the group, the project's group and the
         // workspace's list of profiles.
         const auto profileMayChange = [this] {
-            if (d->made && (!d->madeProfile.isEmpty() || !d->madeProfileData.isEmpty()))
+            if (d->made && (!d->madeProfile.isEmpty() || !d->madeProfileData.isEmpty() || d->page))
                 d->onModelChanged();
         };
         connect(model, &Model::groupChanged, this, profileMayChange);
@@ -552,7 +665,10 @@ Placement::~Placement()
         d->services.pool->remove(this);
     d->inPool = false;
     QObject::disconnect(d->headerDestroyed);
-    // The views go while the context they may use still exists.
+    // The views go while the context they may use still exists. The page goes
+    // first, because its signals use the toolbar in its header widget.
+    delete d->page.data();
+    delete d->pageHeader.data();
     delete d->view.data();
     for (const QPointer<QWidget> &widget : d->dying)
         delete widget.data();

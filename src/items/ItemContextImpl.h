@@ -27,6 +27,14 @@ public:
     // Called with the widget a new web view puts in the cell header, its
     // toolbar. The placement sets it.
     std::function<void(QWidget *)> onHeaderWidget;
+    // Called with the address of showPage(). The placement sets it. Without
+    // it, as in a context of its own, showPage() does nothing.
+    std::function<void(const QUrl &)> onShowPage;
+
+    // A web page in the item's profile, or a message where there is no
+    // profile. createWebView() and the placement's pages use it. toolbar is
+    // set to the page's toolbar, which the page owns, or to null for a message.
+    QWidget *createPage(const QUrl &url, QWidget *parent, QWidget *&toolbar);
 
     QString itemName() const override;
     QJsonObject config() const override;

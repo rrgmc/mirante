@@ -52,6 +52,7 @@ A placement is one place where an item is shown: a cell in a dashboard, or the p
 - In a dashboard, the `Placement` is the body of the item's cell. A web view's toolbar goes in the cell header, between the item name and the menu button.
 - When the item's type or configuration changes, the placement makes its view again. A hidden placement does this when it is next shown. A change of name changes only the header.
 - When the item or its task is removed, the placement drops its view and shows "Removed".
+- A native view can show a web page in its place with `ItemContext::showPage()`. The view stays alive and hidden. The cell header shows a "Back to summary" button and the page's toolbar. Back drops the page and shows the same view again. A change of the item's configuration, or of the profile the page was made in, also drops the page, and a further `showPage()` replaces it. The page is not stored. See [decision 0069](decisions/0069-open-page-in-the-placement.md).
 
 ## Memory policy
 
@@ -59,7 +60,8 @@ A heavy page such as claude.ai uses a few hundred MB.
 
 - A view whose placement becomes hidden stays loaded, so switching back is instant.
 - When more than a configured number of hidden views exist (8 by default), the views hidden longest are unloaded. Their placements show a "Reload" placeholder until they become visible again, and then load automatically. The limit is the `webViews/hiddenLimit` value of the device settings.
-- Only types whose `rendering()` is `Web` count. Each placement of such a type joins the `ViewPool` when it makes its view, and reports to the pool when it is shown or hidden. An unloaded placement leaves the pool until it loads again, and a deleted one leaves it at once.
+- Only types whose `rendering()` is `Web` count, and pages of `showPage()`. Each placement of such a type joins the `ViewPool` when it makes its view, and reports to the pool when it is shown or hidden. An unloaded placement leaves the pool until it loads again, and a deleted one leaves it at once.
+- A placement with a page of `showPage()` has one entry in the pool. When the pool unloads the page, the placement goes back to its view instead of showing "Reload".
 - Native items, such as summaries and lists, are cheap and are never unloaded.
 
 ## Page behaviour
