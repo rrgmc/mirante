@@ -397,9 +397,9 @@ QString DeviceSettings::globalHotkey() const
 #if defined(Q_OS_MACOS)
     // Qt's Meta is the Control key on macOS. macOS 15 refuses hotkeys that use
     // only Option and Shift.
-    const QString standard = QStringLiteral("Meta+Alt+M");
+    const QString standard = QStringLiteral("Meta+Shift+D");
 #else
-    const QString standard = QStringLiteral("Alt+Shift+M");
+    const QString standard = QStringLiteral("Alt+Shift+D");
 #endif
     return d->settings->value(globalHotkeyKey, standard).toString();
 }

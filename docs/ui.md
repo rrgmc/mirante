@@ -415,7 +415,7 @@ The project is chosen by matching the merge request's GitLab project or the issu
 | `F2` | Lock or unlock the current dashboard, as its lock button does. In a detached window, that window's dashboard. Nothing on Focus or an item shown alone. See [editing layouts](#editing-layouts). |
 | `Ctrl+W` | Close the preview or the current tab. Focus cannot be closed. |
 | `Ctrl+V` | With an image on the clipboard: replace the image of the Image item in the focused cell or the current item preview, after the [paste dialog](#pasting-images). It never adds an item to a dashboard; a new image item comes from "Paste Image…" in a task's Items menu. See [image](item-types.md#image). A text field keeps its own paste. |
-| Global hotkey (`Alt+Shift+M`, on macOS `Control+Option+M`; set in the [settings window](#settings)) | From any application: hide Mirante if it is in front, else bring it to the front. An open modal dialog only comes to the front. |
+| Global hotkey (`Alt+Shift+D`, on macOS `Control+Shift+D`; set in the [settings window](#settings)) | From any application: hide Mirante if it is in front, else bring it to the front. An open modal dialog only comes to the front. |
 
 On macOS, `Cmd` replaces `Ctrl`.
 

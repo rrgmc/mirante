@@ -79,7 +79,8 @@ Each file records one design decision: what was decided, what else was considere
 | [0072](0072-pipelines-started-together.md) | A pipeline item shows the pipelines started together | Accepted |
 | [0073](0073-jira-extra-fields.md) | Jira's extra fields are named in the profile's settings | Accepted |
 | [0074](0074-refuse-workspaces-from-newer-versions.md) | A workspace from a newer version is not opened | Accepted |
-| [0075](0075-hide-to-tray-and-show-hide-hotkey.md) | Closing hides to the tray, and a global hotkey shows or hides the app | Accepted |
+| [0075](0075-hide-to-tray-and-show-hide-hotkey.md) | Closing hides to the tray, and a global hotkey shows or hides the app | Accepted; the default hotkey by 0076 |
+| [0076](0076-left-hand-default-hotkey.md) | The default global hotkey is pressed with the left hand | Accepted |
 
 ## Template
 

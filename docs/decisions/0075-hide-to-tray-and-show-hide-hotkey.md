@@ -1,6 +1,6 @@
 # 0075. Closing hides to the tray, and a global hotkey shows or hides the app
 
-- Status: Accepted
+- Status: Accepted; the default hotkey superseded by 0076
 - Date: 2026-10-30
 
 ## Context
