@@ -992,13 +992,17 @@ void TestLayoutView::factoryOpenAloneButton()
         opened << taskId + QLatin1Char('/') + itemId;
     };
 
-    // In a task dashboard the cell menu is enough.
+    // In a task dashboard, the item is of that task.
     DashboardCellFactory inTask(services, DashboardRef{QStringLiteral("t1"), QStringLiteral("d1")});
     std::unique_ptr<QWidget> taskCell(inTask.createCell(itemRef(QStringLiteral("i1")), false, nullptr));
     QVERIFY(qobject_cast<CellFrame *>(taskCell.get()));
-    QVERIFY(!taskCell->findChild<QToolButton *>(QStringLiteral("openAloneButton"))->isVisibleTo(taskCell.get()));
+    auto *inTaskButton = taskCell->findChild<QToolButton *>(QStringLiteral("openAloneButton"));
+    QVERIFY(inTaskButton->isVisibleTo(taskCell.get()));
+    inTaskButton->click();
+    QCOMPARE(opened, QStringList{QStringLiteral("t1/i1")});
+    opened.clear();
 
-    // On a root dashboard the item gets the button a task cell has.
+    // On a root dashboard, the reference names the task.
     DashboardCellFactory onRoot(services, DashboardRef{QString(), QStringLiteral("r1")});
     std::unique_ptr<QWidget> rootCell(
         onRoot.createCell(CellRef{QStringLiteral("i1"), QStringLiteral("t1"), QString()}, false, nullptr));
