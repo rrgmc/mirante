@@ -67,7 +67,9 @@ Two flags tell the core what the view cannot do. Both default to what an ordinar
 Native views are read-mostly, as in [decision 0070](decisions/0070-read-mostly-native-views.md). The only actions are for CI, because running CI is repeatable and changes no one's review or issue:
 
 - retry a pipeline or a single job;
-- cancel a pipeline, after a confirmation.
+- cancel a pipeline, after a confirmation;
+- play a manual job;
+- trigger a new pipeline on the branch, after a confirmation, since it starts work.
 
 Anything else, such as approving or commenting, uses the "Open page" button. It opens the matching page type in the same cell, or in the external browser if the user holds `Shift`.
 
@@ -79,7 +81,7 @@ The summaries have fixed layouts, as in [decision 0066](decisions/0066-fixed-nat
 
 - With no data yet, a summary shows "Loading…" or the status's message. With old data and an error, it keeps the data, and the cell header shows the problem.
 - After an action succeeds, the status is fetched again. A failed action shows its message in the action row. A `403` says that the token cannot do this, and names the `api` scope.
-- Only cancelling a pipeline asks first.
+- Only cancelling and triggering a pipeline ask first.
 - "Open page" shows the page in the same cell, as in [decision 0069](decisions/0069-open-page-in-the-placement.md), or in the external browser if the user holds `Shift`.
 - **The Web link** is a "Web" button at the end of the actions. It opens the same address in the external browser, and it hides without a web address. The address is `web_url` in the data. Without one, for a merge request or an issue, it is built from the base URL and the configuration, as for the page types. A link to a job's log also opens in the external browser.
 - Dates are local and short. Text from the server is plain text, so it is never read as markup.
@@ -91,7 +93,7 @@ The summaries have fixed layouts, as in [decision 0066](decisions/0066-fixed-nat
 - **Configuration:** `project`, the project path, which defaults to the project's `gitlab.project` setting when empty; `iid`, the merge request number, required. Pasting a merge request URL fills both.
 - **Top:** the title; pills for the state and for a draft; the source and target branches.
 - **Sections and fields,** in this order:
-  - Pipeline (`showPipeline`): the head pipeline's status and id, and its failed jobs, each with its duration and a link to its log. A job that is allowed to fail says so.
+  - Pipeline (`showPipeline`): the head pipeline's status and id, with a "Web" link to its page, and its failed jobs, each with its duration and a link to its log. A job that is allowed to fail says so.
   - Approvals (`showApprovals`): the count, and who has approved.
   - People (`showPeople`): the author, assignees and reviewers.
   - Labels (`showLabels`).
@@ -149,15 +151,25 @@ The summaries have fixed layouts, as in [decision 0066](decisions/0066-fixed-nat
 - **Configuration:**
   - `project`, the project path, empty for the `gitlab.project` setting;
   - `branchSource`, with three choices: `fixed` (the branch in `branch`, `master` by default), `mainFolder` ("current branch of the main folder"), or `mergeRequest` ("branch of a linked merge request", the merge request numbered `iid`).
-- **Top:** the latest pipeline for that branch: its id; a pill for its status; the branch and the duration.
-- **Sections:** one for each stage, in the order of the jobs, without fields. Each lists its jobs, with their status and duration. A failed job also has a link to its log and a "Retry" button.
+- **The group.** The pipelines created within 10 minutes of the latest, as in [decision 0072](decisions/0072-pipelines-started-together.md). Some repositories start several at once for one merge request.
+- **Top:** the pipeline shown, at first the latest: its id; a pill for its status; the branch, the duration and when it was created. An entry of GitLab's lists has no duration, so only the latest shows one.
+  - With more than one in the group, a row of pills, one per pipeline in the group, switches between them. The shown one is bold.
+  - "Previous" and "Next" step through all of the latest 20 pipelines, also those before the group. "Previous" goes back in time. The view reads an older pipeline's jobs when it shows.
+  - A pipeline the user chose stays shown through a new status while it is among those 20. Otherwise the latest shows, and a newer latest replaces it.
+- **Jobs:** one table, with a heading for each stage, in the order the jobs were created. Each row has a pill for the job's status, the name, the duration and links:
+  - "Log", on any job that has run. It opens in the external browser;
+  - "Retry", on a finished job: passed, failed or canceled;
+  - "Play", on a manual job.
 - **Actions:**
   - "Retry pipeline", when the pipeline failed or was canceled;
   - "Cancel pipeline", while it can still be cancelled, after a confirmation;
-  - "Open page" and "Web", on the pipeline's own page.
-- **Messages:** a branch without pipelines shows "No pipeline on <branch>", and a pipeline that follows the main folder shows its status's message, in place of everything else, so there is no Web link.
-- **Status:** a summary such as "Failed · main · 1 failed job", or "No pipeline on main" for a branch without pipelines. The item is never closed. Until M7, a pipeline that follows the main folder reports no status.
-- **Attention:** the pipeline failed. Each failed pipeline is a new reason, so a retry that fails again counts again. Together with the merge request's failed pipeline, this is the only event that sends a [desktop notification](ui.md#tray-and-notifications).
+  - "Trigger pipeline", which starts a new pipeline on the branch, after a confirmation;
+  - "Merge request", which opens it in the external browser: the merge request `iid` of the configuration when `branchSource` is `mergeRequest`, otherwise the open merge request of that source branch. It hides when there is none;
+  - "Open page" and "Web", on the page of the pipeline shown.
+- **Refresh:** while the pipeline shown is unfinished and the view is visible, the view asks for a new status every 15 seconds. A pipeline that waits on a manual job counts as finished here, since it waits for a person. Otherwise the usual interval holds.
+- **Messages:** a branch without pipelines shows "No pipeline on <branch>" as its title, with only "Trigger pipeline" and the merge request's link. A pipeline that follows the main folder shows its status's message, in place of everything else.
+- **Status:** a summary of the latest, such as "Failed · main · 1 failed job", or "No pipeline on main" for a branch without pipelines. The item is never closed. Until M7, a pipeline that follows the main folder reports no status.
+- **Attention:** a pipeline of the group failed, whichever is shown. Each failed pipeline is a new reason with its own key, so a failure is not hidden by a later pipeline that passed, and a retry that fails again counts again. Together with the merge request's failed pipeline, this is the only event that sends a [desktop notification](ui.md#tray-and-notifications).
 
 "Current branch of the main folder" reads `.git/HEAD` of the folder's local path on this device. If the folder is not mapped on this device, the panel asks for a branch.
 
