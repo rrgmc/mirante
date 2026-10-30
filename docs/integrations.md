@@ -11,7 +11,7 @@ The GitLab, Jira and Claude code lives in the `gitlab`, `jira` and `claude` [mod
 - **Authentication:** a personal access token in the `PRIVATE-TOKEN` header.
 - **Token scope:** `api`, because the CI actions write data. A token with only `read_api` works too, but then those actions fail with a clear message.
 - **Caching:** requests send `If-None-Match` with the last ETag. A `304 Not Modified` answer costs almost nothing and keeps cached data.
-- **Paging:** lists follow the `Link` header, up to a limit per item (100 rows by default).
+- **Paging:** lists follow the `Link` header, up to the item's `limit` field (100 rows by default).
 - **Rate limits:** on `429 Too Many Requests` the client waits for the time given in `Retry-After` before trying again.
 
 Main endpoints:
@@ -23,7 +23,7 @@ Main endpoints:
 | Merge request list | `GET /merge_requests`, `GET /projects/:id/merge_requests`, `GET /groups/:id/merge_requests` |
 | Latest pipeline for a branch | `GET /projects/:id/pipelines/latest?ref=<branch>` |
 | One pipeline | `GET /projects/:id/pipelines/:pid` |
-| Pipelines of a branch | `GET /projects/:id/pipelines?ref=<branch>` |
+| Pipelines of a project | `GET /projects/:id/pipelines`, also with `?ref=<branch>` or `?username=<me>` |
 | Pipelines of a merge request | `GET /projects/:id/merge_requests/:iid/pipelines` |
 | Jobs | `GET /projects/:id/pipelines/:pid/jobs` |
 | Retry or cancel | `POST /projects/:id/pipelines/:pid/retry`, `.../cancel`, `POST /projects/:id/jobs/:jid/retry` |
@@ -40,7 +40,8 @@ What each item type asks for its status:
 - **A merge request** (summary or page): the merge request, its approvals and the current user, at once. The current user is asked in every status job, and its ETag makes the repeat cheap. A summary whose head pipeline failed then asks for that pipeline's jobs. If that request fails, the status stands without the jobs.
 - **An issue** (summary or page): the issue. A summary then asks for the latest 20 notes and leaves out system notes. If that request fails, the status stands without the notes.
 - **A CI pipeline:** for a linked merge request, the merge request first, for its source branch. Then the latest pipeline of the branch. Then, at once, the latest 20 pipelines of the merge request or the branch and, for a fixed branch, its open merge request, for the link in the view. Then, at once, the jobs of each pipeline created within 10 minutes of the newest. A `404` for the latest pipeline means the branch has none, and is not an error. A failed request for the list, the open merge request or a sibling's jobs keeps the status of the latest. See [decision 0072](decisions/0072-pipelines-started-together.md).
-- **A list:** the list of its scope, up to 100 rows, most recently updated first. A merge request list with the `reviewRequested` preset asks for the current user first. See [decision 0067](decisions/0067-lists-report-status.md).
+- **A merge request or issue list:** the list of its scope, up to its `limit` (100 rows by default), most recently updated first. A merge request list with the `reviewRequested` preset asks for the current user first. See [decision 0067](decisions/0067-lists-report-status.md).
+- **A CI pipeline list:** the pipelines of the project, up to its `limit`, newest first, all of them or those of a branch; those of a merge request; or, for "started by me", the current user and then that user's pipelines. GitLab's list answers leave out each pipeline's `user` and `started_at`, so the view's Author and Started columns usually show a dash. It makes no further requests for them.
 
 The attention rules are in [item types](item-types.md#gitlab).
 
