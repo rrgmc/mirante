@@ -1,5 +1,6 @@
 #include "ui/SidebarModel.h"
 
+#include "api/Attention.h"
 #include "core/GroupColours.h"
 #include "core/Model.h"
 #include "items/ItemTypeRegistry.h"
@@ -175,6 +176,14 @@ QString priorityName(Priority priority)
     return {};
 }
 
+// A tooltip's line for the attention badge, with its line break, or nothing.
+QString attentionLine(int count)
+{
+    if (count <= 0)
+        return {};
+    return QLatin1Char('\n') + SidebarModel::tr("Items that need attention: %1").arg(count);
+}
+
 } // namespace
 
 struct SidebarModel::Private
@@ -183,11 +192,28 @@ struct SidebarModel::Private
     const ItemTypeRegistry &types;
     SortFilter filter;
     Tree tree;
+    const Attention *attention = nullptr;
+    QMetaObject::Connection attentionConnection;
+    // The attention counts last reported, by group, project and task id, so
+    // countsChanged repaints only the rows whose count changed.
+    QHash<QString, int> counts;
 
     Private(const Model &m, const ItemTypeRegistry &t)
         : model(m)
         , types(t)
     {
+    }
+
+    int attentionCount(const Node &node) const
+    {
+        if (!attention)
+            return 0;
+        switch (node.kind) {
+        case Kind::Group: return attention->groupCount(node.id);
+        case Kind::Project: return attention->projectCount(node.id);
+        case Kind::Task: return attention->taskCount(node.id);
+        default: return 0;
+        }
     }
 
     const Node *node(const QModelIndex &index) const
@@ -398,6 +424,10 @@ QVariant SidebarModel::data(const QModelIndex &index, int role) const
         return node->id;
     case TaskIdRole:
         return node->taskId.isEmpty() ? QVariant() : QVariant(node->taskId);
+    case AttentionRole:
+        if (node->kind != Kind::Group && node->kind != Kind::Project && node->kind != Kind::Task)
+            return {};
+        return d->attentionCount(*node);
     default:
         break;
     }
@@ -411,6 +441,10 @@ QVariant SidebarModel::data(const QModelIndex &index, int role) const
             return group->name;
         if (role == GroupColourRole)
             return QColor(groupcolours::of(*group));
+        if (role == Qt::ToolTipRole) {
+            const QString line = attentionLine(d->attentionCount(*node));
+            return line.isEmpty() ? QVariant() : QVariant(line.trimmed());
+        }
         // Groups are headings: bold and a little larger than the rows under
         // them. SidebarDelegate puts the name in a pill of the group's colour.
         if (role == Qt::FontRole) {
@@ -434,7 +468,7 @@ QVariant SidebarModel::data(const QModelIndex &index, int role) const
             return group ? QVariant(QColor(groupcolours::of(*group))) : QVariant();
         }
         if (role == Qt::ToolTipRole)
-            return tr("Priority: %1").arg(priorityName(project->priority));
+            return tr("Priority: %1").arg(priorityName(project->priority)) + attentionLine(d->attentionCount(*node));
         return {};
     }
     case Kind::Task: {
@@ -446,7 +480,7 @@ QVariant SidebarModel::data(const QModelIndex &index, int role) const
         if (role == PriorityRole)
             return int(task->priority);
         if (role == Qt::ToolTipRole)
-            return tr("Priority: %1").arg(priorityName(task->priority));
+            return tr("Priority: %1").arg(priorityName(task->priority)) + attentionLine(d->attentionCount(*node));
         if (role == Qt::FontRole && task->state != TaskState::Active) {
             QFont font;
             font.setStrikeOut(task->state == TaskState::Done);
@@ -596,11 +630,32 @@ void SidebarModel::emitChanged(const QModelIndex &parent)
 }
 
 
-// A stub of T0. Task T7 of the M5 plan implements it and AttentionRole.
-
 void SidebarModel::setAttention(const Attention *attention)
 {
-    Q_UNUSED(attention)
+    if (attention == d->attention)
+        return;
+    disconnect(d->attentionConnection);
+    d->attention = attention;
+
+    // Repaints the group, project and task rows whose count changed.
+    const auto update = [this] {
+        for (const Node &node : d->tree.nodes) {
+            if (node.kind != Kind::Group && node.kind != Kind::Project && node.kind != Kind::Task)
+                continue;
+            const int count = d->attentionCount(node);
+            if (count == d->counts.value(node.id))
+                continue;
+            if (count == 0)
+                d->counts.remove(node.id);
+            else
+                d->counts.insert(node.id, count);
+            const QModelIndex index = indexOf(node.id);
+            emit dataChanged(index, index, {AttentionRole, Qt::ToolTipRole});
+        }
+    };
+    if (attention)
+        d->attentionConnection = connect(attention, &Attention::countsChanged, this, update);
+    update();
 }
 
 } // namespace mirante

@@ -53,6 +53,47 @@ private:
     SidebarDelegate::MarkerShape m_shape;
 };
 
+// The attention badge: white text on a strong red, as in cell headers
+// (CellFrame.cpp).
+const QColor attentionColour(0xd9, 0x48, 0x3b);
+
+// The space between the badge and the text, and between the badge and the
+// right edge of the row.
+constexpr int badgeGap = 4;
+
+// The attention count of a row, or 0.
+int attentionCount(const QModelIndex &index)
+{
+    return index.data(SidebarModel::AttentionRole).toInt();
+}
+
+// The badge's font: the view's font, bold and a little smaller. It does not
+// follow the row's font, so group headings get the same badge as tasks.
+QFont badgeFont(const QStyleOptionViewItem &option)
+{
+    QFont font = option.widget ? option.widget->font() : QApplication::font();
+    font.setBold(true);
+    font.setPointSizeF(font.pointSizeF() * 0.85);
+    return font;
+}
+
+QString badgeText(int count) { return count > 99 ? QStringLiteral("99+") : QString::number(count); }
+
+// The badge's place at the right of rect, centred on it vertically.
+QRect badgeRect(const QStyleOptionViewItem &option, const QRect &rect, int count)
+{
+    const QFontMetrics metrics(badgeFont(option));
+    const int height = metrics.height() + 2;
+    const int width = qMax(height, metrics.horizontalAdvance(badgeText(count)) + height / 2 + 2);
+    return QRect(rect.right() - badgeGap - width + 1, rect.center().y() - height / 2, width, height);
+}
+
+// The width a badge takes from the row, gaps included, or 0 without one.
+int badgeSpace(const QStyleOptionViewItem &option, const QRect &rect, int count)
+{
+    return count > 0 ? badgeRect(option, rect, count).width() + 2 * badgeGap : 0;
+}
+
 bool isDimmed(const QModelIndex &index)
 {
     const auto kind = SidebarModel::Kind(index.data(SidebarModel::KindRole).toInt());
@@ -90,17 +131,32 @@ SidebarDelegate::MarkerShape SidebarDelegate::markerShape(SidebarModel::Kind kin
 void SidebarDelegate::paint(QPainter *painter, const QStyleOptionViewItem &option, const QModelIndex &index) const
 {
     // Row backgrounds, the selection included, are painted by SidebarTree.
+    // The text keeps clear of the badge, as initStyleOption() narrows the row.
     if (SidebarModel::Kind(index.data(SidebarModel::KindRole).toInt()) == SidebarModel::Kind::Group) {
         paintGroup(painter, option, index);
-        return;
-    }
-    if (!isDimmed(index)) {
+    } else if (!isDimmed(index)) {
         QStyledItemDelegate::paint(painter, option, index);
-        return;
+    } else {
+        painter->save();
+        painter->setOpacity(dimmedOpacity);
+        QStyledItemDelegate::paint(painter, option, index);
+        painter->restore();
     }
+
+    // The attention badge: the count in a round badge at the right of the
+    // row. It is never dimmed, since it asks for action now.
+    const int count = attentionCount(index);
+    if (count <= 0)
+        return;
+    const QRect badge = badgeRect(option, option.rect, count);
     painter->save();
-    painter->setOpacity(dimmedOpacity);
-    QStyledItemDelegate::paint(painter, option, index);
+    painter->setRenderHint(QPainter::Antialiasing);
+    painter->setPen(Qt::NoPen);
+    painter->setBrush(attentionColour);
+    painter->drawRoundedRect(QRectF(badge), badge.height() / 2.0, badge.height() / 2.0);
+    painter->setFont(badgeFont(option));
+    painter->setPen(Qt::white);
+    painter->drawText(badge, Qt::AlignCenter, badgeText(count));
     painter->restore();
 }
 
@@ -148,7 +204,8 @@ void SidebarDelegate::paintGroup(QPainter *painter, const QStyleOptionViewItem &
 QSize SidebarDelegate::sizeHint(const QStyleOptionViewItem &option, const QModelIndex &index) const
 {
     const bool group = SidebarModel::Kind(index.data(SidebarModel::KindRole).toInt()) == SidebarModel::Kind::Group;
-    return QStyledItemDelegate::sizeHint(option, index) + QSize(0, group ? 10 : 4);
+    return QStyledItemDelegate::sizeHint(option, index)
+        + QSize(badgeSpace(option, option.rect, attentionCount(index)), group ? 10 : 4);
 }
 
 void SidebarDelegate::setHoverId(const QString &id) { m_hoverId = id; }
@@ -170,6 +227,10 @@ bool SidebarDelegate::isHoverTinted(const QModelIndex &index) const
 void SidebarDelegate::initStyleOption(QStyleOptionViewItem *option, const QModelIndex &index) const
 {
     QStyledItemDelegate::initStyleOption(option, index);
+    // A row with an attention badge leaves the badge's space at its right, so
+    // the text, and anything painted after it, is cut before the badge.
+    if (const int space = badgeSpace(*option, option->rect, attentionCount(index)); space > 0)
+        option->rect.setRight(qMax(option->rect.left(), option->rect.right() - space));
     const auto kind = SidebarModel::Kind(index.data(SidebarModel::KindRole).toInt());
     // A group heading has its name in a pill instead of a marker; see paintGroup().
     if (kind == SidebarModel::Kind::Group)
