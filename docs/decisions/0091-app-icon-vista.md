@@ -14,6 +14,8 @@ The icon, called "Vista", shows a sun rising on a horizon above four tiles drawn
 - Rounded square in dark blue `#1e3a8a`, sun and horizon in amber `#fbbf24`, tiles in white. The far tiles are 75% opaque.
 - `resources/icons/mirante.svg` is the source. It is the window and tray icon.
 - `resources/app/mirante.ico` holds the same drawing at 16, 20, 24, 32, 40, 48, 64 and 256 pixels, for `mirante.exe`.
+- `resources/app/mirante.icns` holds it at 16 to 1024 pixels, for the macOS bundle. It follows the macOS icon grid: the rounded square fills 824 of 1024 pixels, with a margin on each side, so it matches the size of other Dock icons.
+- `resources/icons/mirante-tray.svg` is the monochrome menu bar icon for macOS: the same drawing without the background, with a gap between the sun and the horizon so they stay apart at 18 pixels.
 
 ## Alternatives
 
@@ -27,5 +29,4 @@ Five concepts were drawn and compared at app, window and tray sizes.
 ## Consequences
 
 - The sun and the horizon sit in the upper half, so they stay visible under the tray badge.
-- The `.ico` file is generated from the SVG. A change to the drawing needs a new `.ico` as well.
-- macOS has no bundle icon (`.icns`) yet. It still uses the SVG as the window icon.
+- The `.ico` and `.icns` files are rendered from the SVG. A change to the drawing needs new copies of both, and of the menu bar icon.
