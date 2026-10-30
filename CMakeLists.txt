@@ -28,6 +28,7 @@ option(MIRANTE_WERROR "Treat compiler warnings as errors" OFF)
 include(MiranteTargets)
 include(Dependencies)
 include(MiranteModule)
+include(MiranteDeploy)
 
 enable_testing()
 

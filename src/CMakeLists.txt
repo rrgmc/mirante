@@ -19,6 +19,8 @@ endif()
 target_link_libraries(mirante PRIVATE mirante_ui)
 mirante_set_warnings(mirante)
 mirante_finish_modules(mirante)
+# A copy of the app with its Qt files, in <build>/bin.
+mirante_add_bin_folder(mirante)
 
 # The fixture data folder, loaded unless the app is started with --data.
 file(GLOB_RECURSE fixture_files CONFIGURE_DEPENDS
