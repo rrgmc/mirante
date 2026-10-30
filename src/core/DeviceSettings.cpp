@@ -5,6 +5,8 @@
 #include <QFileInfo>
 #include <QSettings>
 
+#include <algorithm>
+
 namespace mirante {
 
 namespace {
@@ -18,8 +20,14 @@ const QString windowMaximizedKey = QStringLiteral("window/maximized");
 const QString windowSplitterKey = QStringLiteral("window/splitter");
 const QString sidebarHoverTintKey = QStringLiteral("sidebar/hoverTint");
 const QString hiddenViewLimitKey = QStringLiteral("webViews/hiddenLimit");
+const QString pollIntervalKey = QStringLiteral("status/pollInterval");
+const QString focusAttentionFirstKey = QStringLiteral("focus/attentionFirst");
 
 constexpr int defaultHiddenViewLimit = 8;
+
+constexpr int defaultPollInterval = 120;
+constexpr int minPollInterval = 30;
+constexpr int maxPollInterval = 3600;
 
 constexpr int maxRecent = 10;
 
@@ -31,6 +39,13 @@ QString folderKey(const QString &folderId)
 QString detachedKey(const QString &dashboardId)
 {
     return QStringLiteral("detached/") + dashboardId;
+}
+
+// The seen attention keys of one item. Workspace and item ids are UUIDs, so
+// they are safe in a key.
+QString seenAttentionKey(const QString &workspaceId, const QString &itemId)
+{
+    return QStringLiteral("seenAttention/") + workspaceId + QLatin1Char('/') + itemId;
 }
 
 QString cleanAbsolute(const QString &path)
@@ -318,53 +333,61 @@ void DeviceSettings::setHiddenViewLimit(int limit)
     d->settings->setValue(hiddenViewLimitKey, limit);
 }
 
-// Stubs of T0. Task T3 of the M5 plan implements them.
-
+// Out of range values are kept in range rather than refused, and anything
+// that is not a whole number counts as not set, as the file can be edited by
+// hand.
 int DeviceSettings::pollInterval() const
 {
-    return 120;
+    bool ok = false;
+    const int seconds = d->settings->value(pollIntervalKey).toInt(&ok);
+    if (!ok)
+        return defaultPollInterval;
+    return std::clamp(seconds, minPollInterval, maxPollInterval);
 }
 
 void DeviceSettings::setPollInterval(int seconds)
 {
-    Q_UNUSED(seconds)
+    d->settings->setValue(pollIntervalKey, std::clamp(seconds, minPollInterval, maxPollInterval));
 }
 
 QStringList DeviceSettings::seenAttention(const QString &workspaceId, const QString &itemId) const
 {
-    Q_UNUSED(workspaceId)
-    Q_UNUSED(itemId)
-    return {};
+    if (workspaceId.isEmpty() || itemId.isEmpty())
+        return {};
+    return d->settings->value(seenAttentionKey(workspaceId, itemId)).toStringList();
 }
 
 bool DeviceSettings::hasSeenAttention(const QString &workspaceId, const QString &itemId) const
 {
-    Q_UNUSED(workspaceId)
-    Q_UNUSED(itemId)
-    return false;
+    if (workspaceId.isEmpty() || itemId.isEmpty())
+        return false;
+    return d->settings->contains(seenAttentionKey(workspaceId, itemId));
 }
 
+// An empty list is kept as a record: the item was looked at and nothing in it
+// clears on view.
 void DeviceSettings::setSeenAttention(const QString &workspaceId, const QString &itemId, const QStringList &keys)
 {
-    Q_UNUSED(workspaceId)
-    Q_UNUSED(itemId)
-    Q_UNUSED(keys)
+    if (workspaceId.isEmpty() || itemId.isEmpty())
+        return;
+    d->settings->setValue(seenAttentionKey(workspaceId, itemId), keys);
 }
 
 void DeviceSettings::removeSeenAttention(const QString &workspaceId, const QString &itemId)
 {
-    Q_UNUSED(workspaceId)
-    Q_UNUSED(itemId)
+    if (workspaceId.isEmpty() || itemId.isEmpty())
+        return;
+    d->settings->remove(seenAttentionKey(workspaceId, itemId));
 }
 
 bool DeviceSettings::focusAttentionFirst() const
 {
-    return false;
+    return d->settings->value(focusAttentionFirstKey, false).toBool();
 }
 
 void DeviceSettings::setFocusAttentionFirst(bool on)
 {
-    Q_UNUSED(on)
+    d->settings->setValue(focusAttentionFirstKey, on);
 }
 
 } // namespace mirante

@@ -90,7 +90,12 @@ Module `gitlab`. All GitLab types talk to the GitLab server of the item's profil
   - latest pipeline status, with the failed jobs listed;
   - approvals: the count required and who has approved.
 - **Actions:** approve, retry pipeline, add comment.
-- **Attention:** pipeline failed, review requested from you, approved, has conflicts.
+- **Status:** a summary such as "Open · 2 of 3 approvals · pipeline failed". The item is closed when the merge request is merged or closed.
+- **Attention,** only while the merge request is open. "You" is the owner of the profile's token.
+  - "Pipeline failed" when the head pipeline failed, with a desktop notification;
+  - "Review requested" when you are a reviewer and have not approved;
+  - "Approved" when you are the author and the merge request is approved. It clears once you have seen the item;
+  - "Has conflicts" when you are the author and the merge request has conflicts.
 
 ### GitLab MR (page)
 
@@ -99,6 +104,7 @@ Module `gitlab`. All GitLab types talk to the GitLab server of the item's profil
 - **Address:** `<baseUrl>/<project>/-/merge_requests/<iid>`, where `baseUrl` is the GitLab base URL of the item's profile. An empty `project` uses the project's `gitlab.project` setting.
 - **With a base URL that is not a web address,** the cell says "Set the GitLab base URL in this profile's Modules > GitLab > General Configuration, in the Profiles menu."
 - **Without a project or a number,** the cell says "Set the project and number in the item's settings."
+- **Status and attention** are the summary's, so a page in a cell shows the same badge. See [decision 0061](decisions/0061-attention-from-status-of-any-rendering.md).
 
 ### GitLab MR List
 
@@ -111,6 +117,7 @@ Module `gitlab`. All GitLab types talk to the GitLab server of the item's profil
   - `filter`: optional custom filter parameters, passed to the GitLab merge requests API, such as `labels=bug&target_branch=main`.
 - **Shows:** a compact, sortable table with columns for reference, title, author, pipeline status, approvals, and the date of the last update.
 - **Row click:** shows the merge request summary in a preview area below the table. A row menu offers "Add to task as item".
+- **Status:** none in M5.
 
 ### GitLab CI Pipeline
 
@@ -124,7 +131,8 @@ Module `gitlab`. All GitLab types talk to the GitLab server of the item's profil
   - job status and duration;
   - a link to the log of each failed job.
 - **Actions:** retry the pipeline, retry a job, cancel.
-- **Attention:** the pipeline failed. This is the only event that sends a [desktop notification](ui.md#tray-and-notifications).
+- **Status:** a summary such as "Failed · main · 1 failed job", or "No pipeline on main" for a branch without pipelines. The item is never closed. Until M7, a pipeline that follows the main folder reports no status.
+- **Attention:** the pipeline failed. Each failed pipeline is a new reason, so a retry that fails again counts again. Together with the merge request's failed pipeline, this is the only event that sends a [desktop notification](ui.md#tray-and-notifications).
 
 "Current branch of the main folder" reads `.git/HEAD` of the folder's local path on this device. If the folder is not mapped on this device, the panel asks for a branch.
 
@@ -137,6 +145,7 @@ Module `gitlab`. All GitLab types talk to the GitLab server of the item's profil
 - **The list presets are:** `assignedToMe` ("Assigned to me"), `createdByMe` ("Created by me") and `allOpen` ("All open"). Custom filters work the same way as for merge requests.
 - **The page's address** is `<baseUrl>/<project>/-/issues/<iid>`. Its messages are those of the merge request page.
 - **Actions:** add comment, close and reopen.
+- **Status:** the summary and the page report a summary such as "Open · assigned to Ana", and are closed when the issue is closed. They report no attention. The list reports no status in M5.
 
 ## Jira
 
