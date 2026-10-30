@@ -1,7 +1,7 @@
 // Tests QuickAddDialog with fake handlers and finders: reading, text no
 // handler takes, a choice of readings, the project matched or asked for,
-// related items, Create, Cancel, the profile, and a workspace without
-// projects.
+// related items, Create Task, Cancel, the profile, a workspace without
+// projects, and the dialog that adds items to a task.
 #include "core/Model.h"
 #include "items/ItemTypeRegistry.h"
 #include "items/QuickAddRun.h"
@@ -234,6 +234,8 @@ private slots:
         auto dialog = makeDialog();
         QSignalSpy created(dialog.get(), &QuickAddDialog::taskCreated);
         auto *create = child<QPushButton>(dialog.get(), "create");
+        QCOMPARE(dialog->windowTitle(), QStringLiteral("New Task from Link"));
+        QCOMPARE(create->text(), QStringLiteral("Create Task"));
         QVERIFY(!create->isEnabled());
         QVERIFY(!child<QLabel>(dialog.get(), "noProjects")->isVisible());
 
@@ -422,6 +424,82 @@ private slots:
         QVERIFY(child<QLabel>(dialog.get(), "noProjects")->isVisible());
         QCOMPARE(child<QLabel>(dialog.get(), "noProjects")->text(), QStringLiteral("Create a project first."));
         QVERIFY(!child<QPushButton>(dialog.get(), "create")->isVisible());
+    }
+
+    void addsToATask()
+    {
+        // The task is in p2, whose group uses the work profile, and has the
+        // proposal's pipeline already.
+        Group second;
+        second.id = QStringLiteral("g2");
+        second.name = QStringLiteral("Second");
+        second.order = 1;
+        second.profile = QStringLiteral("work");
+        model.setGroup(second);
+        Project inSecond = *model.project(QStringLiteral("p2"));
+        inSecond.groupId = QStringLiteral("g2");
+        model.setProject(inSecond);
+        const QString taskId = run->create(QStringLiteral("p2"), QStringLiteral("Fix login"),
+                                           {item(QStringLiteral("alpha.pipeline"), QStringLiteral("Pipeline"),
+                                                 QStringLiteral("main"))});
+        const Task before = *model.task(taskId);
+
+        // A project the text does not match: the task's is used all the same.
+        handlerScripts[QStringLiteral("alpha")] = answer(QStringLiteral("Other title"), QStringLiteral("acme/other"));
+        finderScripts[QStringLiteral("alpha")] = [](RelatedItemRequest &request) {
+            request.finish({item(QStringLiteral("beta.issue"), QStringLiteral("PROJ-7"), QStringLiteral("PROJ-7")),
+                            item(QStringLiteral("alpha.pipeline"), QStringLiteral("main"), QStringLiteral("main"))});
+        };
+        std::unique_ptr<QuickAddDialog> dialog(QuickAddDialog::forTask(model, types, *run, taskId));
+        dialog->show();
+        QSignalSpy added(dialog.get(), &QuickAddDialog::itemsAdded);
+        QSignalSpy created(dialog.get(), &QuickAddDialog::taskCreated);
+        auto *create = child<QPushButton>(dialog.get(), "create");
+        QCOMPARE(dialog->windowTitle(), QStringLiteral("Add Items from Link: Fix login"));
+        QCOMPARE(create->text(), QStringLiteral("Add Items"));
+        QVERIFY(create->isVisible());
+        QVERIFY(!create->isEnabled());
+        QCOMPARE(child<QComboBox>(dialog.get(), "profile")->currentData().toString(), QStringLiteral("work"));
+
+        dialog->setText(QStringLiteral("x"));
+        QCOMPARE(profilesRead.front(), QStringLiteral("work"));
+        QVERIFY(!child<QLineEdit>(dialog.get(), "title")->isVisible());
+        QVERIFY(!child<QComboBox>(dialog.get(), "project")->isVisible());
+        QVERIFY(!child<QLabel>(dialog.get(), "projectHint")->isVisible());
+        QVERIFY(!child<QLabel>(dialog.get(), "noProjects")->isVisible());
+        QVERIFY(child<QListWidget>(dialog.get(), "items")->isVisible());
+
+        // The finders ran at once, in the task's project. The pipeline the
+        // task has is not offered, by the proposal or the finder.
+        QCOMPARE(finderCalls.size(), size_t(1));
+        QCOMPARE(finderCalls[0].projectSetting.toString(), QStringLiteral("acme/frontend"));
+        QCOMPARE(rows(dialog.get()), QStringList({QStringLiteral("[x] !42"), QStringLiteral("Related"),
+                                                  QStringLiteral("[x] PROJ-7")}));
+
+        QVERIFY(create->isEnabled());
+        create->click();
+        QCOMPARE(created.count(), 0);
+        QCOMPARE(added.count(), 1);
+        QCOMPARE(added.at(0).at(0).toString(), taskId);
+        const QStringList ids = added.at(0).at(1).toStringList();
+        QCOMPARE(dialog->addedItemIds(), ids);
+        QVERIFY(dialog->createdTaskId().isEmpty());
+        QCOMPARE(dialog->result(), int(QDialog::Accepted));
+        const Task *task = model.task(taskId);
+        QCOMPARE(task->items.size(), size_t(3));
+        QCOMPARE(ids, QStringList({task->items[1].id, task->items[2].id}));
+        QCOMPARE(task->items[1].name, QStringLiteral("!42"));
+        QCOMPARE(task->items[2].name, QStringLiteral("PROJ-7"));
+        QCOMPARE(task->title, QStringLiteral("Fix login"));
+        QVERIFY(task->dashboards == before.dashboards);
+    }
+
+    void addsToATaskWithoutAProfile()
+    {
+        // A group without a profile starts in the workspace's default.
+        const QString taskId = run->create(QStringLiteral("p1"), QStringLiteral("T"), {});
+        std::unique_ptr<QuickAddDialog> dialog(QuickAddDialog::forTask(model, types, *run, taskId));
+        QCOMPARE(child<QComboBox>(dialog.get(), "profile")->currentData().toString(), model.defaultProfile());
     }
 };
 

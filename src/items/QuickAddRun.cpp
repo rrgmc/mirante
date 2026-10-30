@@ -216,6 +216,7 @@ struct QuickAddRun::Private
     const ItemTypeRegistry &types;
     ServerClients *servers = nullptr;
     int timeout = 30000;
+    QString taskId;         // the task the items go to, or empty
 
     // Each new run gets a new number, so answers of an older one are dropped.
     int proposeRun = 0;
@@ -252,6 +253,17 @@ struct QuickAddRun::Private
                        requests.end());
     }
 
+    // The items the task already has, as quick add items, to leave out.
+    std::vector<QuickAddItem> taskItems() const
+    {
+        std::vector<QuickAddItem> items;
+        if (const Task *task = taskId.isEmpty() ? nullptr : model.task(taskId)) {
+            for (const Item &item : task->items)
+                items.push_back(QuickAddItem{item.type, item.name, item.config});
+        }
+        return items;
+    }
+
     void stopProposing()
     {
         ++proposeRun;
@@ -269,8 +281,14 @@ struct QuickAddRun::Private
         if (run != proposeRun)
             return;
         --proposing;
-        if (proposal)
+        if (proposal) {
+            const std::vector<QuickAddItem> had = taskItems();
+            std::vector<QuickAddItem> &items = proposal->items;
+            items.erase(std::remove_if(items.begin(), items.end(),
+                                       [&had](const QuickAddItem &item) { return isOffered(had, item); }),
+                        items.end());
             emit q->proposed(Proposal{moduleId, std::move(*proposal)});
+        }
         // A slot may have started another run.
         if (run == proposeRun && proposing == 0)
             emit q->proposalsDone();
@@ -311,6 +329,8 @@ QuickAddRun::~QuickAddRun()
 }
 
 void QuickAddRun::setTimeout(int ms) { d->timeout = ms; }
+
+void QuickAddRun::setTask(const QString &taskId) { d->taskId = taskId; }
 
 void QuickAddRun::propose(const QString &text, const QString &profileId)
 {
@@ -375,7 +395,13 @@ void QuickAddRun::findRelated(const Proposal &proposal, const QString &title, co
     d->forgetEnded();
 
     const int run = d->findRun;
-    d->offered = proposal.proposal.items;
+    // The task's items count as offered, so the finders see them and what
+    // they find again is dropped.
+    d->offered = d->taskItems();
+    for (const QuickAddItem &item : proposal.proposal.items) {
+        if (!isOffered(d->offered, item))
+            d->offered.push_back(item);
+    }
     QStringList texts = proposal.proposal.texts;
     if (!title.trimmed().isEmpty())
         texts << title.trimmed();
@@ -447,6 +473,27 @@ QString QuickAddRun::create(const QString &projectId, const QString &title, cons
 
     d->model.setTask(task);
     return task.id;
+}
+
+QStringList QuickAddRun::addToTask(const QString &taskId, const std::vector<QuickAddItem> &items)
+{
+    const Task *existing = d->model.task(taskId);
+    if (!existing)
+        return {};
+    Task task = *existing;
+    QStringList ids;
+    for (const QuickAddItem &offeredItem : items) {
+        Item item;
+        item.id = edits::newId();
+        item.type = offeredItem.typeId;
+        item.name = offeredItem.name;
+        item.config = offeredItem.config;
+        task = edits::addItem(task, item);
+        ids << item.id;
+    }
+    if (!ids.isEmpty())
+        d->model.setTask(task);
+    return ids;
 }
 
 } // namespace mirante

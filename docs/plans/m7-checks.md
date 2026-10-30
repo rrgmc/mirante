@@ -19,14 +19,17 @@ Tick each box, or note what is wrong next to it.
 
 ## Quick add
 
-- [ ] File > Quick Add…, `Ctrl+Shift+N` and the "Quick Add" button in the sidebar header open the dialog. A one-line link on the clipboard fills the text box.
+- [ ] File > New Task from Link…, `Ctrl+Shift+N` and the "New Task from Link…" button in the sidebar header open the dialog "New Task from Link", whose button is Create Task. A one-line link on the clipboard fills the text box.
 - [ ] Pasting a merge request link shows "Reading…", then its title, the project that matches `gitlab.project`, and two items: the MR summary and its CI Pipeline. A Jira key in its title or branch adds a Jira Issue item under "Related".
 - [ ] Pasting a Jira key, and a Jira issue link, shows the summary as the title, the project that matches `jira.projectKey`, and a Jira Issue item. Merge requests whose branch or title hold the key appear under "Related".
-- [ ] With no matching project, the dialog says "No project matches …" and Create waits for a choice. With two matching projects, it says "Several projects match". A new project choice searches again.
+- [ ] With no matching project, the dialog says "No project matches …" and Create Task waits for a choice. With two matching projects, it says "Several projects match". A new project choice searches again.
 - [ ] Text that no module reads says "Mirante does not recognise this text."
 - [ ] Changing the Profile reads the text again with that profile's servers.
-- [ ] Unchecking an item and renaming the title, then Create, makes the task with only the checked items, opens it in the preview slot, and shows it in the sidebar. With several items, its dashboard shows them as tabs in one cell; with one, the item fills the cell.
+- [ ] Unchecking an item and renaming the title, then Create Task, makes the task with only the checked items, opens it in the preview slot, and shows it in the sidebar. With several items, its dashboard shows them as tabs in one cell; with one, the item fills the cell.
 - [ ] Cancel while "Reading…" closes the dialog, and nothing is created.
+- [ ] "Add Items from Link…" in the context menu of a task, and of its Items row, opens "Add Items from Link: <task title>" with no Title or Project, and the profile of the task's group. Its button is Add Items.
+- [ ] In it, pasting a link searches for related items in the task's project at once. Items the task already has are not offered.
+- [ ] Add Items adds the checked items to the end of the task's items, in the sidebar, and selects the task there. No dashboard changes, and the open tab stays.
 
 ## Claude session (local)
 
