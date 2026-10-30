@@ -115,3 +115,27 @@ See [the M6 plan](plans/m6-native-item-types.md).
 - [ ] CI builds the Windows package and the macOS app bundle.
 - [ ] Windows package with `windeployqt`, macOS app bundle with `macdeployqt`.
 - [ ] A short install and first-run guide in the root `README.md`.
+
+## Future: Custom builds
+
+Not scheduled. It needs the packaging from M10. Anyone can build their own Mirante with the modules they choose, including modules from other people's repositories, and get its executables from CI. Modules stay compiled in, as in [decision 0013](decisions/0013-compiled-in-modules.md). Decision records and a code plan are written when this work starts.
+
+**Direction:**
+
+- **App repository.** A repository made from a GitHub template holds a manifest and a short workflow. The manifest pins the core and each module repository to a commit, and lists the modules to build one by one, each with its repository and folder. All selected modules from one repository share one commit.
+- **Fetching.** The core reads the manifest and fetches the modules with CMake's FetchContent, because it must know them before it generates their registration. Git submodules, ExternalProject, package managers and a prebuilt core were considered and not chosen.
+- **Repositories.** The core and the first-party modules stay in one repository while the module interface changes every milestone, so a change to the interface and to the modules that use it stays one commit. They can be split later, with `git subtree split`, if the modules need their own releases. Manifests then change only a URL.
+
+**Acceptance criteria:**
+
+- [ ] The core builds with module folders from outside its source tree, including one first-party module moved out as a test.
+- [ ] The module interface has a version. Each module states the version it needs, and a mismatch stops configuration with a message that names the module.
+- [ ] Module tests use only the module interface and its testing library, not `items/ItemTypeRegistry.h` or `mirante_items`.
+- [ ] An app repository can build without the core's own tests, and still runs the tests of its modules.
+- [ ] `DEPENDS` works across repositories: it links the other module and makes its headers available.
+- [ ] A module can use further Qt components, and CI installs and deploys them.
+- [ ] The module include check also covers external modules.
+- [ ] The About dialog shows each module's source and commit.
+- [ ] The core publishes a reusable workflow that builds, tests and packages an app repository. Signing secrets are not available while module code is configured or built.
+- [ ] A scheduled job in the app repository opens a pull request when a pinned repository has newer commits. CI builds it, and merging it publishes a release. A failed update leaves the last release in place.
+- [ ] The documentation tells module authors how to choose an id that will not clash, and tells people who build what a third-party module can reach: it runs in the app process and can read tokens and web logins. It also says that the licence of each module applies to the binary, and that builds are unsigned without the builder's own certificates.
