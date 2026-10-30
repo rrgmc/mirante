@@ -23,7 +23,7 @@ class ModuleSettingsDialog : public QDialog
 public:
     // The title names the profile, the module and the screen, such as
     // "Default: GitLab General Configuration". values are the screen's stored
-    // values in that profile.
+    // values in that profile. A field the values lack shows its default.
     ModuleSettingsDialog(const QString &profileName, const QString &moduleName, const SettingsScreen &screen,
                          const QJsonObject &values, QWidget *parent = nullptr);
     ~ModuleSettingsDialog() override;

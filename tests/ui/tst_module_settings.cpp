@@ -73,6 +73,27 @@ public:
     }
 };
 
+// A screen whose server field has a default, as GitLab's base URL has.
+class DefaultScreen : public SettingsScreen
+{
+public:
+    QString id() const override { return QStringLiteral("general"); }
+    QString name() const override { return QStringLiteral("General Configuration"); }
+    std::vector<Field> fields() const override
+    {
+        Field server;
+        server.key = QStringLiteral("server");
+        server.label = QStringLiteral("Server");
+        server.type = Field::Type::Url;
+        server.defaultValue = QStringLiteral("https://example.com");
+        server.placeholder = QStringLiteral("https://example.com");
+        Field note;
+        note.key = QStringLiteral("note");
+        note.label = QStringLiteral("Note");
+        return {server, note};
+    }
+};
+
 // An editor of a screen's own: one line for the "label" key. It reports a
 // problem while the line is empty.
 class OwnEditor : public ItemEditor
@@ -422,6 +443,19 @@ private slots:
         dialog.accept();
         QCOMPARE(dialog.result(), int(QDialog::Rejected));
         QVERIFY(dialog.findChild<QLabel *>(QStringLiteral("message"))->text().contains(QStringLiteral("Name")));
+    }
+
+    // A field without a stored value shows its default as its text, not
+    // only as a hint, and OK stores it. A stored value is shown as it is.
+    void defaultsFillMissingValues()
+    {
+        const DefaultScreen screen;
+        ModuleSettingsDialog fresh(QStringLiteral("Default"), QStringLiteral("Tools"), screen, {});
+        QCOMPARE(fresh.values().value(QStringLiteral("server")).toString(), QStringLiteral("https://example.com"));
+
+        const QJsonObject stored{{QStringLiteral("server"), QStringLiteral("https://own.example")}};
+        ModuleSettingsDialog edited(QStringLiteral("Default"), QStringLiteral("Tools"), screen, stored);
+        QCOMPARE(edited.values().value(QStringLiteral("server")).toString(), QStringLiteral("https://own.example"));
     }
 };
 
