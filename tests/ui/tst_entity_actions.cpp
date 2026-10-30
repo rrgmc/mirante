@@ -1,7 +1,11 @@
 // Tests EntityActions on the fixtures: creating, editing and deleting each kind
 // of entity through its dialog, the refusals (a cancelled dialog or
 // confirmation, the last dashboard), priority and state, moves, the trash, and
-// the commands each kind of sidebar row gets in its context menu.
+// the commands each kind of sidebar row gets in its context menu. Also the
+// tokens of settings screens: written, removed, shown as set or not, and
+// removed with their profile.
+#include "api/SecretBackend.h"
+#include "api/SecretStore.h"
 #include "core/DeviceSettings.h"
 #include "core/GroupColours.h"
 #include "core/Model.h"
@@ -10,10 +14,12 @@
 #include "layout/Presets.h"
 #include "ui/DashboardDialog.h"
 #include "ui/EntityActions.h"
+#include "ui/FieldForm.h"
 #include "ui/GroupDialog.h"
 #include "ui/ImagePaste.h"
 #include "ui/ImagePasteDialog.h"
 #include "ui/ItemDialog.h"
+#include "ui/ProfilesDialog.h"
 #include "ui/ProjectDialog.h"
 #include "ui/TaskDialog.h"
 
@@ -23,6 +29,8 @@
 #include <QAction>
 #include <QDateTime>
 #include <QImage>
+#include <QLineEdit>
+#include <QPushButton>
 #include <QSignalSpy>
 #include <QMenu>
 #include <QSettings>
@@ -102,6 +110,48 @@ void registerTestModule(ModuleRegistrar &registrar)
 {
     registrar.addItemType(std::make_unique<PlainType>());
     registrar.addItemType(std::make_unique<EditorType>());
+}
+
+// A server screen with a token, as GitLab's and Jira's have.
+class TokenScreen : public SettingsScreen
+{
+public:
+    QString id() const override { return QStringLiteral("general"); }
+    QString name() const override { return QStringLiteral("General Configuration"); }
+    std::vector<Field> fields() const override
+    {
+        Field server;
+        server.key = QStringLiteral("server");
+        server.label = QStringLiteral("Server");
+        server.type = Field::Type::Url;
+        Field token;
+        token.key = QStringLiteral("token");
+        token.label = QStringLiteral("Token");
+        token.type = Field::Type::Secret;
+        return {server, token};
+    }
+};
+
+void registerTokenModule(ModuleRegistrar &registrar)
+{
+    registrar.setModuleName(QStringLiteral("Tokens"));
+    registrar.addSettingsScreen(std::make_unique<TokenScreen>());
+}
+
+const QString fixtureWorkspaceId = QStringLiteral("5a3e9c1d-7b2f-5e48-a6d0-3c8f1b2e4d97");
+const QString defaultProfile = QStringLiteral("default");
+const QString workProfile = QStringLiteral("3f6c2a8e-5d1b-4c7a-9e2f-8b0d4a6c1e93");
+
+QString tokenKey(const QString &profileId)
+{
+    return secretKey(fixtureWorkspaceId, profileId, QStringLiteral("tokens"), QStringLiteral("token"));
+}
+
+// The token line of the settings dialog's form.
+QLineEdit *tokenLine(QDialog &dialog)
+{
+    auto *form = dialog.findChild<FieldForm *>(QStringLiteral("editor"));
+    return form ? qobject_cast<QLineEdit *>(form->editorFor(QStringLiteral("token"))) : nullptr;
 }
 
 // The full id of the dashboard or item of a task whose id starts with prefix.
@@ -209,11 +259,15 @@ private slots:
     void emptyTrash();
     void trashMenus();
     void pasteImageMenu();
+    void typedTokenIsWritten();
+    void tokenStateAndRemove();
+    void deletingProfileRemovesTokens();
 };
 
 void TestEntityActions::initTestCase()
 {
     types.registerModule(QStringLiteral("testmod"), registerTestModule);
+    types.registerModule(QStringLiteral("tokens"), registerTokenModule);
     store = std::make_unique<Store>(model);
 }
 
@@ -846,6 +900,96 @@ void TestEntityActions::pasteImageMenu()
     QCOMPARE(messages.size(), 1);
     QCOMPARE(messages.at(0).at(0).toString(), ImagePaste::message(ImagePaste::Result::NoImageType));
     QVERIFY(*model.task(fixLoginTimeout) == before);
+}
+
+// A token typed into a settings screen goes to the secret store under
+// "<workspace id>/<profile id>/<module id>/<field key>", never into the
+// workspace. Without a secret store it is dropped.
+void TestEntityActions::typedTokenIsWritten()
+{
+    QCOMPARE(model.workspaceId(), fixtureWorkspaceId);
+    SecretStore secrets(makeMemoryBackend());
+    fill = [](QDialog &dialog) {
+        if (QLineEdit *line = tokenLine(dialog))
+            line->setText(QStringLiteral("s3cret"));
+    };
+
+    // Dropped without a store.
+    actions->editModuleSettings(workProfile, QStringLiteral("tokens"), QStringLiteral("general"));
+    QCOMPARE(execCount, 1);
+    QVERIFY(!model.moduleSettings(workProfile, QStringLiteral("tokens"), QStringLiteral("general"))
+                 .contains(QStringLiteral("token")));
+
+    actions->setSecretStore(&secrets);
+    QSignalSpy changed(&secrets, &SecretStore::changed);
+    actions->editModuleSettings(workProfile, QStringLiteral("tokens"), QStringLiteral("general"));
+    QCOMPARE(changed.count(), 1);
+    QCOMPARE(changed.at(0).at(0).toString(), tokenKey(workProfile));
+    QCOMPARE(secrets.cached(tokenKey(workProfile)), std::optional<QString>(QStringLiteral("s3cret")));
+    QVERIFY(!model.moduleSettings(workProfile, QStringLiteral("tokens"), QStringLiteral("general"))
+                 .contains(QStringLiteral("token")));
+
+    // Typing nothing keeps it.
+    fill = nullptr;
+    actions->editModuleSettings(workProfile, QStringLiteral("tokens"), QStringLiteral("general"));
+    QCOMPARE(changed.count(), 1);
+    QCOMPARE(secrets.cached(tokenKey(workProfile)), std::optional<QString>(QStringLiteral("s3cret")));
+}
+
+// The screen shows whether the token is set, read from the store, and its
+// Remove button removes it on OK.
+void TestEntityActions::tokenStateAndRemove()
+{
+    SecretStore secrets(makeMemoryBackend());
+    actions->setSecretStore(&secrets);
+    secrets.write(tokenKey(defaultProfile), QStringLiteral("old"));
+
+    // Not known yet in this session: the form shows the state once read.
+    QString notSet;
+    fill = [&notSet](QDialog &dialog) {
+        QLineEdit *line = tokenLine(dialog);
+        QVERIFY(line);
+        QTRY_COMPARE(line->placeholderText(), QStringLiteral("Not set on this device."));
+        notSet = line->placeholderText();
+    };
+    actions->editModuleSettings(workProfile, QStringLiteral("tokens"), QStringLiteral("general"));
+    QCOMPARE(notSet, QStringLiteral("Not set on this device."));
+    QCOMPARE(secrets.state(tokenKey(workProfile)), SecretStore::State::NotSet);
+
+    // A set token is never shown, and Remove removes it.
+    QString shown;
+    fill = [&shown](QDialog &dialog) {
+        QLineEdit *line = tokenLine(dialog);
+        QVERIFY(line);
+        shown = line->text() + line->placeholderText();
+        dialog.findChild<QPushButton *>(QStringLiteral("removeSecret_token"))->click();
+    };
+    actions->editModuleSettings(defaultProfile, QStringLiteral("tokens"), QStringLiteral("general"));
+    QCOMPARE(shown, QStringLiteral("Set on this device. Type to replace it."));
+    QCOMPARE(secrets.state(tokenKey(defaultProfile)), SecretStore::State::NotSet);
+
+    // A cancelled dialog removes nothing.
+    secrets.write(tokenKey(defaultProfile), QStringLiteral("again"));
+    accept = false;
+    actions->editModuleSettings(defaultProfile, QStringLiteral("tokens"), QStringLiteral("general"));
+    QCOMPARE(secrets.state(tokenKey(defaultProfile)), SecretStore::State::Set);
+}
+
+// Deleting a profile removes its tokens on this device, and only its own.
+void TestEntityActions::deletingProfileRemovesTokens()
+{
+    SecretStore secrets(makeMemoryBackend());
+    actions->setSecretStore(&secrets);
+    secrets.write(tokenKey(workProfile), QStringLiteral("work"));
+    secrets.write(tokenKey(defaultProfile), QStringLiteral("default"));
+    actions->setEditProfiles([](ProfilesDialog &dialog) {
+        dialog.select(workProfile);
+        dialog.deleteSelected();
+    });
+    actions->editProfiles();
+    QVERIFY(!model.profile(workProfile));
+    QCOMPARE(secrets.state(tokenKey(workProfile)), SecretStore::State::NotSet);
+    QCOMPARE(secrets.state(tokenKey(defaultProfile)), SecretStore::State::Set);
 }
 
 QTEST_MAIN(TestEntityActions)
