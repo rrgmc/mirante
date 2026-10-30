@@ -105,7 +105,8 @@ Each file records one design decision: what was decided, what else was considere
 | [0098](0098-packages-from-cmake-install.md) | Packages are made by `cmake --install` and CPack, and take their version from the tag | Accepted |
 | [0099](0099-linux-package-in-opt.md) | The Linux package installs into `/opt/mirante`, with its own Qt and an AppArmor profile | Accepted |
 | [0100](0100-item-types-in-a-module-tree.md) | A new item picks its type in a tree of modules, with a description | Accepted |
-| [0101](0101-macos-release-signing.md) | The macOS release is a universal bundle, signed with a Developer ID and notarised | Accepted |
+| [0101](0101-macos-release-signing.md) | The macOS release is a universal bundle, signed with a Developer ID and notarised | Accepted; bundle identifier superseded by 0102 |
+| [0102](0102-bundle-identifier-rrgmc.md) | The macOS bundle identifier is `com.rrgmc.mirante` | Accepted |
 
 ## Template
 
