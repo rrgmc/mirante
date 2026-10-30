@@ -134,12 +134,15 @@ function(mirante_add_package)
     else()
         set(CPACK_GENERATOR DEB)
         set(CPACK_PACKAGING_INSTALL_PREFIX /)
+        # CPack stages the package in a folder of this name. The .deb itself
+        # gets Debian's name, mirante_<version>_amd64.deb.
+        set(CPACK_PACKAGE_FILE_NAME "mirante-${PROJECT_VERSION}-linux")
         set(CPACK_DEBIAN_FILE_NAME DEB-DEFAULT)
         set(CPACK_DEBIAN_PACKAGE_SECTION utils)
         set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
         # dpkg-shlibdeps finds the bundled Qt libraries here, and leaves them
         # out of the dependencies.
-        set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS_PRIVATE_DIRS "${PROJECT_BINARY_DIR}/_CPack_Packages/Linux/DEB/mirante-${PROJECT_VERSION}-Linux/opt/mirante/lib")
+        set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS_PRIVATE_DIRS "${PROJECT_BINARY_DIR}/_CPack_Packages/Linux/DEB/${CPACK_PACKAGE_FILE_NAME}/opt/mirante/lib")
         set(CPACK_DEBIAN_PACKAGE_CONTROL_EXTRA
             "${PROJECT_SOURCE_DIR}/resources/linux/postinst"
             "${PROJECT_SOURCE_DIR}/resources/linux/prerm")
