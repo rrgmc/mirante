@@ -6,7 +6,7 @@ A module is one folder of item types and the code they share. Modules are compil
 
 | Module | Item types | Settings screens | Project settings |
 |---|---|---|---|
-| `gitlab` | `gitlab.mr.summary`, `gitlab.mr.page`, `gitlab.mr.list`, `gitlab.pipeline`, `gitlab.issue.summary`, `gitlab.issue.page`, `gitlab.issue.list` | General Configuration: base URL, token, project paths | `project` |
+| `gitlab` | `gitlab.mr.summary`, `gitlab.mr.page`, `gitlab.mr.list`, `gitlab.pipeline`, `gitlab.pipeline.list`, `gitlab.issue.summary`, `gitlab.issue.page`, `gitlab.issue.list` | General Configuration: base URL, token, project paths | `project` |
 | `jira` | `jira.issue.summary`, `jira.issue.page`, `jira.list` | General Configuration: base URL, token | `projectKey` |
 | `claude` | `claude.session.web`, `claude.session.local` | none | none |
 | `web` | `web.page` | none | none |

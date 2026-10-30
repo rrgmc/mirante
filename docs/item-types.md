@@ -45,6 +45,7 @@ A pasted web address can make an item. The new item dialog asks every type's `fr
 | `<base>/<project>/-/issues/<iid>` | GitLab Issue (summary), GitLab Issue (page) | `project`, `iid` | `group/project#7` |
 | `<base>/<project>/-/merge_requests`, `<base>/<project>/-/issues` | GitLab MR List, GitLab Issue List | `scope` = `project`, `project`, `preset` = `allOpen` | `group/project MRs`, `group/project issues` |
 | `<base>/<project>/-/pipelines[/<id>][?ref=<branch>]` | GitLab CI Pipeline | `project`, `branchSource` = `fixed`, `branch` from `ref`, or `master` without one. The pipeline's id is not kept, because the type follows a branch. | `group/project <branch> CI` |
+| `<base>/<project>/-/pipelines`, without `ref` or an id | GitLab CI Pipeline List, after GitLab CI Pipeline | `project`, `source` = `all` | `group/project pipelines` |
 | `<base>/browse/<key>`, `.../issues/<key>`, or `?selectedIssue=<key>` | Jira Issue (summary), Jira Issue (page) | `key` | the key |
 | a Jira address with `?jql=<query>` | Jira List | `preset` = `jql`, `jql` | "Jira search" |
 | `https://claude.ai/...` | Claude session (web) | `url` | "Claude session" |
@@ -177,6 +178,33 @@ The summaries have fixed layouts, as in [decision 0066](decisions/0066-fixed-nat
 - **Attention:** a pipeline of the group failed, whichever is shown. Each failed pipeline is a new reason with its own key, so a failure is not hidden by a later pipeline that passed, and a retry that fails again counts again. Together with the merge request's failed pipeline, this is the only event that sends a [desktop notification](ui.md#tray-and-notifications).
 
 "Current branch of the main folder" reads `.git/HEAD` of the folder's local path on this device. If the folder is not mapped on this device, the panel asks for a branch.
+
+### GitLab CI Pipeline List
+
+`gitlab.pipeline.list`, native. The pipelines of one project.
+
+- **Configuration:**
+  - `project`, the project path, empty for the `gitlab.project` setting;
+  - `source`: `all` ("All pipelines", the default), `mine` ("Started by me"), `branch` ("Of a branch") or `mergeRequest` ("Of a merge request");
+  - `branch`, used by `branch`. It is `master` by default, also as its placeholder, and an empty value means `master`;
+  - `iid`, the merge request number, used by `mergeRequest`;
+  - `limit` and `pageSize`, as for the merge request list.
+- **Shows:** a sortable table, sorted on Id, newest first. Its columns are:
+  - Id;
+  - Status, a pill;
+  - Ref, which takes the free width and never hides;
+  - Author and Started, compact and sorted by the date. GitLab's list answers usually leave these two out, and a missing value shows a dash. A missing date sorts as the oldest;
+  - the links of the row, which never hide.
+- **A narrow cell** hides columns in this order: Author, Started, Id, Status.
+- **Filter:** a Status drop-down above the table, filled from the fetched rows. The choice survives new rows and is not saved.
+- **Links of a row:**
+  - "Web" opens the row's `web_url` in the external browser;
+  - "Open" shows that page in the same cell, or in the external browser if you hold `Shift`;
+  - "Add" adds a GitLab CI Pipeline to the item's task. A row whose ref is `refs/merge-requests/<iid>/head` adds one with `branchSource` `mergeRequest` and that `iid`, named `group/project!42 CI`. Any other ref adds one with `branchSource` `fixed` and that ref as its `branch`, named `group/project <ref> CI`.
+- **Row menu:** "Web", "Open page", "Add to task as item" and "Copy link".
+- **The Web link** above the table opens `<baseUrl>/<project>/-/pipelines`, and it hides without a project.
+- **Messages:** as for the merge request list, with the line "No pipelines".
+- **Status:** a summary with the count, such as "12 pipelines", "1 pipeline", or "100+ pipelines" when the list reaches its `limit`. It reports no attention and is neither closed nor open. Without a project, or without a number for `mergeRequest`, it reports no status, with a message such as "Set the merge request number in the item's settings."
 
 ### GitLab Issue (summary), GitLab Issue (page), GitLab Issue List
 
