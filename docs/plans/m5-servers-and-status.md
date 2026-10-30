@@ -395,9 +395,19 @@ signals: void refreshRequested(); void fixRequested();
 
 ## Tasks for parallel work
 
-The rules, the roles and the brief are those of the [M2 plan](m2-app-skeleton.md#tasks-for-parallel-work), with `m2-app-skeleton.md` replaced by this plan. At most seven agents run at the same time.
+The rules, the roles and the brief are those of the [M2 plan](m2-app-skeleton.md#tasks-for-parallel-work), with `m2-app-skeleton.md` replaced by this plan. At most three agents run at the same time, as the user asked for M5.
 
-The headers written by T0 are the interfaces. Where they differ in detail from the sketches in the parts above, the headers win.
+The headers written by T0 are the interfaces. Where they differ in detail from the sketches in the parts above, the headers win. The main differences:
+
+- `ItemContext::server()` and `status()` return pointers and have defaults that return null, so the module tests' fake contexts need no change.
+- `markSeen` is on `Attention`, not `StatusCache`, since the seen keys are attention's.
+- `src/api/` reaches the modules through `ModuleDirectory`, which `ItemTypeRegistry` implements, so `api` does not depend on `items`.
+- `ServerClients` is the public class in `ServerClient.h`; each `ApiClient` it makes is private to `ServerClient.cpp`.
+- `CellStatus` is in `items/CellStatus.h`, so placements can build it. `Placement` emits `cellStatusChanged`, and has the slots `refresh()` and `openSettings()`. `PlacementServices` names the callback `openServerSettings`.
+- `StatusCache` has `poll()`, `setPolling()` and `setClock()` for tests and the timer, and `clear()` for another workspace.
+- `DeviceSettings` has `hasSeenAttention()`, to tell an item never recorded from one with no seen keys, and `focusAttentionFirst()`.
+- The api services reach the window together, as `ApiServices`, through `MainWindow::setApiServices()`. `EntityActions` gains `setSecretStore()`. `FieldForm` gains `setSecretState()` and `removedSecrets()`.
+- `ItemTypeRegistry` stores the server type already; T4 fills in `addProjectSetting()`.
 
 | Task | Branch | Work | Owns | Needs |
 |---|---|---|---|---|
@@ -420,10 +430,13 @@ T5 and T6 need the module interface only, so they run beside the core tasks. T7 
 | Wave | Tasks | At the same time |
 |---|---|---|
 | 0 | T0, then the user reviews the headers | 1 |
-| 1 | T1, T2, T3, T4, T5, T6, T7 | 7 |
-| 2 | T8 | 1 |
-| 3 | T9 | 1 |
-| 4 | T10 | 1 |
+| 1 | T1, T2, T3 | 3 |
+| 2 | T5, T6, T7 | 3 |
+| 3 | T4, T8 | 2 |
+| 4 | T9 | 1 |
+| 5 | T10 | 1 |
+
+The core services come first, because T8 and T9 need them. The two modules and the widgets come next. T4 needs nothing but T0, so it fills the third wave beside T8.
 
 The first check by hand after T9 is a real token against gitlab.com and the user's Jira Cloud site. If either is refused, the fix belongs in that module's `ServerType` before T10.
 

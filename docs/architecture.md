@@ -104,8 +104,10 @@ Native views are ordinary widgets. Lists use `QTableView` with a model fed from 
 
 | Class | Responsibility |
 |---|---|
-| `SecretStore` | Reads and writes tokens through qtkeychain, asynchronously: those of the settings screens' `Secret` fields, under `<profile id>/<module id>/<field key>`. See [servers and tokens](data-model.md#servers-and-tokens). |
-| `ApiClient` | Shared base for the modules' clients: authentication with the profile's token, ETags, paging, rate limits, at most four parallel requests for each server of a profile |
+| `ModuleDirectory` | What the library needs to know about the modules: their types, servers, settings and screens. `ItemTypeRegistry` implements it, so `api` does not depend on `items`. |
+| `ApiServices` | The library's long-lived services, handed from `main.cpp` to the window |
+| `SecretStore` | Reads and writes tokens through qtkeychain, asynchronously: those of the settings screens' `Secret` fields, under `<workspace id>/<profile id>/<module id>/<field key>`. See [servers and tokens](data-model.md#servers-and-tokens). |
+| `ServerClients` | The modules' `ApiClient`s, one for each profile and module with a `ServerType`: authentication with the profile's token, ETags, paging, rate limits, at most four parallel requests for each server of a profile, and pausing while a token is refused |
 | `StatusCache` | Polls, caches by profile, module and request, computes attention, and emits `statusChanged(itemRef)` |
 | `Attention` | Collects the attention reasons reported by item types, and feeds badges, Focus, the tray and notifications |
 

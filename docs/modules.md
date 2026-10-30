@@ -96,15 +96,15 @@ The module interface contains the headers below. The "Since" column gives the mi
 
 | Header | Contents | Since |
 |---|---|---|
-| `Module.h` | `ModuleRegistrar`, the object a module registers its parts with. `setModuleName()`, `addSettingsScreen()` and `settings()` were added after M4; see [settings screens](#settings-screens). So was `setModuleDescription()`; see [decision 0056](decisions/0056-modules-window.md). | M2 |
+| `Module.h` | `ModuleRegistrar`, the object a module registers its parts with. `setModuleName()`, `addSettingsScreen()` and `settings()` were added after M4; see [settings screens](#settings-screens). So was `setModuleDescription()`; see [decision 0056](decisions/0056-modules-window.md). M5 adds `setServerType()` and `addProjectSetting()`. | M2 |
 | `ModuleSettings.h` | `SettingsScreen`, one configuration screen of a module, and `ModuleSettings`, which reads the values of the module's screens in a profile. See [settings screens](#settings-screens). | after M4 |
-| `ItemType.h` | The `ItemType` interface. See [item types](item-types.md#the-type-registry). `shortName()`, the short label in cell headers, was added after M3; see [decision 0033](decisions/0033-cell-header-pills.md). M4 adds `rendering()` and `createView()`; its `connectionKinds()` was removed by [decision 0054](decisions/0054-module-settings-replace-connections.md). `fromUrl()` was added after M4; see [items from a link](#items-from-a-link). So was `fieldsForProfile()`; see [decision 0050](decisions/0050-profiles-hold-logins-connections-and-settings.md). `description()` was added after M4; see [decision 0056](decisions/0056-modules-window.md). | M2 |
+| `ItemType.h` | The `ItemType` interface. See [item types](item-types.md#the-type-registry). `shortName()`, the short label in cell headers, was added after M3; see [decision 0033](decisions/0033-cell-header-pills.md). M4 adds `rendering()` and `createView()`; its `connectionKinds()` was removed by [decision 0054](decisions/0054-module-settings-replace-connections.md). `fromUrl()` was added after M4; see [items from a link](#items-from-a-link). So was `fieldsForProfile()`; see [decision 0050](decisions/0050-profiles-hold-logins-connections-and-settings.md). `description()` was added after M4; see [decision 0056](decisions/0056-modules-window.md). M5 adds `hasStatus()` and `fetchStatus()`; see [status](#status). | M2 |
 | `UrlMatch.h` | `UrlMatch`, what an item type makes of a pasted web address, and `pathBelow()`, which reads an address below a server's base URL. See [items from a link](#items-from-a-link). | after M4 |
 | `Fields.h` | `Field`: a key, a label, a type, a default value, a required flag, and for a choice its values and labels. The types are text, multi-line text, URL, integer, boolean, choice, folder, image, text list and secret. A text field can offer `suggestions` in an editable drop-down list. A secret, such as a token, is for settings screens only; its value is never stored with the others. Used for item configuration and settings screens, and from M5 for project settings. See decisions [0028](decisions/0028-item-fields-in-m3.md), [0044](decisions/0044-module-settings-in-the-workspace.md) and [0054](decisions/0054-module-settings-replace-connections.md). | M3 |
 | `ItemEditor.h` | `ItemEditor`, the base of an item type's own configuration editor, and `EditorContext`, what an editor can reach: the project's folders and a way to save an image into `files/` | M3 |
 | `ItemContext.h` | `ItemContext`, everything an item's code can reach. See [below](#item-context). | M4 |
-| `ApiClient.h` | The shared HTTP client base: ETags, paging, rate limits, request limits | M5 |
-| `Status.h` | Status results and attention reasons for the [status cache](integrations.md#polling-and-caching) | M5 |
+| `ApiClient.h` | `ServerType`, how a module's server is set up and authenticated, and `ApiClient`, a module's server in one profile: requests with ETags, paging, rate limits and request limits. See [servers and tokens](#servers-and-tokens). | M5 |
+| `Status.h` | `ItemStatus`, `AttentionReason`, `StatusJob` and `ItemStatusSource`, for the [status cache](integrations.md#polling-and-caching). See [status](#status). | M5 |
 | `QuickAdd.h` | Quick add handlers and related-item finders | M7 |
 | `Values.h` | Read-only views of a group, project, task, item and folder | planned |
 
@@ -120,7 +120,8 @@ The register function receives a `ModuleRegistrar` and adds any of the following
 | Module name | The name the user sees, such as "GitLab", with `setModuleName()`. The module id is used without one. |
 | Module description | One or two plain sentences that say what the module adds, with `setModuleDescription()`, such as "Merge requests, pipelines and issues from a GitLab server." The [Modules window](ui.md#modules-window) shows it under the module's name. |
 | Settings screens | Configuration screens of the whole module, such as GitLab's "General Configuration", with values kept in each profile of the workspace. See [settings screens](#settings-screens). |
-| Project settings | Fields shown in the project dialog, such as the GitLab project path. They are defaults for the module's items. |
+| Project settings | Fields shown in the project dialog, such as the GitLab project path, with `addProjectSetting()`. They are defaults for the module's items. |
+| Server | How the module's server is set up and authenticated, with `setServerType()`. See [servers and tokens](#servers-and-tokens). |
 | Device settings | Fields kept on each device, such as an editor command |
 | Quick add handlers | Recognise pasted text and propose a task. See [quick add](#quick-add). |
 | Related-item finders | Find items related to a piece of text, such as merge requests whose branch contains a Jira key |
@@ -153,7 +154,7 @@ void registerModule(ModuleRegistrar &registrar)
 - **Id and name.** The id names the stored values, so it never changes. It has lowercase letters and digits only, and is unique within the module. The name is the menu entry and the dialog title.
 - **Fields or an editor.** As for item types, a screen lists its `fields()`, and the core builds the form, or returns its own `ItemEditor` from `createEditor()`. The editor gets the stored object with `setConfig()`, and its `config()` is stored. Keys that the form or editor does not show are kept.
 - **Values.** Each screen's values are one JSON object per profile, in that profile's entry of `workspace.mirante`, under `moduleSettings.<module id>.<screen id>`. They sync with the workspace. See [data model](data-model.md#module-settings).
-- **Secrets.** A token or a password goes in a field of type `Secret`. Its value is never part of the stored values, so it never reaches the workspace. The core keeps it in the keychain, under `<profile id>/<module id>/<field key>`; see [servers and tokens](#servers-and-tokens).
+- **Secrets.** A token or a password goes in a field of type `Secret`. Its value is never part of the stored values, so it never reaches the workspace. The core keeps it in the keychain, under `<workspace id>/<profile id>/<module id>/<field key>`; see [servers and tokens](#servers-and-tokens).
 - **Reading.** Module code reads the values of the profile an item uses. There are three ways:
   - in a view, `ItemContext::moduleSettings(screenId)` reads them for the item's profile;
   - in a form, the item dialog calls the type's `fieldsForProfile(profileId)` with the profile the edited item would use, and the type reads them there, for example to offer suggestions. `fields()` stays the plain list, used where no profile is known, such as validation;
@@ -196,7 +197,8 @@ Each item's code gets an `ItemContext`. It gives access to the configuration the
 | `projectSetting(key)` | A project setting the module declared, such as `project` for GitLab. Undefined if the project does not set it. | M4 |
 | `deviceSetting(key)` | A device setting the module declared | M7 |
 | `moduleSettings(screenId)` | The values of one of the module's [settings screens](#settings-screens), in the item's profile. Empty if nothing is stored. A module reads its server here, such as GitLab's base URL. Added after M4; see decisions [0050](decisions/0050-profiles-hold-logins-connections-and-settings.md) and [0054](decisions/0054-module-settings-replace-connections.md). | after M4 |
-| `status()` | This item's entry in the status cache: fetch, read cached data, report attention | M5 |
+| `server()` | The module's server in the item's profile, or null for a module without a `ServerType`. See [servers and tokens](#servers-and-tokens). | M5 |
+| `status()` | This item's entry in the status cache: read the current status, refresh, subscribe. Null for a type without status. See [status](#status). | M5 |
 | `createWebView(url)` | A live web page in a plain `QWidget`, in the web logins of the item's [profile](web-views.md#profiles), with popups, permissions, downloads and the toolbar handled by the core. The normal way for a web type to show a page. See [decision 0037](decisions/0037-core-makes-web-views.md). | M4 |
 | `profile()` | The web logins of the item's [profile](web-views.md#profiles), as a `QWebEngineProfile`, for a module that builds its own `QWebEngineView`. Such a module links Qt WebEngine with `QT_LIBS`, and handles popups, permissions and downloads itself. The profile holds the logins of every site that its items visit, including those of other modules; see [decision 0042](decisions/0042-user-managed-web-profiles.md). | M4 |
 | `createMessageView(text)` | A grey message in the cell, such as "Set the issue key in the item's settings." | M4 |
@@ -209,12 +211,41 @@ Each item's code gets an `ItemContext`. It gives access to the configuration the
 
 A module that talks to a server keeps its base URL in a settings screen, with a `Secret` field for its token on the same screen. Each profile has its own; a view reads them with `moduleSettings(screenId)`. See [decision 0054](decisions/0054-module-settings-replace-connections.md).
 
-From M5 the core gives a module a handle for its profile's server:
+From M5 a module describes its server with a `ServerType`, in `ApiClient.h`, and registers it with `setServerType()`. The type names the screen and the token field, reads the base URL from the screen's values, says what is missing, such as Jira Cloud's email, and adds the token to a request, such as GitLab's `PRIVATE-TOKEN` header. The core knows nothing else about the service.
 
-- **`authorize(request)`:** adds the authentication to a `QNetworkRequest`, for example with a `PRIVATE-TOKEN` header for GitLab. Item code never sees the token. This is the normal way to call an API.
+```cpp
+class GitLabServerType : public mirante::ServerType
+{
+public:
+    QString screenId() const override { return QStringLiteral("general"); }
+    QString tokenKey() const override { return QStringLiteral("token"); }
+    QUrl baseUrl(const QJsonObject &values) const override { return baseUrlOf(values); }
+    void authorize(QNetworkRequest &request, const QString &token, const QJsonObject &) const override
+    {
+        request.setRawHeader("PRIVATE-TOKEN", token.toUtf8());
+    }
+};
+```
+
+The core then gives the module an `ApiClient` for the server of each profile, through `ItemContext::server()` in a view and `StatusJob::server()` in a status fetch:
+
+- **`get()` and `post()`:** the normal way to call an API. The path is relative to the base URL. The client adds the token, sends the last ETag, follows `Link` pages when asked, waits on `429`, and runs at most four requests at once for each profile's server. Item code never sees the token.
+- **`authorize(request)`:** adds the authentication to a `QNetworkRequest` the module makes itself.
 - **`secret()`:** returns the raw token, asynchronously. Use it only when a request is not enough, such as passing a token to a command in a terminal. Every call needs a comment that says why `authorize()` does not work there.
 
-Tokens are loaded from the keychain, under `<profile id>/<module id>/<field key>`, before the first request. If no token is stored, `authorize()` fails and the core shows "Token not set on this device", as described in [errors](integrations.md#errors). Until M5 no token is stored: a token typed into a screen is dropped, and the log says so without its value.
+Tokens are loaded from the keychain, under `<workspace id>/<profile id>/<module id>/<field key>`, before the first request. If no token is stored, a request fails with `NoToken` without being sent, and the cell shows "Token not set", as described in [errors](integrations.md#errors).
+
+### Status
+
+An item type that shows one object on a server, such as a merge request, reports its status. It returns true from `hasStatus()` and implements `fetchStatus(StatusJob &job)`, from `Status.h`. The [status cache](integrations.md#polling-and-caching) decides when an item is due, and makes the job. The type reads its configuration and settings from the job, makes its requests through `job.server()`, and ends with `job.finish(status)`, exactly once.
+
+An `ItemStatus` holds a state, a one-line summary, the data a view needs, the attention reasons and whether the work is closed. `statusFromReply(reply)` turns a failed reply into the matching state. Each `AttentionReason` has a stable key, a text, and two flags: `notify`, for a desktop notification, and `clearsOnView`, for an event that stops counting once the user has seen the item. See [decision 0061](decisions/0061-attention-from-status-of-any-rendering.md).
+
+A view reads its item's status with `ItemContext::status()`, and subscribes to its changes.
+
+### Testing
+
+A module's tests also link `mirante::module_api_testing`. It holds `<mirante/testing/FakeApiClient.h>`, an `ApiClient` that answers from a table of recorded replies and records the requests, and `<mirante/testing/FakeStatusJob.h>`. Recorded responses live in the module's `tests/data/` folder.
 
 ## Quick add
 

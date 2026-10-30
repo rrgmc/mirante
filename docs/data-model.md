@@ -222,7 +222,7 @@ Each module that talks to a server keeps it in its settings, one server per prof
 | Jira | `jira.general.baseUrl`, the site, such as `https://acme.atlassian.net` | none |
 
 - An item uses the server of its [profile](#profile): its own, else its group's, else the default profile's.
-- The token for the server is entered on the same screen, in a `Secret` field. It is never part of the synced data. The keychain keeps it under the key `<profile id>/<module id>/<field key>`, such as `default/gitlab/token`. See [sync](sync.md#secrets).
+- The token for the server is entered on the same screen, in a `Secret` field. It is never part of the synced data. The keychain keeps it under the key `<workspace id>/<profile id>/<module id>/<field key>`, such as `5a3e…/default/gitlab/token`, so each workspace keeps its own ([decision 0059](decisions/0059-logins-per-workspace.md)). See [sync](sync.md#secrets).
 
 ## Dashboard
 

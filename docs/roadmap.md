@@ -70,7 +70,7 @@ See [the M4 plan](plans/m4-web-views.md).
 See [the M5 plan](plans/m5-servers-and-status.md).
 
 - [ ] Modules register project settings. The project dialog is built from their fields.
-- [ ] Tokens typed into the settings screens are stored with qtkeychain, under `<profileId>/<moduleId>/<fieldKey>`. See [decision 0054](decisions/0054-module-settings-replace-connections.md).
+- [ ] Tokens typed into the settings screens are stored with qtkeychain, under `<workspaceId>/<profileId>/<moduleId>/<fieldKey>`. See decisions [0054](decisions/0054-module-settings-replace-connections.md) and [0059](decisions/0059-logins-per-workspace.md).
 - [ ] `SecretStore` stores tokens in the keychain on all three platforms.
 - [ ] `ItemContext` gives modules their profile's server with `authorize()` and `secret()`.
 - [ ] The `gitlab` and `jira` modules' clients cover the endpoints in [integrations](integrations.md), for both Jira Cloud and Data Center.
