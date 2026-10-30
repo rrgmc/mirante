@@ -104,6 +104,16 @@ QWidget *DashboardCellFactory::createCell(const std::optional<CellRef> &ref, boo
         const QString taskId = d->dashboard.isRoot() ? ref->task : d->dashboard.taskId;
         auto *placement = new Placement(*d->services.placements, taskId, ref->item, frame);
         QObject::connect(placement, &Placement::headerWidgetChanged, frame, &CellFrame::setHeaderWidget);
+        // The item's status in the header. A change of the item's type can
+        // add or remove its status, and with it the refresh button.
+        frame->setStatus(placement->cellStatus());
+        frame->setRefreshVisible(placement->hasStatus());
+        QObject::connect(placement, &Placement::cellStatusChanged, frame, [frame, placement](const CellStatus &status) {
+            frame->setStatus(status);
+            frame->setRefreshVisible(placement->hasStatus());
+        });
+        QObject::connect(frame, &CellFrame::refreshRequested, placement, &Placement::refresh);
+        QObject::connect(frame, &CellFrame::fixRequested, placement, &Placement::openSettings);
         frame->setBody(placement);
     }
     // The callback is a copy, so it stays valid if the factory goes first.

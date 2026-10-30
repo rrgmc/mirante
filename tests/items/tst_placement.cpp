@@ -1,8 +1,15 @@
 // Tests Placement and its ItemContext with test item types: when the view is
 // made, unloading by the ViewPool, making the view again after a change, the
-// header widget, and what the context reads from the model.
+// header widget, what the context reads from the model, and the item's status
+// in the cell header. No test uses the network or the keychain.
+#include "api/Attention.h"
+#include "api/SecretBackend.h"
+#include "api/SecretStore.h"
+#include "api/ServerClient.h"
+#include "api/StatusCache.h"
 #include "core/DeviceSettings.h"
 #include "core/Model.h"
+#include "core/Profiles.h"
 #include "items/ItemContextImpl.h"
 #include "items/ItemTypeRegistry.h"
 #include "items/Placement.h"
@@ -10,20 +17,29 @@
 #include "web/ProfileManager.h"
 #include "web/WebPanel.h"
 
+#include <mirante/ApiClient.h>
 #include <mirante/ItemContext.h>
 #include <mirante/ItemType.h>
+#include <mirante/Module.h>
+#include <mirante/Status.h>
 
 #include <QApplication>
 #include <QDir>
+#include <QElapsedTimer>
 #include <QLabel>
+#include <QNetworkAccessManager>
+#include <QNetworkReply>
+#include <QNetworkRequest>
 #include <QPointer>
 #include <QPushButton>
 #include <QSettings>
 #include <QSignalSpy>
 #include <QTemporaryDir>
 #include <QTest>
+#include <QTimer>
 #include <QWebEngineView>
 
+#include <map>
 #include <memory>
 
 using namespace mirante;
@@ -85,6 +101,139 @@ void registerTest(ModuleRegistrar &registrar)
         registrar.addItemType(std::make_unique<TestType>(QString::fromLatin1(id)));
 }
 
+// How stat.thing ends each fetch: with the status given for the item, found
+// by the "id" in its configuration, or with what one GET through its server
+// answers. Reset before each test.
+std::map<QString, ItemStatus> nextStatus;
+bool statusFromServer = false;
+int statusFetches = 0;
+
+// stat.thing: a type that reports status, of the module "stat", which has a
+// server.
+class StatusType : public ItemType
+{
+public:
+    QString id() const override { return QStringLiteral("stat.thing"); }
+    QString name() const override { return QStringLiteral("Thing"); }
+    QIcon icon() const override { return {}; }
+    bool hasStatus() const override { return true; }
+
+    void fetchStatus(StatusJob &job) const override
+    {
+        ++statusFetches;
+        if (statusFromServer) {
+            job.server().get(QStringLiteral("api/thing"), {}, {}, job.owner(),
+                             [&job](const ApiReply &reply) { job.finish(statusFromReply(reply)); });
+            return;
+        }
+        job.finish(nextStatus[job.config().value(QStringLiteral("id")).toString()]);
+    }
+};
+
+class StatServerType : public ServerType
+{
+public:
+    QString screenId() const override { return QStringLiteral("server"); }
+    QString tokenKey() const override { return QStringLiteral("token"); }
+    QUrl baseUrl(const QJsonObject &values) const override
+    {
+        return QUrl(values.value(QStringLiteral("baseUrl")).toString());
+    }
+    void authorize(QNetworkRequest &request, const QString &token, const QJsonObject &) const override
+    {
+        request.setRawHeader("PRIVATE-TOKEN", token.toUtf8());
+    }
+};
+
+void registerStat(ModuleRegistrar &registrar)
+{
+    registrar.addItemType(std::make_unique<StatusType>());
+    registrar.setServerType(std::make_unique<StatServerType>());
+}
+
+ItemStatus okStatus(QList<AttentionReason> attention = {})
+{
+    ItemStatus status;
+    status.state = ItemStatus::State::Ok;
+    status.attention = std::move(attention);
+    return status;
+}
+
+ItemStatus failedStatus(ItemStatus::State state, const QString &message)
+{
+    ItemStatus status;
+    status.state = state;
+    status.message = message;
+    return status;
+}
+
+AttentionReason reason(const QString &key, const QString &text, bool clearsOnView = false)
+{
+    AttentionReason r;
+    r.key = key;
+    r.text = text;
+    r.clearsOnView = clearsOnView;
+    return r;
+}
+
+// A reply with the HTTP status the network's handler gives.
+class FakeReply : public QNetworkReply
+{
+public:
+    FakeReply(QNetworkAccessManager::Operation op, const QNetworkRequest &request, QObject *parent)
+        : QNetworkReply(parent)
+    {
+        setOperation(op);
+        setRequest(request);
+        setUrl(request.url());
+        open(QIODevice::ReadOnly | QIODevice::Unbuffered);
+    }
+
+    void respond(int status)
+    {
+        if (isFinished())
+            return;
+        setAttribute(QNetworkRequest::HttpStatusCodeAttribute, status);
+        if (status >= 400)
+            setError(QNetworkReply::ProtocolInvalidOperationError, QStringLiteral("HTTP %1").arg(status));
+        setFinished(true);
+        emit finished();
+    }
+
+    void abort() override
+    {
+        if (isFinished())
+            return;
+        setError(QNetworkReply::OperationCanceledError, QStringLiteral("Aborted"));
+        setFinished(true);
+        emit finished();
+    }
+
+    bool isSequential() const override { return true; }
+
+protected:
+    qint64 readData(char *, qint64) override { return 0; }
+};
+
+// Answers every request with one HTTP status in the next event loop pass,
+// and records the requests. Nothing goes to the network.
+class FakeNetwork : public QNetworkAccessManager
+{
+public:
+    int status = 200;
+    QList<QNetworkRequest> sent;
+
+protected:
+    QNetworkReply *createRequest(Operation op, const QNetworkRequest &request, QIODevice *) override
+    {
+        auto *reply = new FakeReply(op, request, this);
+        sent.append(request);
+        const int answer = status;
+        QTimer::singleShot(0, reply, [reply, answer] { reply->respond(answer); });
+        return reply;
+    }
+};
+
 Item makeItem(const QString &id, const QString &type, const QJsonObject &config)
 {
     Item item;
@@ -108,7 +257,10 @@ void fill(Model &model)
     standard.moduleSettings = QJsonObject{
         {QStringLiteral("test"),
          QJsonObject{{QStringLiteral("server"),
-                      QJsonObject{{QStringLiteral("baseUrl"), QStringLiteral("https://gitlab.example.com")}}}}}};
+                      QJsonObject{{QStringLiteral("baseUrl"), QStringLiteral("https://gitlab.example.com")}}}}},
+        {QStringLiteral("stat"),
+         QJsonObject{{QStringLiteral("server"),
+                      QJsonObject{{QStringLiteral("baseUrl"), QStringLiteral("https://stat.example/")}}}}}};
 
     Project project;
     project.id = QStringLiteral("p1");
@@ -127,6 +279,7 @@ void fill(Model &model)
     task.items.push_back(makeItem(QStringLiteral("x1"), QStringLiteral("test.none"), {}));
     task.items.push_back(makeItem(QStringLiteral("p1"), QStringLiteral("test.page"),
                                   {{QStringLiteral("url"), QStringLiteral("data:text/plain,first")}}));
+    task.items.push_back(makeItem(QStringLiteral("s1"), QStringLiteral("stat.thing"), {{QStringLiteral("id"), QStringLiteral("s1")}}));
 
     model.reset({group}, {project}, {task}, {});
     model.setProfiles({standard});
@@ -170,6 +323,18 @@ private:
     std::unique_ptr<ViewPool> pool;
     PlacementServices services;
 
+    // The status services, made by enableStatus().
+    std::unique_ptr<QTemporaryDir> statusDir;
+    std::unique_ptr<QSettings> statusSettings;
+    std::unique_ptr<DeviceSettings> statusDevice;
+    std::unique_ptr<SecretStore> secrets;
+    std::unique_ptr<FakeNetwork> network;
+    std::unique_ptr<ServerClients> servers;
+    std::unique_ptr<StatusCache> cache;
+    std::unique_ptr<Attention> attention;
+    // What openServerSettings was called with, as "profile/module".
+    QStringList settingsOpened;
+
     std::unique_ptr<Placement> make(const QString &itemId)
     {
         auto placement = std::make_unique<Placement>(services, QStringLiteral("t1"), itemId);
@@ -177,12 +342,54 @@ private:
         return placement;
     }
 
+    // Gives the placements a status cache, Attention and real server clients
+    // over the fake network, in the workspace "ws".
+    void enableStatus()
+    {
+        model->setWorkspaceId(QStringLiteral("ws"));
+        statusDir = std::make_unique<QTemporaryDir>();
+        QVERIFY(statusDir->isValid());
+        statusSettings = std::make_unique<QSettings>(statusDir->filePath(QStringLiteral("settings.ini")),
+                                                     QSettings::IniFormat);
+        statusDevice = std::make_unique<DeviceSettings>(statusSettings.get());
+        secrets = std::make_unique<SecretStore>(makeMemoryBackend());
+        network = std::make_unique<FakeNetwork>();
+        servers = std::make_unique<ServerClients>(*model, types, *secrets, network.get());
+        cache = std::make_unique<StatusCache>(*model, types, *servers, *statusDevice);
+        attention = std::make_unique<Attention>(*model, *cache, *statusDevice);
+        services.settings = statusDevice.get();
+        services.status = cache.get();
+        services.attention = attention.get();
+        services.servers = servers.get();
+        services.openServerSettings = [this](const QString &profileId, const QString &moduleId) {
+            settingsOpened << profileId + QLatin1Char('/') + moduleId;
+        };
+    }
+
+    // Fetches s1 again, with this status.
+    void refreshWith(const ItemStatus &status)
+    {
+        nextStatus[QStringLiteral("s1")] = status;
+        cache->refresh(QStringLiteral("s1"));
+    }
+
 private slots:
-    void initTestCase() { types.registerModule(QStringLiteral("test"), &registerTest); }
+    void initTestCase()
+    {
+        types.registerModule(QStringLiteral("test"), &registerTest);
+        types.registerModule(QStringLiteral("stat"), &registerStat);
+        types.setSettingsReader([this](const QString &profileId, const QString &moduleId, const QString &screenId) {
+            return model ? model->moduleSettings(profileId, moduleId, screenId) : QJsonObject();
+        });
+    }
 
     void init()
     {
         viewsMade = 0;
+        nextStatus.clear();
+        statusFromServer = false;
+        statusFetches = 0;
+        settingsOpened.clear();
         model = std::make_unique<Model>();
         fill(*model);
         pool = std::make_unique<ViewPool>();
@@ -194,6 +401,15 @@ private slots:
 
     void cleanup()
     {
+        services = PlacementServices{};
+        attention.reset();
+        cache.reset();
+        servers.reset();
+        network.reset();
+        secrets.reset();
+        statusDevice.reset();
+        statusSettings.reset();
+        statusDir.reset();
         pool.reset();
         model.reset();
     }
@@ -568,6 +784,263 @@ private slots:
         // Chromium closes some profile files a moment after the profile goes.
         const QString path = root.path();
         QVERIFY(QTest::qWaitFor([&] { return QDir(path).removeRecursively(); }, 15000));
+    }
+
+    void noStatusWithoutCacheOrForOtherTypes()
+    {
+        auto withoutCache = make(QStringLiteral("s1"));
+        QVERIFY(!withoutCache->hasStatus());
+        QCOMPARE(withoutCache->cellStatus(), CellStatus());
+
+        enableStatus();
+        auto native = make(QStringLiteral("n1"));
+        QVERIFY(!native->hasStatus());
+        native->show();
+        QCOMPARE(native->cellStatus(), CellStatus());
+        // Refresh does nothing for a type without status.
+        native->refresh();
+        QCOMPARE(statusFetches, 0);
+    }
+
+    // Each state of the status gives its own cell status.
+    void statusReachesTheCell()
+    {
+        enableStatus();
+        nextStatus[QStringLiteral("s1")] = okStatus({reason(QStringLiteral("pipeline-failed"), QStringLiteral("Pipeline failed"))});
+        auto placement = make(QStringLiteral("s1"));
+        QVERIFY(placement->hasStatus());
+        QSignalSpy changed(placement.get(), &Placement::cellStatusChanged);
+
+        // Shown with no status, the item is fetched at once.
+        placement->show();
+        QCOMPARE(statusFetches, 1);
+        CellStatus status = placement->cellStatus();
+        QCOMPARE(status.kind, CellStatus::Kind::Attention);
+        QCOMPARE(status.count, 1);
+        QCOMPARE(status.tooltip, QStringLiteral("Pipeline failed"));
+        QCOMPARE(changed.count(), 1);
+        QCOMPARE(changed.last().at(0).value<CellStatus>(), status);
+
+        // No reasons, nothing to show.
+        refreshWith(okStatus());
+        QCOMPARE(placement->cellStatus(), CellStatus());
+
+        // Problems that the profile's settings fix.
+        refreshWith(failedStatus(ItemStatus::State::NoToken, QStringLiteral("No token is set.")));
+        status = placement->cellStatus();
+        QCOMPARE(status.kind, CellStatus::Kind::Problem);
+        QCOMPARE(status.text, QStringLiteral("Token not set"));
+        QVERIFY(status.canFix);
+        QVERIFY(status.tooltip.contains(QStringLiteral("No token is set.")));
+        QVERIFY(status.tooltip.contains(profiles::nameOf(*model, kDefaultProfile)));
+        refreshWith(failedStatus(ItemStatus::State::NoServer, QStringLiteral("No server.")));
+        QCOMPARE(placement->cellStatus().text, QStringLiteral("No server set"));
+        QVERIFY(placement->cellStatus().canFix);
+        refreshWith(failedStatus(ItemStatus::State::Refused, QStringLiteral("Refused.")));
+        QCOMPARE(placement->cellStatus().text, QStringLiteral("Token refused"));
+        QVERIFY(placement->cellStatus().canFix);
+
+        // The fix opens the settings of the item's module in its profile.
+        placement->openSettings();
+        QCOMPARE(settingsOpened, QStringList{QStringLiteral("default/stat")});
+
+        // Not found has no fix.
+        refreshWith(failedStatus(ItemStatus::State::NotFound, QStringLiteral("Not found (404)")));
+        QCOMPARE(placement->cellStatus().kind, CellStatus::Kind::Problem);
+        QCOMPARE(placement->cellStatus().text, QStringLiteral("Not found"));
+        QVERIFY(!placement->cellStatus().canFix);
+
+        // An error over older data shows its age, and keeps the data.
+        ItemStatus old = okStatus({reason(QStringLiteral("pipeline-failed"), QStringLiteral("Pipeline failed"))});
+        old.updatedAt = QDateTime::currentDateTimeUtc().addSecs(-12 * 60 - 5);
+        refreshWith(old);
+        QCOMPARE(placement->cellStatus().kind, CellStatus::Kind::Attention);
+        refreshWith(failedStatus(ItemStatus::State::Error, QStringLiteral("Host not found")));
+        status = placement->cellStatus();
+        QCOMPARE(status.kind, CellStatus::Kind::Stale);
+        QCOMPARE(status.text, QStringLiteral("12 min ago"));
+        QVERIFY(status.tooltip.contains(QStringLiteral("Host not found")));
+        QVERIFY(!status.canFix);
+
+        // Without a way to open the settings there is no fix button.
+        services.openServerSettings = nullptr;
+        auto other = make(QStringLiteral("s1"));
+        refreshWith(failedStatus(ItemStatus::State::NoToken, QStringLiteral("No token is set.")));
+        QCOMPARE(other->cellStatus().text, QStringLiteral("Token not set"));
+        QVERIFY(!other->cellStatus().canFix);
+        other->openSettings();
+        QCOMPARE(settingsOpened.size(), 1);
+    }
+
+    void errorWithoutDataIsAProblem()
+    {
+        enableStatus();
+        nextStatus[QStringLiteral("s1")] = failedStatus(ItemStatus::State::Error, QStringLiteral("Host not found"));
+        auto placement = make(QStringLiteral("s1"));
+        placement->show();
+        QCOMPARE(placement->cellStatus().kind, CellStatus::Kind::Problem);
+        QVERIFY(!placement->cellStatus().canFix);
+        QVERIFY(placement->cellStatus().tooltip.contains(QStringLiteral("Host not found")));
+    }
+
+    void refreshFetchesAtOnce()
+    {
+        enableStatus();
+        nextStatus[QStringLiteral("s1")] = okStatus();
+        auto placement = make(QStringLiteral("s1"));
+        placement->show();
+        QCOMPARE(statusFetches, 1);
+        placement->refresh();
+        QCOMPARE(statusFetches, 2);
+    }
+
+    // The cache hears of each visible placement, so a hidden item is no
+    // longer due.
+    void visibilityReachesTheCache()
+    {
+        enableStatus();
+        QDateTime now = QDateTime::currentDateTimeUtc();
+        cache->setClock([&now] { return now; });
+        const auto pollLater = [&] {
+            now = now.addSecs(statusDevice->pollInterval() + 1);
+            cache->poll();
+        };
+        nextStatus[QStringLiteral("s1")] = okStatus();
+
+        auto first = make(QStringLiteral("s1"));
+        auto second = make(QStringLiteral("s1"));
+        // Not shown, the item is not due.
+        pollLater();
+        QCOMPARE(statusFetches, 0);
+
+        first->show();
+        QCOMPARE(statusFetches, 1);
+        pollLater();
+        QCOMPARE(statusFetches, 2);
+
+        // Two visible placements need two hides.
+        second->show();
+        first->hide();
+        pollLater();
+        QCOMPARE(statusFetches, 3);
+        // A placement that goes while visible counts as hidden.
+        second.reset();
+        pollLater();
+        QCOMPARE(statusFetches, 3);
+
+        first->show();
+        QCOMPARE(statusFetches, 4);
+        first.reset();
+        pollLater();
+        QCOMPARE(statusFetches, 4);
+    }
+
+    // A reason that clears on view stops counting after two seconds visible
+    // in the active window, and not while the window is inactive.
+    void markSeenAfterTwoSecondsVisible()
+    {
+        enableStatus();
+        // The first status records what is seen: nothing.
+        refreshWith(okStatus());
+        refreshWith(okStatus({reason(QStringLiteral("approved"), QStringLiteral("Approved"), true),
+                              reason(QStringLiteral("pipeline-failed"), QStringLiteral("Pipeline failed"))}));
+        QVERIFY(attention->needsAttention(QStringLiteral("s1")));
+
+        auto placement = make(QStringLiteral("s1"));
+        QCOMPARE(placement->cellStatus().count, 2);
+        QCOMPARE(placement->cellStatus().tooltip, QStringLiteral("Approved\nPipeline failed"));
+
+        // Visible, but another window is active.
+        placement->show();
+        QWidget other;
+        other.resize(100, 100);
+        other.show();
+        other.activateWindow();
+        QVERIFY(QTest::qWaitForWindowActive(&other));
+        QTest::qWait(2500);
+        QCOMPARE(placement->cellStatus().count, 2);
+
+        // Active: seen after two seconds. The failed pipeline still counts.
+        QElapsedTimer timer;
+        timer.start();
+        placement->activateWindow();
+        QVERIFY(QTest::qWaitForWindowActive(placement.get()));
+        QCOMPARE(placement->cellStatus().count, 2);
+        QTRY_COMPARE_WITH_TIMEOUT(placement->cellStatus().count, 1, 5000);
+        QVERIFY(timer.elapsed() >= 1900);
+        QCOMPARE(placement->cellStatus().tooltip, QStringLiteral("Pipeline failed"));
+        QCOMPARE(attention->reasons(QStringLiteral("s1")).size(), 1);
+    }
+
+    // Status through a real ServerClients over a fake network: a token not
+    // set, then a token the server refuses with 401.
+    void refusedTokenShowsAsFixableProblem()
+    {
+        enableStatus();
+        statusFromServer = true;
+        network->status = 401;
+        auto placement = make(QStringLiteral("s1"));
+        placement->show();
+        QTRY_COMPARE(placement->cellStatus().kind, CellStatus::Kind::Problem);
+        QCOMPARE(placement->cellStatus().text, QStringLiteral("Token not set"));
+        QVERIFY(placement->cellStatus().canFix);
+        QVERIFY(network->sent.isEmpty());
+
+        const QString key = secretKey(QStringLiteral("ws"), kDefaultProfile, QStringLiteral("stat"), QStringLiteral("token"));
+        secrets->write(key, QStringLiteral("secret-1"));
+        QTRY_COMPARE(secrets->state(key), SecretStore::State::Set);
+        placement->refresh();
+        QTRY_COMPARE(placement->cellStatus().text, QStringLiteral("Token refused"));
+        QCOMPARE(placement->cellStatus().kind, CellStatus::Kind::Problem);
+        QVERIFY(placement->cellStatus().canFix);
+        QVERIFY(placement->cellStatus().tooltip.contains(QStringLiteral("401")));
+        QCOMPARE(network->sent.size(), 1);
+        QCOMPARE(network->sent.at(0).url(), QUrl(QStringLiteral("https://stat.example/api/thing")));
+        QCOMPARE(network->sent.at(0).rawHeader("PRIVATE-TOKEN"), QByteArray("secret-1"));
+        QVERIFY(servers->failing(kDefaultProfile, QStringLiteral("stat")));
+
+        // The fix button opens the module's settings in the item's profile.
+        placement->openSettings();
+        QCOMPARE(settingsOpened, QStringList{QStringLiteral("default/stat")});
+    }
+
+    void contextGivesServerAndStatus()
+    {
+        {
+            // Without the services there is neither.
+            ItemContextImpl context(services, QStringLiteral("t1"), QStringLiteral("s1"));
+            QVERIFY(!context.server());
+            QVERIFY(!context.status());
+        }
+        enableStatus();
+        ItemContextImpl context(services, QStringLiteral("t1"), QStringLiteral("s1"));
+        QVERIFY(context.server());
+        QCOMPARE(context.server(), servers->client(kDefaultProfile, QStringLiteral("stat")));
+        QCOMPARE(context.server()->baseUrl(), QUrl(QStringLiteral("https://stat.example/")));
+        QCOMPARE(context.status(), &cache->source(QStringLiteral("s1")));
+
+        // A module without a server, and a type without status.
+        ItemContextImpl native(services, QStringLiteral("t1"), QStringLiteral("n1"));
+        QVERIFY(!native.server());
+        QVERIFY(!native.status());
+        ItemContextImpl missing(services, QStringLiteral("t1"), QStringLiteral("nothing"));
+        QVERIFY(!missing.server());
+        QVERIFY(!missing.status());
+    }
+
+    // A change of the item's type removes its status, and tells the frame.
+    void typeChangeRemovesStatus()
+    {
+        enableStatus();
+        nextStatus[QStringLiteral("s1")] = okStatus({reason(QStringLiteral("x"), QStringLiteral("X"))});
+        auto placement = make(QStringLiteral("s1"));
+        placement->show();
+        QCOMPARE(placement->cellStatus().kind, CellStatus::Kind::Attention);
+        QSignalSpy changed(placement.get(), &Placement::cellStatusChanged);
+        changeItem(*model, QStringLiteral("s1"), [](Item &item) { item.type = QStringLiteral("test.native"); });
+        QVERIFY(!placement->hasStatus());
+        QCOMPARE(placement->cellStatus(), CellStatus());
+        QVERIFY(changed.count() >= 1);
     }
 };
 

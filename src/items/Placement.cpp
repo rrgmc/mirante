@@ -1,5 +1,7 @@
 #include "items/Placement.h"
 
+#include "api/Attention.h"
+#include "api/StatusCache.h"
 #include "core/Model.h"
 #include "core/Profiles.h"
 #include "items/ItemContextImpl.h"
@@ -8,12 +10,15 @@
 #include "web/ProfileManager.h"
 
 #include <mirante/ItemType.h>
+#include <mirante/Status.h>
 
+#include <QGuiApplication>
 #include <QHideEvent>
 #include <QLabel>
 #include <QPointer>
 #include <QPushButton>
 #include <QShowEvent>
+#include <QTimer>
 #include <QVBoxLayout>
 
 #include <algorithm>
@@ -49,6 +54,33 @@ private:
     std::function<void(bool)> m_changed;
 };
 
+// How long a cell must be visible in the active window before its item's
+// clearsOnView reasons count as seen. See decision 0061.
+constexpr int seenAfterMs = 2000;
+// How often the age of old data is written again.
+constexpr int ageEveryMs = 60 * 1000;
+
+// The age of data fetched at time, such as "12 min ago".
+QString ageText(const QDateTime &time)
+{
+    const qint64 minutes = time.secsTo(QDateTime::currentDateTimeUtc()) / 60;
+    if (minutes < 1)
+        return Placement::tr("just now");
+    if (minutes < 60)
+        return Placement::tr("%1 min ago").arg(minutes);
+    if (minutes < 24 * 60)
+        return Placement::tr("%1 h ago").arg(minutes / 60);
+    return Placement::tr("%n day(s) ago", nullptr, int(minutes / (24 * 60)));
+}
+
+QString reasonTexts(const QList<AttentionReason> &reasons)
+{
+    QStringList texts;
+    for (const AttentionReason &reason : reasons)
+        texts << reason.text;
+    return texts.join(QLatin1Char('\n'));
+}
+
 } // namespace
 
 struct Placement::Private
@@ -81,6 +113,13 @@ struct Placement::Private
     QString waitingFor;                 // the profile being cleared, while the view waits for it
     bool inPool = false;
     QObject *watcher = nullptr;
+
+    // Status. See the M5 plan, part 8.
+    CellStatus cellStatus;
+    bool hadStatus = false;             // hasStatus() when cellStatus was built
+    bool statusVisible = false;         // told the status cache this placement is visible
+    QTimer seenTimer;                   // runs while clearsOnView reasons wait to be seen
+    QTimer ageTimer;                    // runs while the cell shows the age of old data
 
     Private(Placement *placement, const PlacementServices &s, const QString &task, const QString &item)
         : q(placement)
@@ -223,8 +262,140 @@ struct Placement::Private
         }
     }
 
+    // The item's type, if it reports status and there is a status cache.
+    const ItemType *statusType() const
+    {
+        const Item *found = item();
+        if (!services.status || !services.types || !found)
+            return nullptr;
+        const ItemType &type = services.types->type(found->type);
+        return type.hasStatus() ? &type : nullptr;
+    }
+
+    // The item's reasons that count now.
+    QList<AttentionReason> countingReasons(const ItemStatus &status) const
+    {
+        if (services.attention)
+            return services.attention->reasons(itemId);
+        // Without Attention nothing records what was seen, so only states count.
+        QList<AttentionReason> reasons;
+        for (const AttentionReason &reason : status.attention) {
+            if (!reason.clearsOnView)
+                reasons << reason;
+        }
+        return reasons;
+    }
+
+    CellStatus buildStatus() const
+    {
+        CellStatus built;
+        if (!statusType())
+            return built;
+        const ItemStatus status = services.status->status(itemId);
+        using State = ItemStatus::State;
+        const auto problem = [&](const QString &text, bool fixable) {
+            built.kind = CellStatus::Kind::Problem;
+            built.text = text;
+            built.canFix = fixable && bool(services.openServerSettings);
+            const QString profileId = profiles::effective(*services.model, taskId, itemId);
+            built.tooltip = Placement::tr("%1\nProfile: %2")
+                                .arg(status.message, profiles::nameOf(*services.model, profileId));
+        };
+        switch (status.state) {
+        case State::None:
+            break;
+        case State::NoToken:
+            problem(Placement::tr("Token not set"), true);
+            break;
+        case State::Refused:
+            problem(Placement::tr("Token refused"), true);
+            break;
+        case State::NoServer:
+            problem(Placement::tr("No server set"), true);
+            break;
+        case State::NotFound:
+            problem(Placement::tr("Not found"), false);
+            break;
+        case State::Error:
+            // Older data shows its age. Without any, the error is a problem.
+            if (status.updatedAt.isValid()) {
+                built.kind = CellStatus::Kind::Stale;
+                built.text = ageText(status.updatedAt);
+                built.tooltip = Placement::tr("%1\nThe data is from %2.").arg(status.message, built.text);
+            } else {
+                problem(Placement::tr("Error"), false);
+            }
+            break;
+        case State::Ok: {
+            const QList<AttentionReason> reasons = countingReasons(status);
+            if (!reasons.isEmpty()) {
+                built.kind = CellStatus::Kind::Attention;
+                built.count = int(reasons.size());
+                built.tooltip = reasonTexts(reasons);
+            }
+            break;
+        }
+        }
+        return built;
+    }
+
+    // Builds the cell status again, and tells the frame if it changed.
+    void updateStatus()
+    {
+        const CellStatus built = buildStatus();
+        if (built.kind != CellStatus::Kind::Stale)
+            ageTimer.stop();
+        else if (!ageTimer.isActive())
+            ageTimer.start();
+        // A new type may add or remove status, and with it the refresh
+        // button, so that change is told too.
+        const bool has = statusType() != nullptr;
+        if (built != cellStatus || has != hadStatus) {
+            cellStatus = built;
+            hadStatus = has;
+            emit q->cellStatusChanged(cellStatus);
+        }
+        updateSeenTimer();
+    }
+
+    bool seenNow() const
+    {
+        const QWidget *window = q->window();
+        return statusVisible && window && window->isActiveWindow();
+    }
+
+    // Starts the two seconds after which the item's clearsOnView reasons
+    // count as seen, while some count and the cell is visible in the active
+    // window. Stops them otherwise.
+    void updateSeenTimer()
+    {
+        bool waiting = false;
+        if (services.attention && statusType() && seenNow()) {
+            for (const AttentionReason &reason : services.attention->reasons(itemId))
+                waiting = waiting || reason.clearsOnView;
+        }
+        if (!waiting)
+            seenTimer.stop();
+        else if (!seenTimer.isActive())
+            seenTimer.start();
+    }
+
+    void onSeenTimer()
+    {
+        if (services.attention && seenNow())
+            services.attention->markSeen(itemId);
+    }
+
     void onVisibilityChanged(bool shown)
     {
+        // The status cache counts visible placements, so it hears each
+        // change once.
+        if (services.status && shown != statusVisible) {
+            statusVisible = shown;
+            services.status->setVisible(itemId, shown);
+        }
+        updateSeenTimer();
+
         // The first show makes the view, and so does a show after unloading
         // or after a change made while hidden.
         if (shown && !made && !gone)
@@ -343,12 +514,40 @@ Placement::Placement(const PlacementServices &services, const QString &taskId, c
         connect(profiles, &ProfileManager::profileCleared, this,
                 [this](const QString &id) { d->onProfileCleared(id); });
     }
+
+    // Status. A change of the item's type, or of its profile's name, changes
+    // what the header shows too.
+    d->seenTimer.setSingleShot(true);
+    d->seenTimer.setInterval(seenAfterMs);
+    connect(&d->seenTimer, &QTimer::timeout, this, [this] { d->onSeenTimer(); });
+    d->ageTimer.setInterval(ageEveryMs);
+    connect(&d->ageTimer, &QTimer::timeout, this, [this] { d->updateStatus(); });
+    if (StatusCache *status = services.status) {
+        status->source(itemId).subscribe(this, [this](const ItemStatus &) { d->updateStatus(); });
+        if (Model *model = services.model) {
+            connect(model, &Model::taskChanged, this, [this](const QString &id) {
+                if (id == d->taskId)
+                    d->updateStatus();
+            });
+            connect(model, &Model::modelReset, this, [this] { d->updateStatus(); });
+            connect(model, &Model::profilesChanged, this, [this] { d->updateStatus(); });
+        }
+        if (Attention *attention = services.attention)
+            connect(attention, &Attention::countsChanged, this, [this] { d->updateStatus(); });
+        // The active window changed. Queued, so the widgets' active window
+        // has followed the focus window.
+        connect(qGuiApp, &QGuiApplication::focusWindowChanged, this, [this] { d->updateSeenTimer(); },
+                Qt::QueuedConnection);
+        d->updateStatus();
+    }
 }
 
 Placement::~Placement()
 {
     // No more show or hide events reach d.
     delete d->watcher;
+    if (d->statusVisible)
+        d->services.status->setVisible(d->itemId, false);
     if (d->inPool && d->services.pool)
         d->services.pool->remove(this);
     d->inPool = false;
@@ -367,24 +566,23 @@ QWidget *Placement::view() const { return d->view; }
 
 QWidget *Placement::headerWidget() const { return d->header; }
 
-// Stubs of T0. Task T8 of the M5 plan implements them.
+CellStatus Placement::cellStatus() const { return d->cellStatus; }
 
-CellStatus Placement::cellStatus() const
-{
-    return {};
-}
-
-bool Placement::hasStatus() const
-{
-    return false;
-}
+bool Placement::hasStatus() const { return d->statusType() != nullptr; }
 
 void Placement::refresh()
 {
+    if (hasStatus())
+        d->services.status->refresh(d->itemId);
 }
 
 void Placement::openSettings()
 {
+    const Item *found = d->item();
+    if (!found || !d->services.openServerSettings)
+        return;
+    d->services.openServerSettings(profiles::effective(*d->services.model, d->taskId, d->itemId),
+                                   moduleOfType(found->type));
 }
 
 } // namespace mirante
