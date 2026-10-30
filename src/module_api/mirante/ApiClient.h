@@ -76,9 +76,14 @@ struct ApiReply
 struct GetOptions
 {
     // Follow the Link header's "next" page and join the JSON arrays, up to
-    // maxRows rows. GitLab lists use it. Jira pages itself.
+    // maxRows rows. GitLab and GitHub lists use it. Jira pages itself.
     bool followLinks = false;
     int maxRows = 100;
+    // With followLinks, for an answer that is an object holding its rows,
+    // such as GitHub's {"total_count": 3, "items": [...]}: the key of the
+    // array to join. The answer is the first page's object, with all the
+    // rows under this key. Empty: the answer itself is the array.
+    QString arrayKey;
 };
 
 // A module's server in one profile. Every request is asynchronous and runs on
