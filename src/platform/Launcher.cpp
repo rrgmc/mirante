@@ -56,10 +56,13 @@ QString windowsQuote(const QString &argument)
 
 // Text escaped for one pass of cmd.exe: a caret before each character that
 // cmd reads as special, quotes included, so cmd sees no quoted region and
-// removes exactly one level of carets.
+// removes exactly one level of carets. Since an escaped quote does not start
+// a quoted region, the separators space, ";" and "," are escaped too, or cmd
+// would split a path such as "...\Microsoft VS Code\bin\code.cmd" at its
+// spaces.
 QString cmdEscape(const QString &text)
 {
-    static const QString special = QStringLiteral("()%!^\"<>&|");
+    static const QString special = QStringLiteral("()%!^\"<>&|;, ");
     QString escaped;
     escaped.reserve(text.size() * 2);
     for (const QChar c : text) {

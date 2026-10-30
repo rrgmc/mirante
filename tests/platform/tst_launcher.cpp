@@ -42,7 +42,7 @@ private slots:
                                        {}}));
         QCOMPARE(commands[1], (Command{QStringLiteral("cmd.exe"),
                                        {QStringLiteral("/c"), QStringLiteral("start"), QStringLiteral("\"\""),
-                                        QStringLiteral("/d"), QStringLiteral("^\"C:\\work\\my app^\""),
+                                        QStringLiteral("/d"), QStringLiteral("^\"C:\\work\\my^ app^\""),
                                         QStringLiteral("cmd"), QStringLiteral("/k"), QStringLiteral("claude"),
                                         QStringLiteral("--resume"), QStringLiteral("0b6f4e4c-2f7e")},
                                        {}}));
@@ -72,15 +72,15 @@ private slots:
     }
 
     // The cmd fallback passes through two cmd.exe, so the command is escaped
-    // twice: a quote becomes ^^^" and & becomes ^^^&.
+    // twice: a quote becomes ^^^", & becomes ^^^& and a space ^^^ .
     void windowsCmdQuoting()
     {
         const auto commands =
             terminalCommands(Platform::Windows, {}, QStringLiteral("C:\\w"), QStringLiteral("C:\\Program Files\\t.exe"),
                              {QStringLiteral("a&b"), QStringLiteral("say \"hi\""), QStringLiteral("100%")});
         QCOMPARE(commands[1].arguments.mid(6),
-                 (QStringList{QStringLiteral("/k"), QStringLiteral("^^^\"C:\\Program Files\\t.exe^^^\""),
-                              QStringLiteral("a^^^&b"), QStringLiteral("^^^\"say \\^^^\"hi\\^^^\"^^^\""),
+                 (QStringList{QStringLiteral("/k"), QStringLiteral("^^^\"C:\\Program^^^ Files\\t.exe^^^\""),
+                              QStringLiteral("a^^^&b"), QStringLiteral("^^^\"say^^^ \\^^^\"hi\\^^^\"^^^\""),
                               QStringLiteral("100^^^%")}));
     }
 
@@ -102,8 +102,8 @@ private slots:
         QCOMPARE(command,
                  (Command{QStringLiteral("cmd.exe"),
                           {QStringLiteral("/c"),
-                           QStringLiteral("^\"C:\\Users\\me\\AppData\\Local\\Programs\\Microsoft VS Code\\bin\\code.cmd^\""),
-                           QStringLiteral("^\"C:\\my folder^\""), QStringLiteral("x^&y"), QStringLiteral("plain")},
+                           QStringLiteral("^\"C:\\Users\\me\\AppData\\Local\\Programs\\Microsoft^ VS^ Code\\bin\\code.cmd^\""),
+                           QStringLiteral("^\"C:\\my^ folder^\""), QStringLiteral("x^&y"), QStringLiteral("plain")},
                           QStringLiteral("C:\\w")}));
 
         QCOMPARE(programCommand(Platform::Windows, {}, QStringLiteral("C:\\x\\RUN.BAT"), {}).program,
@@ -119,7 +119,7 @@ private slots:
     {
         const Command command = programCommand(Platform::Windows, {}, QStringLiteral("C:\\x\\code.cmd"),
                                                {QStringLiteral("C:\\my dir\\")});
-        QCOMPARE(command.arguments.last(), QStringLiteral("^\"C:\\my dir\\\\^\""));
+        QCOMPARE(command.arguments.last(), QStringLiteral("^\"C:\\my^ dir\\\\^\""));
     }
 
     // --- macOS ---
