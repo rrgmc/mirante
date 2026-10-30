@@ -140,7 +140,9 @@ Module `gitlab`. All GitLab types talk to the GitLab server of the item's profil
 
 ## Jira
 
-Module `jira`. Jira types talk to the Jira site of the item's profile, set in its Jira General Configuration: a base URL, without a default, and a token.
+Module `jira`. Jira types talk to the Jira site of the item's profile, set in its Jira General Configuration: a base URL, without a default, the deployment, the email for Jira Cloud, and a token. See [integrations](integrations.md#jira).
+
+A project can set its Jira project key in the project dialog's Jira section, stored as `jira.projectKey`. The list presets of the project use it.
 
 ### Jira Issue (summary)
 
@@ -154,7 +156,8 @@ Module `jira`. Jira types talk to the Jira site of the item's profile, set in it
   - sub-tasks and linked issues;
   - development information: linked branches and merge requests, where the Jira instance provides it.
 - **Actions:** change status, using the transitions Jira allows for the issue; add comment.
-- **Attention:** the status changed since the user last viewed the item.
+- **Status:** from M5. One request for the issue's summary, status, assignee, priority, type and last update. The status line reads like "In Review · assigned to Ana". The item counts as closed when the status category is `done`.
+- **Attention:** "Status changed to <name>", with the key `status:<status id>`, when the status changed since the user last viewed the item. It clears once seen, and the status an issue had when it was added does not count. See [decision 0061](decisions/0061-attention-from-status-of-any-rendering.md).
 
 ### Jira Issue (page)
 
@@ -163,6 +166,7 @@ Module `jira`. Jira types talk to the Jira site of the item's profile, set in it
 - **Address:** `<baseUrl>/browse/<key>`, where `baseUrl` is the Jira base URL of the item's profile.
 - **Without a Jira base URL,** the cell says "Set the Jira base URL in this profile's Modules > Jira > General Configuration, in the Profiles menu."
 - **Without an issue key,** the cell says "Set the issue key in the item's settings."
+- **Status and attention:** the same as the summary's, from the same request.
 
 ### Jira List
 
@@ -174,6 +178,7 @@ Module `jira`. Jira types talk to the Jira site of the item's profile, set in it
   - `recentlyUpdated`, "Recently updated in this project".
 - **Shows:** a sortable table with columns for key, summary, status, assignee and the date of the last update.
 - **Row click:** shows the issue summary in a preview area. A row menu offers "Add to task as item".
+- **Status:** none in M5. M6 decides what a list reports.
 
 ## Claude
 
