@@ -56,6 +56,9 @@ int main(int argc, char *argv[])
     QApplication::setApplicationName(QStringLiteral(MIRANTE_APP_NAME));
     QApplication::setOrganizationName(QStringLiteral(MIRANTE_ORGANISATION));
     QApplication::setApplicationVersion(QStringLiteral(MIRANTE_VERSION));
+    // Linux desktops match the windows to mirante.desktop, which the .deb
+    // package installs, for the icon and the name in the dock.
+    QGuiApplication::setDesktopFileName(QStringLiteral("mirante"));
     mirante::platform::setAppIcon(QIcon(QStringLiteral(":/icons/mirante.svg")));
 
     QCommandLineParser parser;
