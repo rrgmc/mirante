@@ -140,22 +140,36 @@ Each server client keeps the `ETag` and body of the 500 URLs it used last, and s
 
 ## Terminal launch
 
-`Launcher`, in `platform/`, starts a command in a new terminal window, in a given folder. It is used by local Claude sessions and by the folder item.
+`Launcher` in `src/platform/` starts a program in a new terminal window, in a given folder, and starts programs such as an editor on their own. It is used by local Claude sessions and by the folder item. Modules pass a program and a list of arguments, never one command string, as [decision 0082](decisions/0082-commands-as-argument-lists.md) says. `Launcher` quotes them for each layer they pass through.
 
-| Platform | Default |
+| Platform | Default, in the order tried |
 |---|---|
-| Windows | `wt.exe -d <dir> <command>`. If Windows Terminal is missing: `cmd.exe /c start "" /d <dir> cmd /k <command>`. |
-| macOS | `osascript` tells Terminal.app to run `cd <dir> && <command>`. |
-| Linux | The first one found of: `x-terminal-emulator`, `gnome-terminal --working-directory=<dir> --`, `konsole --workdir <dir> -e`, `xterm -e`. |
+| Windows | `wt.exe -d <dir> <program> <arguments>`. If Windows Terminal is missing: `cmd.exe /c start "" /d <dir> cmd /k <program> <arguments>`. |
+| macOS | `osascript` tells Terminal.app to `do script "cd <dir> && <program> <arguments>"`. |
+| Linux | The first one found of: `x-terminal-emulator -e`, `gnome-terminal --working-directory=<dir> --`, `konsole --workdir <dir> -e`, `xterm -e`. `x-terminal-emulator` and `xterm` have no working folder option, so they are started in the folder. |
 
-On every platform the **terminal command** can replace the default. It is set in the [settings window](ui.md#settings) and kept in the [device settings](sync.md#device-settings), so each device has its own. It is a template, such as `alacritty --working-directory {dir} -e {command}`:
+With no program, as for the folder item's **Terminal** action, the terminal opens alone in the folder.
 
-- it is split into arguments as a shell would split it, with quotes keeping spaces together;
-- `{dir}` is replaced by the folder, inside any argument;
-- an argument that is exactly `{command}` is replaced by the program and its arguments, each as a separate argument;
-- empty, the default, uses the platform's terminal above.
+**Quoting:**
 
-Arguments are passed as a list, not through a shell, except where the platform requires a shell, as with `osascript`. See [decision 0082](decisions/0082-commands-as-argument-lists.md).
+- **Windows Terminal** reads `;` as the start of a new tab, so each `;` in the folder and the arguments is passed as `\;`.
+- **`cmd.exe`** has its own rules. Each argument is first quoted for the program, as the Microsoft C runtime reads it, then each character that `cmd` treats as special (`( ) % ! ^ " < > & |`) gets a `^` before it. The fallback terminal passes through two `cmd.exe`, the one that runs `start` and the one that `start` opens, so the command is escaped twice.
+- **macOS:** each word is quoted for the shell in single quotes, unless it holds only safe characters. The whole line is then escaped for the AppleScript string, with `\\` for `\` and `\"` for `"`.
+- On Windows, `launchTerminal()` finds the program on the `PATH` first, and passes its full path, because the terminal does not try `.cmd` files. `claude` installed with npm is `claude.cmd`.
+
+**Programs on their own,** such as the editor, are found on the `PATH` unless they have a path, and started detached in the folder. On Windows the `PATH` lookup tries the suffixes in `PATHEXT`, so `code` finds `code.cmd`. A `.cmd` or `.bat` file runs as `cmd.exe /c <file> <arguments>`, quoted and escaped for `cmd` as above, without a console window of its own.
+
+**Terminal command:** a device setting replaces the default on every platform with a template. It is set in the [settings window](ui.md#settings) and kept in the [device settings](sync.md#device-settings), so each device has its own. An example is `alacritty --working-directory {dir} -e {command}`.
+
+- The template is split into arguments as a shell would: spaces separate them, and double quotes keep spaces in one. A backslash is an ordinary character, so Windows paths need no escaping.
+- `{dir}` is replaced by the folder inside any argument.
+- An argument that is exactly `{command}` becomes the program and its arguments, each as a separate argument. With no program, it becomes nothing.
+- The terminal is also started in the folder, for a template without `{dir}`.
+- An empty template means the default.
+
+A template that needs one string, such as `sh -c`, must put `{command}` where a list of arguments fits.
+
+When no terminal is found, the user sees "No terminal was found.", or "The terminal <program> was not found." for a template. A program that is not found gives "<program> was not found."
 
 ## Later: custom certificate authorities
 
