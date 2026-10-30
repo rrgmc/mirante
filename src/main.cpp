@@ -6,6 +6,7 @@
 #include "api/ServerClient.h"
 #include "api/StatusCache.h"
 #include "core/DeviceSettings.h"
+#include "core/Language.h"
 #include "core/LogBuffer.h"
 #include "core/Model.h"
 #include "core/Store.h"
@@ -24,8 +25,11 @@
 #include <QDir>
 #include <QFileInfo>
 #include <QIcon>
+#include <QLibraryInfo>
+#include <QLocale>
 #include <QMessageBox>
 #include <QStandardPaths>
+#include <QTranslator>
 
 #include <memory>
 
@@ -79,6 +83,36 @@ int main(int argc, char *argv[])
         logBuffer.reset();
 #endif
 
+    // The device settings come after the application and organisation names,
+    // which choose where QSettings keeps them, and before the language, which
+    // they hold.
+    const auto ownedSettings = parser.isSet(settingsOption)
+        ? std::make_unique<mirante::DeviceSettings>(parser.value(settingsOption))
+        : std::make_unique<mirante::DeviceSettings>();
+    mirante::DeviceSettings &settings = *ownedSettings;
+
+    // The language, before any text is made: Mirante's own translation from
+    // the resources, and Qt's, such as the buttons of standard dialogs, from
+    // Qt's translations folder. English needs Mirante's file too, for its
+    // plural forms. Dates and numbers follow the language. See
+    // docs/decisions/0086-english-and-brazilian-portuguese.md.
+    const QString language = mirante::language::choose(settings.language(), QLocale::system().uiLanguages());
+    QLocale::setDefault(mirante::language::locale(language));
+    QTranslator appTranslator;
+    if (appTranslator.load(QStringLiteral(":/i18n/mirante_") + language))
+        QCoreApplication::installTranslator(&appTranslator);
+    else
+        qWarning("No translation of Mirante for %s", qPrintable(language));
+    QTranslator qtTranslator;
+    if (language != QLatin1String("en")) {
+        if (qtTranslator.load(QLocale(language), QStringLiteral("qtbase"), QStringLiteral("_"),
+                              QLibraryInfo::path(QLibraryInfo::TranslationsPath)))
+            QCoreApplication::installTranslator(&qtTranslator);
+        else
+            qWarning("Qt's own translation for %s was not found in %s", qPrintable(language),
+                     qPrintable(QLibraryInfo::path(QLibraryInfo::TranslationsPath)));
+    }
+
     // --- One instance per web data folder -------------------------------
     // Two processes must not use the same web logins at once. A later start
     // hands its --data over to the running instance and exits. See
@@ -100,10 +134,11 @@ int main(int argc, char *argv[])
             QMessageBox::critical(
                 nullptr, QStringLiteral(MIRANTE_APP_NAME),
                 instance.heldElsewhere()
-                    ? QStringLiteral("Mirante is already running with the web data folder %1, but it does not "
-                                     "answer. Close it, or wait for it, and start Mirante again.")
+                    ? QCoreApplication::translate("main",
+                                                  "Mirante is already running with the web data folder %1, but it "
+                                                  "does not answer. Close it, or wait for it, and start Mirante again.")
                           .arg(QDir::toNativeSeparators(webDataFolder))
-                    : QStringLiteral("Mirante cannot use the web data folder %1.")
+                    : QCoreApplication::translate("main", "Mirante cannot use the web data folder %1.")
                           .arg(QDir::toNativeSeparators(webDataFolder)));
             return 1;
         }
@@ -112,12 +147,7 @@ int main(int argc, char *argv[])
 
     // Created in the order of docs/architecture.md#ownership-and-lifetime, and
     // destroyed in reverse. Services that do not exist yet are left out. The
-    // settings come after the application and organisation names, which
-    // choose where QSettings keeps them.
-    const auto ownedSettings = parser.isSet(settingsOption)
-        ? std::make_unique<mirante::DeviceSettings>(parser.value(settingsOption))
-        : std::make_unique<mirante::DeviceSettings>();
-    mirante::DeviceSettings &settings = *ownedSettings;
+    // device settings are made above, before the language.
     mirante::ItemTypeRegistry types;
     mirante::registerEnabledModules(types);
 

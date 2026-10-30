@@ -27,6 +27,7 @@ const QString focusAttentionFirstKey = QStringLiteral("focus/attentionFirst");
 const QString globalHotkeyKey = QStringLiteral("window/globalHotkey");
 const QString closeToTrayKey = QStringLiteral("window/closeToTray");
 const QString terminalCommandKey = QStringLiteral("terminal/command");
+const QString languageKey = QStringLiteral("language");
 
 constexpr int defaultHiddenViewLimit = 8;
 
@@ -439,6 +440,22 @@ void DeviceSettings::setTerminalCommand(const QString &command)
         d->settings->remove(terminalCommandKey);
     else
         d->settings->setValue(terminalCommandKey, command);
+}
+
+QString DeviceSettings::language() const
+{
+    const QString language = d->settings->value(languageKey).toString();
+    if (language == QLatin1String("en") || language == QLatin1String("pt_BR"))
+        return language;
+    return QStringLiteral("system");
+}
+
+void DeviceSettings::setLanguage(const QString &language)
+{
+    if (language == QLatin1String("en") || language == QLatin1String("pt_BR"))
+        d->settings->setValue(languageKey, language);
+    else
+        d->settings->remove(languageKey);
 }
 
 // The value is kept as JSON text, such as "code" with its quotes, or true, so

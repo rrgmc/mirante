@@ -1,12 +1,13 @@
 // Tests SettingsDialog: it shows the device settings, saves each change at
 // once and reports it, and groups its options under section headings, with
-// the terminal and the modules' device settings.
+// the language, the terminal and the modules' device settings.
 #include "core/DeviceSettings.h"
 #include "items/ItemTypeRegistry.h"
 #include "ui/FieldForm.h"
 #include "ui/SettingsDialog.h"
 
 #include <QCheckBox>
+#include <QComboBox>
 #include <QDialogButtonBox>
 #include <QGroupBox>
 #include <QKeySequenceEdit>
@@ -203,6 +204,39 @@ private slots:
         buttons->button(QDialogButtonBox::Close)->click();
         QVERIFY(!dialog.isVisible());
     }
+    // The language comes first, with "System" by default, and is saved at
+    // once. It applies at the next start, and the window says so.
+    void language()
+    {
+        QTemporaryDir dir;
+        QSettings ini(dir.filePath(QStringLiteral("settings.ini")), QSettings::IniFormat);
+        DeviceSettings settings(&ini);
+        SettingsDialog dialog(settings);
+        const QStringList texts = labelTexts(dialog);
+        QVERIFY(texts.contains(QStringLiteral("General")));
+        QVERIFY(texts.indexOf(QStringLiteral("General")) < texts.indexOf(QStringLiteral("Sidebar")));
+        QVERIFY(texts.contains(QStringLiteral("Applies at the next start.")));
+
+        auto *language = dialog.findChild<QComboBox *>(QStringLiteral("language"));
+        QVERIFY(language);
+        QCOMPARE(language->count(), 3);
+        QCOMPARE(language->itemText(0), QStringLiteral("System"));
+        QCOMPARE(language->itemText(1), QStringLiteral("English"));
+        QCOMPARE(language->itemText(2), QStringLiteral("Português (Brasil)"));
+        QCOMPARE(language->currentData().toString(), QStringLiteral("system"));
+
+        QSignalSpy changed(&dialog, &SettingsDialog::changed);
+        language->setCurrentIndex(2);
+        QCOMPARE(settings.language(), QStringLiteral("pt_BR"));
+        QCOMPARE(changed.count(), 1);
+
+        SettingsDialog again(settings);
+        QCOMPARE(again.findChild<QComboBox *>(QStringLiteral("language"))->currentData().toString(),
+                 QStringLiteral("pt_BR"));
+        again.findChild<QComboBox *>(QStringLiteral("language"))->setCurrentIndex(0);
+        QCOMPARE(settings.language(), QStringLiteral("system"));
+    }
+
     // The terminal command is saved as typed. The section has no device name;
     // see decision 0084.
     void terminalSection()

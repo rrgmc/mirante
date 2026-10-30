@@ -133,6 +133,12 @@ public:
     QString terminalCommand() const;
     void setTerminalCommand(const QString &command);
 
+    // The language of the app: "system", the default, "en" or "pt_BR". Any
+    // other stored value reads as "system". It applies at the next start. See
+    // docs/decisions/0086-english-and-brazilian-portuguese.md.
+    QString language() const;
+    void setLanguage(const QString &language);
+
     // A module's device setting, under modules/<moduleId>/<key>. Undefined if
     // not set; an undefined or null value removes it. See decision 0079.
     QJsonValue moduleSetting(const QString &moduleId, const QString &key) const;

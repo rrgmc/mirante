@@ -5,6 +5,7 @@
 #include "ui/FieldForm.h"
 
 #include <QCheckBox>
+#include <QComboBox>
 #include <QDialogButtonBox>
 #include <QFormLayout>
 #include <QGroupBox>
@@ -52,6 +53,29 @@ SettingsDialog::SettingsDialog(DeviceSettings &settings, QWidget *parent)
     layout->addLayout(d->sections);
     layout->addStretch(1);
     layout->addWidget(buttons);
+
+    // General. The language applies at the next start; see
+    // docs/decisions/0086-english-and-brazilian-portuguese.md. The languages
+    // are named in their own language.
+    QFormLayout *general = addSection(tr("General"));
+    auto *language = new QComboBox(this);
+    language->setObjectName(QStringLiteral("language"));
+    language->addItem(tr("System"), QStringLiteral("system"));
+    language->addItem(QStringLiteral("English"), QStringLiteral("en"));
+    language->addItem(QStringLiteral("Português (Brasil)"), QStringLiteral("pt_BR"));
+    language->setToolTip(tr("System uses Brazilian Portuguese when the system's language is Portuguese, "
+                            "and English otherwise."));
+    language->setCurrentIndex(qMax(0, language->findData(settings.language())));
+    connect(language, &QComboBox::currentIndexChanged, this, [this, language] {
+        d->settings->setLanguage(language->currentData().toString());
+        emit changed();
+    });
+    auto *languageNote = new QLabel(tr("Applies at the next start."), this);
+    languageNote->setObjectName(QStringLiteral("languageNote"));
+    auto *languageRow = new QHBoxLayout;
+    languageRow->addWidget(language);
+    languageRow->addWidget(languageNote, 1);
+    general->addRow(tr("Language"), languageRow);
 
     // Sidebar.
     QFormLayout *sidebar = addSection(tr("Sidebar"));

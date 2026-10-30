@@ -566,6 +566,29 @@ private slots:
         QVERIFY(!settings->contains(QStringLiteral("terminal/command")));
     }
 
+    // "system" is the default and is not kept; an unknown value reads as it.
+    void language()
+    {
+        {
+            DeviceSettings device(settings.get());
+            QCOMPARE(device.language(), QStringLiteral("system"));
+            device.setLanguage(QStringLiteral("pt_BR"));
+        }
+        reopen();
+        {
+            DeviceSettings device(settings.get());
+            QCOMPARE(device.language(), QStringLiteral("pt_BR"));
+            device.setLanguage(QStringLiteral("en"));
+            QCOMPARE(device.language(), QStringLiteral("en"));
+            device.setLanguage(QStringLiteral("system"));
+            QCOMPARE(device.language(), QStringLiteral("system"));
+            QVERIFY(!settings->contains(QStringLiteral("language")));
+        }
+        settings->setValue(QStringLiteral("language"), QStringLiteral("fr"));
+        DeviceSettings device(settings.get());
+        QCOMPARE(device.language(), QStringLiteral("system"));
+    }
+
     void moduleSettingsKeepTheirType_data()
     {
         QTest::addColumn<QJsonValue>("value");
