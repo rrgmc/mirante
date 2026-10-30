@@ -253,7 +253,8 @@ Native views of different modules need the same small widgets, and modules canno
 - `StatusPill` and `statusColours()`: a pill for a `StatusRole`. A module names a role, never a colour.
 - `FlowRow`: a layout that wraps.
 - `SummaryView`: the fixed layout of a summary, with sections that can be hidden. See [decision 0066](decisions/0066-fixed-native-layouts-with-sections.md).
-- `ActionRow`: the buttons of a view, the "Web" link, and the error of the last action.
+- `ActionRow`: the buttons of a view, the "Web" link, and the error of the last action. `addLinkAction()` adds an entry that goes somewhere and changes nothing, such as "Open page". It looks like a link, so it stands apart from the commands.
+- `styleAsLink()`: makes a button look like a link, as the links in a list's rows do.
 - `askComment()`: asks for the text of a comment.
 - `ItemListView`: a sortable table. See [decision 0071](decisions/0071-lists-link-out-without-a-preview.md).
   - A `ListCell` can hold `links`, each with an id and a label. A cell draws them as links, and a click emits `rowLinkActivated(key, linkId)`. Return on a row activates its first link. A column that holds links takes `hidePriority` 0, so that it never hides by width.

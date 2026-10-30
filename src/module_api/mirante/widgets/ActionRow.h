@@ -22,6 +22,10 @@ public:
     // Adds a button. shortLabel replaces label in a narrow cell.
     void addAction(const QString &id, const QString &label, const QString &shortLabel,
                    std::function<void()> handler);
+    // The same for going somewhere and changing nothing, such as opening a
+    // page. It looks like a link, so that it stands apart from the commands.
+    void addLinkAction(const QString &id, const QString &label, const QString &shortLabel,
+                       std::function<void()> handler);
     // Adds a button with a menu. fill is called each time it opens, such as
     // to list what a Jira issue allows now.
     void addMenuAction(const QString &id, const QString &label, const QString &shortLabel,
