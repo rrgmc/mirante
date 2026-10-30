@@ -57,6 +57,7 @@ struct ItemTypeRegistry::Private
 
     void add(const QString &moduleId, std::unique_ptr<ItemType> type);
     void addScreen(const QString &moduleId, std::unique_ptr<SettingsScreen> screen);
+    void addProjectSetting(const QString &moduleId, const Field &field);
 };
 
 void ItemTypeRegistry::Private::add(const QString &moduleId, std::unique_ptr<ItemType> type)
@@ -93,6 +94,32 @@ void ItemTypeRegistry::Private::addScreen(const QString &moduleId, std::unique_p
                    qUtf8Printable(id));
     }
     module.screens.push_back(std::move(screen));
+}
+
+void ItemTypeRegistry::Private::addProjectSetting(const QString &moduleId, const Field &field)
+{
+    // A field the project dialog cannot show is left out with a warning, so
+    // the rest of the module still works. Tokens stay in settings screens,
+    // and a project has no folders or images of its own to choose from.
+    QString problem;
+    if (field.key.isEmpty())
+        problem = QStringLiteral("has no key");
+    else if (field.type == Field::Type::Secret || field.type == Field::Type::Folder
+             || field.type == Field::Type::Image)
+        problem = QStringLiteral("has a type that project settings do not take");
+    Module &module = modules[moduleId];
+    if (problem.isEmpty()) {
+        for (const Field &existing : module.projectSettings) {
+            if (existing.key == field.key)
+                problem = QStringLiteral("was added twice");
+        }
+    }
+    if (!problem.isEmpty()) {
+        qWarning("Module %s: the project setting \"%s\" %s, so it is left out", qUtf8Printable(moduleId),
+                 qUtf8Printable(field.key), qUtf8Printable(problem));
+        return;
+    }
+    module.projectSettings.push_back(field);
 }
 
 ItemTypeRegistry::ItemTypeRegistry()
@@ -151,8 +178,7 @@ void ItemTypeRegistry::registerModule(const QString &moduleId, RegisterFunction 
 
         void addProjectSetting(const Field &field) override
         {
-            // A stub of T0. Task T4 of the M5 plan checks and keeps the field.
-            Q_UNUSED(field)
+            m_registry.addProjectSetting(m_moduleId, field);
         }
 
     private:

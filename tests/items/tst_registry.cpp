@@ -3,6 +3,7 @@
 #include "items/ItemTypeRegistry.h"
 #include "items/UnknownItemType.h"
 
+#include <QRegularExpression>
 #include <QTest>
 
 namespace {
@@ -77,6 +78,15 @@ void registerScreens(mirante::ModuleRegistrar &registrar)
     registrar.addSettingsScreen(std::make_unique<FakeScreen>(QStringLiteral("general"), QStringLiteral("General")));
     registrar.addSettingsScreen(std::make_unique<FakeScreen>(QStringLiteral("accounts2"), QStringLiteral("Accounts")));
     registeredSettings = &registrar.settings();
+}
+
+mirante::Field field(const QString &key, mirante::Field::Type type = mirante::Field::Type::Text)
+{
+    mirante::Field result;
+    result.key = key;
+    result.label = key + QStringLiteral(" label");
+    result.type = type;
+    return result;
 }
 
 } // namespace
@@ -291,6 +301,54 @@ private slots:
         QVERIFY(!registry.usesProfile(QStringLiteral("webby.plain")));
         QVERIFY(registry.usesProfile(QStringLiteral("gamma.thing")));
         QVERIFY(!registry.usesProfile(QStringLiteral("missing.type")));
+    }
+
+    // Project settings are kept per module, in the order they were added.
+    // Only modules with some are listed.
+    void projectSettings()
+    {
+        mirante::ItemTypeRegistry registry;
+        registry.registerModule(QStringLiteral("beta"), [](mirante::ModuleRegistrar &registrar) {
+            registrar.addProjectSetting(field(QStringLiteral("zone")));
+            registrar.addProjectSetting(field(QStringLiteral("area"), mirante::Field::Type::Choice));
+        });
+        registry.registerModule(QStringLiteral("alpha"), [](mirante::ModuleRegistrar &registrar) {
+            registrar.addProjectSetting(field(QStringLiteral("path")));
+        });
+        registry.registerModule(QStringLiteral("gamma"), &registerScreens);
+
+        const std::vector<mirante::Field> beta = registry.projectSettings(QStringLiteral("beta"));
+        QCOMPARE(beta.size(), std::size_t(2));
+        QCOMPARE(beta[0].key, QStringLiteral("zone"));
+        QCOMPARE(beta[0].label, QStringLiteral("zone label"));
+        QCOMPARE(beta[1].key, QStringLiteral("area"));
+        QCOMPARE(beta[1].type, mirante::Field::Type::Choice);
+        QCOMPARE(registry.projectSettings(QStringLiteral("alpha")).size(), std::size_t(1));
+        QVERIFY(registry.projectSettings(QStringLiteral("gamma")).empty());
+        QVERIFY(registry.projectSettings(QStringLiteral("none")).empty());
+        QCOMPARE(registry.projectSettingModules(), (QStringList{QStringLiteral("alpha"), QStringLiteral("beta")}));
+    }
+
+    // Secret, Folder and Image fields, fields without a key and repeated keys
+    // are left out with a warning. The other fields are kept.
+    void projectSettingsRefused()
+    {
+        const QRegularExpression warning(QStringLiteral("project setting .* left out"));
+        for (int i = 0; i < 5; ++i)
+            QTest::ignoreMessage(QtWarningMsg, warning);
+        mirante::ItemTypeRegistry registry;
+        registry.registerModule(QStringLiteral("alpha"), [](mirante::ModuleRegistrar &registrar) {
+            registrar.addProjectSetting(field(QStringLiteral("token"), mirante::Field::Type::Secret));
+            registrar.addProjectSetting(field(QStringLiteral("folder"), mirante::Field::Type::Folder));
+            registrar.addProjectSetting(field(QStringLiteral("image"), mirante::Field::Type::Image));
+            registrar.addProjectSetting(field(QString()));
+            registrar.addProjectSetting(field(QStringLiteral("path")));
+            registrar.addProjectSetting(field(QStringLiteral("path"), mirante::Field::Type::Url));
+        });
+        const std::vector<mirante::Field> kept = registry.projectSettings(QStringLiteral("alpha"));
+        QCOMPARE(kept.size(), std::size_t(1));
+        QCOMPARE(kept[0].key, QStringLiteral("path"));
+        QCOMPARE(kept[0].type, mirante::Field::Type::Text);
     }
 };
 
