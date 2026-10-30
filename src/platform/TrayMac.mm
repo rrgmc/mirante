@@ -139,9 +139,8 @@ void applyActivationPolicy(bool dockIconVisible)
         dockIconVisible ? NSApplicationActivationPolicyRegular : NSApplicationActivationPolicyAccessory;
     if (NSApp.activationPolicy == policy)
         return;
-    // The bundle has no icon file, so Qt sets the Dock icon at run time.
-    // Becoming a regular app again shows the bundle's icon, a blank one, so
-    // that icon is set again.
+    // Becoming a regular app again shows the bundle's icon file, not the icon
+    // Qt set at run time, so that icon is set again.
     NSImage *icon = NSApp.applicationIconImage;
     [NSApp setActivationPolicy:policy];
     if (dockIconVisible && icon) {

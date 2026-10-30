@@ -13,8 +13,9 @@ add_subdirectory(ui)
 add_subdirectory(modules)
 
 qt_add_executable(mirante WIN32 MACOSX_BUNDLE main.cpp)
-# The executable's icon on Windows and the bundle's icon on macOS. The window
-# icon comes from resources/icons.
+# The executable's icon on Windows and the bundle's icon on macOS, which the
+# Finder and keychain prompts show. While the app runs, the window icon comes
+# from resources/icons. tools/make-macos-icon.sh makes the .icns from it.
 if(WIN32)
     target_sources(mirante PRIVATE "${PROJECT_SOURCE_DIR}/resources/app/mirante.rc")
 elseif(APPLE)

@@ -44,7 +44,27 @@ endif()
 
 option(MIRANTE_WERROR "Treat compiler warnings as errors" OFF)
 set(MIRANTE_MACOS_SIGN_IDENTITY "$ENV{MIRANTE_MACOS_SIGN_IDENTITY}" CACHE STRING
-    "macOS: the certificate that signs the bundle in the bin folder. Empty leaves it ad hoc signed")
+    "macOS: the certificate that signs the app bundles. Empty uses MIRANTE_MACOS_DEFAULT_SIGN_IDENTITY when the keychain has it")
+# The maintainer's development certificate. A certificate's name is not a
+# secret. The build uses it only where the keychain has it, so other Macs still
+# build with an ad hoc signature. See decision 0091.
+set(MIRANTE_MACOS_DEFAULT_SIGN_IDENTITY "Apple Development: Rangel Reale (B6EDST9Q92)")
+set(MIRANTE_MACOS_SIGN_IDENTITY_USED "${MIRANTE_MACOS_SIGN_IDENTITY}")
+if(APPLE AND NOT MIRANTE_MACOS_SIGN_IDENTITY_USED)
+    execute_process(COMMAND security find-identity -v -p codesigning
+        OUTPUT_VARIABLE _identities ERROR_QUIET)
+    string(FIND "${_identities}" "\"${MIRANTE_MACOS_DEFAULT_SIGN_IDENTITY}\"" _found)
+    if(_found GREATER -1)
+        set(MIRANTE_MACOS_SIGN_IDENTITY_USED "${MIRANTE_MACOS_DEFAULT_SIGN_IDENTITY}")
+    endif()
+endif()
+if(APPLE)
+    if(MIRANTE_MACOS_SIGN_IDENTITY_USED)
+        message(STATUS "Signing the app bundles with ${MIRANTE_MACOS_SIGN_IDENTITY_USED}")
+    else()
+        message(STATUS "Signing the app bundles ad hoc")
+    endif()
+endif()
 
 include(MiranteTargets)
 include(Dependencies)
