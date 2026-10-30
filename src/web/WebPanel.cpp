@@ -129,6 +129,8 @@ QWidget *WebPanel::toolbar() const { return d->toolbar; }
 
 QWebEngineView *WebPanel::view() const { return d->area->view(); }
 
+void WebPanel::setPageKeys(std::function<QList<QKeySequence>()> keys) { d->area->setPageKeys(std::move(keys)); }
+
 NewWindow classifyNewWindow(QWebEnginePage::WebWindowType type, bool userInitiated)
 {
     // A window that names its size and features, as an OAuth sign-in does,

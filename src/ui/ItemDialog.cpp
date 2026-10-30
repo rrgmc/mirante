@@ -12,6 +12,7 @@
 #include <QDialogButtonBox>
 #include <QFormLayout>
 #include <QHBoxLayout>
+#include <QKeySequenceEdit>
 #include <QLabel>
 #include <QLineEdit>
 #include <QListWidget>
@@ -81,6 +82,8 @@ struct ItemDialog::Private
     QFormLayout *form = nullptr;
     QComboBox *profile = nullptr;       // shown for types that use a profile
     QCheckBox *watch = nullptr;         // shown for types that report status
+    QWidget *pageKeys = nullptr;        // shown for types whose views are web views
+    QListWidget *pageKeyList = nullptr; // the keys, in PortableText as data
     QString groupProfile;               // the profile of the item's group
     QStringList profileIds;             // the profiles offered, without an unknown one
     QVBoxLayout *editorBox = nullptr;
@@ -192,6 +195,72 @@ struct ItemDialog::Private
     {
         form->setRowVisible(profile, types->usesProfile(item.type));
         form->setRowVisible(watch, types->contains(item.type) && types->type(item.type).hasStatus());
+        form->setRowVisible(pageKeys,
+                            types->contains(item.type) && types->type(item.type).rendering() == Rendering::Web);
+    }
+
+    // The keys the item's web page keeps instead of the app's shortcuts:
+    // a list, a field that records a key, Add and Remove. See decision 0088.
+    void buildPageKeys(const QStringList &keys)
+    {
+        pageKeys = new QWidget(itemPage);
+        pageKeys->setObjectName(QStringLiteral("pageKeys"));
+        pageKeys->setToolTip(ItemDialog::tr("While the page has the keyboard focus, these keys go to the page "
+                                            "instead of running Mirante's shortcuts."));
+        pageKeyList = new QListWidget(pageKeys);
+        pageKeyList->setObjectName(QStringLiteral("pageKeyList"));
+        pageKeyList->setMaximumHeight(pageKeyList->fontMetrics().height() * 5);
+        for (const QString &key : keys)
+            addPageKey(QKeySequence::fromString(key, QKeySequence::PortableText));
+
+        auto *record = new QKeySequenceEdit(pageKeys);
+        record->setObjectName(QStringLiteral("pageKeyEdit"));
+        record->setMaximumSequenceLength(1);
+        record->setClearButtonEnabled(true);
+        auto *add = new QPushButton(ItemDialog::tr("Add"), pageKeys);
+        add->setObjectName(QStringLiteral("addPageKey"));
+        auto *remove = new QPushButton(ItemDialog::tr("Remove"), pageKeys);
+        remove->setObjectName(QStringLiteral("removePageKey"));
+        const auto enable = [this, record, add, remove] {
+            add->setEnabled(!record->keySequence().isEmpty());
+            remove->setEnabled(pageKeyList->currentRow() >= 0);
+        };
+        QObject::connect(record, &QKeySequenceEdit::keySequenceChanged, q, enable);
+        QObject::connect(pageKeyList, &QListWidget::currentRowChanged, q, enable);
+        QObject::connect(add, &QPushButton::clicked, q, [this, record] {
+            addPageKey(record->keySequence());
+            record->clear();
+        });
+        QObject::connect(remove, &QPushButton::clicked, q, [this] { delete pageKeyList->currentItem(); });
+        enable();
+
+        auto *buttons = new QHBoxLayout;
+        buttons->setContentsMargins(0, 0, 0, 0);
+        buttons->addWidget(record, 1);
+        buttons->addWidget(add);
+        buttons->addWidget(remove);
+        auto *layout = new QVBoxLayout(pageKeys);
+        layout->setContentsMargins(0, 0, 0, 0);
+        layout->addWidget(pageKeyList);
+        layout->addLayout(buttons);
+    }
+
+    // Adds a key once, shown in the platform's words.
+    void addPageKey(const QKeySequence &key)
+    {
+        const QString portable = key.toString(QKeySequence::PortableText);
+        if (key.isEmpty() || !pageKeyList->findItems(key.toString(QKeySequence::NativeText), Qt::MatchExactly).isEmpty())
+            return;
+        auto *entry = new QListWidgetItem(key.toString(QKeySequence::NativeText), pageKeyList);
+        entry->setData(Qt::UserRole, portable);
+    }
+
+    QStringList pageKeyValues() const
+    {
+        QStringList keys;
+        for (int i = 0; i < pageKeyList->count(); ++i)
+            keys << pageKeyList->item(i)->data(Qt::UserRole).toString();
+        return keys;
     }
 
     // The profile the item would use with the chosen entry: its own, or else
@@ -380,6 +449,9 @@ ItemDialog::ItemDialog(const Item &item, bool creating, const ItemTypeRegistry &
                             "attention either way."));
     form->addRow(tr("Watch:"), d->watch);
 
+    d->buildPageKeys(item.pageKeys);
+    form->addRow(tr("Keys for the page:"), d->pageKeys);
+
     d->editorBox = new QVBoxLayout;
     d->editorBox->setContentsMargins(0, 0, 0, 0);
 
@@ -493,6 +565,8 @@ Item ItemDialog::value() const
         item.profile = d->profile->currentData().toString();
     if (d->form->isRowVisible(d->watch))
         item.watch = d->watch->isChecked();
+    if (d->form->isRowVisible(d->pageKeys))
+        item.pageKeys = d->pageKeyValues();
     return item;
 }
 
@@ -554,6 +628,8 @@ bool ItemDialog::showsProfile() const { return d->form->isRowVisible(d->profile)
 bool ItemDialog::showsWatch() const { return d->form->isRowVisible(d->watch); }
 
 void ItemDialog::setWatch(bool watch) { d->watch->setChecked(watch); }
+
+bool ItemDialog::showsPageKeys() const { return d->form->isRowVisible(d->pageKeys); }
 
 QString ItemDialog::effectiveProfile() const { return d->effectiveProfile(); }
 

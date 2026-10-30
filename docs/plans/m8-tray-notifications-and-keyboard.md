@@ -72,10 +72,10 @@ Smaller choices made here:
 
 ## Part 4: keys in web pages
 
-1. **Check first.** Before any code, try every key of [ui](../ui.md#keyboard) with the focus in five places: the sidebar, a native cell, a web page outside a text field, a text field of a web page, and a detached window. Use a release build; see the memory on debug WebEngine. Record the results in `docs/plans/m8-checks.md`. Decision 0088 assumes WebEngine keeps only editing keys; if the check shows otherwise, fix that before the rest.
-2. Fix what the check finds. Shortcuts that live on menu actions of the main window may not run in a detached window; if so, the detached window adds those actions too.
+1. **Check first.** `tst_page_keys` types every key of [ui](../ui.md#keyboard) into the text field of a real page, with a window shortcut for each. Result: every app shortcut runs, except the editing keys that WebEngine keeps for the field. Those include `Ctrl+B`, which is bold in web editors and also shows or hides the sidebar. Outside a text field `Ctrl+B` runs the app's shortcut. This is what decision 0088 relies on, so `Ctrl+B` stays as WebEngine decides, and [ui](../ui.md#keyboard) says so. The test needs release libraries; see [debug builds](../web-views.md#debug-builds).
+2. Detached windows take only `F2`, as [ui](../ui.md#detached-windows) already says. Nothing to fix.
 3. `PageKeys`: `WebPanel` and `PageArea` install it on the view's focus proxy, which WebEngine makes after the first load, so they watch for it with `QEvent::ChildAdded`. It accepts `ShortcutOverride` when the key matches one of the item's `pageKeys`.
-4. `ItemDialog`: for types whose views are web views, a "Keys for the page" list with Add and Remove. Add opens a `QKeySequenceEdit`. A key that no app shortcut uses is still accepted, but the list says it was free anyway.
+4. `ItemDialog`: for types whose views are web views, a "Keys for the page" list, with a `QKeySequenceEdit` that records one key, Add and Remove.
 5. Tests: `PageKeys` with a plain `QWidget` standing in for the focus proxy and synthetic `ShortcutOverride` events; the dialog keeps `pageKeys` and the other unknown keys.
 
 ## Part 5: the File menu
