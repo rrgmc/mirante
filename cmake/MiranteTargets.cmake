@@ -36,10 +36,11 @@ endfunction()
 # mirante_add_test(<name> SOURCES <files...> LIBS <targets...>)
 #
 # Adds one Qt Test executable as a CTest test. Tests run with the offscreen
-# platform, so they need no display.
+# platform, so they need no display and open no windows, also when started by
+# hand.
 function(mirante_add_test name)
     cmake_parse_arguments(ARG "" "" "SOURCES;LIBS" ${ARGN})
-    add_executable(${name} ${ARG_SOURCES})
+    add_executable(${name} ${ARG_SOURCES} "${PROJECT_SOURCE_DIR}/tests/support/OffscreenByDefault.cpp")
     target_link_libraries(${name} PRIVATE Qt6::Test ${ARG_LIBS})
     target_compile_definitions(${name} PRIVATE
         MIRANTE_FIXTURES_DIR="${PROJECT_SOURCE_DIR}/resources/fixtures")

@@ -106,9 +106,11 @@ public:
     void secret(QObject *receiver, std::function<void(std::optional<QString>)> done) override;
 
 private:
+    enum class Method { Get, Post, Put };
+
     struct Request
     {
-        bool isGet = true;
+        Method method = Method::Get;
         QUrl url;   // the page being asked for
         QByteArray body;
         GetOptions options;
@@ -132,7 +134,7 @@ private:
     QJsonObject values() const;
     QString tokenKey() const;
     QUrl urlFor(const QJsonObject &values, const QString &path) const;
-    void enqueue(bool isGet, const QString &path, const QUrlQuery &query, const QByteArray &body,
+    void enqueue(Method method, const QString &path, const QUrlQuery &query, const QByteArray &body,
                  const GetOptions &options, QObject *receiver, std::function<void(const ApiReply &)> done);
     void loadToken();
     void pump();
@@ -239,34 +241,26 @@ QUrl ServerClient::urlFor(const QJsonObject &values, const QString &path) const
 void ServerClient::get(const QString &path, const QUrlQuery &query, const GetOptions &options, QObject *receiver,
                        std::function<void(const ApiReply &)> done)
 {
-    enqueue(true, path, query, {}, options, receiver, std::move(done));
+    enqueue(Method::Get, path, query, {}, options, receiver, std::move(done));
 }
 
 void ServerClient::post(const QString &path, const QJsonDocument &body, QObject *receiver,
                         std::function<void(const ApiReply &)> done)
 {
-    enqueue(false, path, {}, body.toJson(QJsonDocument::Compact), {}, receiver, std::move(done));
+    enqueue(Method::Post, path, {}, body.toJson(QJsonDocument::Compact), {}, receiver, std::move(done));
 }
 
 void ServerClient::put(const QString &path, const QJsonDocument &body, QObject *receiver,
                        std::function<void(const ApiReply &)> done)
 {
-    // M6 T2 sends it. Until then a PUT fails without being sent.
-    Q_UNUSED(path)
-    Q_UNUSED(body)
-    Q_UNUSED(receiver)
-    ApiReply reply;
-    reply.error = ApiReply::Error::Http;
-    reply.message = QStringLiteral("PUT is not implemented yet.");
-    if (done)
-        done(reply);
+    enqueue(Method::Put, path, {}, body.toJson(QJsonDocument::Compact), {}, receiver, std::move(done));
 }
 
-void ServerClient::enqueue(bool isGet, const QString &path, const QUrlQuery &query, const QByteArray &body,
+void ServerClient::enqueue(Method method, const QString &path, const QUrlQuery &query, const QByteArray &body,
                            const GetOptions &options, QObject *receiver, std::function<void(const ApiReply &)> done)
 {
     auto request = std::make_shared<Request>();
-    request->isGet = isGet;
+    request->method = method;
     request->body = body;
     request->options = options;
     request->values = values();
@@ -354,14 +348,15 @@ void ServerClient::send(const RequestPtr &request)
     m_type->authorize(network, *m_token, request->values);
 
     QNetworkReply *reply = nullptr;
-    if (request->isGet) {
+    if (request->method == Method::Get) {
         const auto kept = m_kept.find(request->url.toString(QUrl::FullyEncoded));
         if (kept != m_kept.end() && !kept->second.etag.isEmpty())
             network.setRawHeader("If-None-Match", kept->second.etag);
         reply = m_network->get(network);
     } else {
         network.setHeader(QNetworkRequest::ContentTypeHeader, QByteArrayLiteral("application/json"));
-        reply = m_network->post(network, request->body);
+        reply = request->method == Method::Put ? m_network->put(network, request->body)
+                                               : m_network->post(network, request->body);
     }
     m_running.insert(reply);
     connect(reply, &QNetworkReply::finished, this, [this, reply, request] { finished(reply, request); });
@@ -371,6 +366,8 @@ void ServerClient::finished(QNetworkReply *reply, const RequestPtr &request)
 {
     m_running.erase(reply);
     reply->deleteLater();
+
+    const bool isGet = request->method == Method::Get;
 
     ApiReply result;
     result.httpStatus = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
@@ -402,14 +399,14 @@ void ServerClient::finished(QNetworkReply *reply, const RequestPtr &request)
         return;
     }
 
-    if (result.httpStatus == 304 && request->isGet) {
+    if (result.httpStatus == 304 && isGet) {
         const auto kept = m_kept.find(url);
         if (kept != m_kept.end()) {
             kept->second.used = ++m_useCounter;
             result.body = kept->second.body;
             result.headers = kept->second.headers;
         }
-    } else if (result.httpStatus == 401 || (result.httpStatus == 403 && request->isGet)) {
+    } else if (result.httpStatus == 401 || (result.httpStatus == 403 && isGet)) {
         result.error = ApiReply::Error::Refused;
         result.message = tr("Token refused (%1)").arg(result.httpStatus);
         m_failingValues = request->values;
@@ -428,7 +425,7 @@ void ServerClient::finished(QNetworkReply *reply, const RequestPtr &request)
         const QString reason = reply->attribute(QNetworkRequest::HttpReasonPhraseAttribute).toString();
         result.message = reason.isEmpty() ? tr("Server error (%1)").arg(result.httpStatus)
                                           : QStringLiteral("%1 (%2)").arg(reason).arg(result.httpStatus);
-    } else if (request->isGet) {
+    } else if (isGet) {
         const QByteArray etag = headerValue(result.headers, "ETag");
         if (!etag.isEmpty())
             keep(url, etag, result.body, result.headers);
@@ -437,7 +434,7 @@ void ServerClient::finished(QNetworkReply *reply, const RequestPtr &request)
     if (result.ok())
         result.json = QJsonDocument::fromJson(result.body);
 
-    if (result.ok() && request->isGet && request->options.followLinks && result.json.isArray()) {
+    if (result.ok() && isGet && request->options.followLinks && result.json.isArray()) {
         const QJsonArray page = result.json.array();
         for (const QJsonValue &row : page) {
             if (request->rows.size() >= request->options.maxRows)

@@ -62,8 +62,9 @@ public:
     virtual void updateConfig(const QJsonObject &config) = 0;
 
     // Shows a web page in place of the view, in the item's profile, with a
-    // way back. The view stays alive behind it. Does nothing where the core
-    // has no web views, as in tests. See decision 0069.
+    // way back. The view stays alive behind it. Without a web profile, the
+    // page is a message. The default, for contexts without a placement, does
+    // nothing. See decision 0069.
     virtual void showPage(const QUrl &url) { Q_UNUSED(url) }
 
     // Adds an item to the task this item belongs to, and returns its id, or
