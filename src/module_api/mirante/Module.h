@@ -5,6 +5,9 @@
 #include <mirante/ItemType.h>
 #include <mirante/ModuleSettings.h>
 
+#include <QUrl>
+#include <QUuid>
+
 #include <memory>
 
 namespace mirante {
@@ -39,6 +42,22 @@ public:
     // "Merge requests, pipelines and issues from a GitLab server." Help >
     // Modules shows it under the module's name. Defaults to none.
     virtual void setModuleDescription(const QString &description) = 0;
+
+    // The module's identity and origin, which Help > Modules shows. See
+    // decision 0087.
+    //
+    // A UUID that names the module across builds and renames. It never
+    // changes, and no two modules share one. A null UUID, or one another
+    // module already set, stops the program.
+    virtual void setModuleUuid(const QUuid &uuid) = 0;
+    // The module's version, such as "1.2.0": numbers separated by dots.
+    // Anything else stops the program.
+    virtual void setModuleVersion(const QString &version) = 0;
+    // Who wrote the module, such as a person's or an organisation's name.
+    virtual void setModuleAuthor(const QString &author) = 0;
+    // The module's web page. An address that is not http or https stops the
+    // program.
+    virtual void setModuleHomepage(const QUrl &homepage) = 0;
 
     // Takes ownership of a configuration screen. Its id must be lowercase
     // letters and digits, unique within the module, and its name not empty.

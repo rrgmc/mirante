@@ -252,6 +252,34 @@ private slots:
         QVERIFY(registry.type(QStringLiteral("beta.one")).description().isEmpty());
     }
 
+    // A module's UUID, version, author and homepage are kept as given, and
+    // are null or empty without them. See decision 0087.
+    void identity()
+    {
+        const QUuid uuid(QStringLiteral("6f1c1d8e-3c2a-4f5e-9b7d-2a4e8c0f1b3d"));
+        mirante::ItemTypeRegistry registry;
+        registry.registerModule(QStringLiteral("beta"), &registerBeta);
+        registry.registerModule(QStringLiteral("alpha"), [](mirante::ModuleRegistrar &registrar) {
+            registrar.setModuleUuid(QUuid(QStringLiteral("6f1c1d8e-3c2a-4f5e-9b7d-2a4e8c0f1b3d")));
+            registrar.setModuleVersion(QStringLiteral("1.2.0"));
+            registrar.setModuleAuthor(QStringLiteral("Ana Lima"));
+            registrar.setModuleHomepage(QUrl(QStringLiteral("https://example.com/alpha")));
+            registerAlpha(registrar);
+        });
+
+        const QString alpha = QStringLiteral("alpha");
+        QCOMPARE(registry.moduleUuid(alpha), uuid);
+        QCOMPARE(registry.moduleVersion(alpha), QStringLiteral("1.2.0"));
+        QCOMPARE(registry.moduleAuthor(alpha), QStringLiteral("Ana Lima"));
+        QCOMPARE(registry.moduleHomepage(alpha), QUrl(QStringLiteral("https://example.com/alpha")));
+        for (const QString &id : {QStringLiteral("beta"), QStringLiteral("none")}) {
+            QVERIFY(registry.moduleUuid(id).isNull());
+            QVERIFY(registry.moduleVersion(id).isEmpty());
+            QVERIFY(registry.moduleAuthor(id).isEmpty());
+            QVERIFY(registry.moduleHomepage(id).isEmpty());
+        }
+    }
+
     // A module's types, sorted by name; none for an unknown module.
     void moduleTypes()
     {

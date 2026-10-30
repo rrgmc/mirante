@@ -2662,6 +2662,22 @@
         <source>This build has no modules.</source>
         <translation>Esta versão não tem módulos.</translation>
     </message>
+    <message>
+        <source>Version:</source>
+        <translation>Versão:</translation>
+    </message>
+    <message>
+        <source>Author:</source>
+        <translation>Autor:</translation>
+    </message>
+    <message>
+        <source>Homepage:</source>
+        <translation>Página:</translation>
+    </message>
+    <message>
+        <source>UUID:</source>
+        <translation>UUID:</translation>
+    </message>
 </context>
 <context>
     <name>mirante::PageArea</name>

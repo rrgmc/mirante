@@ -10,6 +10,8 @@ Markdown notes, stored in the task file, as an item. See [item types](../../../d
 
 The module calls itself "Notes" and describes itself as: "Markdown notes, kept in the task's file, so they sync with the workspace." Help > Modules shows the names and descriptions. See [decision 0056](../../../docs/decisions/0056-modules-window.md).
 
+Its UUID is `27bc56ed-94f4-43f0-85be-623c723b1bb0`. It is at version 0.1.0, by Rangel Reale. Help > Modules also shows these, and the module's homepage. See [decision 0087](../../../docs/decisions/0087-module-identity.md).
+
 The type has an id, a name and an icon, and declares that it is native. Since M7 it has a view.
 
 ## View

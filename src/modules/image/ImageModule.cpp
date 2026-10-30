@@ -7,6 +7,8 @@
 #include <mirante/Module.h>
 
 #include <QCoreApplication>
+#include <QUrl>
+#include <QUuid>
 
 #include <memory>
 #include <vector>
@@ -81,6 +83,10 @@ void registerModule(ModuleRegistrar &registrar)
     registrar.setModuleName(QCoreApplication::translate("image", "Image"));
     registrar.setModuleDescription(QCoreApplication::translate(
         "image", "Images, such as screenshots or diagrams, with an optional link and memo."));
+    registrar.setModuleUuid(QUuid(QStringLiteral("49e356c7-e0f4-4f5b-904e-6711fea8bb92")));
+    registrar.setModuleVersion(QStringLiteral("0.1.0"));
+    registrar.setModuleAuthor(QStringLiteral("Rangel Reale"));
+    registrar.setModuleHomepage(QUrl(QStringLiteral("https://github.com/rrgmc/mirante/tree/master/src/modules/image")));
     registrar.addItemType(std::make_unique<ImageItemType>(
         QStringLiteral("image"), QCoreApplication::translate("image", "Image")));
 }
