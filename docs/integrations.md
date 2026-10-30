@@ -27,9 +27,18 @@ Main endpoints:
 | Approve | `POST /projects/:id/merge_requests/:iid/approve` |
 | Comment | `POST /projects/:id/merge_requests/:iid/notes`, `POST /projects/:id/issues/:iid/notes` |
 | Issues | `GET /projects/:id/issues/:iid`, `GET /issues` |
-| Current user | `GET /user`, to resolve "me" in presets |
+| Current user | `GET /user`, to resolve "me" in presets and attention |
 
-Project paths such as `acme/backend` are URL-encoded and used as `:id`.
+Project and group paths such as `acme/backend` are URL-encoded and used as `:id`, as in `acme%2Fbackend`. The branch in `ref` is URL-encoded too. `GitLabClient` in the module has one method per endpoint; see the [module's README](../src/modules/gitlab/README.md#the-client).
+
+What each item type asks for its status:
+
+- **A merge request** (summary or page): the merge request, its approvals and the current user, at once. The current user is asked in every status job, and its ETag makes the repeat cheap.
+- **An issue** (summary or page): the issue.
+- **A CI pipeline:** for a linked merge request, the merge request first, for its source branch. Then the latest pipeline of the branch, and that pipeline's jobs. A `404` for the latest pipeline means the branch has none, and is not an error.
+- **Lists** ask for nothing in M5.
+
+The attention rules are in [item types](item-types.md#gitlab).
 
 ## Jira
 
@@ -67,14 +76,20 @@ If Anthropic publishes an API for sessions later, a new decision record will cov
 
 ## Polling and caching
 
-The `StatusCache` owns all API data.
+The `StatusCache` owns all API data. It keeps one status per item, in memory only: after a start, cells show no status until the first fetch returns.
 
 - **Cache key:** profile id, module id and request. Two profiles that use the same server with different tokens never share data.
-- **What it polls:**
-  - items in visible cells;
-  - items in tasks opened in the last 30 minutes;
-  - all items of active Urgent and High tasks, so that Focus and the tray stay current.
-- **Interval:** a device setting, 2 minutes by default. A refresh button in each cell header fetches at once.
+- **What it polls:** the items of types that report status, if they are
+  - in visible cells, counted per placement;
+  - in tasks opened in a tab or a slot in the last 30 minutes;
+  - in active Urgent and High tasks, so that Focus and the tray stay current.
+
+  Items in the trash, items of a module that is not in the build, and items of types without status are never fetched.
+- **Interval:** a [device setting](sync.md#device-settings), 2 minutes by default, from 30 seconds to one hour. A timer checks every 15 seconds and fetches each due item whose last fetch is older than the interval, so a new visible item does not wait for a whole interval.
+- **At once:** an item is fetched at once when it becomes visible or its task is opened and its status is older than the interval, when its cell's refresh button is pressed, and when its type, configuration or profile changes, or its module's settings in the profile or the project change.
+- **One job per item.** A fetch for an item already being fetched is skipped. A fetch that does not end in 90 seconds is dropped with an error. A fetch started before the item's configuration changed is dropped too, and its answer ignored.
+- **Errors keep data.** A fetch that fails keeps the last data, summary, attention and update time, and sets only the state and the message. Cells then show the data's age. An error is fetched again after the interval, like any status.
+- **Removal.** Removing an item empties its entry and removes its [seen attention keys](sync.md#device-settings). Opening another workspace empties every entry.
 - **When the app is hidden in the tray:** polling continues for pipelines and attention only, at the same interval.
 - **Consumers:**
   - native summaries and lists;
@@ -82,6 +97,16 @@ The `StatusCache` owns all API data.
   - [built-in panels](web-views.md#built-in-panels), through the bridge.
 
 Modules fetch through the cache, never around it. All requests are asynchronous and use one `QNetworkAccessManager`. At most four requests run at once for each server of a profile.
+
+### Attention
+
+`Attention` turns the statuses into the counts of badges. See [decision 0061](decisions/0061-attention-from-status-of-any-rendering.md).
+
+- An item **needs attention** when its status has a reason that counts: a state, such as "Pipeline failed", or an event, marked `clearsOnView`, whose key the item's record of seen keys does not hold.
+- **The first status with data** records the keys of its events as seen, so what was already true when the item was added does not count. A first status without data, such as "Token not set", records nothing.
+- **Seeing an item** replaces its record with the keys of its current events. Keys no longer reported drop out, so the record stays small.
+- A workspace without an id has nowhere to keep records, so events do not count there. States still do.
+- A **task** counts its items that need attention. Tasks that are not active, and tasks in the trash, count zero. A **project** sums its tasks, and a **group** its projects; a project in the trash counts zero.
 
 ## Errors
 

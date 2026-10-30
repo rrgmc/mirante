@@ -297,13 +297,15 @@ void TestServerClient::pathJoinsBaseWithPath()
     m_directory->settings.screen[QStringLiteral("baseUrl")] = QStringLiteral("https://host.example/gitlab");
     QUrlQuery query;
     query.addQueryItem(QStringLiteral("state"), QStringLiteral("opened"));
+    // Modules encode a branch name themselves, as GitLab's ref does.
+    query.addQueryItem(QStringLiteral("ref"), QString::fromLatin1(QUrl::toPercentEncoding(QStringLiteral("a+b&c"))));
     QVERIFY(getAndWait(QStringLiteral("api/v4/projects/a%2Fb/merge_requests"), {}, query).ok());
     m_directory->settings.screen[QStringLiteral("baseUrl")] = QStringLiteral("https://host.example/gitlab/");
     QVERIFY(getAndWait(QStringLiteral("/api/v4/user")).ok());
 
     QCOMPARE(m_network->sent.size(), 2);
     QCOMPARE(m_network->url(0),
-             QStringLiteral("https://host.example/gitlab/api/v4/projects/a%2Fb/merge_requests?state=opened"));
+             QStringLiteral("https://host.example/gitlab/api/v4/projects/a%2Fb/merge_requests?state=opened&ref=a%2Bb%26c"));
     QCOMPARE(m_network->url(1), QStringLiteral("https://host.example/gitlab/api/v4/user"));
 }
 
