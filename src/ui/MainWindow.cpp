@@ -1731,6 +1731,20 @@ struct MainWindow::Private
                 q->showAndRaise();
         });
         q->setTrayPresent(true);
+        updateTray();
+    }
+
+    // The tray shows how many tasks need attention through watched items.
+    // See docs/ui.md#tray-and-notifications.
+    void updateTray()
+    {
+        if (!tray)
+            return;
+        const int count = api.attention ? api.attention->trayCount() : 0;
+        tray->setCount(count);
+        tray->setToolTip(count > 0 ? MainWindow::tr("%1: %n task(s) need attention", nullptr, count)
+                                         .arg(QStringLiteral(MIRANTE_APP_NAME))
+                                   : QStringLiteral(MIRANTE_APP_NAME));
     }
 
     // Saves the window's place and size, whether it is maximized, the sidebar
@@ -2685,6 +2699,9 @@ void MainWindow::setApiServices(const ApiServices &services)
     d->sidebar->model()->setAttention(services.attention);
     if (d->focus)
         d->focus->focus->setAttention(services.attention);
+    if (services.attention)
+        connect(services.attention, &Attention::countsChanged, this, [this] { d->updateTray(); });
+    d->updateTray();
     if (services.servers) {
         connect(services.servers, &ServerClients::failingChanged, this, [this] { d->updateWarnings(); });
         // A renamed profile renames its lines.

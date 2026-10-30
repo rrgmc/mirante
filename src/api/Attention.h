@@ -39,6 +39,10 @@ public:
     int projectCount(const QString &projectId) const;
     int groupCount(const QString &groupId) const;
 
+    // The number of tasks for the tray: active tasks, not in the trash, with
+    // a watched item that needs attention. See decision 0087.
+    int trayCount() const;
+
     // The user looked at the item: its current clearsOnView reasons become
     // seen.
     void markSeen(const QString &itemId);

@@ -1,6 +1,8 @@
 // The macOS part of Tray: a native NSStatusItem. Built with ARC. See Tray.h.
 #include "platform/Tray.h"
 
+#include "platform/TrayBadge.h"
+
 #include <QAction>
 #include <QGuiApplication>
 #include <QIcon>
@@ -121,6 +123,7 @@ struct Tray::Private
     NSMenu *menu = nil;
     MiranteTrayMenuDelegate *delegate = nil;
     MiranteReopenHandler *reopenHandler = nil;
+    int count = 0;
 };
 
 bool Tray::isAvailable()
@@ -167,6 +170,19 @@ Tray::~Tray()
                                                                       andEventID:kAEReopenApplication];
     [NSStatusBar.systemStatusBar removeStatusItem:d->item];
 }
+
+void Tray::setCount(int count)
+{
+    if (count == d->count)
+        return;
+    d->count = count;
+    // A square item has room for the icon only, so the item grows with a count.
+    d->item.length = count > 0 ? NSVariableStatusItemLength : NSSquareStatusItemLength;
+    d->item.button.imagePosition = count > 0 ? NSImageLeft : NSImageOnly;
+    d->item.button.title = count > 0 ? trayBadgeText(count).toNSString() : @"";
+}
+
+void Tray::setToolTip(const QString &toolTip) { d->item.button.toolTip = toolTip.toNSString(); }
 
 void Tray::setDockIconVisible(bool visible)
 {

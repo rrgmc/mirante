@@ -168,6 +168,41 @@ private slots:
         QCOMPARE(attention->groupCount(QStringLiteral("g1")), 0);
     }
 
+    // The tray counts active tasks with a watched item that needs attention:
+    // a task with two such items once, an unwatched item never.
+    void trayCount()
+    {
+        Task t1 = *f->model.task(QStringLiteral("t1"));
+        t1.items.push_back(makeItem(QStringLiteral("i9")));
+        f->model.setTask(t1);
+        const auto watch = [this](const QString &taskId, const QString &itemId) {
+            Item item = *f->model.item(taskId, itemId);
+            item.watch = true;
+            f->model.setItem(taskId, item);
+        };
+        watch(QStringLiteral("t1"), QStringLiteral("i1"));
+        watch(QStringLiteral("t1"), QStringLiteral("i9"));
+        watch(QStringLiteral("t3"), QStringLiteral("i5"));
+
+        const ItemStatus failed = okStatus(QStringLiteral("Open"), {reason(QStringLiteral("pipeline-failed"))});
+        for (const QString &itemId : {QStringLiteral("i1"), QStringLiteral("i9"), QStringLiteral("i4"),
+                                      QStringLiteral("i5")})
+            give(itemId, failed);
+        // i4 needs attention but is not watched; t3 is done.
+        QCOMPARE(attention->trayCount(), 1);
+
+        watch(QStringLiteral("t2"), QStringLiteral("i4"));
+        QCOMPARE(attention->trayCount(), 2);
+
+        // Watching is a change of the task, so the counts change.
+        QSignalSpy counts(attention.get(), &Attention::countsChanged);
+        Item i4 = *f->model.item(QStringLiteral("t2"), QStringLiteral("i4"));
+        i4.watch = false;
+        f->model.setItem(QStringLiteral("t2"), i4);
+        QTRY_COMPARE(counts.size(), 1);
+        QCOMPARE(attention->trayCount(), 1);
+    }
+
     void countsChangedOncePerPass()
     {
         QSignalSpy counts(attention.get(), &Attention::countsChanged);

@@ -30,6 +30,12 @@ public:
     Tray(const QIcon &icon, const QString &toolTip, QMenu *menu, QObject *parent = nullptr);
     ~Tray() override;
 
+    // The number of tasks that need attention, shown on the icon. 0 shows
+    // the plain icon. On macOS it is the status item's title, next to the
+    // icon, so it follows the menu bar's appearance.
+    void setCount(int count);
+    void setToolTip(const QString &toolTip);
+
     // Shows or removes the Dock icon while the window is shown or hidden in the
     // menu bar. Showing it also brings Mirante to the front. Does nothing
     // outside macOS.
