@@ -7,6 +7,7 @@
 #include "api/ServerClient.h"
 #include "api/StatusCache.h"
 #include "core/DeviceSettings.h"
+#include "core/GitStatusReader.h"
 #include "core/GroupColours.h"
 #include "core/LayoutTree.h"
 #include "core/LogBuffer.h"
@@ -1858,6 +1859,8 @@ MainWindow::MainWindow(Model &model, const ItemTypeRegistry &types, Store &store
         d->placements.profiles = profiles;
         d->placements.pool = pool;
         d->placements.settings = &settings;
+        d->placements.store = &store;
+        d->placements.git = new GitStatusReader(this);
         d->services.placements = &d->placements;
     }
     // A bigger view of an item, from its cell's button and menu. A cell in a

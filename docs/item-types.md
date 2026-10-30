@@ -21,6 +21,7 @@ A module registers each of its types in the `ItemTypeRegistry` with:
 | `createEditor` | Optional: an editor of the type's own for the configuration, used instead of the form built from `fields`. It receives the project's folders and a way to save an image into `files/`. |
 | `pastedImageField` | Optional: the key of an image field that a pasted image fills. If set, "Paste Image…" in a task's Items menu creates an item of this type, and `Ctrl+V` replaces the image of such an item. See [Image](#image). |
 | `rendering` | `native` (a Qt widget) or `web` (a [web view](web-views.md)). The [memory policy](web-views.md#memory-policy) unloads web views. |
+| `viewKeys` | Optional: configuration keys the view writes itself, such as a note's text. A change to only these keys keeps the view, which is told of it, instead of making it again. See [decision 0081](decisions/0081-views-that-keep-their-own-keys.md). |
 
 | `status` | Optional: how to fetch status and attention from the [status cache](integrations.md#polling-and-caching) |
 | `actions` | Optional: the light actions it offers |
@@ -317,8 +318,8 @@ Local sessions exist on one device only. On other devices the panel shows the de
 
 `notes`, native, module `notes`.
 
-- **Configuration:** none. The item dialog edits only the name.
-- **Shows:** a Markdown editor with a preview. The text is stored in the task file, so it syncs.
+- **Configuration:** none that the item dialog shows; it edits only the name. The text is kept in the configuration under `text`, which the dialog keeps unchanged.
+- **Shows:** a Markdown editor with a preview. The text is stored in the task file, so it syncs. `viewKeys` is `text`, so saving does not make the editor again.
 
 ### Image
 

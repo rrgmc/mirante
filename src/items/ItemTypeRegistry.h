@@ -83,6 +83,28 @@ public:
     // The ids of the modules with project settings, sorted.
     QStringList projectSettingModules() const;
 
+    // Quick add. See docs/modules.md#quick-add and decision 0078.
+    struct ModuleHandler
+    {
+        QString moduleId;
+        const QuickAddHandler *handler = nullptr;
+    };
+    struct ModuleFinder
+    {
+        QString moduleId;
+        const RelatedItemFinder *finder = nullptr;
+    };
+    // Every module's handlers and finders, by module id, then in the order
+    // each module added them.
+    std::vector<ModuleHandler> quickAddHandlers() const;
+    std::vector<ModuleFinder> relatedItemFinders() const;
+
+    // The module's device settings, in the order it added them. Empty for an
+    // unknown module. See decision 0079.
+    std::vector<Field> deviceSettings(const QString &moduleId) const;
+    // The ids of the modules with device settings, sorted.
+    QStringList deviceSettingModules() const;
+
 private:
     struct Private;
     std::unique_ptr<Private> d;

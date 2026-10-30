@@ -1,5 +1,5 @@
 mirante_add_module(folder
-    SOURCES   FolderModule.cpp
+    SOURCES   FolderView.cpp FolderView.h FolderModule.cpp
     RESOURCES icons/folder.svg
     TESTS     tests/tst_register.cpp
     DEFAULT   ON)

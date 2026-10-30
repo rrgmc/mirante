@@ -190,4 +190,57 @@ ItemStatusSource *ItemContextImpl::status()
     return &m_services.status->source(m_itemId);
 }
 
+// Stubs until T2 of the M7 plan.
+
+void ItemContextImpl::mapFolder(const QString &folderId) { Q_UNUSED(folderId) }
+
+void ItemContextImpl::onConfigChanged(QObject *receiver, std::function<void(const QJsonObject &)> changed)
+{
+    m_configReceivers.push_back({receiver, std::move(changed)});
+}
+
+void ItemContextImpl::notifyConfigChanged(const QJsonObject &config)
+{
+    Q_UNUSED(config)
+}
+
+QJsonValue ItemContextImpl::deviceSetting(const QString &key) const
+{
+    Q_UNUSED(key)
+    return {};
+}
+
+QString ItemContextImpl::deviceName() const { return {}; }
+
+QString ItemContextImpl::filePath(const QString &fileName) const
+{
+    Q_UNUSED(fileName)
+    return {};
+}
+
+QString ItemContextImpl::gitHead(const QString &path) const
+{
+    Q_UNUSED(path)
+    return {};
+}
+
+void ItemContextImpl::gitStatus(const QString &path, QObject *receiver, std::function<void(const GitState &)> done)
+{
+    Q_UNUSED(path)
+    Q_UNUSED(receiver)
+    Q_UNUSED(done)
+}
+
+QString ItemContextImpl::launchTerminal(const QString &dir, const QString &program, const QStringList &arguments)
+{
+    return ItemContext::launchTerminal(dir, program, arguments);
+}
+
+QString ItemContextImpl::startProgram(const QString &dir, const QString &program, const QStringList &arguments)
+{
+    return ItemContext::startProgram(dir, program, arguments);
+}
+
+void ItemContextImpl::showFolder(const QString &path) { Q_UNUSED(path) }
+
 } // namespace mirante
