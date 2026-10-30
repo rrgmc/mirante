@@ -1,8 +1,11 @@
 #include "items/ItemContextImpl.h"
 
+#include "api/ServerClient.h"
+#include "api/StatusCache.h"
 #include "core/DeviceSettings.h"
 #include "core/Model.h"
 #include "core/Profiles.h"
+#include "items/ItemTypeRegistry.h"
 #include "items/UnknownItemType.h"
 #include "web/ProfileManager.h"
 #include "web/WebPanel.h"
@@ -137,16 +140,21 @@ void ItemContextImpl::updateConfig(const QJsonObject &config)
     }
 }
 
-// Stubs of T0. Task T8 of the M5 plan implements them.
-
 ApiClient *ItemContextImpl::server()
 {
-    return nullptr;
+    const Item *item = m_services.model ? m_services.model->item(m_taskId, m_itemId) : nullptr;
+    if (!item || !m_services.servers)
+        return nullptr;
+    return m_services.servers->client(profiles::effective(*m_services.model, m_taskId, m_itemId),
+                                      moduleOfType(item->type));
 }
 
 ItemStatusSource *ItemContextImpl::status()
 {
-    return nullptr;
+    const Item *item = m_services.model ? m_services.model->item(m_taskId, m_itemId) : nullptr;
+    if (!item || !m_services.status || !m_services.types || !m_services.types->type(item->type).hasStatus())
+        return nullptr;
+    return &m_services.status->source(m_itemId);
 }
 
 } // namespace mirante
