@@ -59,6 +59,17 @@ private slots:
         QVERIFY(!isVisible(QRect(800, 200, 600, 400), {left, right}));
     }
 
+    // A window against the top of the screen keeps its place, though its
+    // title bar is lower than assumed: 31 pixels on Windows 11, 28 on macOS.
+    void againstTheTopEdge()
+    {
+        const QRect windows(0, 0, 3440, 1392);
+        const QRect saved(1, 31, 2049, 1360);
+        QVERIFY(isVisible(saved, {windows}));
+        QCOMPARE(place(saved, QSize(), {windows}, windows), saved);
+        QVERIFY(isVisible(QRect(100, kLaptop.top() + 28, 800, 600), {kLaptop}));
+    }
+
     // The title bar is on the screen, but most of the window hangs below it.
     void mostlyOffScreen()
     {

@@ -151,8 +151,10 @@ When the window closes, its place and size are saved on this device, and whether
 
 At start, the window opens at the saved place and size, maximized if it was. The saved place is used only while it is still visible on a connected screen:
 
-- the title bar lies wholly on the screens, so the window can be moved, and
+- the lower half of the title bar lies wholly on the screens, so the window can be moved, and
 - at least half of the window is on them.
+
+Only the lower half of the title bar counts, because title bars differ in height between systems; a window against the top of a screen keeps its place.
 
 Otherwise, as after a monitor was unplugged or a resolution shrank, the window opens centred on the primary screen, at the saved size made to fit that screen. Without a saved place, as from earlier versions, it opens centred too. The check works on the screens' available areas, without the menu bar and task bar, and is a pure function in `core/WindowPlacement`. The app's icon, a temporary one, is a blue square with three dashboard panes.
 

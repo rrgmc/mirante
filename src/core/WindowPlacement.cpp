@@ -52,7 +52,11 @@ bool isVisible(const QRect &client, const QList<QRect> &screens)
 {
     if (client.isEmpty())
         return false;
-    const QRect titleBar(client.left(), client.top() - titleBarHeight, client.width(), titleBarHeight);
+    // Only the lower half of the assumed title bar is checked. The real one
+    // may be lower, such as 31 pixels on Windows 11 and 28 on macOS, and a
+    // window against the top of the screen must keep its place.
+    const int strip = titleBarHeight / 2;
+    const QRect titleBar(client.left(), client.top() - strip, client.width(), strip);
     if (coveredArea(titleBar, screens) < areaOf(titleBar))
         return false;
     const QRect frame = client.adjusted(0, -titleBarHeight, 0, 0);

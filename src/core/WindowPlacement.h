@@ -15,8 +15,10 @@ constexpr int titleBarHeight = 32;
 
 // Whether a window with this client geometry can still be seen and moved on
 // these screens, given by their available geometries. Two things must hold:
-// the title bar strip above the client area lies wholly on the screens, so the
-// window can be dragged, and at least half of the window is on them.
+// the lower half of the title bar strip above the client area lies wholly on
+// the screens, so the window can be dragged, and at least half of the window
+// is on them. Half, because real title bars are often lower than
+// titleBarHeight, and a window at the top of a screen must still count.
 bool isVisible(const QRect &client, const QList<QRect> &screens);
 
 // The client geometry to open the window at. The saved one if it is valid and
