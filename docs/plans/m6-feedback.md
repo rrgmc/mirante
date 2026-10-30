@@ -28,7 +28,7 @@ The user tried M6 and asked for these changes. They replace parts of [the M6 pla
 ## GitLab, lists (G2)
 
 - MR List and Issue List use the row links and pages, with the item fields `limit` and `pageSize`. The preview factories go. Compact dates.
-- **New type:** `gitlab.pipeline.list`, "GitLab CI Pipeline List". Fields: `project`; `source`, one of `all`, `mine`, `branch` or `mergeRequest`; `branch`; `iid`; `limit`; `pageSize`. Columns: Id, Status (pill), Ref, Author, Started, then links. Add creates a `gitlab.pipeline` item for its branch. `fromUrl` takes `<project>/-/pipelines` only for the list when it has no `ref`. Status reports the row count and no attention.
+- **New type:** `gitlab.pipeline.list`, "GitLab CI Pipeline List". Fields: `project`; `source`, one of `all`, `mine`, `branch` or `mergeRequest`; `branch`; `iid`; `limit`; `pageSize`. Columns: Id, Status (pill), Ref, Author, Started, then links. Add creates a `gitlab.pipeline` item for its branch. `fromUrl` takes `<project>/-/pipelines` with no `ref` and no id for this type as well as `gitlab.pipeline`, and the item dialog offers both. Status reports the row count and no attention.
 
 ## Jira (J)
 
