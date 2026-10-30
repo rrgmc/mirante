@@ -1,6 +1,6 @@
 # 0092. The app icon is a sunrise over dashboard tiles
 
-- Status: Superseded by 0094
+- Status: Superseded by 0096
 - Date: 2026-10-30
 
 ## Context

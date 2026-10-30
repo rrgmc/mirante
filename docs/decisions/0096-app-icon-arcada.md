@@ -1,4 +1,4 @@
-# 0094. The app icon is a landscape seen through three arches
+# 0096. The app icon is a landscape seen through three arches
 
 - Status: Accepted
 - Date: 2026-10-30
