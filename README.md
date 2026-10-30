@@ -40,6 +40,12 @@ Qt goes into `.qt/` in the repository. To share one Qt between projects, set the
 
 Each build also makes a `bin` folder in its build folder, for example `build/release/bin`. It holds a copy of the app with the Qt libraries, plugins and Qt WebEngine files it needs, so it starts without Qt on `PATH`. On macOS the folder holds the app bundle. On Linux it holds only the executable, which finds Qt on the machine that built it.
 
+If [ccache](https://ccache.dev) is installed, the build uses it, so worktrees and presets share what they have compiled. Each still has its own build folder. To share between worktrees at different paths, tell it where they live once, with the parent folder of all of them:
+
+```sh
+ccache --set-config base_dir=<parent folder>
+```
+
 ## Author
 
 Rangel Reale <realerangel@gmail.com>
