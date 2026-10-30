@@ -39,7 +39,7 @@ What each item type asks for its status:
 - **A merge request** (summary or page): the merge request, its approvals and the current user, at once. The current user is asked in every status job, and its ETag makes the repeat cheap. A summary whose head pipeline failed then asks for that pipeline's jobs. If that request fails, the status stands without the jobs.
 - **An issue** (summary or page): the issue. A summary then asks for the latest 20 notes and leaves out system notes. If that request fails, the status stands without the notes.
 - **A CI pipeline:** for a linked merge request, the merge request first, for its source branch. Then the latest pipeline of the branch, and that pipeline's jobs. A `404` for the latest pipeline means the branch has none, and is not an error.
-- **Lists** ask for nothing in M5.
+- **A list:** the list of its scope, up to 100 rows, most recently updated first. A merge request list with the `reviewRequested` preset asks for the current user first. See [decision 0067](decisions/0067-lists-report-status.md).
 
 The attention rules are in [item types](item-types.md#gitlab).
 
