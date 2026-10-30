@@ -2065,6 +2065,17 @@ void MainWindow::openWorkspace(const QString &path)
                                      tr("not a Mirante workspace: it has no %1").arg(store::workspaceFileName())}});
         return;
     }
+    // Part of the data would be missing, and edits could lose what depends on
+    // it. What is open now stays open. See decision 0074.
+    const QStringList newer = store::newerFiles(folder);
+    if (!newer.isEmpty()) {
+        setLoadProblems({LoadProblem{QDir::toNativeSeparators(folder),
+                                     tr("not opened: a newer version of Mirante wrote %n of its files, such as %1. "
+                                        "Update Mirante to open it.",
+                                        nullptr, int(newer.size()))
+                                         .arg(newer.first())}});
+        return;
+    }
     d->workspace = QDir(folder).absolutePath();
     d->openThroughStore(d->workspace);
     d->remember(d->workspace);
