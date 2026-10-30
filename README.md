@@ -39,7 +39,7 @@ ctest --preset dev
 
 Qt goes into `.qt/` in the repository. To share one Qt between projects, set the environment variable `MIRANTE_QT_ROOT` to a folder of your choice first.
 
-On macOS, set `MIRANTE_MACOS_SIGN_IDENTITY` to the name of a code signing certificate before the first `cmake --preset`, so that macOS stops asking for keychain access after each build. `security find-identity -v -p codesigning` lists your certificates. See [decision 0087](docs/decisions/0087-sign-the-macos-bundle.md).
+On macOS, the build signs the app with a code signing certificate, so that macOS stops asking for keychain access after each build. It uses the maintainer's development certificate, named in `CMakeLists.txt`, when the keychain has it. Otherwise, set `MIRANTE_MACOS_SIGN_IDENTITY` to the name of one of your certificates before the first `cmake --preset`. `security find-identity -v -p codesigning` lists them. Without a certificate the app is signed ad hoc, and macOS asks again after each build. See decisions [0090](docs/decisions/0090-sign-the-macos-bundle.md) and [0091](docs/decisions/0091-default-macos-sign-identity.md).
 
 Each build also makes a `bin` folder in its build folder, for example `build/release/bin`. It holds a copy of the app with the Qt libraries, plugins and Qt WebEngine files it needs, so it starts without Qt on `PATH`. On macOS the folder holds the app bundle. On Linux it holds only the executable, which finds Qt on the machine that built it.
 

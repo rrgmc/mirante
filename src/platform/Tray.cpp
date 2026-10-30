@@ -20,10 +20,12 @@ struct Tray::Private
 
 bool Tray::isAvailable() { return QSystemTrayIcon::isSystemTrayAvailable(); }
 
-Tray::Tray(const QIcon &icon, const QString &toolTip, QMenu *menu, QObject *parent)
+Tray::Tray(const QIcon &icon, const QIcon &monochromeIcon, const QString &toolTip, QMenu *menu,
+           QObject *parent)
     : QObject(parent)
     , d(std::make_unique<Private>())
 {
+    Q_UNUSED(monochromeIcon);
     d->base = icon;
     d->icon = new QSystemTrayIcon(icon, this);
     d->icon->setToolTip(toolTip);

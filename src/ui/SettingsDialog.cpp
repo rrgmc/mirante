@@ -193,6 +193,9 @@ void SettingsDialog::setModules(const ItemTypeRegistry &types)
         }
         auto *box = new QGroupBox(types.moduleName(moduleId), this);
         box->setObjectName(QStringLiteral("deviceSettings.") + moduleId);
+        // The macOS style leaves the title out of the box's layout rectangle,
+        // so the title overlaps the "Modules" heading above it.
+        box->setAttribute(Qt::WA_LayoutUsesWidgetRect);
         auto *form = new FieldForm(fields, EditorContext(), box);
         form->setObjectName(QStringLiteral("deviceSettingsForm.") + moduleId);
         form->setConfig(shown);
