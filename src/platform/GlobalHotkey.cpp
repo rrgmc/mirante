@@ -1,6 +1,6 @@
 #include "platform/GlobalHotkey.h"
 
-#include <QCoreApplication>
+#include <QGuiApplication>
 #include <QHotkey>
 
 namespace mirante::platform {
@@ -19,6 +19,17 @@ GlobalHotkey::GlobalHotkey(QObject *parent)
 
 GlobalHotkey::~GlobalHotkey() = default;
 
+bool GlobalHotkey::isSupported()
+{
+#if !defined(Q_OS_WIN) && !defined(Q_OS_MACOS)
+    // Qt's offscreen platform says it has X11, but without an X server its display
+    // is null, and QHotkey crashes on it.
+    if (QGuiApplication::platformName() == QLatin1String("offscreen"))
+        return false;
+#endif
+    return QHotkey::isPlatformSupported();
+}
+
 bool GlobalHotkey::setShortcut(const QKeySequence &sequence, QString *error)
 {
     d->hotkey.setRegistered(false);
@@ -26,7 +37,7 @@ bool GlobalHotkey::setShortcut(const QKeySequence &sequence, QString *error)
         return true;
 
     QString reason;
-    if (!QHotkey::isPlatformSupported())
+    if (!isSupported())
         reason = tr("this desktop does not let applications register one. Bind a desktop shortcut to Mirante instead.");
     else if (!d->hotkey.setShortcut(sequence, true))
         reason = tr("another application may already use it.");

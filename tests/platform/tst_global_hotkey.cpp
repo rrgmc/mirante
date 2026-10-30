@@ -2,7 +2,6 @@
 // either registers or says why it could not.
 #include "platform/GlobalHotkey.h"
 
-#include <QHotkey>
 #include <QTest>
 
 using namespace mirante::platform;
@@ -29,7 +28,7 @@ private slots:
         const QKeySequence sequence(Qt::CTRL | Qt::ALT | Qt::SHIFT | Qt::Key_F19);
         QString error;
         const bool ok = hotkey.setShortcut(sequence, &error);
-        if (QHotkey::isPlatformSupported()) {
+        if (GlobalHotkey::isSupported()) {
             QVERIFY2(ok, qPrintable(error));
             QVERIFY(error.isEmpty());
             QVERIFY(hotkey.setShortcut(QKeySequence(), &error));

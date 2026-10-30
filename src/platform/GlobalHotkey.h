@@ -19,6 +19,9 @@ public:
     explicit GlobalHotkey(QObject *parent = nullptr);
     ~GlobalHotkey() override;
 
+    // False where a hotkey cannot be registered, and setShortcut() says so.
+    static bool isSupported();
+
     // Replaces the current registration. An empty sequence only removes it.
     // Returns false and fills error if the sequence cannot be registered.
     bool setShortcut(const QKeySequence &sequence, QString *error = nullptr);
