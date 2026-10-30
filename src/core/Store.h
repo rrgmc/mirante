@@ -51,6 +51,10 @@ QByteArray toBytes(const QJsonObject &json);
 // docs/decisions/0027-workspace-needs-its-file.md.
 QString workspaceFileName();                // "workspace.mirante"
 bool isWorkspace(const QString &dir);
+// The files of the folder that a newer version of the app wrote, by their
+// relative paths, without loading the folder. Conflict copies do not count. A
+// workspace with any is not opened. See decision 0074.
+QStringList newerFiles(const QString &dir);
 // Makes the folder a workspace by writing its workspace.mirante, with the
 // name and a new id (decision 0059).
 bool createWorkspace(const QString &dir, const QString &name, QString *error = nullptr);

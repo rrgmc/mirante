@@ -225,6 +225,7 @@ Each module that talks to a server keeps it in its settings, one server per prof
 | Jira | `jira.general.baseUrl`, the site, such as `https://acme.atlassian.net` | none |
 | | `jira.general.deployment`: `auto`, `cloud` or `dc` | `auto`, guessed from the site |
 | | `jira.general.email`, the account's email, for Jira Cloud only | none |
+| | `jira.general.extraFields`, names of extra fields to show. See [decision 0073](decisions/0073-jira-extra-fields.md) | none |
 
 - An item uses the server of its [profile](#profile): its own, else its group's, else the default profile's.
 - Jira's deployment chooses its API and how the token is sent. `auto` means Jira Cloud for an `.atlassian.net` or `.jira.com` site, and Jira Data Center otherwise. Jira Cloud sends the email with the token, so without an email no request is sent. The email is not secret, so it is synced, but it is personal data in the shared workspace. See [integrations](integrations.md#jira) and [decision 0060](decisions/0060-jira-cloud-or-data-center-by-setting.md).

@@ -516,6 +516,30 @@ bool isWorkspace(const QString &dir)
     return !dir.isEmpty() && QFileInfo(dir + QLatin1Char('/') + kWorkspaceFile).isFile();
 }
 
+QStringList newerFiles(const QString &dir)
+{
+    const auto isNewer = [](const QString &path) {
+        QFile file(path);
+        if (!file.open(QIODevice::ReadOnly))
+            return false;
+        const QJsonValue version = QJsonDocument::fromJson(file.readAll()).object().value(kSchemaVersion);
+        return version.isDouble() && version.toDouble() > migrations::currentSchemaVersion;
+    };
+
+    QStringList found;
+    if (isNewer(dir + QLatin1Char('/') + kWorkspaceFile))
+        found << kWorkspaceFile;
+    for (const QString &subfolder : {kGroups, kProjects, kTasks, kDashboards}) {
+        const QDir folder(dir + QLatin1Char('/') + subfolder);
+        const QStringList names = folder.entryList({QStringLiteral("*.json")}, QDir::Files, QDir::Name);
+        for (const QString &name : names) {
+            if (conflicts::originalOf(name).isEmpty() && isNewer(folder.filePath(name)))
+                found << subfolder + QLatin1Char('/') + name;
+        }
+    }
+    return found;
+}
+
 bool createWorkspace(const QString &dir, const QString &name, QString *error)
 {
     if (!QDir(dir).exists()) {
