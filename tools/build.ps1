@@ -16,6 +16,14 @@ $ErrorActionPreference = 'Stop'
 
 $Repo = Split-Path -Parent $PSScriptRoot
 
+# Windows locks a running program's file, so the build would fail near its end.
+# Closing the window can leave Mirante running, hidden in the tray.
+$BuildDir = Join-Path $Repo "build\$Preset\"
+$running = Get-Process mirante -ErrorAction SilentlyContinue | Where-Object { $_.Path -and $_.Path.StartsWith($BuildDir, [StringComparison]::OrdinalIgnoreCase) }
+if ($running) {
+    throw "Mirante is still running from $($running[0].Path) (process $($running.Id -join ', ')), so the build cannot replace it. Quit it with File > Quit, or from its tray icon, then build again."
+}
+
 $QtDir = & (Join-Path $PSScriptRoot 'setup-qt.ps1') | Select-Object -Last 1
 
 if (-not $env:VSCMD_VER) {
