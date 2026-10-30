@@ -197,11 +197,11 @@ A project can set its Jira project key in the project dialog's Jira section, sto
   - Details: priority, assignee, reporter and sprint;
   - Description: rendered from the HTML in `renderedFields`;
   - Comments: the latest five, newest first;
-  - Sub-tasks and links: each with its key, which opens the issue in the external browser, its relation, summary and status.
+  - Sub-tasks and links: each with its key, which opens the issue in the external browser, its relation, summary and status. Then the issues whose parent is this one, such as the issues of an epic, with their status pills: up to 50, with a line saying how many more there are. A sub-task is not listed twice.
 - **Rendered HTML.** It loads nothing, neither images nor style sheets, so a description cannot call out. A link opens only in the external browser, resolved against the base URL, and only for `http` and `https`. All other text from the server is plain text.
 - **Actions:** Open page, or the external browser with `Shift`; and the Web link, `<baseUrl>/browse/<key>`. The view only reads. See [decision 0070](decisions/0070-read-mostly-native-views.md).
 - **Without data,** the view shows "Loading…" or the status's message. With old data and an error, it keeps the data, and the cell header shows the error.
-- **Status:** from M5. One request for the issue with all its fields, and the names of the fields, which tell which one is the sprint. The status line reads like "In Review · assigned to Ana". The item counts as closed when the status category is `done`.
+- **Status:** from M5. One request for the issue with all its fields, and the names of the fields, which tell which one is the sprint. A further search asks for its children, and if only that fails, the status stands without them. The status line reads like "In Review · assigned to Ana". The item counts as closed when the status category is `done`.
 - **Attention:** "Status changed to <name>", with the key `status:<status id>`, when the status changed since the user last viewed the item. It clears once seen, and the status an issue had when it was added does not count. See [decision 0061](decisions/0061-attention-from-status-of-any-rendering.md).
 
 ### Jira Issue (page)

@@ -72,7 +72,7 @@ Main endpoints, below the API root:
 What each item type asks for its status:
 
 - **An issue page:** the issue, with only `summary`, `status`, `assignee`, `priority`, `issuetype` and `updated`.
-- **An issue summary:** the issue, with all fields and `expand=renderedFields,names`. The sprint is the field whose entry in `names` is "Sprint", because its id differs per site.
+- **An issue summary:** the issue, with all fields and `expand=renderedFields,names`. The sprint is the field whose entry in `names` is "Sprint", because its id differs per site. Then a search for its children, with `summary` and `status`: `parent = "<key>"` on Cloud, and `"Epic Link" = "<key>" OR parent = "<key>"` on Data Center. Cloud's search gives no total, so the children are counted by fetching them, up to 500. If only this search fails, as on a site without the `Epic Link` field, the status stands without the children.
 - **A list:** one search, with `summary`, `status`, `assignee` and `updated`, up to the item's `limit` rows. A project preset without a project key, or an empty query, sends nothing. See [decision 0067](decisions/0067-lists-report-status.md).
 
 See [item types](item-types.md#jira-issue-summary).
