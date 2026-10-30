@@ -1,9 +1,9 @@
 # Pushing a tag vX.Y.Z publishes a GitHub release for it, builds and tests
 # Mirante on Windows, macOS and Linux, then attaches the Windows setup, the
 # notarised macOS disk image and the Ubuntu .deb package to the release. To
-# redo it for an existing tag, run the workflow by hand with the tag: the code
-# comes from the tag, this file from the branch it runs on. See
-# docs/releasing.md and docs/plans/m10-packaging.md.
+# redo it for an existing tag, run the workflow by hand from that tag, under
+# "Use workflow from", and give the same tag: the release environment admits
+# only tags. See docs/releasing.md and docs/plans/m10-packaging.md.
 
 name: Release
 

@@ -44,5 +44,5 @@ On Ubuntu 24.04, in a virtual machine or on a spare machine.
 ## The release workflow
 
 - [ ] Pushing a test tag, such as `v0.1.0`, publishes a release with the three files, named with the version.
-- [ ] Running the workflow by hand for the same tag replaces the files and keeps the release.
+- [ ] Running the workflow by hand from the same tag replaces the files and keeps the release.
 - [ ] A test release that should not stay is deleted with its tag.
