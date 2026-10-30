@@ -283,7 +283,11 @@ Command programCommand(Platform platform, const QString &dir, const QString &res
                        const QStringList &arguments)
 {
     if (platform == Platform::Windows && isBatchFile(resolvedProgram)) {
-        Command command{kCmd, {QStringLiteral("/c"), cmdArgument(QDir::toNativeSeparators(resolvedProgram))}, dir};
+        // Not QDir::toNativeSeparators(), which converts only when the app
+        // runs on Windows, so the tests on other platforms would differ.
+        QString path = resolvedProgram;
+        path.replace(QLatin1Char('/'), QLatin1Char('\\'));
+        Command command{kCmd, {QStringLiteral("/c"), cmdArgument(path)}, dir};
         for (const QString &argument : arguments)
             command.arguments << cmdArgument(argument);
         return command;
