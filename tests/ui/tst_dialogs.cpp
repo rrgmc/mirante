@@ -27,6 +27,7 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QListWidget>
+#include <QMenu>
 #include <QPushButton>
 #include <QSettings>
 #include <QSignalSpy>
@@ -206,6 +207,7 @@ private slots:
     void projectMainFolder();
     void projectNewFolder();
     void projectSettings();
+    void projectSettingsAdd();
     void task();
     void itemWithForm();
     void itemWithOwnEditor();
@@ -852,6 +854,104 @@ void TestDialogs::projectSettings()
     project.moduleSettings = QJsonObject();
     ProjectDialog untouched(project, model, device, projectTypes);
     QVERIFY(untouched.value().moduleSettings.isEmpty());
+}
+
+// A section shows only if the project has values for its module. "Add settings"
+// lists the others, and what is not shown is neither changed nor checked.
+void TestDialogs::projectSettingsAdd()
+{
+    ItemTypeRegistry projectTypes;
+    projectTypes.registerModule(QStringLiteral("pmod"), [](ModuleRegistrar &registrar) {
+        registrar.setModuleName(QStringLiteral("Proj Mod"));
+        Field path;
+        path.key = QStringLiteral("path");
+        path.label = QStringLiteral("Path");
+        registrar.addProjectSetting(path);
+    });
+    projectTypes.registerModule(QStringLiteral("qmod"), [](ModuleRegistrar &registrar) {
+        registrar.setModuleName(QStringLiteral("Q Mod"));
+        Field key;
+        key.key = QStringLiteral("key");
+        key.label = QStringLiteral("Key");
+        key.required = true;
+        registrar.addProjectSetting(key);
+    });
+    const DeviceSettings device(settings.get());
+    const auto box = [](const ProjectDialog &dialog, const QString &moduleId) {
+        return dialog.findChild<QGroupBox *>(QStringLiteral("section.") + moduleId);
+    };
+    const auto addSettings = [](const ProjectDialog &dialog) {
+        return dialog.findChild<QPushButton *>(QStringLiteral("addSettings"));
+    };
+
+    // One module has values, one does not, and one is not in the build.
+    Project project = *model.project(backendProject);
+    project.moduleSettings = QJsonObject{
+        {QStringLiteral("pmod"), QJsonObject{{QStringLiteral("path"), QStringLiteral("acme/api")}}},
+        {QStringLiteral("gone"), QJsonObject{{QStringLiteral("key"), 1}}},
+    };
+    ProjectDialog dialog(project, model, device, projectTypes);
+    QVERIFY(!box(dialog, QStringLiteral("pmod"))->isHidden());
+    QVERIFY(box(dialog, QStringLiteral("qmod"))->isHidden());
+    QPushButton *add = addSettings(dialog);
+    QVERIFY(add);
+    QVERIFY(!add->isHidden());
+    QCOMPARE(add->menu()->actions().size(), 1);
+    QCOMPARE(add->menu()->actions().at(0)->text(), QStringLiteral("Q Mod"));
+
+    // A hidden section adds nothing, and its required field does not refuse OK.
+    QCOMPARE(dialog.value(), project);
+    dialog.accept();
+    QCOMPARE(dialog.result(), int(QDialog::Accepted));
+    dialog.setResult(QDialog::Rejected);
+
+    // Adding shows the section, and the button goes with nothing left to add.
+    add->menu()->actions().at(0)->trigger();
+    QVERIFY(!box(dialog, QStringLiteral("qmod"))->isHidden());
+    QVERIFY(add->isHidden());
+    QVERIFY(add->menu()->isEmpty());
+    QCOMPARE(dialog.value(), project);
+    dialog.accept();
+    QCOMPARE(dialog.result(), int(QDialog::Rejected));
+    QVERIFY(dialog.findChild<QLabel *>(QStringLiteral("message"))->text().startsWith(QStringLiteral("Q Mod: ")));
+
+    auto *form = dialog.findChild<FieldForm *>(QStringLiteral("moduleSettings.qmod"));
+    qobject_cast<QLineEdit *>(form->editorFor(QStringLiteral("key")))->setText(QStringLiteral("K"));
+    dialog.accept();
+    QCOMPARE(dialog.result(), int(QDialog::Accepted));
+    Project expected = project;
+    expected.moduleSettings.insert(QStringLiteral("qmod"), QJsonObject{{QStringLiteral("key"), QStringLiteral("K")}});
+    QCOMPARE(dialog.value(), expected);
+
+    // Without values, every module is offered in the registry's order, and
+    // adding one removes only its entry.
+    project.moduleSettings = QJsonObject();
+    ProjectDialog bare(project, model, device, projectTypes);
+    QVERIFY(box(bare, QStringLiteral("pmod"))->isHidden());
+    QVERIFY(box(bare, QStringLiteral("qmod"))->isHidden());
+    QCOMPARE(addSettings(bare)->menu()->actions().size(), 2);
+    QCOMPARE(addSettings(bare)->menu()->actions().at(0)->text(), QStringLiteral("Proj Mod"));
+    addSettings(bare)->menu()->actions().at(0)->trigger();
+    QVERIFY(!box(bare, QStringLiteral("pmod"))->isHidden());
+    QVERIFY(box(bare, QStringLiteral("qmod"))->isHidden());
+    QVERIFY(!addSettings(bare)->isHidden());
+    QCOMPARE(addSettings(bare)->menu()->actions().at(0)->text(), QStringLiteral("Q Mod"));
+    // A section added and left empty stores nothing.
+    QVERIFY(bare.value().moduleSettings.isEmpty());
+
+    // Keys no field shows count as values, and an empty object stays hidden
+    // and stored as it is.
+    project.moduleSettings = QJsonObject{{QStringLiteral("pmod"), QJsonObject{{QStringLiteral("extra"), true}}},
+                                         {QStringLiteral("qmod"), QJsonObject()}};
+    ProjectDialog unknown(project, model, device, projectTypes);
+    QVERIFY(!box(unknown, QStringLiteral("pmod"))->isHidden());
+    QVERIFY(box(unknown, QStringLiteral("qmod"))->isHidden());
+    QCOMPARE(unknown.value(), project);
+
+    // A build with no project settings has no button to show.
+    ProjectDialog none(project, model, device, types);
+    QVERIFY(addSettings(none)->isHidden());
+    QCOMPARE(none.value(), project);
 }
 
 void TestDialogs::task()
