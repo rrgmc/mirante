@@ -73,6 +73,13 @@ Creating or editing a group opens the group dialog. It has the group's name, its
 
 Groups have no connections. The server each module talks to is a module setting of a profile; see [decision 0054](decisions/0054-module-settings-replace-connections.md).
 
+## Project dialog
+
+Creating or editing a project opens the project dialog. It has the project's name, its group, its priority and its folders. OK is refused while the name is empty or a folder has no name.
+
+- **Folders.** A table with each folder's name, remote URL, the Main check box and its path on this device. A folder without a path says "Folder not set on this device". "Choose…" picks the path. Exactly one folder is main when there are any. See [data model](data-model.md#folder).
+- **Project settings.** After the folders, each module with project settings has a section, titled with the module's name, such as "GitLab" with "GitLab project path", or "Jira" with "Jira project key". Each section is a form of the fields the module declared. Items of the project's tasks use these values unless they set their own. An emptied field removes its value. Settings of a module that is not in the build are kept, though no section shows them. OK is refused while a section has a problem, and the message under the dialog names the module. See [data model](data-model.md#project).
+
 ## Profiles
 
 Profiles > Manage Profiles… opens the list of the workspace's profiles; see the [Profiles menu](#profiles-menu). A profile holds web logins and module settings, such as the GitLab and Jira servers with their tokens. One profile is the default: groups and items that choose none use it. See [data model](data-model.md#profile), [web views](web-views.md#profiles) and decisions [0042](decisions/0042-user-managed-web-profiles.md), [0050](decisions/0050-profiles-hold-logins-connections-and-settings.md), [0054](decisions/0054-module-settings-replace-connections.md) and [0057](decisions/0057-any-profile-can-be-the-default.md).

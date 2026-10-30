@@ -61,6 +61,8 @@ Example with the `gitlab` and `jira` modules:
 
 Settings of a module that is not in the build are kept unchanged. See [missing modules](modules.md#missing-modules).
 
+A module declares its project settings as fields, with `addProjectSetting`, and the [project dialog](ui.md#project-dialog) edits them. A field may have any type except `Secret`, `Folder` and `Image`. Keys that no field declares are kept. A value left empty removes its key, and a module left without keys is removed from `moduleSettings`.
+
 ### Folder
 
 A folder is stored as an identity, not as a path, because paths differ between devices.
