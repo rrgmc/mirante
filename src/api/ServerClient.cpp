@@ -289,8 +289,9 @@ void ServerClient::loadToken()
         m_tokenLoading = false;
         m_tokenKnown = true;
         m_token.reset();
-        if (token && !token->isEmpty())
-            m_token = token;
+        // Trimmed too when read, for a token stored with a line break.
+        if (token && !token->trimmed().isEmpty())
+            m_token = token->trimmed();
         pump();
     });
 }

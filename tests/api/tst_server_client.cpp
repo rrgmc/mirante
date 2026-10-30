@@ -202,6 +202,7 @@ private slots:
     void clientOnlyForServerModules();
     void pathJoinsBaseWithPath();
     void headersAndToken();
+    void tokenIsTrimmed();
     void noServerSendsNothing();
     void problemSendsNothing();
     void noTokenSendsNothing();
@@ -334,6 +335,15 @@ void TestServerClient::headersAndToken()
     QNetworkRequest own;
     QVERIFY(client()->authorize(own));
     QCOMPARE(own.rawHeader("X-Token"), QByteArray("secret-1"));
+}
+
+void TestServerClient::tokenIsTrimmed()
+{
+    // As stored by a paste that brought a line break along.
+    setToken(QStringLiteral(" secret-2\r\n"));
+    m_network->handler = [](const FakeNetwork::Sent &) { return Answer{200, "{}", {}}; };
+    QVERIFY(getAndWait(QStringLiteral("api/v4/user")).ok());
+    QCOMPARE(header(m_network->sent.last(), "X-Token"), QByteArray("secret-2"));
 }
 
 void TestServerClient::noServerSendsNothing()
