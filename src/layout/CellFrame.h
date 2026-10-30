@@ -39,7 +39,7 @@ public:
     // task. An invalid colour gives the highlight tint.
     void setTint(const QColor &colour);
 
-    // In edit mode the header is a drag handle.
+    // In edit mode the header is a drag handle, and the menu button shows.
     void setEditMode(bool on);
 
     // A focused cell has a highlighted border.

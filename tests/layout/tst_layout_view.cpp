@@ -226,6 +226,7 @@ private slots:
     void remakeUnsafeCells();
     void frameBody();
     void frameHeaderWidget();
+    void menuButtonInEditMode();
     void maximiseButton();
     void factoryMakesPlacements();
     void factoryConnectsStatus();
@@ -745,6 +746,7 @@ void TestLayoutView::frameHeaderWidget()
     TestType type(false);
     CellFrame frame(itemRef(QStringLiteral("i1")), false, &type, QStringLiteral("Item"));
     frame.setMaximiseButtonVisible(true);
+    frame.setEditMode(true);
     frame.resize(500, 200);
     frame.show();
     QVERIFY(QTest::qWaitForWindowExposed(&frame));
@@ -777,6 +779,19 @@ void TestLayoutView::frameHeaderWidget()
     frame.setHeaderWidget(toolbar.get());
     QVERIFY(frame.isAncestorOf(toolbar.get()));
     frame.setHeaderWidget(nullptr);
+}
+
+void TestLayoutView::menuButtonInEditMode()
+{
+    TestType type(false);
+    CellFrame frame(itemRef(QStringLiteral("i1")), false, &type, QStringLiteral("Item"));
+    QToolButton *menu = toolButton(&frame, QStringLiteral("Cell menu"));
+    QVERIFY(menu);
+    QVERIFY(!menu->isVisibleTo(&frame));
+    frame.setEditMode(true);
+    QVERIFY(menu->isVisibleTo(&frame));
+    frame.setEditMode(false);
+    QVERIFY(!menu->isVisibleTo(&frame));
 }
 
 void TestLayoutView::maximiseButton()

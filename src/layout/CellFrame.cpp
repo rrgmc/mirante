@@ -107,6 +107,7 @@ struct CellFrame::Private
     QHBoxLayout *headerLayout = nullptr;
     HeaderRow *row = nullptr;
     QPointer<QWidget> headerWidget;     // shown between the row and the menu button; not owned
+    QToolButton *menuButton = nullptr;
     QToolButton *maximiseButton = nullptr;
     QToolButton *openAloneButton = nullptr;
     bool canMaximise = false;           // a live item cell, not an empty or removed one
@@ -255,7 +256,10 @@ CellFrame::CellFrame(const std::optional<CellRef> &ref, bool removed, const Item
 
     d->showStatus();
 
+    // The menu button shows in edit mode only. Locked, the header's buttons
+    // cover the menu's view commands, and a right click still opens it.
     auto *menuButton = new QToolButton(d->header);
+    d->menuButton = menuButton;
     menuButton->setAutoRaise(true);
     menuButton->setText(QString(QChar(0x22EE)));   // vertical ellipsis
     menuButton->setToolTip(tr("Cell menu"));
@@ -358,6 +362,7 @@ void CellFrame::setEditMode(bool on)
 {
     d->editMode = on;
     d->header->editMode = on;
+    d->menuButton->setVisible(on);
     if (on)
         d->header->setCursor(Qt::OpenHandCursor);
     else
