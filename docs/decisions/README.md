@@ -100,7 +100,8 @@ Each file records one design decision: what was decided, what else was considere
 | [0093](0093-dock-shows-the-bundle-icon.md) | The macOS Dock shows the bundle's icon | Accepted |
 | [0094](0094-built-in-panels-as-a-core-item-type.md) | Built-in panels are one core item type, and see only their own task and group | Proposed |
 | [0095](0095-the-bridge-gives-texts-and-colours.md) | The bridge gives panels their texts and colours | Proposed |
-| [0096](0096-app-icon-arcada.md) | The app icon is a landscape seen through three arches | Accepted |
+| [0096](0096-app-icon-arcada.md) | The app icon is a landscape seen through three arches | Superseded by 0097 |
+| [0097](0097-app-icon-monte.md) | The app icon is an M drawn as two peaks under the sun | Accepted |
 
 ## Template
 
