@@ -946,6 +946,45 @@ private slots:
         QCOMPARE(f.window->workspace(), folder);
     }
 
+    // A workspace with a file from a newer version of the app is not opened,
+    // and nothing in it is written. What was open stays open.
+    void workspaceWithANewerFileIsRefused()
+    {
+        QTemporaryDir open;
+        QTemporaryDir refused;
+        QVERIFY(open.isValid() && refused.isValid());
+        QVERIFY(copyFixtures(open.path()));
+        QVERIFY(copyFixtures(refused.path()));
+        const QString newerPath = refused.filePath(QStringLiteral("groups/newer.json"));
+        const QByteArray newer = R"({"schemaVersion":9999,"id":"newer","name":"From the future"})";
+        QFile file(newerPath);
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        file.write(newer);
+        file.close();
+
+        Fixture f;
+        const QString folder = QDir(open.path()).absolutePath();
+        f.window->openWorkspace(folder);
+        f.window->openWorkspace(refused.path());
+
+        QCOMPARE(f.window->workspace(), folder);
+        QCOMPARE(f.dataStore.dir(), folder);
+        QCOMPARE(f.window->recentWorkspaces(), QStringList{folder});
+        QVERIFY(!f.warningBar()->isHidden());
+        QVERIFY(f.warningText().contains(QStringLiteral("newer version")));
+        QVERIFY(f.warningText().contains(QStringLiteral("groups/newer.json")));
+
+        // At the start, with nothing open, nothing is loaded.
+        Fixture start;
+        start.window->openWorkspace(refused.path());
+        QVERIFY(start.window->workspace().isEmpty());
+        QVERIFY(start.dataStore.dir().isEmpty());
+        QVERIFY(!start.warningBar()->isHidden());
+
+        QVERIFY(file.open(QIODevice::ReadOnly));
+        QCOMPARE(file.readAll(), newer);
+    }
+
     // Another device may give the workspace a new id, for example when it
     // opened a copy synced before this device wrote the id. The logins of the
     // id this device knew move to the new one. An id this device gives, as

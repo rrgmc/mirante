@@ -191,6 +191,10 @@ void TestStoreReload::newerFile()
     model.setGroup(group);
     store.flush();
     QCOMPARE(readFile(path(QStringLiteral("groups/g1.json"))), newer);
+
+    // The window asks about the folder before it opens it. A file of the
+    // current version does not count.
+    QCOMPARE(store::newerFiles(m_dir->path()), QStringList{QStringLiteral("groups/g1.json")});
 }
 
 void TestStoreReload::removedFile()
