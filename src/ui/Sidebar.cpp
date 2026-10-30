@@ -263,8 +263,8 @@ Sidebar::Sidebar(const Model &model, const ItemTypeRegistry &types, QWidget *par
     d->tree->setPalette(treePalette);
     d->tree->setFrameShape(QFrame::NoFrame);
     d->tree->setSelectionMode(QAbstractItemView::SingleSelection);
-    // Items and dashboards are dragged onto dashboards. Groups, projects and
-    // tasks are dragged among their siblings; the model reports the drop.
+    // Items and dashboards are dragged onto dashboards. Every row but the two
+    // lists of a task is dragged among its siblings; the model reports the drop.
     d->tree->setDragEnabled(true);
     d->tree->setDragDropMode(QAbstractItemView::DragDrop);
     d->tree->setDropIndicatorShown(true);

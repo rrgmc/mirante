@@ -32,6 +32,20 @@ bool containsId(const std::vector<T> &list, const QString &id)
     return std::any_of(list.begin(), list.end(), [&id](const T &e) { return e.id == id; });
 }
 
+// Moves the element with id to index among the other elements, clamped. An
+// unknown id changes nothing.
+template <typename T>
+void moveInList(std::vector<T> &list, const QString &id, int index)
+{
+    const auto it = std::find_if(list.begin(), list.end(), [&id](const T &e) { return e.id == id; });
+    if (it == list.end())
+        return;
+    T moved = std::move(*it);
+    list.erase(it);
+    index = std::clamp(index, 0, static_cast<int>(list.size()));
+    list.insert(list.begin() + index, std::move(moved));
+}
+
 // Moves the entry with id to index among the entries for which inList is true,
 // in the order given by before, and renumbers order in that list from 0.
 // setList is called on the moved entry first, to put it in the list. Returns
@@ -160,6 +174,18 @@ Task setDefaultDashboard(Task task, const QString &dashboardId)
 {
     if (containsId(task.dashboards, dashboardId))
         task.defaultDashboardId = dashboardId;
+    return task;
+}
+
+Task moveItem(Task task, const QString &itemId, int index)
+{
+    moveInList(task.items, itemId, index);
+    return task;
+}
+
+Task moveDashboard(Task task, const QString &dashboardId, int index)
+{
+    moveInList(task.dashboards, dashboardId, index);
     return task;
 }
 
