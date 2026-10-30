@@ -300,10 +300,16 @@ There is no public API for these sessions, so the app has no status or summary f
   - `sessionId`, the session id, required;
   - `folder`, one of the project's folders, the main folder when empty;
   - `device`, a note about which device the session lives on.
-- **Shows:** the session id, folder and device, plus a "Resume in terminal" button.
-- **Action:** runs `claude --resume <id>` in a terminal in the folder's local path. See [terminal launch](integrations.md#terminal-launch).
+- **Shows:** the session id, the folder's name and local path, and the device, plus a "Resume in terminal" button.
+- **Action:** runs the `claude` module's `program` device setting (default `claude`) with `--resume <id>`, in a terminal in the folder's local path. See [terminal launch](integrations.md#terminal-launch).
 
-Local sessions exist on one device only. On other devices the panel shows the device name and disables the button.
+The button is disabled, with the reason under it, in this order of priority:
+
+- the id is empty, or holds anything but letters, digits and dashes;
+- `device` is set and differs from this device's name, ignoring case and surrounding spaces ("This session lives on <device>."). Local sessions exist on one device only;
+- the folder has no local path on this device ("Set the folder's path on this device."), with a **Choose folder…** button.
+
+A launch failure shows its message under the button.
 
 ## General
 
@@ -340,12 +346,14 @@ Local sessions exist on one device only. On other devices the panel shows the de
 
 - **Configuration:** `folder`, one of the project's folders, required.
 - **Shows:**
-  - the local path on this device;
-  - the current Git branch;
-  - a short `git status` summary.
-- **Actions:** open a terminal, open in the editor, open in the file manager.
+  - the folder's name, which is the last part of its local path, and the path;
+  - the current Git branch, or "Detached at <commit>";
+  - one line of `git status`, such as "2 ahead · 3 changed · 1 untracked", without the counts that are zero, or "Clean". Outside a repository it says "Not a Git repository", and without Git "Git was not found"; the branch still comes from the files.
+- **Actions:** open a terminal, open in the editor, open in the file manager. They work whatever Git says. A failure shows its message under them.
 
-The editor command is a device setting of the `folder` module. The terminal command is a core device setting.
+The Git state is read when the view shows and every 10 seconds while it is visible. A folder with no local path on this device shows "Folder not set on this device" with **Choose folder…** instead of the actions.
+
+The editor command is a device setting of the `folder` module, default `code`. It is split like a command line: its first part is the program, the rest its arguments, and the folder's path the last argument. The terminal command is a core device setting. See [decision 0082](decisions/0082-commands-as-argument-lists.md).
 
 ### Built-in panels
 

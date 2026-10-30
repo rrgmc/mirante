@@ -15,10 +15,10 @@ namespace {
 
 // The Notes type. Its text is in the configuration under "text", which the
 // item dialog does not show, so it keeps it.
-class StubItemType : public ItemType
+class NotesItemType : public ItemType
 {
 public:
-    StubItemType(const QString &id, const QString &name)
+    NotesItemType(const QString &id, const QString &name)
         : m_id(id)
         , m_name(name)
         , m_icon(QStringLiteral(":/modules/notes/icons/notes.svg"))
@@ -56,7 +56,7 @@ void registerModule(ModuleRegistrar &registrar)
     registrar.setModuleName(QStringLiteral("Notes"));
     registrar.setModuleDescription(QCoreApplication::translate(
         "notes", "Markdown notes, kept in the task's file, so they sync with the workspace."));
-    registrar.addItemType(std::make_unique<StubItemType>(
+    registrar.addItemType(std::make_unique<NotesItemType>(
         QStringLiteral("notes"), QCoreApplication::translate("notes", "Notes")));
 }
 

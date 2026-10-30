@@ -16,10 +16,10 @@ namespace mirante::modules::image {
 namespace {
 
 // The Image type.
-class StubItemType : public ItemType
+class ImageItemType : public ItemType
 {
 public:
-    StubItemType(const QString &id, const QString &name)
+    ImageItemType(const QString &id, const QString &name)
         : m_id(id)
         , m_name(name)
         , m_icon(QStringLiteral(":/modules/image/icons/image.svg"))
@@ -79,7 +79,7 @@ void registerModule(ModuleRegistrar &registrar)
     registrar.setModuleName(QStringLiteral("Image"));
     registrar.setModuleDescription(QCoreApplication::translate(
         "image", "Images, such as screenshots or diagrams, with an optional link and memo."));
-    registrar.addItemType(std::make_unique<StubItemType>(
+    registrar.addItemType(std::make_unique<ImageItemType>(
         QStringLiteral("image"), QCoreApplication::translate("image", "Image")));
 }
 
