@@ -1,6 +1,6 @@
 // Tests the group, project, task, item, dashboard and profiles dialogs: values read back, refusal of an empty name, the group's profile,
 // the one main folder, the item editor paths (a form from fields, a type's own
-// editor, an item of a missing module), the type grid of a new item, the
+// editor, an item of a missing module), the type tree of a new item, the
 // item's profile and the form fields of that profile, creating, renaming and
 // deleting profiles.
 #include "core/DeviceSettings.h"
@@ -36,6 +36,7 @@
 #include <QTableWidget>
 #include <QTemporaryDir>
 #include <QToolButton>
+#include <QTreeWidget>
 #include <QTest>
 
 #include <memory>
@@ -96,6 +97,7 @@ class FormType : public ItemType
 public:
     QString id() const override { return formType; }
     QString name() const override { return QStringLiteral("Form type"); }
+    QString description() const override { return QStringLiteral("Paths, in a form."); }
     QIcon icon() const override { return {}; }
     bool hasStatus() const override { return true; }
 
@@ -137,6 +139,13 @@ public:
     QIcon icon() const override { return {}; }
     Rendering rendering() const override { return Rendering::Web; }
 };
+
+// The id of the type row that is current in a new item's type tree, or
+// empty for a module row.
+QString currentType(const QTreeWidget *tree)
+{
+    return tree->currentItem() ? tree->currentItem()->data(0, Qt::UserRole).toString() : QString();
+}
 
 Profile profile(const QString &id, const QString &name)
 {
@@ -215,7 +224,7 @@ private slots:
     void itemWithForm();
     void itemWithOwnEditor();
     void itemChoosingType();
-    void itemTypeGridStart();
+    void itemTypeTreeStart();
     void itemOfMissingModule();
     void itemProfile();
     void itemFieldsOfTheProfile();
@@ -1134,23 +1143,32 @@ void TestDialogs::itemWithOwnEditor()
 
 void TestDialogs::itemChoosingType()
 {
-    // A new item starts on the type grid, with the first type by name chosen.
+    // A new item starts on the type tree: the module, with its types by name,
+    // and the first type chosen.
     Item item;
     item.id = QStringLiteral("i3");
     ItemDialog dialog(item, true, types, {});
     dialog.show();     // the default button presses only while it shows
     QVERIFY(dialog.choosingType());
     QVERIFY(!dialog.findChild<QComboBox *>(QStringLiteral("type")));
-    auto *list = dialog.findChild<QListWidget *>(QStringLiteral("types"));
-    QVERIFY(list);
-    QCOMPARE(list->viewMode(), QListView::IconMode);
-    QCOMPARE(list->count(), 3);
-    QCOMPARE(list->item(0)->text(), QStringLiteral("Form type"));
-    QCOMPARE(list->item(1)->text(), QStringLiteral("Own editor"));
-    QCOMPARE(list->item(2)->text(), QStringLiteral("Web type"));
-    QCOMPARE(list->currentRow(), 0);
+    auto *tree = dialog.findChild<QTreeWidget *>(QStringLiteral("types"));
+    QVERIFY(tree);
+    QCOMPARE(tree->topLevelItemCount(), 1);
+    QTreeWidgetItem *module = tree->topLevelItem(0);
+    QCOMPARE(module->text(0), QStringLiteral("testmod"));
+    QVERIFY(module->isExpanded());
+    QCOMPARE(module->childCount(), 3);
+    QCOMPARE(module->child(0)->text(0), QStringLiteral("Form type"));
+    QCOMPARE(module->child(1)->text(0), QStringLiteral("Own editor"));
+    QCOMPARE(module->child(2)->text(0), QStringLiteral("Web type"));
+    QCOMPARE(currentType(tree), formType);
     QVERIFY(!dialog.editor());
     QVERIFY(dialog.value().type.isEmpty());
+
+    // The details pane describes the current type.
+    QCOMPARE(dialog.findChild<QLabel *>(QStringLiteral("typeDetailsName"))->text(), QStringLiteral("Form type"));
+    QCOMPARE(dialog.findChild<QLabel *>(QStringLiteral("typeDescription"))->text(),
+             QStringLiteral("Paths, in a form."));
 
     auto *next = dialog.findChild<QPushButton *>(QStringLiteral("next"));
     auto *back = dialog.findChild<QPushButton *>(QStringLiteral("back"));
@@ -1158,8 +1176,19 @@ void TestDialogs::itemChoosingType()
     QVERIFY(back);
     QVERIFY(next->isDefault());
 
-    // Accepting on the type grid goes on with the selected type instead.
-    list->setCurrentRow(1);
+    // A module row is not a type, so Next is disabled on it, and accepting
+    // or a double click stays on the tree.
+    tree->setCurrentItem(module);
+    QVERIFY(!next->isEnabled());
+    QCOMPARE(dialog.findChild<QLabel *>(QStringLiteral("typeDetailsName"))->text(), QStringLiteral("testmod"));
+    dialog.accept();
+    QVERIFY(dialog.choosingType());
+    emit tree->itemDoubleClicked(module, 0);
+    QVERIFY(dialog.choosingType());
+
+    // Accepting on the type tree goes on with the selected type instead.
+    tree->setCurrentItem(module->child(1));
+    QVERIFY(next->isEnabled());
     dialog.accept();
     QCOMPARE(dialog.result(), int(QDialog::Rejected));
     QVERIFY(!dialog.choosingType());
@@ -1176,7 +1205,7 @@ void TestDialogs::itemChoosingType()
     editor->line->setText(QStringLiteral("kept"));
     back->click();
     QVERIFY(dialog.choosingType());
-    QCOMPARE(list->currentRow(), 1);
+    QCOMPARE(currentType(tree), editorType);
     next->click();
     QVERIFY(!dialog.choosingType());
     QCOMPARE(dialog.editor(), editor);
@@ -1184,7 +1213,7 @@ void TestDialogs::itemChoosingType()
 
     // Another type replaces the editor and starts from its defaults.
     dialog.back();
-    emit list->itemDoubleClicked(list->item(0));
+    emit tree->itemDoubleClicked(module->child(0), 0);
     QVERIFY(!dialog.choosingType());
     QCOMPARE(dialog.value().type, formType);
     QVERIFY(qobject_cast<FieldForm *>(dialog.editor()));
@@ -1193,33 +1222,32 @@ void TestDialogs::itemChoosingType()
              (QJsonObject{{QStringLiteral("url"), QStringLiteral("https://example.com")}}));
     QCOMPARE(dialog.value().name, QStringLiteral("New"));
 
-    // setType chooses as the grid does.
+    // setType chooses as the tree does.
     dialog.setType(editorType);
     QVERIFY(dynamic_cast<TestEditor *>(dialog.editor()));
-    QCOMPARE(list->currentRow(), 1);
+    QCOMPARE(currentType(tree), editorType);
 
-    // Enter on the grid presses Next.
+    // Enter on the tree presses Next.
     dialog.back();
-    list->setCurrentRow(2);
-    QTest::keyClick(list, Qt::Key_Return);
+    tree->setCurrentItem(module->child(2));
+    QTest::keyClick(tree, Qt::Key_Return);
     QVERIFY(!dialog.choosingType());
     QCOMPARE(dialog.value().type, webType);
 }
 
-void TestDialogs::itemTypeGridStart()
+void TestDialogs::itemTypeTreeStart()
 {
     // A new item with a type starts with that type selected.
     Item item;
     item.id = QStringLiteral("i8");
     item.type = webType;
     ItemDialog dialog(item, true, types, {});
-    auto *list = dialog.findChild<QListWidget *>(QStringLiteral("types"));
-    QCOMPARE(list->currentRow(), 2);
+    QCOMPARE(currentType(dialog.findChild<QTreeWidget *>(QStringLiteral("types"))), webType);
 
     // An empty registry offers no type, and Next is disabled.
     ItemTypeRegistry none;
     ItemDialog empty(Item{}, true, none, {});
-    QCOMPARE(empty.findChild<QListWidget *>(QStringLiteral("types"))->count(), 0);
+    QCOMPARE(empty.findChild<QTreeWidget *>(QStringLiteral("types"))->topLevelItemCount(), 0);
     QVERIFY(!empty.findChild<QPushButton *>(QStringLiteral("next"))->isEnabled());
     empty.accept();
     QVERIFY(empty.choosingType());
@@ -1232,7 +1260,7 @@ void TestDialogs::itemTypeGridStart()
     existing.name = QStringLiteral("Paths");
     ItemDialog editing(existing, false, types, {});
     QVERIFY(!editing.choosingType());
-    QVERIFY(!editing.findChild<QListWidget *>(QStringLiteral("types")));
+    QVERIFY(!editing.findChild<QTreeWidget *>(QStringLiteral("types")));
     QVERIFY(!editing.findChild<QPushButton *>(QStringLiteral("back")));
     editing.setType(editorType);
     QCOMPARE(editing.value().type, formType);

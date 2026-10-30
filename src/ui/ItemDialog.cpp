@@ -10,56 +10,33 @@
 #include <QCheckBox>
 #include <QComboBox>
 #include <QDialogButtonBox>
+#include <QFrame>
 #include <QFormLayout>
 #include <QHBoxLayout>
 #include <QKeySequenceEdit>
 #include <QLabel>
 #include <QLineEdit>
 #include <QListWidget>
-#include <QPainter>
 #include <QPushButton>
 #include <QSignalBlocker>
+#include <QSplitter>
 #include <QStackedWidget>
-#include <QStyledItemDelegate>
+#include <QTreeWidget>
 #include <QVBoxLayout>
+
+#include <algorithm>
 
 namespace mirante {
 
 namespace {
 
-// The type grid: icons of this size, in cells of this size, with up to three
-// lines of name under each icon. Names such as "GitLab Merge Request (page)"
-// differ only at the end, so they wrap instead of being cut short.
-constexpr int kTypeIconSize = 48;
-constexpr QSize kTypeCellSize(140, 120);
+// The data role of a type row's type id. A module row has none.
+constexpr int kTypeIdRole = Qt::UserRole;
 
-// Paints an entry of the type grid as Finder's icon view does: the selected
-// or hovered entry gets a soft rounded fill around its icon and name, and the
-// name keeps the normal text colour.
-class TypeGridDelegate : public QStyledItemDelegate
-{
-public:
-    using QStyledItemDelegate::QStyledItemDelegate;
+// The size of the current type's icon in the details pane.
+constexpr int kDetailsIconSize = 32;
 
-    void paint(QPainter *painter, const QStyleOptionViewItem &option, const QModelIndex &index) const override
-    {
-        const bool selected = option.state & QStyle::State_Selected;
-        const bool hovered = option.state & QStyle::State_MouseOver;
-        if (selected || hovered) {
-            QColor fill = option.palette.color(QPalette::Highlight);
-            fill.setAlphaF(selected ? 0.22f : 0.08f);
-            painter->save();
-            painter->setRenderHint(QPainter::Antialiasing);
-            painter->setPen(Qt::NoPen);
-            painter->setBrush(fill);
-            painter->drawRoundedRect(QRectF(option.rect).adjusted(4, 2, -4, -2), 8, 8);
-            painter->restore();
-        }
-        QStyleOptionViewItem plain = option;
-        plain.state &= ~(QStyle::State_Selected | QStyle::State_MouseOver | QStyle::State_HasFocus);
-        QStyledItemDelegate::paint(painter, plain, index);
-    }
-};
+QString moduleOf(const QString &typeId) { return typeId.section(QLatin1Char('.'), 0, 0); }
 
 } // namespace
 
@@ -75,7 +52,10 @@ struct ItemDialog::Private
     QStackedWidget *pages = nullptr;
     QWidget *typePage = nullptr;        // only when creating
     QWidget *itemPage = nullptr;
-    QListWidget *typeList = nullptr;    // only when creating
+    QTreeWidget *typeTree = nullptr;    // only when creating: the modules, with their types
+    QLabel *detailsIcon = nullptr;      // only when creating: the current row's icon,
+    QLabel *detailsName = nullptr;      // name
+    QLabel *detailsText = nullptr;      // and description
     QLabel *typeIcon = nullptr;
     QLabel *typeName = nullptr;
     QLineEdit *name = nullptr;
@@ -111,12 +91,36 @@ struct ItemDialog::Private
         return nullptr;
     }
 
-    // Fills the grid: every type, or the types that take the link, best
-    // first. The selected type stays selected if it is still listed.
+    // The type id of the current row, or empty for a module row or none.
+    QString currentTypeId() const
+    {
+        const QTreeWidgetItem *current = typeTree->currentItem();
+        return current ? current->data(0, kTypeIdRole).toString() : QString();
+    }
+
+    // The row of the type with id, or null if it is not shown.
+    QTreeWidgetItem *typeRow(const QString &id) const
+    {
+        for (int i = 0; i < typeTree->topLevelItemCount(); ++i) {
+            QTreeWidgetItem *module = typeTree->topLevelItem(i);
+            for (int j = 0; j < module->childCount(); ++j) {
+                if (module->child(j)->data(0, kTypeIdRole).toString() == id)
+                    return module->child(j);
+            }
+        }
+        return nullptr;
+    }
+
+    QTreeWidgetItem *firstTypeRow() const
+    {
+        return typeTree->topLevelItemCount() > 0 ? typeTree->topLevelItem(0)->child(0) : nullptr;
+    }
+
+    // Fills the tree: every type, or the types that take the link, under
+    // their modules. The selected type stays selected if it is still shown.
     void fillTypeList()
     {
-        const QListWidgetItem *current = typeList->currentItem();
-        const QString selected = current ? current->data(Qt::UserRole).toString() : QString();
+        const QString selected = currentTypeId();
 
         url = urlmatches::webAddress(urlEdit->text());
         // A link is read in the profile a new item uses: its group's.
@@ -129,32 +133,48 @@ struct ItemDialog::Private
                 shown.push_back(entry.type);
         }
 
-        typeList->clear();
-        int row = 0;
-        // The registry lists types by name. Names start with their product,
-        // such as "GitLab" or "Jira", so the types of a module stay together.
+        // The modules in the order of their first type, so that with a link
+        // the module of the best match comes first.
+        QStringList moduleIds;
         for (const ItemType *type : shown) {
-            auto *entry = new QListWidgetItem(type->icon(), type->name(), typeList);
-            entry->setData(Qt::UserRole, type->id());
-            entry->setToolTip(type->name());
-            entry->setTextAlignment(Qt::AlignHCenter | Qt::AlignTop);
-            entry->setSizeHint(kTypeCellSize);
-            if (type->id() == selected && !url.isEmpty())
-                row = typeList->count() - 1;
+            if (!moduleIds.contains(moduleOf(type->id())))
+                moduleIds << moduleOf(type->id());
         }
-        // With a link, the best match is selected first.
+        // Without a link, the built-in module first, then the others by name,
+        // as the Modules dialog lists them.
         if (url.isEmpty()) {
-            for (int i = 0; i < typeList->count(); ++i) {
-                if (typeList->item(i)->data(Qt::UserRole).toString() == selected)
-                    row = i;
-            }
-        } else {
-            row = 0;
+            std::stable_sort(moduleIds.begin(), moduleIds.end(), [this](const QString &a, const QString &b) {
+                if (types->isBuiltIn(a) != types->isBuiltIn(b))
+                    return types->isBuiltIn(a);
+                return types->moduleName(a).compare(types->moduleName(b), Qt::CaseInsensitive) < 0;
+            });
         }
-        if (typeList->count() > 0)
-            typeList->setCurrentRow(row);
-        if (next)
-            next->setEnabled(typeList->count() > 0);
+
+        {
+            const QSignalBlocker blocker(typeTree);
+            typeTree->clear();
+            for (const QString &moduleId : moduleIds) {
+                auto *module = new QTreeWidgetItem(typeTree, QStringList{types->moduleName(moduleId)});
+                QFont font = module->font(0);
+                font.setBold(true);
+                module->setFont(0, font);
+                for (const ItemType *type : shown) {
+                    if (moduleOf(type->id()) != moduleId)
+                        continue;
+                    auto *row = new QTreeWidgetItem(module, QStringList{type->name()});
+                    row->setData(0, kTypeIdRole, type->id());
+                    row->setIcon(0, type->icon());
+                }
+            }
+            typeTree->expandAll();
+        }
+
+        // With a link, the best match is selected first.
+        QTreeWidgetItem *current = url.isEmpty() ? typeRow(selected) : nullptr;
+        if (!current)
+            current = firstTypeRow();
+        typeTree->setCurrentItem(current);
+        showDetails();
 
         const QString text = urlEdit->text().trimmed();
         if (types->types().empty())
@@ -168,6 +188,35 @@ struct ItemDialog::Private
                                  "Double-click one, or select it and choose Next."));
         else
             typeHint->setText(tr("Double-click a type, or select it and choose Next."));
+    }
+
+    // Describes the current row, a type or a module. Next is enabled only
+    // for a type.
+    void showDetails()
+    {
+        const QTreeWidgetItem *current = typeTree->currentItem();
+        const QString id = currentTypeId();
+        if (next)
+            next->setEnabled(!id.isEmpty());
+        detailsIcon->hide();
+        if (!current) {
+            detailsName->clear();
+            detailsText->clear();
+        } else if (id.isEmpty()) {
+            const QTreeWidgetItem *first = current->child(0);
+            const QString moduleId = first ? moduleOf(first->data(0, kTypeIdRole).toString()) : QString();
+            detailsName->setText(current->text(0));
+            detailsText->setText(types->moduleDescription(moduleId));
+        } else {
+            const ItemType &type = types->type(id);
+            const QIcon icon = type.icon();
+            if (!icon.isNull()) {
+                detailsIcon->setPixmap(icon.pixmap(kDetailsIconSize, kDetailsIconSize));
+                detailsIcon->show();
+            }
+            detailsName->setText(type.name());
+            detailsText->setText(type.description());
+        }
     }
 
     // Replaces the editor with one for the type of item, showing config.
@@ -198,7 +247,7 @@ struct ItemDialog::Private
         // A built-in panel takes no keys of its own.
         form->setRowVisible(pageKeys, types->contains(item.type)
                                           && types->type(item.type).rendering() == Rendering::Web
-                                          && !types->isBuiltIn(item.type.section(QLatin1Char('.'), 0, 0)));
+                                          && !types->isBuiltIn(moduleOf(item.type)));
     }
 
     // The keys the item's web page keeps instead of the app's shortcuts:
@@ -305,7 +354,7 @@ struct ItemDialog::Private
         // Enter presses the button that goes on.
         (typePageShown ? next : ok)->setDefault(true);
         if (typePageShown)
-            typeList->setFocus();
+            typeTree->setFocus();
         else
             name->setFocus();
     }
@@ -349,8 +398,9 @@ struct ItemDialog::Private
 
     void chooseSelected()
     {
-        if (QListWidgetItem *selected = typeList->currentItem())
-            choose(selected->data(Qt::UserRole).toString());
+        const QString id = currentTypeId();
+        if (!id.isEmpty())
+            choose(id);
     }
 
     QWidget *makeTypePage()
@@ -366,22 +416,46 @@ struct ItemDialog::Private
 
         auto *heading = new QLabel(tr("Choose the type of the new item."), page);
 
-        typeList = new QListWidget(page);
-        typeList->setObjectName(QStringLiteral("types"));
-        typeList->setViewMode(QListView::IconMode);
-        typeList->setIconSize(QSize(kTypeIconSize, kTypeIconSize));
-        typeList->setGridSize(kTypeCellSize);
-        typeList->setMovement(QListView::Static);
-        typeList->setResizeMode(QListView::Adjust);
-        typeList->setWrapping(true);
-        typeList->setWordWrap(true);
-        // Each entry has the cell's size, so the view gives its text room for
-        // three lines. Uniform sizes would take a one-line entry's height.
-        typeList->setTextElideMode(Qt::ElideRight);
-        typeList->setEditTriggers(QAbstractItemView::NoEditTriggers);
-        typeList->setSelectionMode(QAbstractItemView::SingleSelection);
-        typeList->setItemDelegate(new TypeGridDelegate(typeList));
-        typeList->setMouseTracking(true);
+        typeTree = new QTreeWidget(page);
+        typeTree->setObjectName(QStringLiteral("types"));
+        typeTree->setHeaderHidden(true);
+        typeTree->setRootIsDecorated(true);
+        typeTree->setEditTriggers(QAbstractItemView::NoEditTriggers);
+        typeTree->setSelectionMode(QAbstractItemView::SingleSelection);
+
+        // The current type's icon, name and description.
+        auto *details = new QFrame(page);
+        details->setObjectName(QStringLiteral("typeDetails"));
+        details->setFrameShape(QFrame::StyledPanel);
+        details->setBackgroundRole(QPalette::Base);
+        details->setAutoFillBackground(true);
+        detailsIcon = new QLabel(details);
+        detailsName = new QLabel(details);
+        detailsName->setObjectName(QStringLiteral("typeDetailsName"));
+        detailsName->setWordWrap(true);
+        QFont font = detailsName->font();
+        font.setBold(true);
+        font.setPointSizeF(font.pointSizeF() * 1.2);
+        detailsName->setFont(font);
+        detailsText = new QLabel(details);
+        detailsText->setObjectName(QStringLiteral("typeDescription"));
+        detailsText->setTextFormat(Qt::PlainText);
+        detailsText->setWordWrap(true);
+        detailsText->setAlignment(Qt::AlignLeft | Qt::AlignTop);
+        auto *title = new QHBoxLayout;
+        title->addWidget(detailsIcon);
+        title->addWidget(detailsName, 1);
+        auto *detailsLayout = new QVBoxLayout(details);
+        detailsLayout->addLayout(title);
+        detailsLayout->addWidget(detailsText, 1);
+
+        auto *splitter = new QSplitter(page);
+        splitter->setChildrenCollapsible(false);
+        splitter->addWidget(typeTree);
+        splitter->addWidget(details);
+        splitter->setStretchFactor(0, 0);
+        splitter->setStretchFactor(1, 1);
+        splitter->setSizes({260, 400});
 
         typeHint = new QLabel(page);
         typeHint->setObjectName(QStringLiteral("typeHint"));
@@ -395,7 +469,7 @@ struct ItemDialog::Private
         layout->addWidget(urlEdit);
         layout->addSpacing(6);
         layout->addWidget(heading);
-        layout->addWidget(typeList, 1);
+        layout->addWidget(splitter, 1);
         layout->addWidget(typeHint);
         return page;
     }
@@ -415,7 +489,7 @@ ItemDialog::ItemDialog(const Item &item, bool creating, const ItemTypeRegistry &
 
     setWindowTitle(creating ? tr("New item") : tr("Edit item"));
     if (creating)
-        resize(660, 480);
+        resize(700, 480);
     else
         resize(480, 360);
 
@@ -464,7 +538,7 @@ ItemDialog::ItemDialog(const Item &item, bool creating, const ItemTypeRegistry &
     if (!creating && !types.contains(d->item.type)) {
         // A type whose module is in the build was removed from it; see
         // decision 0084.
-        const bool removed = types.moduleIds().contains(d->item.type.section(QLatin1Char('.'), 0, 0));
+        const bool removed = types.moduleIds().contains(moduleOf(d->item.type));
         auto *missing = new QLabel(
             removed ? tr("This item type is no longer available, so only the name can be changed. "
                          "The rest of the item is kept.")
@@ -514,21 +588,18 @@ ItemDialog::ItemDialog(const Item &item, bool creating, const ItemTypeRegistry &
         d->item.type.clear();
         d->item.config = {};
         form->setRowVisible(d->profile, false);
-        QListWidget *list = d->typeList;
-        int row = 0;
-        for (int i = 0; i < list->count(); ++i) {
-            if (list->item(i)->data(Qt::UserRole).toString() == item.type)
-                row = i;
-        }
-        if (list->count() > 0)
-            list->setCurrentRow(row);
-        d->next->setEnabled(list->count() > 0);
-        // Enter on the list reaches the dialog, and so presses Next.
-        connect(list, &QListWidget::itemDoubleClicked, this, [this](QListWidgetItem *entry) {
-            d->typeList->setCurrentItem(entry);
+        if (QTreeWidgetItem *row = d->typeRow(item.type))
+            d->typeTree->setCurrentItem(row);
+        // Enter on the tree reaches the dialog, and so presses Next. A double
+        // click on a module row opens or closes it instead.
+        connect(d->typeTree, &QTreeWidget::itemDoubleClicked, this, [this](QTreeWidgetItem *row) {
+            if (row->data(0, kTypeIdRole).toString().isEmpty())
+                return;
+            d->typeTree->setCurrentItem(row);
             d->chooseSelected();
         });
-        connect(list, &QListWidget::currentRowChanged, this, [this](int current) { d->next->setEnabled(current >= 0); });
+        connect(d->typeTree, &QTreeWidget::currentItemChanged, this, [this] { d->showDetails(); });
+        d->showDetails();
         connect(d->urlEdit, &QLineEdit::textChanged, this, [this] { d->fillTypeList(); });
         d->showPage(true);
     } else {
@@ -542,9 +613,9 @@ ItemDialog::ItemDialog(const Item &item, bool creating, const ItemTypeRegistry &
 
 ItemDialog::~ItemDialog()
 {
-    // The type list outlives d, so its signals must not reach it.
-    if (d->typeList)
-        d->typeList->disconnect(this);
+    // The type tree outlives d, so its signals must not reach it.
+    if (d->typeTree)
+        d->typeTree->disconnect(this);
     if (d->urlEdit)
         d->urlEdit->disconnect(this);
 }
@@ -576,10 +647,8 @@ void ItemDialog::setType(const QString &typeId)
 {
     if (!d->creating)
         return;
-    for (int i = 0; i < d->typeList->count(); ++i) {
-        if (d->typeList->item(i)->data(Qt::UserRole).toString() == typeId)
-            d->typeList->setCurrentRow(i);
-    }
+    if (QTreeWidgetItem *row = d->typeRow(typeId))
+        d->typeTree->setCurrentItem(row);
     d->choose(typeId);
 }
 
