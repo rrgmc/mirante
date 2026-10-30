@@ -319,14 +319,15 @@ Local sessions exist on one device only. On other devices the panel shows the de
 `notes`, native, module `notes`.
 
 - **Configuration:** none that the item dialog shows; it edits only the name. The text is kept in the configuration under `text`, which the dialog keeps unchanged.
-- **Shows:** a Markdown editor with a preview. The text is stored in the task file, so it syncs. `viewKeys` is `text`, so saving does not make the editor again.
+- **Shows:** a Markdown editor and its preview, with an **Edit** and a **Preview** button above them. It opens in Preview when the note has text, else in Edit. `Ctrl+E` switches while the keyboard's focus is in the note. The preview loads no images or other resources, and opens web and mail links in the external programs.
+- **Saving:** the text is stored in the task file, so it syncs. It is saved 800 ms after the last change, when the editor loses the keyboard's focus, and when the view closes. Empty text removes `text`. `viewKeys` is `text`, so saving does not make the editor again. A change from another device replaces the text only when the note has no unsaved change; otherwise the local text wins when it is saved. See [decision 0081](decisions/0081-views-that-keep-their-own-keys.md).
 
 ### Image
 
 `image`, native, module `image`. See [decision 0021](decisions/0021-image-items-as-files.md).
 
 - **Configuration:** `file`, the image's file in the data folder's `files/` folder, required; `link`, an optional URL; `memo`, optional plain text. The type returns `file` from `pastedImageField`.
-- **Shows:** the image, scaled to fit the cell, with the memo under it. A click on the image opens the link, if there is one.
+- **Shows:** the image, scaled to fit the cell with its aspect ratio kept, and centred, with the memo under it as plain, selectable text. The memo is hidden when empty. With an `http` or `https` link, the pointer is a hand over the image, the tooltip is the link, and a click opens it in the external browser. A missing file shows "The image file is missing.", and a file that is not an image "The image file cannot be read."
 - **Paste:** an image on the clipboard is pasted in one of two ways. The [paste dialog](ui.md#pasting-images) opens first, to preview the image and crop it. The cropped image is saved as PNG in `files/`, and the item's `file` is set to the new file's name. `ImagePaste` does the work, and the status bar shows its message. The "Paste" button of the item dialog's image field opens the same dialog. A pasted image is never added straight to a dashboard. See [decision 0051](decisions/0051-paste-images-from-the-items-menu.md).
   - **Paste Image…**, in the context menu of a task or its Items row, adds a new Image item to that task, named "Image", or "Image 2", "Image 3" and so on if the task already has an item with that name. No dashboard changes. The user drags the item from the sidebar onto a dashboard if wanted.
   - `Ctrl+V` replaces the image of the Image item in the focused cell, or of the item shown alone in a tab. This is an item edit, so it works on a locked dashboard, and in a root dashboard cell that shows the item. The old file is deleted when no item refers to it any more ([decision 0030](decisions/0030-deleting-image-files.md)). On any other cell, or without a focused cell, nothing changes, no dialog opens, and the status bar says "To add an image, use Paste Image… in a task's Items menu."
