@@ -33,7 +33,7 @@ struct ItemStatus
     State state = State::None;
     QString summary;            // one line, such as "Open · pipeline failed"
     QString message;            // why, for every state but Ok and None
-    QJsonObject data;           // what the type's views need, read by M6 summaries
+    QJsonObject data;           // what the type's views need
     QList<AttentionReason> attention;
     std::optional<bool> closed; // the work is finished, such as a merged MR
     QDateTime updatedAt;        // when data last came from the server
