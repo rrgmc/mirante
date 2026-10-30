@@ -93,7 +93,9 @@
 
 namespace {
 
-NSImage *toNSImage(const QIcon &icon)
+// A template image: macOS uses only its alpha and draws it in the menu bar's
+// colour.
+NSImage *toTemplateImage(const QIcon &icon)
 {
     const NSSize size = NSMakeSize(18, 18);
     NSImage *image = [[NSImage alloc] initWithSize:size];
@@ -107,7 +109,7 @@ NSImage *toNSImage(const QIcon &icon)
         rep.size = size;
         [image addRepresentation:rep];
     }
-    [image setTemplate:icon.isMask()];    // "template" is a C++ keyword
+    [image setTemplate:YES];    // "template" is a C++ keyword
     return image;
 }
 
@@ -129,17 +131,19 @@ bool Tray::isAvailable()
     return QGuiApplication::platformName() == QLatin1String("cocoa");
 }
 
-Tray::Tray(const QIcon &icon, const QString &toolTip, QMenu *menu, QObject *parent)
+Tray::Tray(const QIcon &icon, const QIcon &monochromeIcon, const QString &toolTip, QMenu *menu,
+           QObject *parent)
     : QObject(parent)
     , d(std::make_unique<Private>())
 {
+    Q_UNUSED(icon);
     d->delegate = [[MiranteTrayMenuDelegate alloc] initWithMenu:menu];
     d->menu = [[NSMenu alloc] init];
     d->menu.autoenablesItems = NO;
     d->menu.delegate = d->delegate;
 
     d->item = [NSStatusBar.systemStatusBar statusItemWithLength:NSSquareStatusItemLength];
-    d->item.button.image = toNSImage(icon);
+    d->item.button.image = toTemplateImage(monochromeIcon);
     d->item.button.toolTip = toolTip.toNSString();
     d->item.menu = d->menu;
 

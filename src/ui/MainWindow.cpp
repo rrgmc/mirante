@@ -1724,7 +1724,8 @@ struct MainWindow::Private
             else
                 QApplication::quit();
         });
-        tray = new platform::Tray(QApplication::windowIcon(), QStringLiteral(MIRANTE_APP_NAME), menu, q);
+        tray = new platform::Tray(QApplication::windowIcon(), QIcon(QStringLiteral(":/icons/mirante-tray.svg")),
+                                  QStringLiteral(MIRANTE_APP_NAME), menu, q);
         QObject::connect(tray, &platform::Tray::triggered, q, &MainWindow::toggleVisible);
         QObject::connect(tray, &platform::Tray::reopened, q, [this] {
             if (!q->isVisible())
