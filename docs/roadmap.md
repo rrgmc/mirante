@@ -92,12 +92,12 @@ See [the M6 plan](plans/m6-native-item-types.md) and [the changes after trying i
 
 See [the M7 plan](plans/m7-quick-add-and-local-items.md) and [the changes after trying it](plans/m7-feedback.md).
 
-- [ ] Quick add from a Jira key or merge request URL, through the modules' quick add handlers and related-item finders, including the project match and related merge requests.
+- [x] Quick add from a Jira key or merge request URL, through the modules' quick add handlers and related-item finders, including the project match and related merge requests.
 - [x] Claude session (local) starts `claude --resume` in a terminal, on all three platforms. Dropped by [decision 0084](decisions/0084-no-local-claude-sessions.md).
-- [ ] The Folder / terminal item shows the branch and status, and opens a terminal, editor and file manager.
-- [ ] The CI Pipeline item can follow the current branch of the main folder.
-- [ ] Notes item with Markdown editing and preview.
-- [ ] Image item: the image scaled to fit, the memo under it, a click opens the link, and pasting replaces the image.
+- [x] The Folder / terminal item shows the branch and status, and opens a terminal, editor and file manager.
+- [x] The CI Pipeline item can follow the current branch of the main folder.
+- [x] Notes item with Markdown editing and preview.
+- [x] Image item: the image scaled to fit, the memo under it, a click opens the link, and pasting replaces the image.
 
 ## M8: Tray, notifications and keyboard
 
