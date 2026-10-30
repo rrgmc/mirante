@@ -121,6 +121,13 @@ QWidget *DashboardCellFactory::createCell(const std::optional<CellRef> &ref, boo
         frame->setMaximiseButtonVisible(true);
         QObject::connect(frame, &CellFrame::maximiseRequested, frame, [toggle, frame] { toggle(frame); });
     }
+    // An item placed on a root dashboard gets the button a task cell has. In
+    // a task dashboard the cell menu's "Open Alone" is enough.
+    if (const auto openAlone = d->services.openItemAlone; openAlone && d->dashboard.isRoot()) {
+        frame->setOpenAloneVisible(true);
+        QObject::connect(frame, &CellFrame::openAloneRequested, frame,
+                         [openAlone, task = ref->task, item = ref->item] { openAlone(task, item); });
+    }
     return frame;
 }
 
