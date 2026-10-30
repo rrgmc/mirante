@@ -20,7 +20,7 @@
 #include <QGuiApplication>
 #include <QLabel>
 #include <QLineEdit>
-#include <QListWidget>
+#include <QTreeWidget>
 #include <QMenu>
 #include <QMimeData>
 #include <QPushButton>
@@ -142,9 +142,12 @@ void registerTestModule(ModuleRegistrar &registrar)
 QStringList shownTypes(ItemDialog &dialog)
 {
     QStringList ids;
-    const auto *list = dialog.findChild<QListWidget *>(QStringLiteral("types"));
-    for (int i = 0; i < list->count(); ++i)
-        ids << list->item(i)->data(Qt::UserRole).toString();
+    const auto *tree = dialog.findChild<QTreeWidget *>(QStringLiteral("types"));
+    for (int i = 0; i < tree->topLevelItemCount(); ++i) {
+        const QTreeWidgetItem *module = tree->topLevelItem(i);
+        for (int j = 0; j < module->childCount(); ++j)
+            ids << module->child(j)->data(0, Qt::UserRole).toString();
+    }
     return ids;
 }
 
@@ -235,7 +238,9 @@ void TestItemFromUrl::filtering()
     QVERIFY(url);
     url->setText(QStringLiteral("https://gitlab.example/acme/app/-/merge_requests/4"));
     QCOMPARE(shownTypes(dialog), (QStringList{requestType, pageType}));
-    QCOMPARE(dialog.findChild<QListWidget *>(QStringLiteral("types"))->currentRow(), 0);
+    const QTreeWidgetItem *current = dialog.findChild<QTreeWidget *>(QStringLiteral("types"))->currentItem();
+    QVERIFY(current);
+    QCOMPARE(current->data(0, Qt::UserRole).toString(), requestType);
     QVERIFY(hint(dialog).startsWith(QStringLiteral("These types can show the link")));
 
     // A link no type takes shows none, and Next is disabled.

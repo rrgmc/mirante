@@ -1,6 +1,6 @@
 # 0043. A new item starts by picking its type in an icon grid
 
-- Status: Accepted
+- Status: Accepted; the grid superseded by [0100](0100-item-types-in-a-module-tree.md)
 - Date: 2026-10-29
 
 ## Context
