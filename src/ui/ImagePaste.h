@@ -9,6 +9,7 @@
 #include <optional>
 
 class QImage;
+class QMimeData;
 
 namespace mirante {
 
@@ -65,6 +66,12 @@ public:
 
     // A short message for the status bar, or empty for success.
     static QString message(Result result);
+
+    // The image a drag from another app carries: the first local file whose
+    // suffix is png, jpg, jpeg, gif, bmp or webp and that QImageReader reads,
+    // else the drag's image data. A null image if it carries neither. See
+    // docs/decisions/0085-drop-images-from-other-apps.md.
+    static QImage imageFromMime(const QMimeData *data);
 
 private:
     struct Private;

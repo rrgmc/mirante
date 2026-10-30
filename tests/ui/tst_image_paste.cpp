@@ -2,7 +2,8 @@
 // item, on a task or root dashboard; adding a new item to a task without
 // changing any dashboard; the refusal on a cell without an image item,
 // without an image type, and without a writable store; pasting into an item
-// alone; and the PNG file written to files/.
+// alone; and the PNG file written to files/. Also tests imageFromMime(),
+// which reads the image of a drag from another app.
 #include "core/Model.h"
 #include "core/Store.h"
 #include "items/ItemTypeRegistry.h"
@@ -11,9 +12,12 @@
 #include <mirante/Module.h>
 
 #include <QDir>
+#include <QFile>
 #include <QFileInfo>
 #include <QImage>
+#include <QMimeData>
 #include <QTemporaryDir>
+#include <QUrl>
 #include <QTest>
 
 #include <algorithm>
@@ -146,6 +150,7 @@ private slots:
     void saveFailed();
     void check();
     void messages();
+    void imageFromMime();
 };
 
 const Item *TestImagePaste::itemNamed(const QString &name) const
@@ -398,6 +403,77 @@ void TestImagePaste::messages()
              QStringLiteral("To add an image, use Paste Image… in a task's Items menu."));
     QCOMPARE(ImagePaste::message(ImagePaste::Result::NoImageType), QStringLiteral("This build cannot show images."));
     QCOMPARE(ImagePaste::message(ImagePaste::Result::SaveFailed), QStringLiteral("The image could not be saved."));
+}
+
+// A drag carries the first image file that can be read, by its suffix, else
+// its image data. Other files, files that are not images and links that are
+// not local files are skipped.
+void TestImagePaste::imageFromMime()
+{
+    QTemporaryDir files;
+    QVERIFY(files.isValid());
+    const auto write = [&files](const QString &name, const QImage &image, const char *format) {
+        const QString path = files.filePath(name);
+        return image.save(path, format) ? QUrl::fromLocalFile(path) : QUrl();
+    };
+    QImage blue(5, 4, QImage::Format_RGB32);
+    blue.fill(Qt::blue);
+    QImage green(3, 2, QImage::Format_RGB32);
+    green.fill(Qt::green);
+    const QUrl png = write(QStringLiteral("blue.png"), blue, "PNG");
+    const QUrl jpeg = write(QStringLiteral("green.JPEG"), green, "JPEG");
+    const QUrl bmp = write(QStringLiteral("green.bmp"), green, "BMP");
+    // An image under a suffix that is not taken.
+    const QUrl ico = write(QStringLiteral("blue.ico"), blue, "PNG");
+    QVERIFY(!png.isEmpty() && !jpeg.isEmpty() && !bmp.isEmpty() && !ico.isEmpty());
+    QFile broken(files.filePath(QStringLiteral("broken.png")));
+    QVERIFY(broken.open(QIODevice::WriteOnly));
+    broken.write("not a png");
+    broken.close();
+    const QUrl brokenUrl = QUrl::fromLocalFile(broken.fileName());
+    QFile text(files.filePath(QStringLiteral("notes.txt")));
+    QVERIFY(text.open(QIODevice::WriteOnly));
+    text.write("notes");
+    text.close();
+    const QUrl textUrl = QUrl::fromLocalFile(text.fileName());
+
+    QVERIFY(ImagePaste::imageFromMime(nullptr).isNull());
+    QMimeData empty;
+    QVERIFY(ImagePaste::imageFromMime(&empty).isNull());
+
+    // An image file.
+    QMimeData file;
+    file.setUrls({png});
+    QCOMPARE(ImagePaste::imageFromMime(&file).size(), QSize(5, 4));
+    QCOMPARE(ImagePaste::imageFromMime(&file).pixelColor(0, 0), QColor(Qt::blue));
+    // The suffix is compared without case.
+    file.setUrls({jpeg});
+    QCOMPARE(ImagePaste::imageFromMime(&file).size(), QSize(3, 2));
+
+    // The first of several that is read: a file that is not an image, one
+    // with another suffix, an unreadable one and a link are skipped.
+    QMimeData several;
+    several.setUrls({textUrl, ico, brokenUrl, QUrl(QStringLiteral("https://example.com/a.png")), bmp, png});
+    QCOMPARE(ImagePaste::imageFromMime(&several).size(), QSize(3, 2));
+
+    // Image data, as a browser gives.
+    QMimeData data;
+    data.setImageData(blue);
+    QCOMPARE(ImagePaste::imageFromMime(&data).size(), QSize(5, 4));
+    // A file comes before the image data.
+    data.setUrls({bmp});
+    QCOMPARE(ImagePaste::imageFromMime(&data).size(), QSize(3, 2));
+    // Without a readable file, the image data.
+    data.setUrls({textUrl, brokenUrl});
+    QCOMPARE(ImagePaste::imageFromMime(&data).size(), QSize(5, 4));
+
+    // Only files that are not images, or cannot be read: no image.
+    QMimeData others;
+    others.setUrls({textUrl, brokenUrl, ico});
+    QVERIFY(ImagePaste::imageFromMime(&others).isNull());
+    QMimeData words;
+    words.setText(QStringLiteral("blue.png"));
+    QVERIFY(ImagePaste::imageFromMime(&words).isNull());
 }
 
 QTEST_MAIN(TestImagePaste)
