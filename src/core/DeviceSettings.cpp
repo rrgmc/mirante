@@ -3,7 +3,10 @@
 #include <QCryptographicHash>
 #include <QDir>
 #include <QFileInfo>
+#include <QJsonArray>
+#include <QJsonDocument>
 #include <QSettings>
+#include <QSysInfo>
 
 #include <algorithm>
 
@@ -24,6 +27,8 @@ const QString pollIntervalKey = QStringLiteral("status/pollInterval");
 const QString focusAttentionFirstKey = QStringLiteral("focus/attentionFirst");
 const QString globalHotkeyKey = QStringLiteral("window/globalHotkey");
 const QString closeToTrayKey = QStringLiteral("window/closeToTray");
+const QString terminalCommandKey = QStringLiteral("terminal/command");
+const QString deviceNameKey = QStringLiteral("device/name");
 
 constexpr int defaultHiddenViewLimit = 8;
 
@@ -36,6 +41,12 @@ constexpr int maxRecent = 10;
 QString folderKey(const QString &folderId)
 {
     return QStringLiteral("folders/") + folderId;
+}
+
+// A module's device setting. Module ids and field keys are plain names.
+QString moduleSettingKey(const QString &moduleId, const QString &key)
+{
+    return QStringLiteral("modules/") + moduleId + QLatin1Char('/') + key;
 }
 
 QString detachedKey(const QString &dashboardId)
@@ -419,27 +430,60 @@ void DeviceSettings::setCloseToTray(bool on)
     d->settings->setValue(closeToTrayKey, on);
 }
 
-// Stubs until T2 of the M7 plan.
-QString DeviceSettings::terminalCommand() const { return {}; }
+QString DeviceSettings::terminalCommand() const
+{
+    return d->settings->value(terminalCommandKey).toString();
+}
 
-void DeviceSettings::setTerminalCommand(const QString &command) { Q_UNUSED(command) }
+void DeviceSettings::setTerminalCommand(const QString &command)
+{
+    if (command.trimmed().isEmpty())
+        d->settings->remove(terminalCommandKey);
+    else
+        d->settings->setValue(terminalCommandKey, command);
+}
 
-QString DeviceSettings::deviceName() const { return {}; }
+QString DeviceSettings::deviceName() const
+{
+    const QString name = d->settings->value(deviceNameKey).toString().trimmed();
+    return name.isEmpty() ? QSysInfo::machineHostName() : name;
+}
 
-void DeviceSettings::setDeviceName(const QString &name) { Q_UNUSED(name) }
+void DeviceSettings::setDeviceName(const QString &name)
+{
+    const QString trimmed = name.trimmed();
+    if (trimmed.isEmpty())
+        d->settings->remove(deviceNameKey);
+    else
+        d->settings->setValue(deviceNameKey, trimmed);
+}
 
+// The value is kept as JSON text, such as "code" with its quotes, or true, so
+// it reads back with its type: an INI file would otherwise give every value
+// back as a string. Text that is not JSON, as typed into the file by hand,
+// reads as a string.
 QJsonValue DeviceSettings::moduleSetting(const QString &moduleId, const QString &key) const
 {
-    Q_UNUSED(moduleId)
-    Q_UNUSED(key)
-    return QJsonValue(QJsonValue::Undefined);
+    const QVariant stored = d->settings->value(moduleSettingKey(moduleId, key));
+    if (!stored.isValid())
+        return QJsonValue(QJsonValue::Undefined);
+    const QByteArray text = '[' + stored.toString().toUtf8() + ']';
+    QJsonParseError error;
+    const QJsonDocument document = QJsonDocument::fromJson(text, &error);
+    if (error.error != QJsonParseError::NoError || !document.isArray() || document.array().size() != 1)
+        return stored.toString();
+    return document.array().first();
 }
 
 void DeviceSettings::setModuleSetting(const QString &moduleId, const QString &key, const QJsonValue &value)
 {
-    Q_UNUSED(moduleId)
-    Q_UNUSED(key)
-    Q_UNUSED(value)
+    const QString settingKey = moduleSettingKey(moduleId, key);
+    if (value.isUndefined() || value.isNull()) {
+        d->settings->remove(settingKey);
+        return;
+    }
+    const QByteArray array = QJsonDocument(QJsonArray{value}).toJson(QJsonDocument::Compact);
+    d->settings->setValue(settingKey, QString::fromUtf8(array.mid(1, array.size() - 2)));
 }
 
 } // namespace mirante

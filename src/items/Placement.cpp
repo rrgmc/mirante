@@ -2,6 +2,7 @@
 
 #include "api/Attention.h"
 #include "api/StatusCache.h"
+#include "core/DeviceSettings.h"
 #include "core/Model.h"
 #include "core/Profiles.h"
 #include "items/ItemContextImpl.h"
@@ -117,6 +118,7 @@ struct Placement::Private
     QJsonObject madeConfig;
     QString madeProfile;                // the profile id of a web view; empty for a type that is not web
     QJsonObject madeProfileData;        // the profile's module settings, for a type that uses them
+    QJsonObject madeFolders;            // the local paths of the project's folders, for a native view
     QLabel *typePlaceholder = nullptr;  // the placeholder of a type without a view, if shown
     bool gone = false;                  // the item or its task no longer exists
     QString waitingFor;                 // the profile being cleared, while the view waits for it
@@ -166,6 +168,43 @@ struct Placement::Private
         QJsonObject json = profile->toJson();
         json.remove(QStringLiteral("name"));
         return json;
+    }
+
+    // The local paths of the project's folders on this device, by folder id,
+    // for a type whose views are not web views. A native view may show them,
+    // such as the Folder item, so a new mapping makes the view again. Empty
+    // for a web view, which would lose its page.
+    QJsonObject foldersOf(const Item &found) const
+    {
+        if (!services.settings || !services.types
+            || services.types->type(found.type).rendering() == Rendering::Web)
+            return {};
+        const Task *task = services.model->task(taskId);
+        const Project *project = task ? services.model->project(task->projectId) : nullptr;
+        if (!project)
+            return {};
+        QJsonObject paths;
+        for (const Folder &folder : project->folders)
+            paths.insert(folder.id, services.settings->folderPath(folder.id));
+        return paths;
+    }
+
+    // Whether the item's configuration differs from the one the view was made
+    // with only in keys of the type's viewKeys(). See decision 0081.
+    bool onlyViewKeysChanged(const Item &found) const
+    {
+        if (!services.types || found.type != madeType)
+            return false;
+        const QStringList viewKeys = services.types->type(found.type).viewKeys();
+        if (viewKeys.isEmpty())
+            return false;
+        QJsonObject now = found.config;
+        QJsonObject before = madeConfig;
+        for (const QString &key : viewKeys) {
+            now.remove(key);
+            before.remove(key);
+        }
+        return now == before;
     }
 
     void retire(QWidget *widget)
@@ -350,6 +389,7 @@ struct Placement::Private
         madeConfig = found->config;
         madeProfile = profileOf(*found);
         madeProfileData = profileDataOf(*found);
+        madeFolders = foldersOf(*found);
 
         const ItemType *type = services.types ? &services.types->type(found->type) : nullptr;
         QWidget *created = type ? type->createView(context, q) : nullptr;
@@ -503,8 +543,14 @@ struct Placement::Private
 
         // The first show makes the view, and so does a show after unloading
         // or after a change made while hidden.
-        if (shown && !made && !gone)
+        // A folder may also have been mapped while the placement was hidden,
+        // which the model does not report.
+        if (shown && !made && !gone) {
             makeView();
+        } else if (shown && made && !gone) {
+            if (const Item *found = item(); found && foldersOf(*found) != madeFolders)
+                onModelChanged();
+        }
         if (inPool && services.pool)
             services.pool->setVisible(q, shown);
     }
@@ -550,9 +596,11 @@ struct Placement::Private
     }
 
     // The model changed. The view is made again when the item's type,
-    // configuration or profile changed, or the module settings of
-    // that profile, and dropped when the item is gone. A hidden placement
-    // makes its new view when it is shown.
+    // configuration or profile changed, the module settings of that profile,
+    // or the local paths of the project's folders, and dropped when the item
+    // is gone. A change to only the type's viewKeys() keeps the view and tells
+    // it instead; see decision 0081. A hidden placement makes its new view
+    // when it is shown.
     void onModelChanged()
     {
         const Item *found = item();
@@ -569,10 +617,22 @@ struct Placement::Private
             dropView(nullptr);
         } else if (!made) {
             return;
-        } else if (found->type != madeType || found->config != madeConfig || profileOf(*found) != madeProfile
-                   || profileDataOf(*found) != madeProfileData) {
+        } else if (found->type != madeType || profileOf(*found) != madeProfile
+                   || profileDataOf(*found) != madeProfileData || foldersOf(*found) != madeFolders
+                   || (found->config != madeConfig && !onlyViewKeysChanged(*found))) {
             dropView(nullptr);
         } else {
+            // Only keys the view writes itself changed: it stays, and is told.
+            if (found->config != madeConfig) {
+                // A copy, since a receiver may change the model, and with it
+                // madeConfig, while it is called.
+                const QJsonObject config = found->config;
+                madeConfig = config;
+                context.notifyConfigChanged(config);
+                found = item();
+                if (!found)
+                    return;
+            }
             // A view that uses no profile stays, but its page must not outlive
             // the profile it was made in.
             if (page && mirante::profiles::effective(*services.model, taskId, itemId) != pageProfile)
@@ -620,6 +680,12 @@ Placement::Placement(const PlacementServices &services, const QString &taskId, c
         connect(model, &Model::groupChanged, this, profileMayChange);
         connect(model, &Model::projectChanged, this, profileMayChange);
         connect(model, &Model::profilesChanged, this, profileMayChange);
+        // The project dialog maps folders as it changes the project.
+        connect(model, &Model::projectChanged, this, [this](const QString &id) {
+            const Task *task = d->services.model->task(d->taskId);
+            if (d->made && task && task->projectId == id)
+                d->onModelChanged();
+        });
     }
     if (ProfileManager *profiles = services.profiles) {
         connect(profiles, &ProfileManager::profileClearing, this,

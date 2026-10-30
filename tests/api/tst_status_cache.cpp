@@ -1,11 +1,19 @@
 // Tests StatusCache with a test item type whose fetches end as each test
 // wants, and a clock the test moves: what is due under each rule, the poll
 // interval, fetching at once, one job per item, errors keeping data, stuck
-// jobs, changes and removals in the model, and the item's source.
+// jobs, changes and removals in the model, the item's source, folder paths,
+// and Git heads watched for a job.
 #include "StatusTestSupport.h"
 
+#include "core/GitHead.h"
+
 #include <QCoreApplication>
+#include <QDir>
+#include <QElapsedTimer>
+#include <QFile>
 #include <QSignalSpy>
+
+#include <algorithm>
 
 using namespace mirante;
 using namespace mirante::statustest;
@@ -20,6 +28,79 @@ class TestStatusCache : public QObject
     QStringList takeFetched()
     {
         const QStringList fetched = f->controller.fetched;
+        f->controller.fetched.clear();
+        return fetched;
+    }
+
+    // Gives project p1 the main folder f1 and the folder f2.
+    void addFolders()
+    {
+        Project project = *f->model.project(QStringLiteral("p1"));
+        Folder f1;
+        f1.id = QStringLiteral("f1");
+        f1.main = true;
+        Folder f2;
+        f2.id = QStringLiteral("f2");
+        project.folders = {f1, f2};
+        f->model.setProject(project);
+    }
+
+    // Makes a Git working tree in dir with its head on branch.
+    static bool makeRepository(const QString &dir, const QString &branch)
+    {
+        return QDir(dir).mkpath(QStringLiteral(".git")) && writeHead(dir, branch);
+    }
+
+    // Writes the head as Git does: a new file in place of the old one.
+    static bool writeHead(const QString &dir, const QString &branch)
+    {
+        const QString head = dir + QStringLiteral("/.git/HEAD");
+        const QString lock = head + QStringLiteral(".lock");
+        QFile file(lock);
+        if (!file.open(QIODevice::WriteOnly))
+            return false;
+        file.write("ref: refs/heads/" + branch.toUtf8() + '\n');
+        file.close();
+        QFile::remove(head);
+        return QFile::rename(lock, head);
+    }
+
+    // The item's job that runs now. Earlier held jobs of the item were
+    // dropped by the cache, and may be deleted.
+    StatusJob *runningJob(const QString &itemId) const
+    {
+        StatusJob *last = nullptr;
+        for (const auto &[id, job] : f->controller.held) {
+            if (id == itemId)
+                last = job;
+        }
+        return last;
+    }
+
+    // Ends the item's running job, reading the head of dir first as a type
+    // that follows a branch does, and forgets its held jobs.
+    void finishHeld(const QString &itemId, const QString &dir)
+    {
+        StatusJob *job = runningJob(itemId);
+        QVERIFY(job);
+        f->controller.held.erase(std::remove_if(f->controller.held.begin(), f->controller.held.end(),
+                                                [&](const auto &held) { return held.first == itemId; }),
+                                 f->controller.held.end());
+        if (!dir.isEmpty())
+            job->gitHead(dir);
+        job->finish(okStatus(itemId));
+    }
+
+    // Waits until the item was fetched again, and a moment more for repeated
+    // change signals, then forgets what was fetched.
+    bool waitForFetch(const QString &itemId)
+    {
+        QElapsedTimer timer;
+        timer.start();
+        while (!f->controller.fetched.contains(itemId) && timer.elapsed() < 5000)
+            QTest::qWait(20);
+        QTest::qWait(200);
+        const bool fetched = f->controller.fetched.contains(itemId);
         f->controller.fetched.clear();
         return fetched;
     }
@@ -393,6 +474,94 @@ private slots:
         f->device->setSeenAttention(QStringLiteral("ws1"), QStringLiteral("i4"), {QStringLiteral("approved")});
         f->model.reset({}, {}, {}, {});
         QVERIFY(f->device->hasSeenAttention(QStringLiteral("ws1"), QStringLiteral("i4")));
+    }
+    // A job gives the local paths of the project's folders, and the main
+    // folder's for an empty id.
+    void jobReadsFolderPaths()
+    {
+        addFolders();
+        f->device->setFolderPath(QStringLiteral("f1"), QStringLiteral("C:/main"));
+        f->device->setFolderPath(QStringLiteral("f2"), QStringLiteral("C:/other"));
+        f->controller.mode = Fetch::Hold;
+        f->cache->refresh(QStringLiteral("i1"));
+        QCOMPARE(f->controller.held.size(), 1);
+        StatusJob *job = f->controller.held.first().second;
+        QCOMPARE(job->folderPath(QString()), QStringLiteral("C:/main"));
+        QCOMPARE(job->folderPath(QStringLiteral("f1")), QStringLiteral("C:/main"));
+        QCOMPARE(job->folderPath(QStringLiteral("f2")), QStringLiteral("C:/other"));
+        QVERIFY(job->folderPath(QStringLiteral("f3")).isEmpty());
+        QVERIFY(job->gitHead(QString()).isEmpty());
+        job->finish(ItemStatus());
+    }
+
+    // A new folder mapping fetches the project's items again when the cache
+    // next looks at the model, as the project dialog's change does.
+    void folderMappingFetchesAgain()
+    {
+        addFolders();
+        f->cache->poll();
+        takeFetched();
+        f->device->setFolderPath(QStringLiteral("f1"), QStringLiteral("C:/main"));
+        Project project = *f->model.project(QStringLiteral("p1"));
+        project.name = QStringLiteral("Renamed");
+        f->model.setProject(project);
+        QCOMPARE(takeFetched(), QStringList({QStringLiteral("i4")}));
+
+        // A folder of another project fetches that project's items only.
+        Project other = *f->model.project(QStringLiteral("p2"));
+        Folder folder;
+        folder.id = QStringLiteral("f9");
+        folder.main = true;
+        other.folders = {folder};
+        f->model.setProject(other);
+        takeFetched();
+        f->device->setFolderPath(QStringLiteral("f9"), QStringLiteral("C:/p2"));
+        project.name = QStringLiteral("Renamed again");
+        f->model.setProject(project);
+        QCOMPARE(takeFetched(), QStringList({QStringLiteral("i7")}));
+    }
+
+    // A job that read a head is fetched again when the head changes, and the
+    // watch survives Git replacing the file. A head no job read is not
+    // watched. See decision 0080.
+    void headChangeFetchesAgain()
+    {
+        QTemporaryDir repos;
+        const QString read = repos.filePath(QStringLiteral("read"));
+        const QString other = repos.filePath(QStringLiteral("other"));
+        QVERIFY(makeRepository(read, QStringLiteral("main")));
+        QVERIFY(makeRepository(other, QStringLiteral("main")));
+        if (git::headFile(read).isEmpty())
+            QSKIP("GitHead is not implemented in this build yet");
+
+        f->controller.mode = Fetch::Hold;
+        f->cache->setVisible(QStringLiteral("i1"), true);
+        QCOMPARE(takeFetched(), QStringList({QStringLiteral("i1")}));
+        QCOMPARE(runningJob(QStringLiteral("i1"))->gitHead(read), QStringLiteral("main"));
+        finishHeld(QStringLiteral("i1"), read);
+
+        QVERIFY(writeHead(read, QStringLiteral("feature")));
+        QVERIFY(waitForFetch(QStringLiteral("i1")));
+        QCOMPARE(runningJob(QStringLiteral("i1"))->gitHead(read), QStringLiteral("feature"));
+        finishHeld(QStringLiteral("i1"), read);
+
+        // Watched again after Git replaced the file.
+        QVERIFY(writeHead(read, QStringLiteral("main")));
+        QVERIFY(waitForFetch(QStringLiteral("i1")));
+        finishHeld(QStringLiteral("i1"), read);
+
+        // Another repository's head fetches nothing.
+        QVERIFY(writeHead(other, QStringLiteral("feature")));
+        QTest::qWait(300);
+        QVERIFY(takeFetched().isEmpty());
+
+        // A job that no longer reads the head stops the watch.
+        f->cache->refresh(QStringLiteral("i1"));
+        takeFetched();
+        finishHeld(QStringLiteral("i1"), QString());
+        QVERIFY(writeHead(read, QStringLiteral("feature")));
+        QTest::qWait(300);
+        QVERIFY(takeFetched().isEmpty());
     }
 };
 

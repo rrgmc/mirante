@@ -159,7 +159,7 @@ With no program, as for the folder item's **Terminal** action, the terminal open
 
 **Programs on their own,** such as the editor, are found on the `PATH` unless they have a path, and started detached in the folder. On Windows the `PATH` lookup tries the suffixes in `PATHEXT`, so `code` finds `code.cmd`. A `.cmd` or `.bat` file runs as `cmd.exe /c <file> <arguments>`, quoted and escaped for `cmd` as above, without a console window of its own.
 
-**Terminal command:** a device setting replaces the default on every platform with a template, such as `alacritty --working-directory {dir} -e {command}`.
+**Terminal command:** a device setting replaces the default on every platform with a template. It is set in the [settings window](ui.md#settings) and kept in the [device settings](sync.md#device-settings), so each device has its own. An example is `alacritty --working-directory {dir} -e {command}`.
 
 - The template is split into arguments as a shell would: spaces separate them, and double quotes keep spaces in one. A backslash is an ordinary character, so Windows paths need no escaping.
 - `{dir}` is replaced by the folder inside any argument.
