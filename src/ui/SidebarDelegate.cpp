@@ -231,6 +231,16 @@ void SidebarDelegate::initStyleOption(QStyleOptionViewItem *option, const QModel
     // the text, and anything painted after it, is cut before the badge.
     if (const int space = badgeSpace(*option, option->rect, attentionCount(index)); space > 0)
         option->rect.setRight(qMax(option->rect.left(), option->rect.right() - space));
+    // On the selected row's highlight fill, text in the highlighted text
+    // colour. The Windows 11 style draws selected text in the normal text
+    // colour, which is hard to read on the full highlight.
+    if (option->state & QStyle::State_Selected) {
+        for (const auto group : {QPalette::Active, QPalette::Inactive}) {
+            const QColor text = option->palette.color(QPalette::Active, QPalette::HighlightedText);
+            option->palette.setColor(group, QPalette::Text, text);
+            option->palette.setColor(group, QPalette::WindowText, text);
+        }
+    }
     const auto kind = SidebarModel::Kind(index.data(SidebarModel::KindRole).toInt());
     // A group heading has its name in a pill instead of a marker; see paintGroup().
     if (kind == SidebarModel::Kind::Group)
