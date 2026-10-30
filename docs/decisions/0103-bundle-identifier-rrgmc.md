@@ -1,4 +1,4 @@
-# 0102. The macOS bundle identifier is `com.rrgmc.mirante`
+# 0103. The macOS bundle identifier is `com.rrgmc.mirante`
 
 - Status: Accepted
 - Date: 2026-10-30

@@ -1,6 +1,6 @@
 # 0101. The macOS release is a universal bundle, signed with a Developer ID and notarised
 
-- Status: Accepted; bundle identifier superseded by [0102](0102-bundle-identifier-rrgmc.md)
+- Status: Accepted; bundle identifier superseded by [0103](0103-bundle-identifier-rrgmc.md)
 - Date: 2026-10-30
 
 ## Context

@@ -16,7 +16,7 @@ qt_add_executable(mirante WIN32 MACOSX_BUNDLE main.cpp)
 # The executable's icon and version on Windows, and the bundle's icon,
 # identifier and version on macOS. The Finder and keychain prompts show the
 # icon, and the keychain knows the app by its identifier (decisions 0101 and
-# 0102). While the app runs, the window icon comes from resources/icons.
+# 0103). While the app runs, the window icon comes from resources/icons.
 # tools/make-macos-icon.sh makes the .icns from it.
 if(WIN32)
     configure_file("${PROJECT_SOURCE_DIR}/resources/app/mirante.rc.in"
