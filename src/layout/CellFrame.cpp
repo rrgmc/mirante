@@ -108,6 +108,7 @@ struct CellFrame::Private
     HeaderRow *row = nullptr;
     QPointer<QWidget> headerWidget;     // shown between the row and the menu button; not owned
     QToolButton *maximiseButton = nullptr;
+    QToolButton *openAloneButton = nullptr;
     bool canMaximise = false;           // a live item cell, not an empty or removed one
     QPointer<QWidget> customBody;       // set by setBody()
     HeaderPill *context = nullptr;
@@ -272,6 +273,18 @@ CellFrame::CellFrame(const std::optional<CellRef> &ref, bool removed, const Item
     connect(d->maximiseButton, &QToolButton::clicked, this, &CellFrame::maximiseRequested);
     headerLayout->addWidget(d->maximiseButton);
     setMaximised(false);
+
+    // "Open Alone", last, where a task cell has its own. Hidden until the
+    // factory shows it.
+    d->openAloneButton = new QToolButton(d->header);
+    d->openAloneButton->setObjectName(QStringLiteral("openAloneButton"));
+    d->openAloneButton->setAutoRaise(true);
+    d->openAloneButton->setIcon(QIcon(QStringLiteral(":/icons/open-alone.svg")));
+    d->openAloneButton->setText(tr("Open Alone"));
+    d->openAloneButton->setToolTip(tr("Open this item on its own"));
+    d->openAloneButton->setVisible(false);
+    connect(d->openAloneButton, &QToolButton::clicked, this, &CellFrame::openAloneRequested);
+    headerLayout->addWidget(d->openAloneButton);
 
     layout->addWidget(d->header);
 
@@ -484,6 +497,8 @@ void CellFrame::setHeaderWidget(QWidget *widget)
 }
 
 void CellFrame::setMaximiseButtonVisible(bool visible) { d->maximiseButton->setVisible(visible && d->canMaximise); }
+
+void CellFrame::setOpenAloneVisible(bool visible) { d->openAloneButton->setVisible(visible && d->canMaximise); }
 
 void CellFrame::setMaximised(bool maximised)
 {

@@ -229,6 +229,7 @@ private slots:
     void maximiseButton();
     void factoryMakesPlacements();
     void factoryConnectsStatus();
+    void factoryOpenAloneButton();
 };
 
 void TestLayoutView::buildsWidgets()
@@ -967,6 +968,46 @@ void TestLayoutView::factoryConnectsStatus()
     QVERIFY(fix->isVisible());
     fix->click();
     QCOMPARE(opened, QStringList{QStringLiteral("default/view")});
+}
+
+void TestLayoutView::factoryOpenAloneButton()
+{
+    ItemTypeRegistry types;
+    types.registerModule(QStringLiteral("view"), &registerViewType);
+    Model model;
+    Task task;
+    task.id = QStringLiteral("t1");
+    Item item;
+    item.id = QStringLiteral("i1");
+    item.type = QStringLiteral("view.type");
+    item.name = QStringLiteral("i1");
+    task.items.push_back(item);
+    model.reset({}, {}, {task}, {});
+
+    QStringList opened;
+    LayoutServices services;
+    services.model = &model;
+    services.types = &types;
+    services.openItemAlone = [&opened](const QString &taskId, const QString &itemId) {
+        opened << taskId + QLatin1Char('/') + itemId;
+    };
+
+    // In a task dashboard the cell menu is enough.
+    DashboardCellFactory inTask(services, DashboardRef{QStringLiteral("t1"), QStringLiteral("d1")});
+    std::unique_ptr<QWidget> taskCell(inTask.createCell(itemRef(QStringLiteral("i1")), false, nullptr));
+    QVERIFY(qobject_cast<CellFrame *>(taskCell.get()));
+    QVERIFY(!taskCell->findChild<QToolButton *>(QStringLiteral("openAloneButton"))->isVisibleTo(taskCell.get()));
+
+    // On a root dashboard the item gets the button a task cell has.
+    DashboardCellFactory onRoot(services, DashboardRef{QString(), QStringLiteral("r1")});
+    std::unique_ptr<QWidget> rootCell(
+        onRoot.createCell(CellRef{QStringLiteral("i1"), QStringLiteral("t1"), QString()}, false, nullptr));
+    QVERIFY(qobject_cast<CellFrame *>(rootCell.get()));
+    auto *button = rootCell->findChild<QToolButton *>(QStringLiteral("openAloneButton"));
+    QVERIFY(button->isVisibleTo(rootCell.get()));
+    QVERIFY(!button->icon().isNull());
+    button->click();
+    QCOMPARE(opened, QStringList{QStringLiteral("t1/i1")});
 }
 
 QTEST_MAIN(TestLayoutView)

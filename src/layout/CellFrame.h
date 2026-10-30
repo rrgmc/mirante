@@ -65,6 +65,10 @@ public:
     void setMaximiseButtonVisible(bool visible);
     // Switches the button between "Maximise" and "Restore".
     void setMaximised(bool maximised);
+    // Shows the "Open Alone" button, last in the header, which emits
+    // openAloneRequested. Off by default; on for items on a root dashboard,
+    // as task cells have one.
+    void setOpenAloneVisible(bool visible);
 
     // The item's status, before the menu button: an attention badge, a
     // problem pill, or the data's age. See the M5 plan, part 8.
@@ -78,6 +82,7 @@ signals:
     void menuRequested(const QPoint &globalPos);
     void dragStarted();     // the header was dragged in edit mode
     void maximiseRequested();
+    void openAloneRequested();
     void refreshRequested();
     // The problem pill was clicked, such as "Token not set".
     void fixRequested();
