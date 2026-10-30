@@ -27,9 +27,18 @@ Main endpoints:
 | Approve | `POST /projects/:id/merge_requests/:iid/approve` |
 | Comment | `POST /projects/:id/merge_requests/:iid/notes`, `POST /projects/:id/issues/:iid/notes` |
 | Issues | `GET /projects/:id/issues/:iid`, `GET /issues` |
-| Current user | `GET /user`, to resolve "me" in presets |
+| Current user | `GET /user`, to resolve "me" in presets and attention |
 
-Project paths such as `acme/backend` are URL-encoded and used as `:id`.
+Project and group paths such as `acme/backend` are URL-encoded and used as `:id`, as in `acme%2Fbackend`. The branch in `ref` is URL-encoded too. `GitLabClient` in the module has one method per endpoint; see the [module's README](../src/modules/gitlab/README.md#the-client).
+
+What each item type asks for its status:
+
+- **A merge request** (summary or page): the merge request, its approvals and the current user, at once. The current user is asked in every status job, and its ETag makes the repeat cheap.
+- **An issue** (summary or page): the issue.
+- **A CI pipeline:** for a linked merge request, the merge request first, for its source branch. Then the latest pipeline of the branch, and that pipeline's jobs. A `404` for the latest pipeline means the branch has none, and is not an error.
+- **Lists** ask for nothing in M5.
+
+The attention rules are in [item types](item-types.md#gitlab).
 
 ## Jira
 
