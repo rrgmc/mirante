@@ -46,12 +46,13 @@ QVariant evaluate(QWebEnginePage &page, const QString &script)
     return result;
 }
 
-// The data-id of each row, once the panel has drawn as many as expected.
+// The data-id of each row, once the panel has drawn as many as expected, or
+// the last ones seen if it never does, for the comparison to show.
 QStringList rows(QWebEnginePage &page, int expected)
 {
     const QString script = QStringLiteral("Array.from(document.querySelectorAll('.row')).map(r => r.dataset.id)");
     QStringList ids;
-    QTest::qWaitFor(
+    (void)QTest::qWaitFor(
         [&] {
             ids = evaluate(page, script).toStringList();
             return ids.size() == expected;
@@ -215,7 +216,7 @@ private slots:
         auto view = panel(QStringLiteral("group-overview"));
         QVERIFY(view);
         QWebEnginePage &page = *view->page();
-        rows(page, 2);
+        QCOMPARE(rows(page, 2).size(), 2);
         // The page's own colour fills it, also below the rows.
         QCOMPARE(evaluate(page, QStringLiteral("getComputedStyle(document.documentElement).backgroundColor")).toString(),
                  QStringLiteral("rgb(255, 255, 255)"));
