@@ -110,6 +110,11 @@ Started with `--settings <file>`, the app keeps these settings in that INI file 
   - Secret Service (libsecret) on Linux.
 - A token is entered on the module's settings screen, in a field of type `Secret`. It is stored under service `mirante` and key `<workspaceId>/<profileId>/<moduleId>/<fieldKey>`, such as `5a3e…/default/gitlab/token`, so each workspace keeps its own ([decision 0059](decisions/0059-logins-per-workspace.md)). The key contains no secret, so it can be derived from synced data.
 - Tokens are never written to the data folder and never synced. Each device asks for each token once. See [decision 0054](decisions/0054-module-settings-replace-connections.md).
-- Storing tokens comes in M5. Until then a token typed into the screen is dropped, and the log says so without the value. No earlier version stored a token, so there are no old keys to move.
+- Tokens are stored from M5. No earlier version stored a token, so there are no old keys to move. The log never holds a token's value.
+- The app keeps each token in memory after the first read, so it asks the keychain once per key in a session.
+- A keychain error, such as a locked keychain or no Secret Service on Linux, shows "Could not use the keychain: <message>" in the main window's warning bar. The token then counts as not set.
+- With `--no-keychain`, tokens are kept in memory only and are lost at exit. Tests, and checks run with a scratch settings file, use it so they never touch the user's keychain.
+- The keychain cannot list its keys. To remove or move tokens, the app builds every key a workspace can have: each profile in `workspace.mirante`, with each `Secret` field of the modules' settings screens in this build. Deleting a profile removes its tokens on this device.
+- When another device changed the workspace id, tokens move to the new id with the logins. A token already under the new key wins, and the old one is removed. Tokens of modules not in this build stay under the old key. Requests wait until the move is done. See [decision 0063](decisions/0063-tokens-follow-a-new-workspace-id.md).
 - Web logins are not synced either. The list of profiles is synced, in `workspace.mirante`, but the user logs in once per profile on each device. See [web views](web-views.md#profiles).
 - Module settings are synced, in each profile in `workspace.mirante`, so they never hold a token or a password. See [decision 0044](decisions/0044-module-settings-in-the-workspace.md).

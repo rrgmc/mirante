@@ -101,9 +101,15 @@ Modules fetch through the cache, never around it. All requests are asynchronous 
 
 ## Errors
 
-- A missing token shows "Token not set on this device" with a button to enter it.
-- `401` or `403` marks the profile's server as failing, shows a banner and pauses polling for it until the token is changed.
+- A missing token shows "Token not set on this device" with a button to enter it. Nothing is sent.
+- A `401` on any request, or a `403` on a `GET`, marks the profile's server as failing. The main window shows a banner, and the server's requests return without being sent until its token or its settings screen changes.
+- A `403` on a `POST` is a missing permission for that one action, such as a `read_api` token approving a merge request. Only that action fails; the server keeps working.
+- A `429` waits for `Retry-After` seconds, or 30 without one, and sends again, at most three times. The server's other requests wait too.
+- A request that gets no answer in 30 seconds fails as a network error.
 - Network errors keep the last data and show its age, such as "Updated 12 min ago".
+- Status data is kept in memory only, not on disk. After a start, cells show no status until the first poll returns. A disk cache can come later if the wait is a problem.
+
+Each server client keeps the `ETag` and body of the 500 URLs it used last, and sends `If-None-Match`, so an unchanged answer costs a `304`. With Link paging, it follows `rel="next"` only to the same server, so the token is never sent elsewhere.
 
 ## Terminal launch
 
