@@ -117,7 +117,7 @@ Module `gitlab`. All GitLab types talk to the GitLab server of the item's profil
   - `filter`: optional custom filter parameters, passed to the GitLab merge requests API, such as `labels=bug&target_branch=main`.
 - **Shows:** a compact, sortable table with columns for reference, title, author, pipeline status, approvals, and the date of the last update.
 - **Row click:** shows the merge request summary in a preview area below the table. A row menu offers "Add to task as item".
-- **Status:** none in M5.
+- **Status:** a summary with the count, such as "12 merge requests", or "100+ merge requests" when the list reaches its limit of 100 rows. It reports no attention, and is neither closed nor open, so it never counts towards a task being done. A scope without its project or group reports no status, with a message such as "Set the group in the item's settings." See [decision 0067](decisions/0067-lists-report-status.md).
 
 ### GitLab CI Pipeline
 
@@ -145,7 +145,7 @@ Module `gitlab`. All GitLab types talk to the GitLab server of the item's profil
 - **The list presets are:** `assignedToMe` ("Assigned to me"), `createdByMe` ("Created by me") and `allOpen` ("All open"). Custom filters work the same way as for merge requests.
 - **The page's address** is `<baseUrl>/<project>/-/issues/<iid>`. Its messages are those of the merge request page.
 - **Actions:** add comment, close and reopen.
-- **Status:** the summary and the page report a summary such as "Open · assigned to Ana", and are closed when the issue is closed. They report no attention. The list reports no status in M5.
+- **Status:** the summary and the page report a summary such as "Open · assigned to Ana", and are closed when the issue is closed. They report no attention. The list reports as the merge request list does, with a summary such as "12 issues" or "100+ issues". See [decision 0067](decisions/0067-lists-report-status.md).
 
 ## Jira
 
