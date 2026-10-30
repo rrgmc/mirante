@@ -2,7 +2,7 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <!-- The entitlements of QtWebEngineProcess under the hardened runtime.
      Chromium's JavaScript engine writes and runs machine code, and the helper
-     loads Qt's frameworks. See docs/decisions/0100-macos-release-signing.md. -->
+     loads Qt's frameworks. See docs/decisions/0101-macos-release-signing.md. -->
 <plist version="1.0">
 <dict>
     <key>com.apple.security.cs.allow-jit</key>

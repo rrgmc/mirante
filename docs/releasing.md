@@ -1,6 +1,6 @@
 # Releasing
 
-A release is a GitHub release with three files: the Windows setup, the macOS disk image and the Ubuntu `.deb` package. The workflow `.github/workflows/release.yml` makes them from a version tag. See [the M10 plan](plans/m10-packaging.md) and decisions [0098](decisions/0098-packages-from-cmake-install.md), [0099](decisions/0099-linux-package-in-opt.md) and [0100](decisions/0100-macos-release-signing.md).
+A release is a GitHub release with three files: the Windows setup, the macOS disk image and the Ubuntu `.deb` package. The workflow `.github/workflows/release.yml` makes them from a version tag. See [the M10 plan](plans/m10-packaging.md) and decisions [0098](decisions/0098-packages-from-cmake-install.md), [0099](decisions/0099-linux-package-in-opt.md) and [0101](decisions/0101-macos-release-signing.md).
 
 ## Making a release
 

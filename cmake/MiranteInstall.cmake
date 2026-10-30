@@ -81,7 +81,7 @@ function(mirante_add_install target)
     # macdeployqt leaves the bundle's binaries unsigned, and macOS on Apple
     # silicon does not start unsigned code. This comes last, since a file added
     # after it would break the signature. tools/release-macos.sh sets the
-    # Developer ID. See docs/decisions/0100-macos-release-signing.md.
+    # Developer ID. See docs/decisions/0101-macos-release-signing.md.
     if(APPLE)
         set(MIRANTE_MACOS_DISTRIBUTION_IDENTITY "" CACHE STRING
             "macOS: the certificate that signs the installed app, with the hardened runtime. Empty signs ad hoc")

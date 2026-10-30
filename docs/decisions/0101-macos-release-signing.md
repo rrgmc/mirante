@@ -1,4 +1,4 @@
-# 0100. The macOS release is a universal bundle, signed with a Developer ID and notarised
+# 0101. The macOS release is a universal bundle, signed with a Developer ID and notarised
 
 - Status: Accepted
 - Date: 2026-10-30

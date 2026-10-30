@@ -8,7 +8,7 @@ All accepted:
 
 - [Decision 0098](../decisions/0098-packages-from-cmake-install.md): `cmake --install` makes a self-contained app with Qt's deploy script, CPack makes the package, and `MIRANTE_VERSION` carries the tag's version.
 - [Decision 0099](../decisions/0099-linux-package-in-opt.md): the `.deb` installs into `/opt/mirante` with its own Qt, a desktop file and an AppArmor profile for Chromium's sandbox.
-- [Decision 0100](../decisions/0100-macos-release-signing.md): the bundle identifier is `com.rangelreale.mirante`; the release is universal, signed with a Developer ID, with entitlements for `QtWebEngineProcess`, and notarised.
+- [Decision 0101](../decisions/0101-macos-release-signing.md): the bundle identifier is `com.rangelreale.mirante`; the release is universal, signed with a Developer ID, with entitlements for `QtWebEngineProcess`, and notarised.
 
 [Decision 0077](../decisions/0077-no-macos-in-ci-during-development.md) already says that M10 turns macOS in CI back on.
 
@@ -53,7 +53,7 @@ In `cmake/MiranteInstall.cmake`, after the install rules, `include(CPack)` with:
 
 ## Part 4: signing on macOS
 
-- New `resources/macos/webengine.entitlements` with the three entitlements of [decision 0100](../decisions/0100-macos-release-signing.md).
+- New `resources/macos/webengine.entitlements` with the three entitlements of [decision 0101](../decisions/0101-macos-release-signing.md).
 - New `tools/sign-macos.sh <bundle> <identity>`. With `-` it signs the bundle ad hoc with `--deep`. With a certificate, it signs from the inside out with `--options runtime --timestamp`: every framework and library, then `QtWebEngineProcess.app` with the entitlements, then `QtWebEngineCore.framework`, then the app. It ends with `codesign --verify --deep --strict`.
 - The install calls it after the deploy script, with `MIRANTE_MACOS_DISTRIBUTION_IDENTITY` or `-`.
 - New `tools/release-macos.sh <version> [--upload]`, adapted from favdir's: checks the certificate and the notary credentials, configures a separate build folder `build/macos-release` with the `ci` preset, the version, the identity and `CMAKE_OSX_ARCHITECTURES=arm64;x86_64`, builds, tests, runs CPack, signs the disk image, notarises it, staples it and checks it with `spctl`. Credentials come from a stored notarytool profile or, in the workflow, from `MIRANTE_NOTARY_KEY`, `MIRANTE_NOTARY_KEY_ID` and `MIRANTE_NOTARY_ISSUER`.

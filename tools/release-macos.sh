@@ -2,7 +2,7 @@
 # Builds, tests, signs and notarises the macOS disk image on this Mac, then
 # staples the notarisation ticket to it. With --upload, it also attaches the
 # disk image to the GitHub release v<version>. The release workflow runs it
-# too. See docs/releasing.md and docs/decisions/0100-macos-release-signing.md.
+# too. See docs/releasing.md and docs/decisions/0101-macos-release-signing.md.
 #
 #   sh tools/release-macos.sh <version> [--upload]
 #

@@ -1,7 +1,7 @@
 #!/bin/sh
 # Signs an installed Mirante.app. The install runs it after macdeployqt, which
 # leaves the bundle's binaries unsigned. See
-# docs/decisions/0100-macos-release-signing.md.
+# docs/decisions/0101-macos-release-signing.md.
 #
 #   sh tools/sign-macos.sh <app bundle> <identity> <entitlements of QtWebEngineProcess>
 #

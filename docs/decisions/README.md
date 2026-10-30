@@ -47,7 +47,7 @@ Each file records one design decision: what was decided, what else was considere
 | [0040](0040-profiles-per-group-and-module.md) | One web login profile per group and module | Superseded by 0042 |
 | [0041](0041-own-look-for-tabs-and-tool-buttons.md) | Mirante draws its own tabs and tool buttons | Accepted; the current tab's colour by 0065 |
 | [0042](0042-user-managed-web-profiles.md) | Web profiles are a list the user manages | Accepted; in part superseded by 0050 and 0057 |
-| [0043](0043-pick-the-item-type-first.md) | A new item starts by picking its type in an icon grid | Accepted |
+| [0043](0043-pick-the-item-type-first.md) | A new item starts by picking its type in an icon grid | Accepted; the grid superseded by 0100 |
 | [0044](0044-module-settings-in-the-workspace.md) | Modules have settings screens, stored in the workspace | Accepted; in part superseded by 0050 |
 | [0045](0045-preview-and-crop-pasted-images.md) | Pasted images open a preview with a crop first | Accepted; pasting onto dashboards by 0051 |
 | [0046](0046-group-colours.md) | Each group has a colour | Accepted; item cell headers by 0047 |
@@ -104,7 +104,8 @@ Each file records one design decision: what was decided, what else was considere
 | [0097](0097-app-icon-monte.md) | The app icon is an M drawn as two peaks under the sun | Accepted |
 | [0098](0098-packages-from-cmake-install.md) | Packages are made by `cmake --install` and CPack, and take their version from the tag | Accepted |
 | [0099](0099-linux-package-in-opt.md) | The Linux package installs into `/opt/mirante`, with its own Qt and an AppArmor profile | Accepted |
-| [0100](0100-macos-release-signing.md) | The macOS release is a universal bundle, signed with a Developer ID and notarised | Accepted |
+| [0100](0100-item-types-in-a-module-tree.md) | A new item picks its type in a tree of modules, with a description | Accepted |
+| [0101](0101-macos-release-signing.md) | The macOS release is a universal bundle, signed with a Developer ID and notarised | Accepted |
 
 ## Template
 
