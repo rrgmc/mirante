@@ -20,7 +20,7 @@ Each file records one design decision: what was decided, what else was considere
 | [0012](0012-html-prototype-first.md) | HTML prototype and Qt spike before features | Superseded by 0015 |
 | [0013](0013-compiled-in-modules.md) | Item types in compiled-in modules, chosen at build time | Accepted |
 | [0014](0014-name-mirante.md) | Name the app Mirante | Accepted |
-| [0015](0015-app-skeleton-instead-of-spike.md) | Build the app skeleton directly, with CI from M2 | Accepted |
+| [0015](0015-app-skeleton-instead-of-spike.md) | Build the app skeleton directly, with CI from M2 | Accepted; macOS in CI by 0077 |
 | [0016](0016-generic-items.md) | Generic items: any `QWidget`, with two view flags | Accepted |
 | [0017](0017-parallel-tasks-with-fixed-interfaces.md) | Parallel tasks with fixed interfaces and globbed sources | Accepted |
 | [0018](0018-no-default-task.md) | No Default task in projects | Accepted |
@@ -81,6 +81,7 @@ Each file records one design decision: what was decided, what else was considere
 | [0074](0074-refuse-workspaces-from-newer-versions.md) | A workspace from a newer version is not opened | Accepted |
 | [0075](0075-hide-to-tray-and-show-hide-hotkey.md) | Closing hides to the tray, and a global hotkey shows or hides the app | Accepted; the default hotkey by 0076 |
 | [0076](0076-left-hand-default-hotkey.md) | The default global hotkey is pressed with the left hand | Accepted |
+| [0077](0077-no-macos-in-ci-during-development.md) | No macOS in CI during development | Accepted |
 
 ## Template
 

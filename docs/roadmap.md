@@ -2,7 +2,7 @@
 
 The milestones are in order. Each one ends in a working state and a commit. A detailed code plan for a milestone is written just before it starts, not earlier.
 
-Each milestone has acceptance criteria. Development and checking happen on Windows. From M2 onwards, every milestone must also build and pass its tests on macOS and Linux, checked by the CI build added in M2.
+Each milestone has acceptance criteria. Development and checking happen on Windows. From M2 onwards, every milestone must also build and pass its tests on Linux, checked by the CI build added in M2, and on macOS, which the user builds by hand from time to time during development. See [decision 0077](decisions/0077-no-macos-in-ci-during-development.md).
 
 ## M0: Design documents
 
@@ -113,6 +113,7 @@ See [the M6 plan](plans/m6-native-item-types.md) and [the changes after trying i
 
 ## M10: Packaging
 
+- [ ] CI builds and tests on macOS again.
 - [ ] CI builds the Windows package and the macOS app bundle.
 - [ ] Windows package with `windeployqt`, macOS app bundle with `macdeployqt`.
 - [ ] A short install and first-run guide in the root `README.md`.

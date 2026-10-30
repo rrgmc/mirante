@@ -1,6 +1,6 @@
 # 0015. Build the app skeleton directly, with CI from M2
 
-- Status: Accepted
+- Status: Accepted; macOS in CI superseded by 0077
 - Date: 2026-10-28
 
 ## Context

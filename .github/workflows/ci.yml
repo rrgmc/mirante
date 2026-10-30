@@ -1,7 +1,9 @@
-# Builds and tests Mirante on Windows, macOS and Linux, with all modules and
-# with none, and checks that modules include only the module API.
+# Builds and tests Mirante on Windows and Linux, with all modules and with
+# none, and checks that modules include only the module API.
 # Qt comes from tools/setup-qt, as in local builds, into a cached folder
 # outside the checkout. See docs/plans/m2-app-skeleton.md, part 1.
+# macOS is off during development, and its steps stay for when it returns. Add
+# macos-14 to the matrix to turn it on. See decision 0077.
 
 name: CI
 
@@ -19,7 +21,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-2022, macos-14, ubuntu-24.04]
+        os: [windows-2022, ubuntu-24.04]
     steps:
       - uses: actions/checkout@v4
 
