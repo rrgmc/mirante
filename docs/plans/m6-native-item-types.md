@@ -14,6 +14,7 @@ Smaller choices made here:
 - **Project settings stay.** The M5 plan left this to M6. GitLab's `project` is the default of every item and of list scopes. Jira's `projectKey` is now used by two list presets. Both earn their place.
 - **Colours are fixed in M6.** All colours of status pills come from one function in the view kit, so a later theme has one place to change. See [ideas for later](#ideas-for-later).
 - **Confirmation.** Only cancelling a pipeline asks first. Approving, retrying, commenting, closing and moving an issue do not, because the user can see the result and can undo or repeat it.
+- **A "Web" link at the top of every native view,** at the user's request. It opens the item's page on its site in the external browser, and it is hidden when no address is known. See [the Web link](#the-web-link).
 - **Close and reopen** are in [item types](../item-types.md#gitlab-issue-summary-gitlab-issue-page-gitlab-issue-list) but missing from the roadmap and the client. M6 adds them, which needs `ApiClient::put()`.
 
 ## Changes to the architecture
@@ -60,6 +61,20 @@ virtual QString addItemToTask(const QString &typeId, const QString &name, const 
 | `ItemListView` | A `QTableView`, a sort proxy, a splitter and a preview area. `setColumns()` gives each column a title, a priority for hiding in a narrow cell, and whether it stretches. `setRows()` takes `ListRow`s: per column a text, a sort key and an optional `StatusRole`. It keeps the selection by a row's key. `setPreview(widget)` shows the preview under the splitter, with a close button. Signals: `rowSelected(key)`, and `rowMenuRequested(key, globalPos)`. |
 
 The columns hide by priority as the width falls. The title column always stays. Sorting starts on the last update column, newest first.
+
+### The Web link
+
+`ActionRow::setWebLink(url)` adds a "Web" action at the end of the row, and `ItemListView::setWebLink(url)` shows the same action in a thin row above the table. An empty address hides it. A click opens the address with `QDesktopServices`.
+
+| View | Address |
+|---|---|
+| Merge request, issue | `web_url` in the data, else built from the base URL and the configuration |
+| CI Pipeline | the pipeline's `web_url`; hidden on a branch without pipelines |
+| MR List, Issue List | `<base>/<project>/-/merge_requests` or `/issues`; `<base>/groups/<group>/-/merge_requests` or `/issues`; `<base>/dashboard/merge_requests` or `/issues` for all projects |
+| Jira Issue | `<base>/browse/<key>` |
+| Jira List | `<base>/issues/?jql=<query>` |
+
+"Open page" stays as well, and keeps `Shift` for the browser: it shows the page in the same cell, and "Web" leaves the app. Lists have no "Open page" at the top, so "Web" is their only link to the site.
 
 **Tests**, in `tests/module_widgets/`: `tst_flow_row` (wrapping), `tst_summary_view` (order, replacing, hiding, scroll kept), `tst_action_row` (busy, error, short labels), `tst_item_list_view` (sorting by key, selection kept across `setRows`, hiding by width, preview hides and returns), `tst_status_pill` (a colour pair for each role in both modes, with enough contrast).
 
