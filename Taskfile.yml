@@ -1,0 +1,67 @@
+# Common tasks, for https://taskfile.dev. Run "task" to list them. On Windows
+# they call the scripts in tools/, which enter the Visual Studio environment.
+#
+#   task build                   build the dev preset
+#   task test PRESET=release     build and test another preset
+#   task run -- -Data <folder>   pass arguments on, here to tools/run.ps1
+version: '3'
+
+vars:
+  PRESET: '{{.PRESET | default "dev"}}'
+  POWERSHELL: powershell -NoProfile -ExecutionPolicy Bypass -File
+
+tasks:
+  default:
+    desc: List the tasks
+    silent: true
+    cmds:
+      - task --list
+
+  build:
+    desc: Build a preset (PRESET=dev), without running the tests
+    cmds:
+      - cmd: '{{.POWERSHELL}} tools/build.ps1 -Preset {{.PRESET}} -NoTest'
+        platforms: [windows]
+      - cmd: |
+          cmake --preset {{.PRESET}} -DCMAKE_PREFIX_PATH="$(tools/setup-qt.sh)"
+          cmake --build --preset {{.PRESET}}
+        platforms: [linux, darwin]
+
+  test:
+    desc: Build a preset (PRESET=dev) and run its tests
+    cmds:
+      - cmd: '{{.POWERSHELL}} tools/build.ps1 -Preset {{.PRESET}}'
+        platforms: [windows]
+      - cmd: |
+          cmake --preset {{.PRESET}} -DCMAKE_PREFIX_PATH="$(tools/setup-qt.sh)"
+          cmake --build --preset {{.PRESET}}
+          ctest --preset {{.PRESET}}
+        platforms: [linux, darwin]
+
+  run:
+    desc: 'Start the build of a preset (PRESET=dev), on Windows. Pass tools/run.ps1 arguments after --'
+    platforms: [windows]
+    cmds:
+      - '{{.POWERSHELL}} tools/run.ps1 -Preset {{.PRESET}} {{.CLI_ARGS}}'
+
+  check-includes:
+    desc: Check that modules include only their own files and the module interface
+    cmds:
+      - cmd: python tools/check-module-includes.py
+        platforms: [windows]
+      - cmd: python3 tools/check-module-includes.py
+        platforms: [linux, darwin]
+
+  check:
+    desc: Run what a change must pass, all modules and none, and the include check
+    cmds:
+      - task: check-includes
+      - task: test
+        vars: { PRESET: dev }
+      - task: test
+        vars: { PRESET: no-modules }
+
+  clean:
+    desc: Remove the build folder of a preset (PRESET=dev)
+    cmds:
+      - cmake -E rm -rf build/{{.PRESET}}
