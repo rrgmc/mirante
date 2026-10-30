@@ -66,8 +66,8 @@ public:
     // Switches the button between "Maximise" and "Restore".
     void setMaximised(bool maximised);
     // Shows the "Open Alone" button, last in the header, which emits
-    // openAloneRequested. Off by default; on for items on a root dashboard,
-    // as task cells have one.
+    // openAloneRequested. Off by default; on for item cells, as task cells
+    // have one.
     void setOpenAloneVisible(bool visible);
 
     // The item's status, before the menu button: an attention badge, a
