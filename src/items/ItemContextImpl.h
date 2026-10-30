@@ -37,6 +37,8 @@ public:
     QWebEngineProfile *profile() override;
     QWidget *createMessageView(const QString &text, QWidget *parent) override;
     void updateConfig(const QJsonObject &config) override;
+    void showPage(const QUrl &url) override;
+    QString addItemToTask(const QString &typeId, const QString &name, const QJsonObject &config) override;
     ApiClient *server() override;
     ItemStatusSource *status() override;
 

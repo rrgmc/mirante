@@ -56,7 +56,7 @@ struct ApiReply
         NoServer,   // no base URL in the profile, or ServerType::problem()
         NoToken,    // no token on this device
         Refused,    // 401, or 403 on a GET: the server is now failing
-        Forbidden,  // 403 on a POST
+        Forbidden,  // 403 on a POST or a PUT
         NotFound,   // 404
         Http,       // any other status of 400 or more
         Network,    // no answer: DNS, TLS, timeout, offline
@@ -99,6 +99,9 @@ public:
                      std::function<void(const ApiReply &)> done) = 0;
     virtual void post(const QString &path, const QJsonDocument &body, QObject *receiver,
                       std::function<void(const ApiReply &)> done) = 0;
+    // Like post(), for an API that changes an object with PUT.
+    virtual void put(const QString &path, const QJsonDocument &body, QObject *receiver,
+                     std::function<void(const ApiReply &)> done) = 0;
 
     // Adds the authentication to a request the module makes itself. False if
     // the token is not loaded yet or not set. Prefer get() and post().

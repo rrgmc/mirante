@@ -104,7 +104,7 @@ The `StatusCache` owns all API data. It keeps one status per item, in memory onl
   - [attention badges](ui.md#attention) and the tray count;
   - [built-in panels](web-views.md#built-in-panels), through the bridge.
 
-Modules fetch through the cache, never around it. All requests are asynchronous and use one `QNetworkAccessManager`. At most four requests run at once for each server of a profile.
+Modules poll through the cache, never around it. A view asks the server directly only for what a user's action or a visible list needs, such as a list row's preview. See [decision 0068](decisions/0068-views-read-what-the-user-asked-for.md). All requests are asynchronous and use one `QNetworkAccessManager`. At most four requests run at once for each server of a profile.
 
 ### Attention
 
@@ -120,7 +120,7 @@ Modules fetch through the cache, never around it. All requests are asynchronous 
 
 - A missing token shows "Token not set on this device" with a button to enter it. Nothing is sent.
 - A `401` on any request, or a `403` on a `GET`, marks the profile's server as failing. The main window's warning bar shows a line for it, and the server's requests return without being sent until its token or its settings screen changes.
-- A `403` on a `POST` is a missing permission for that one action, such as a `read_api` token approving a merge request. Only that action fails; the server keeps working.
+- A `403` on a `POST` or a `PUT` is a missing permission for that one action, such as a `read_api` token approving a merge request. Only that action fails; the server keeps working.
 - A `429` waits for `Retry-After` seconds, or 30 without one, and sends again, at most three times. The server's other requests wait too.
 - A request that gets no answer in 30 seconds fails as a network error.
 - Network errors keep the last data and show its age, such as "Updated 12 min ago".

@@ -5,6 +5,9 @@ target_include_directories(mirante_module_api INTERFACE "${CMAKE_CURRENT_SOURCE_
 # Widgets for ItemEditor.h, Network for ApiClient.h.
 target_link_libraries(mirante_module_api INTERFACE Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Network)
 
+add_subdirectory(widgets)
+target_link_libraries(mirante_module_api INTERFACE mirante_module_widgets)
+
 # Fakes of the module interface for module tests: <mirante/testing/...>.
 # mirante_add_module() links it to a module's tests only, so module code
 # cannot include it.

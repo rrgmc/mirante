@@ -140,6 +140,19 @@ void ItemContextImpl::updateConfig(const QJsonObject &config)
     }
 }
 
+void ItemContextImpl::showPage(const QUrl &url)
+{
+    Q_UNUSED(url)
+}
+
+QString ItemContextImpl::addItemToTask(const QString &typeId, const QString &name, const QJsonObject &config)
+{
+    Q_UNUSED(typeId)
+    Q_UNUSED(name)
+    Q_UNUSED(config)
+    return {};
+}
+
 ApiClient *ItemContextImpl::server()
 {
     const Item *item = m_services.model ? m_services.model->item(m_taskId, m_itemId) : nullptr;

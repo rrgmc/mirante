@@ -25,7 +25,7 @@ class FakeApiClient : public ApiClient
 public:
     struct Request
     {
-        QString method;     // "GET" or "POST"
+        QString method;     // "GET", "POST" or "PUT"
         QString path;
         QUrlQuery query;
         GetOptions options;
@@ -106,6 +106,13 @@ public:
     {
         m_requests.append({QStringLiteral("POST"), path, {}, {}, body});
         answer(key(QStringLiteral("POST"), path), receiver, std::move(done));
+    }
+
+    void put(const QString &path, const QJsonDocument &body, QObject *receiver,
+             std::function<void(const ApiReply &)> done) override
+    {
+        m_requests.append({QStringLiteral("PUT"), path, {}, {}, body});
+        answer(key(QStringLiteral("PUT"), path), receiver, std::move(done));
     }
 
     bool authorize(QNetworkRequest &request) override

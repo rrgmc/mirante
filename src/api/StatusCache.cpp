@@ -51,6 +51,12 @@ public:
         answer(receiver, std::move(done));
     }
 
+    void put(const QString &, const QJsonDocument &, QObject *receiver,
+             std::function<void(const ApiReply &)> done) override
+    {
+        answer(receiver, std::move(done));
+    }
+
     bool authorize(QNetworkRequest &) override { return false; }
 
     void secret(QObject *receiver, std::function<void(std::optional<QString>)> done) override

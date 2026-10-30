@@ -100,6 +100,8 @@ public:
              std::function<void(const ApiReply &)> done) override;
     void post(const QString &path, const QJsonDocument &body, QObject *receiver,
               std::function<void(const ApiReply &)> done) override;
+    void put(const QString &path, const QJsonDocument &body, QObject *receiver,
+             std::function<void(const ApiReply &)> done) override;
     bool authorize(QNetworkRequest &request) override;
     void secret(QObject *receiver, std::function<void(std::optional<QString>)> done) override;
 
@@ -244,6 +246,20 @@ void ServerClient::post(const QString &path, const QJsonDocument &body, QObject 
                         std::function<void(const ApiReply &)> done)
 {
     enqueue(false, path, {}, body.toJson(QJsonDocument::Compact), {}, receiver, std::move(done));
+}
+
+void ServerClient::put(const QString &path, const QJsonDocument &body, QObject *receiver,
+                       std::function<void(const ApiReply &)> done)
+{
+    // M6 T2 sends it. Until then a PUT fails without being sent.
+    Q_UNUSED(path)
+    Q_UNUSED(body)
+    Q_UNUSED(receiver)
+    ApiReply reply;
+    reply.error = ApiReply::Error::Http;
+    reply.message = QStringLiteral("PUT is not implemented yet.");
+    if (done)
+        done(reply);
 }
 
 void ServerClient::enqueue(bool isGet, const QString &path, const QUrlQuery &query, const QByteArray &body,
