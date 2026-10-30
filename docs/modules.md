@@ -261,6 +261,7 @@ Native views of different modules need the same small widgets, and modules canno
   - `setPageSize(n)` shows `n` rows at a time, with Previous and Next and a line such as "1-50 of 100". Zero or less means no pages, and the controls hide when all rows fit. `visibleKeys()` gives the current page's keys in table order, and `visibleKeysChanged()` says when they change.
   - `addFilter(column, label)` adds a drop-down above the table, filled from that column's values, with "All" first. The choice survives `setRows()` while its value exists, and otherwise falls back to "All".
   - Sorting and filtering cover all rows. A new sort or filter goes back to the first page. New rows keep the page, or move to the last page if there are now fewer.
+  - `setDescription(text)` shows a line above the table that says what the list shows, such as "Of merge request !42 · acme/backend". Each list type sets it from its configuration.
   - The object names `filter.<column>`, `previousPage`, `nextPage` and `pageLine` let tests find the controls.
   - A selected row keeps its highlight across new rows, sorts and pages, so that Return acts on the row the user chose.
 - `compactDate()`: a date for a table, in local time: `10-30 14:32` in this year, `2025-10-30` otherwise.
