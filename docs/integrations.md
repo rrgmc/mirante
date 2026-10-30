@@ -22,19 +22,22 @@ Main endpoints:
 | Approvals | `GET /projects/:id/merge_requests/:iid/approvals` |
 | Merge request list | `GET /merge_requests`, `GET /projects/:id/merge_requests`, `GET /groups/:id/merge_requests` |
 | Latest pipeline for a branch | `GET /projects/:id/pipelines/latest?ref=<branch>` |
+| One pipeline | `GET /projects/:id/pipelines/:pid` |
 | Jobs | `GET /projects/:id/pipelines/:pid/jobs` |
 | Retry or cancel | `POST /projects/:id/pipelines/:pid/retry`, `.../cancel`, `POST /projects/:id/jobs/:jid/retry` |
 | Approve | `POST /projects/:id/merge_requests/:iid/approve` |
 | Comment | `POST /projects/:id/merge_requests/:iid/notes`, `POST /projects/:id/issues/:iid/notes` |
-| Issues | `GET /projects/:id/issues/:iid`, `GET /issues` |
+| Issues | `GET /projects/:id/issues/:iid`, `GET /issues`, `GET /projects/:id/issues`, `GET /groups/:id/issues` |
+| Latest issue notes | `GET /projects/:id/issues/:iid/notes?sort=desc&order_by=created_at` |
+| Close or reopen an issue | `PUT /projects/:id/issues/:iid` with `{"state_event": "close"}` or `{"state_event": "reopen"}` |
 | Current user | `GET /user`, to resolve "me" in presets and attention |
 
 Project and group paths such as `acme/backend` are URL-encoded and used as `:id`, as in `acme%2Fbackend`. The branch in `ref` is URL-encoded too. `GitLabClient` in the module has one method per endpoint; see the [module's README](../src/modules/gitlab/README.md#the-client).
 
 What each item type asks for its status:
 
-- **A merge request** (summary or page): the merge request, its approvals and the current user, at once. The current user is asked in every status job, and its ETag makes the repeat cheap.
-- **An issue** (summary or page): the issue.
+- **A merge request** (summary or page): the merge request, its approvals and the current user, at once. The current user is asked in every status job, and its ETag makes the repeat cheap. A summary whose head pipeline failed then asks for that pipeline's jobs. If that request fails, the status stands without the jobs.
+- **An issue** (summary or page): the issue. A summary then asks for the latest 20 notes and leaves out system notes. If that request fails, the status stands without the notes.
 - **A CI pipeline:** for a linked merge request, the merge request first, for its source branch. Then the latest pipeline of the branch, and that pipeline's jobs. A `404` for the latest pipeline means the branch has none, and is not an error.
 - **Lists** ask for nothing in M5.
 
