@@ -42,6 +42,8 @@ const QString kDashboards = QStringLiteral("dashboards");
 const QString kFiles = QStringLiteral("files");
 const QString kWorkspaceFile = QStringLiteral("workspace.mirante");
 const QString kName = QStringLiteral("name");
+// The workspace's id; missing before decision 0059.
+const QString kId = QStringLiteral("id");
 const QString kProfiles = QStringLiteral("profiles");
 // The id of the default profile; missing before decision 0057.
 const QString kDefaultProfileKey = QStringLiteral("defaultProfile");
@@ -324,6 +326,7 @@ std::vector<Profile> migratedProfilesOf(const QJsonObject &workspace, bool *chan
 QJsonObject withoutName(QJsonObject json)
 {
     json.remove(kName);
+    json.remove(kId);
     json.remove(kProfiles);
     json.remove(kDefaultProfileKey);
     json.remove(kOldWebProfiles);
@@ -370,6 +373,7 @@ Loaded loadFolder(const QString &dir, Model &model)
     model.reset(std::move(groups), std::move(projects), std::move(tasks), std::move(dashboards));
     if (workspace) {
         model.setWorkspaceName(workspace->value(kName).toString());
+        model.setWorkspaceId(workspace->value(kId).toString());
         loaded.workspaceExtra = withoutName(*workspace);
     }
     model.setProfiles(std::move(profiles));
@@ -408,6 +412,8 @@ std::optional<QJsonObject> fileFor(const Model &model, const QString &relPath)
             {kProfiles, profiles},
             {kDefaultProfileKey, model.defaultProfile()},
         };
+        if (!model.workspaceId().isEmpty())
+            json.insert(kId, model.workspaceId());
         return withSchemaVersion(json);
     }
     case FileKind::Group:
@@ -458,7 +464,11 @@ std::map<QString, QJsonObject> serialise(const Model &model)
 // QJsonObject keeps its keys sorted, so the output has sorted keys.
 QByteArray toBytes(const QJsonObject &json) { return QJsonDocument(json).toJson(QJsonDocument::Indented); }
 
-bool saveWorkspaceName(const QString &dir, const QString &name, QString *error)
+namespace {
+
+// Writes workspace.mirante with its name, keeping its other keys. withId
+// also gives it an id if it has none.
+bool writeWorkspaceFile(const QString &dir, const QString &name, bool withId, QString *error)
 {
     const QString path = dir + QLatin1Char('/') + kWorkspaceFile;
     const auto fail = [error](const QString &message) {
@@ -479,6 +489,8 @@ bool saveWorkspaceName(const QString &dir, const QString &name, QString *error)
         existing.close();
     }
     json.insert(kName, name);
+    if (withId && json.value(kId).toString().isEmpty())
+        json.insert(kId, edits::newId());
     json.insert(kSchemaVersion, migrations::currentSchemaVersion);
 
     QSaveFile file(path);
@@ -488,6 +500,13 @@ bool saveWorkspaceName(const QString &dir, const QString &name, QString *error)
     if (!file.commit())
         return fail(file.errorString());
     return true;
+}
+
+} // namespace
+
+bool saveWorkspaceName(const QString &dir, const QString &name, QString *error)
+{
+    return writeWorkspaceFile(dir, name, false, error);
 }
 
 QString workspaceFileName() { return kWorkspaceFile; }
@@ -504,7 +523,9 @@ bool createWorkspace(const QString &dir, const QString &name, QString *error)
             *error = QStringLiteral("the folder does not exist");
         return false;
     }
-    return saveWorkspaceName(dir, name, error);
+    // A new workspace gets its id at once, so it never takes the logins of
+    // workspaces from before decision 0059.
+    return writeWorkspaceFile(dir, name, true, error);
 }
 
 namespace {
@@ -627,6 +648,7 @@ struct Store::Private
     Model *model = nullptr;
     QString dir;
     bool readOnly = true;
+    bool assignedId = false;           // see Store::assignedWorkspaceId()
     FileWriter *writer = nullptr;      // null when closed or read-only
     FolderWatcher *watcher = nullptr;  // likewise
     bool applying = false;             // a reload is being applied to the model
@@ -833,6 +855,10 @@ Store::Private::Reload Store::Private::reloadFile(const QString &path)
     case FileKind::Workspace:
         workspaceExtra = withoutName(*json);
         model->setWorkspaceName(json->value(kName).toString());
+        // The id never changes; a file written without it, such as by an
+        // older version, keeps the one already known.
+        if (json->value(kId).isString() && !json->value(kId).toString().isEmpty())
+            model->setWorkspaceId(json->value(kId).toString());
         // Old keys are migrated in the model only: a reload is never written
         // back. The next write of the file drops them.
         {
@@ -1130,6 +1156,7 @@ std::vector<LoadProblem> Store::open(const QString &dir)
 
     // The writer does not exist yet, so loading writes nothing.
     Loaded loaded = loadFolder(dir, *d->model);
+    d->assignedId = false;
     d->dir = dir;
     d->readOnly = dir.isEmpty() || dir.startsWith(QLatin1Char(':'));
     for (const LoadProblem &problem : loaded.problems)
@@ -1171,6 +1198,14 @@ std::vector<LoadProblem> Store::open(const QString &dir)
         d->watcher->start();
         // The profile migration of decision 0050 is written once.
         d->writeMigrated(loaded.migrated);
+        // Decision 0059: a workspace from before it gets its id, written at
+        // once, so its logins on this device have a place that stays.
+        if (d->model->workspaceId().isEmpty() && !d->newer.contains(kWorkspaceFile)) {
+            d->model->setWorkspaceId(edits::newId());
+            d->assignedId = true;
+            d->workspaceSignal();
+            d->flushWriter();
+        }
     }
 
     d->problemsDirty = false;
@@ -1186,6 +1221,8 @@ void Store::close()
 QString Store::dir() const { return d->dir; }
 
 bool Store::readOnly() const { return d->readOnly; }
+
+bool Store::assignedWorkspaceId() const { return d->assignedId; }
 
 void Store::flush()
 {

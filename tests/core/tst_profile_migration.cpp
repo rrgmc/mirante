@@ -285,6 +285,9 @@ private slots:
         QVERIFY(store::load(dir.path(), migrated).empty());
         Model current;
         QVERIFY(store::load(QStringLiteral(MIRANTE_FIXTURES_DIR), current).empty());
+        // The old file has no id; only Store::open() gives it one.
+        QVERIFY(migrated.workspaceId().isEmpty());
+        migrated.setWorkspaceId(current.workspaceId());
         QCOMPARE(store::serialise(migrated), store::serialise(current));
         // Nothing was written.
         QCOMPARE(readJson(dir.filePath(QStringLiteral("groups/6d1b9bb9-f4c3-5677-a4e1-683ba618d4c7.json"))), oldGroup);
@@ -316,8 +319,15 @@ private slots:
                                 QStringLiteral("groups/6d1b9bb9-f4c3-5677-a4e1-683ba618d4c7.json"),
                                 QStringLiteral("groups/80314e00-c02f-5f8b-977f-0756b76406ea.json")};
         for (const QString &file : files) {
-            const QJsonObject written = readJson(dir.filePath(file));
-            const QJsonObject expected = readJson(QStringLiteral(MIRANTE_FIXTURES_DIR) + QLatin1Char('/') + file);
+            QJsonObject written = readJson(dir.filePath(file));
+            QJsonObject expected = readJson(QStringLiteral(MIRANTE_FIXTURES_DIR) + QLatin1Char('/') + file);
+            // The old file gets an id of its own (decision 0059), not the
+            // sample data's.
+            if (file == QStringLiteral("workspace.mirante")) {
+                QVERIFY(!written.value(QStringLiteral("id")).toString().isEmpty());
+                written.remove(QStringLiteral("id"));
+                expected.remove(QStringLiteral("id"));
+            }
             if (written != expected)
                 qWarning().noquote() << file << QJsonDocument(written).toJson();
             QVERIFY2(written == expected, qPrintable(file));

@@ -375,7 +375,7 @@ private slots:
     }
 
     // A token typed into a Secret field never reaches the stored values. It
-    // goes to the secret store under "<profile>/<module>/<key>", and the field
+    // goes to the secret store under "<workspace>/<profile>/<module>/<key>", and the field
     // starts empty.
     void secretsStayOutOfTheValues()
     {
@@ -407,8 +407,18 @@ private slots:
         // A token found in the values is dropped when they are saved.
         QVERIFY(!stored.contains(QStringLiteral("token")));
         QCOMPARE(stored.value(QStringLiteral("name")).toString(), QStringLiteral("New"));
-        QCOMPARE(EntityActions::secretKey(QStringLiteral("p"), QStringLiteral("gitlab"), QStringLiteral("token")),
+        QCOMPARE(EntityActions::secretKey(QString(), QStringLiteral("p"), QStringLiteral("gitlab"),
+                                          QStringLiteral("token")),
                  QStringLiteral("p/gitlab/token"));
+        // Each workspace keeps its own tokens.
+        QCOMPARE(EntityActions::secretKey(QStringLiteral("w1"), QStringLiteral("p"), QStringLiteral("gitlab"),
+                                          QStringLiteral("token")),
+                 QStringLiteral("w1/p/gitlab/token"));
+        f.model.setWorkspaceId(QStringLiteral("w1"));
+        saved.clear();
+        f.window->entityActions()->editModuleSettings(kDefaultProfile, QStringLiteral("tools"),
+                                                      QStringLiteral("general"));
+        QCOMPARE(saved.firstKey(), QStringLiteral("w1/default/tools/token"));
     }
 
     // A screen with its own editor gets it in the dialog, and OK is refused

@@ -3,6 +3,8 @@
 #include "core/Entities.h"
 
 #include <QApplication>
+#include <QCryptographicHash>
+#include <QDebug>
 #include <QDir>
 #include <QEventLoop>
 #include <QFileDialog>
@@ -38,6 +40,13 @@ QString plainUserAgent(const QString &userAgent)
 {
     static const QRegularExpression token(QStringLiteral("\\s*QtWebEngine/\\S+"));
     return QString(userAgent).remove(token).simplified();
+}
+
+// Whether s can name a folder inside another without reaching outside it.
+bool isPlainName(const QString &s)
+{
+    static const QRegularExpression plain(QStringLiteral("^[A-Za-z0-9_-]+$"));
+    return plain.match(s).hasMatch();
 }
 
 // The folder where a download is offered first.
@@ -98,7 +107,10 @@ void removeFolderSoon(QObject *owner, const QString &path, int attemptsLeft, std
 struct ProfileManager::Private
 {
     QString root;
-    // Loaded profiles by storage name. The manager deletes them.
+    // The open workspace's folder under root, from setWorkspace(). Empty
+    // keeps the profiles directly in root.
+    QString workspace;
+    // Loaded profiles by their folder. The manager deletes them.
     QHash<QString, QWebEngineProfile *> profiles;
     // Removed profiles, waiting for deleteLater. Their folders are
     // removed once they are gone.
@@ -109,9 +121,9 @@ struct ProfileManager::Private
     QSet<QWebEngineProfile *> clearing;
     // Folders still to remove when the manager is destroyed.
     QStringList pendingFolders;
-    // Storage names of profiles being cleared, and the temporary profile that
+    // Folders of profiles being cleared, and the temporary profile that
     // stands in for them meanwhile.
-    QSet<QString> clearingNames;
+    QSet<QString> clearingFolders;
     QWebEngineProfile *standIn = nullptr;
 };
 
@@ -156,16 +168,16 @@ ProfileManager::~ProfileManager()
         QDir(path).removeRecursively();
 }
 
-// Returns the profile with this storage name, making it on first use.
-static QWebEngineProfile *profileNamed(ProfileManager *manager, QHash<QString, QWebEngineProfile *> &profiles,
-                                       const QString &name)
+// Returns the profile kept in path, making it on first use. Its Qt storage
+// name must be unique in the process, so it names the workspace too.
+static QWebEngineProfile *profileAt(ProfileManager *manager, QHash<QString, QWebEngineProfile *> &profiles,
+                                    const QString &path, const QString &qtName)
 {
-    if (QWebEngineProfile *existing = profiles.value(name))
+    if (QWebEngineProfile *existing = profiles.value(path))
         return existing;
 
-    const QString path = manager->storagePath(name);
     QDir().mkpath(path);
-    auto *profile = new QWebEngineProfile(name, manager);
+    auto *profile = new QWebEngineProfile(qtName, manager);
     // A named profile makes an empty folder under the default data path
     // before it can be moved. Qt 6.8 has no way to name it without that. The
     // folder stays: Chromium keeps using that path for some storage, and on
@@ -177,7 +189,7 @@ static QWebEngineProfile *profileNamed(ProfileManager *manager, QHash<QString, Q
     profile->setHttpUserAgent(plainUserAgent(profile->httpUserAgent()));
     profile->setDownloadPath(downloadFolder());
     QObject::connect(profile, &QWebEngineProfile::downloadRequested, manager, &askWhereToSave);
-    profiles.insert(name, profile);
+    profiles.insert(path, profile);
     return profile;
 }
 
@@ -185,34 +197,49 @@ QString ProfileManager::storageName(const QString &profileId)
 {
     // Ids come from synced data, so one that is not a plain name, and could
     // reach outside the profiles folder, uses Default instead.
-    static const QRegularExpression plain(QStringLiteral("^[A-Za-z0-9_-]+$"));
-    const QString id = plain.match(profileId).hasMatch() ? profileId : kDefaultProfile;
+    const QString id = isPlainName(profileId) ? profileId : kDefaultProfile;
     return QStringLiteral("p-%1").arg(id);
 }
+
+void ProfileManager::setWorkspace(const QString &key)
+{
+    if (key.isEmpty() || isPlainName(key)) {
+        d->workspace = key;
+        return;
+    }
+    // A folder path, or an id from synced data that could reach outside root.
+    const QByteArray hash = QCryptographicHash::hash(key.toUtf8(), QCryptographicHash::Sha1).toHex();
+    d->workspace = QStringLiteral("h-") + QString::fromLatin1(hash.left(16));
+}
+
+QString ProfileManager::workspace() const { return d->workspace; }
 
 QWebEngineProfile *ProfileManager::profile(const QString &profileId)
 {
     const QString name = storageName(profileId.isEmpty() ? kDefaultProfile : profileId);
+    const QString path = storagePath(name);
     // A profile being cleared must not be made again over its folder. A
     // profile without a storage name is off the record: it keeps nothing.
-    if (d->clearingNames.contains(name)) {
+    if (d->clearingFolders.contains(path)) {
         if (!d->standIn) {
             d->standIn = new QWebEngineProfile(this);
             d->standIn->setHttpUserAgent(plainUserAgent(d->standIn->httpUserAgent()));
         }
         return d->standIn;
     }
-    return profileNamed(this, d->profiles, name);
+    const QString qtName = d->workspace.isEmpty() ? name : d->workspace + QLatin1Char('_') + name;
+    return profileAt(this, d->profiles, path, qtName);
 }
 
 QWebEngineProfile *ProfileManager::appProfile()
 {
-    return profileNamed(this, d->profiles, QStringLiteral("app"));
+    // Built-in panels belong to the app, not to a workspace.
+    const QString name = QStringLiteral("app");
+    return profileAt(this, d->profiles, QDir(d->root).filePath(name), name);
 }
 
-void ProfileManager::removeStorage(const QString &storageName, std::function<void()> done)
+void ProfileManager::removeFolder(const QString &path, std::function<void()> done)
 {
-    const QString path = storagePath(storageName);
     if (d->pendingFolders.contains(path))
         return;
     d->pendingFolders.append(path);
@@ -224,7 +251,7 @@ void ProfileManager::removeStorage(const QString &storageName, std::function<voi
             done();
     };
 
-    QWebEngineProfile *profile = d->profiles.take(storageName);
+    QWebEngineProfile *profile = d->profiles.take(path);
     if (!profile) {
         removeFolderSoon(this, path, kRemoveAttempts, std::move(finished));
         return;
@@ -254,21 +281,21 @@ void ProfileManager::removeProfile(const QString &profileId)
     const QString name = storageName(profileId);
     if (name == storageName(kDefaultProfile) && profileId != kDefaultProfile)
         return;
-    removeStorage(name);
+    removeFolder(storagePath(name));
 }
 
 void ProfileManager::clearProfile(const QString &profileId)
 {
     const QString id = profileId.isEmpty() ? QString(kDefaultProfile) : profileId;
-    const QString name = storageName(id);
-    if (d->clearingNames.contains(name))
+    const QString path = storagePath(storageName(id));
+    if (d->clearingFolders.contains(path))
         return;
-    d->clearingNames.insert(name);
+    d->clearingFolders.insert(path);
     emit profileClearing(id);
     // The views delete their pages later, and the profile must go after them.
-    QTimer::singleShot(0, this, [this, id, name] {
-        removeStorage(name, [this, id, name] {
-            d->clearingNames.remove(name);
+    QTimer::singleShot(0, this, [this, id, path] {
+        removeFolder(path, [this, id, path] {
+            d->clearingFolders.remove(path);
             emit profileCleared(id);
         });
     });
@@ -276,7 +303,7 @@ void ProfileManager::clearProfile(const QString &profileId)
 
 bool ProfileManager::isClearing(const QString &profileId) const
 {
-    return d->clearingNames.contains(storageName(profileId.isEmpty() ? kDefaultProfile : profileId));
+    return d->clearingFolders.contains(storagePath(storageName(profileId.isEmpty() ? kDefaultProfile : profileId)));
 }
 
 void ProfileManager::removeOldProfiles()
@@ -284,12 +311,37 @@ void ProfileManager::removeOldProfiles()
     const QStringList folders = QDir(d->root).entryList({QStringLiteral("g-*"), QStringLiteral("shared-*")},
                                                         QDir::Dirs | QDir::NoDotAndDotDot);
     for (const QString &folder : folders)
-        removeStorage(folder);
+        removeFolder(QDir(d->root).filePath(folder));
+}
+
+int ProfileManager::adoptRootProfiles()
+{
+    if (d->workspace.isEmpty())
+        return 0;
+    const QDir root(d->root);
+    const QString target = root.filePath(d->workspace);
+    int moved = 0;
+    for (const QString &folder : root.entryList({QStringLiteral("p-*")}, QDir::Dirs | QDir::NoDotAndDotDot)) {
+        const QString from = root.filePath(folder);
+        const QString to = QDir(target).filePath(folder);
+        // A profile already loaded from there, or a folder the workspace
+        // already has, stays as it is.
+        if (d->profiles.contains(from) || QFileInfo::exists(to))
+            continue;
+        QDir().mkpath(target);
+        if (QDir().rename(from, to))
+            ++moved;
+        else
+            qWarning().noquote() << "Could not move the web logins in" << from << "to" << to;
+    }
+    return moved;
 }
 
 QString ProfileManager::storagePath(const QString &storageName) const
 {
-    return QDir(d->root).filePath(storageName);
+    const QDir root(d->root);
+    return d->workspace.isEmpty() ? root.filePath(storageName)
+                                  : QDir(root.filePath(d->workspace)).filePath(storageName);
 }
 
 } // namespace mirante

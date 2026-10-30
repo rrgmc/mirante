@@ -52,9 +52,13 @@ public:
     // device, under the keychain key secretKey(). The default only logs that
     // secrets are stored from M5, without the value. See decision 0054.
     void setSaveSecret(std::function<void(const QString &key, const QString &secret)> save);
-    // The keychain key of a secret: "<profile id>/<module id>/<field key>",
-    // such as "default/gitlab/token". Stored under the service "mirante".
-    static QString secretKey(const QString &profileId, const QString &moduleId, const QString &fieldKey);
+    // The keychain key of a secret: "<workspace id>/<profile id>/<module
+    // id>/<field key>", such as "5a3e…/default/gitlab/token", so each
+    // workspace keeps its own, as it keeps its own logins (decision 0059).
+    // Without a workspace id, the first part is left out. Stored under the
+    // service "mirante".
+    static QString secretKey(const QString &workspaceId, const QString &profileId, const QString &moduleId,
+                             const QString &fieldKey);
     // Runs the profiles dialog. The default calls exec(); tests work the
     // dialog and return instead. The confirmation set with setConfirm() is
     // used.

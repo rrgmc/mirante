@@ -222,9 +222,11 @@ void EntityActions::setSaveSecret(std::function<void(const QString &key, const Q
     d->saveSecret = std::move(save);
 }
 
-QString EntityActions::secretKey(const QString &profileId, const QString &moduleId, const QString &fieldKey)
+QString EntityActions::secretKey(const QString &workspaceId, const QString &profileId, const QString &moduleId,
+                                 const QString &fieldKey)
 {
-    return profileId + QLatin1Char('/') + moduleId + QLatin1Char('/') + fieldKey;
+    const QString key = profileId + QLatin1Char('/') + moduleId + QLatin1Char('/') + fieldKey;
+    return workspaceId.isEmpty() ? key : workspaceId + QLatin1Char('/') + key;
 }
 
 void EntityActions::setEditProfiles(std::function<void(ProfilesDialog &)> edit)
@@ -268,7 +270,7 @@ void EntityActions::editModuleSettings(const QString &profileId, const QString &
     // Secrets, such as tokens, stay on this device, in the keychain.
     const QJsonObject secrets = dialog.secrets();
     for (auto it = secrets.begin(); it != secrets.end(); ++it)
-        d->saveSecret(secretKey(profileId, moduleId, it.key()), it.value().toString());
+        d->saveSecret(secretKey(d->model.workspaceId(), profileId, moduleId, it.key()), it.value().toString());
 }
 
 // Creating.

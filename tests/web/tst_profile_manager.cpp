@@ -175,6 +175,64 @@ private slots:
         QVERIFY2(QDir(defaultPath).exists(), qPrintable(defaultPath));
     }
 
+    // Each workspace keeps its profiles in a folder of its own, by its id, so
+    // the same profile id in two workspaces gives two profiles.
+    void workspacesKeepTheirOwn()
+    {
+        QWebEngineProfile *rootLevel = manager->profile(QStringLiteral("work"));
+        QCOMPARE(normalized(rootLevel->persistentStoragePath()),
+                 normalized(QDir(root->path()).filePath(QStringLiteral("p-work"))));
+
+        manager->setWorkspace(QStringLiteral("w1"));
+        QCOMPARE(manager->workspace(), QStringLiteral("w1"));
+        QWebEngineProfile *first = manager->profile(QStringLiteral("work"));
+        QVERIFY(first != rootLevel);
+        QCOMPARE(normalized(first->persistentStoragePath()),
+                 normalized(QDir(root->path()).filePath(QStringLiteral("w1/p-work"))));
+        QCOMPARE(first->storageName(), QStringLiteral("w1_p-work"));
+
+        manager->setWorkspace(QStringLiteral("w2"));
+        QWebEngineProfile *second = manager->profile(QStringLiteral("work"));
+        QVERIFY(second != first);
+        QCOMPARE(normalized(manager->storagePath(QStringLiteral("p-work"))),
+                 normalized(QDir(root->path()).filePath(QStringLiteral("w2/p-work"))));
+        // Back to the first, its profile is the same one.
+        manager->setWorkspace(QStringLiteral("w1"));
+        QCOMPARE(manager->profile(QStringLiteral("work")), first);
+        // The app profile belongs to no workspace.
+        QCOMPARE(normalized(manager->appProfile()->persistentStoragePath()),
+                 normalized(QDir(root->path()).filePath(QStringLiteral("app"))));
+
+        // A key that is not a plain name, such as a folder path, is hashed.
+        manager->setWorkspace(QStringLiteral("C:/work/space"));
+        QVERIFY(manager->workspace().startsWith(QStringLiteral("h-")));
+        QCOMPARE(manager->workspace().size(), 18);
+        manager->setWorkspace(QStringLiteral("../escape"));
+        QVERIFY(manager->workspace().startsWith(QStringLiteral("h-")));
+    }
+
+    // The profile folders kept in the root before decision 0059 move into
+    // the workspace that adopts them. A folder the workspace has stays.
+    void adoptRootProfiles()
+    {
+        const QDir dir(root->path());
+        QVERIFY(QDir().mkpath(dir.filePath(QStringLiteral("p-old/cache"))));
+        QVERIFY(QDir().mkpath(dir.filePath(QStringLiteral("p-kept"))));
+        QVERIFY(QDir().mkpath(dir.filePath(QStringLiteral("w3/p-kept"))));
+        QVERIFY(QDir().mkpath(dir.filePath(QStringLiteral("app"))));
+
+        // Without a workspace there is nowhere to move them.
+        QCOMPARE(manager->adoptRootProfiles(), 0);
+
+        manager->setWorkspace(QStringLiteral("w3"));
+        QCOMPARE(manager->adoptRootProfiles(), 1);
+        QVERIFY(QDir(dir.filePath(QStringLiteral("w3/p-old/cache"))).exists());
+        QVERIFY(!QDir(dir.filePath(QStringLiteral("p-old"))).exists());
+        QVERIFY(QDir(dir.filePath(QStringLiteral("p-kept"))).exists());
+        QVERIFY(QDir(dir.filePath(QStringLiteral("app"))).exists());
+        QCOMPARE(manager->adoptRootProfiles(), 0);
+    }
+
     // Ids come from synced files, so one that could name another folder gives
     // Default.
     void oddIdsGiveDefault()
