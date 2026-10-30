@@ -25,7 +25,7 @@ All ids are UUIDs, created once and never reused.
 | `id` | UUID |
 | `name` | For example "Work" |
 | `order` | Manual position in the sidebar |
-| `profile` | Optional. The id of the group's default [profile](#profile). Without it, or if it names no profile in the list, the group uses Default. |
+| `profile` | Optional. The id of the group's default [profile](#profile). Without it, or if it names no profile in the list, the group uses the workspace's default profile. |
 | `colour` | Optional. The group's colour, as `"#rrggbb"`, such as `"#3b82f6"`. Title bars of its task dashboards and its projects in the sidebar are tinted with it. |
 
 Groups have no priority.
@@ -127,12 +127,12 @@ A profile groups what belongs to one account or context, such as "Work" or "Pers
 - the values of the modules' [settings screens](#module-settings), such as the [server](#servers-and-tokens) each module talks to;
 - the token for each such server, kept in the keychain of each device.
 
-The list belongs to the workspace and is kept in `workspace.mirante`, under `profiles`. See decisions [0050](decisions/0050-profiles-hold-logins-connections-and-settings.md) and [0054](decisions/0054-module-settings-replace-connections.md), which extend [decision 0042](decisions/0042-user-managed-web-profiles.md).
+The list belongs to the workspace and is kept in `workspace.mirante`, under `profiles`. One profile is the default, named by `defaultProfile`. See decisions [0050](decisions/0050-profiles-hold-logins-connections-and-settings.md), [0054](decisions/0054-module-settings-replace-connections.md) and [0057](decisions/0057-any-profile-can-be-the-default.md), which extend [decision 0042](decisions/0042-user-managed-web-profiles.md).
 
 | Field | Description |
 |---|---|
-| `id` | UUID, or `default` for Default |
-| `name` | Display name. Default has none. |
+| `id` | UUID, or `default` for the profile a workspace gets when it has none |
+| `name` | Display name |
 | `moduleSettings` | Optional. The values of the modules' settings screens; see [module settings](#module-settings) |
 
 ```json
@@ -141,19 +141,23 @@ The list belongs to the workspace and is kept in `workspace.mirante`, under `pro
   "profiles": [
     {
       "id": "default",
+      "name": "Personal",
       "moduleSettings": { "gitlab": { "general": { "baseUrl": "https://gitlab.com" } } }
     },
     { "id": "3f6c2a8e-5d1b-4c7a-9e2f-8b0d4a6c1e93", "name": "Work" }
   ],
+  "defaultProfile": "3f6c2a8e-5d1b-4c7a-9e2f-8b0d4a6c1e93",
   "schemaVersion": 1
 }
 ```
 
 Rules:
 
-- **Default** always exists, with the id `default`. It is listed only when it holds settings or unknown keys, and its name is not stored. An entry without an id, or with an id already listed, is skipped when the file is read.
-- An item uses its own `profile`, else its group's, else Default. A step that names a profile not in the list is skipped, such as a deleted profile or one whose entry has not arrived yet. The code is `profiles::effective` in `src/core/Profiles.h`.
-- Deleting a profile removes it from the list, with its settings. Groups and items that name it keep the id and fall back by the rule above.
+- There is always at least one profile. Every profile is listed, with its name, and any can be renamed. An entry without an id, or with an id already listed, is skipped when the file is read. An empty list gets a profile called "Default", with the id `default`.
+- **The default profile** is the one `defaultProfile` names. If it names none in the list, the first profile by name, ignoring case, is the default; nothing is written until the next change.
+- An item uses its own `profile`, else its group's, else the default profile. A group without a `profile` follows the default. A step that names a profile not in the list is skipped, such as a deleted profile or one whose entry has not arrived yet. The code is `profiles::effective` in `src/core/Profiles.h`.
+- Deleting a profile removes it from the list, with its settings. Groups and items that name it keep the id and fall back by the rule above. The last profile cannot be deleted. Deleting the default makes the first of the others by name the default.
+- A file without `defaultProfile` was written before decision 0057, when a profile called Default, with the id `default`, always existed and was listed only when it held settings, without a name. When such a file is read, that profile is added if missing, named "Default", and made the default.
 - The list and the settings are synced. The logins and the tokens are not; they stay on each device.
 - Keys of a profile that this version does not know are kept.
 
@@ -217,7 +221,7 @@ Each module that talks to a server keeps it in its settings, one server per prof
 | GitLab | `gitlab.general.baseUrl`, such as `https://gitlab.example.org/gitlab` | `https://gitlab.com` |
 | Jira | `jira.general.baseUrl`, the site, such as `https://acme.atlassian.net` | none |
 
-- An item uses the server of its [profile](#profile): its own, else its group's, else Default's.
+- An item uses the server of its [profile](#profile): its own, else its group's, else the default profile's.
 - The token for the server is entered on the same screen, in a `Secret` field. It is never part of the synced data. The keychain keeps it under the key `<profile id>/<module id>/<field key>`, such as `default/gitlab/token`. See [sync](sync.md#secrets).
 
 ## Dashboard

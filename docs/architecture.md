@@ -48,7 +48,7 @@ No core folder depends on a module. The core reaches modules only through the re
 | `Migrations` | Upgrades files from older `schemaVersion` values, and refuses files of a newer one |
 | `ConflictNames` | Recognises a sync tool's conflict copy by the id at the start of its name. See [decision 0031](decisions/0031-conflict-copies-by-id-prefix.md). |
 | `Profiles` | Finds the profile of an item by the [resolution order](data-model.md#profile), lists the profiles to offer, and removes one from the list |
-| `ProfileMigration` | Turns connections, of groups or profiles, into module settings, and moves the workspace's module settings into Default. See [migration to profiles](data-model.md#migration-to-profiles). |
+| `ProfileMigration` | Turns connections, of groups or profiles, into module settings, and moves the workspace's module settings into the profile with the id `default`. See [migration to profiles](data-model.md#migration-to-profiles). |
 | `Edits` | Changes to entities as pure functions, such as removing an item from a task and clearing its cells, for the `Model`'s setters |
 | `DeviceSettings` | Typed access to the `QSettings` values listed in [sync](sync.md#device-settings) |
 | `GroupColours` | The colour of each group: its own, or a palette colour chosen by its id, and the colour for a new group. See [decision 0046](decisions/0046-group-colours.md). |

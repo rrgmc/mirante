@@ -312,34 +312,41 @@ void TestDialogs::groupColour()
 void TestDialogs::groupProfile()
 {
     Model local;
-    local.setProfiles({profile(QStringLiteral("work"), QStringLiteral("Work")),
+    local.setProfiles({profile(kDefaultProfile, QStringLiteral("Personal")),
+                       profile(QStringLiteral("work"), QStringLiteral("Work")),
                        profile(QStringLiteral("bank"), QStringLiteral("Bank"))});
+    local.setDefaultProfile(QStringLiteral("work"));
     Group original = *model.group(personalGroup);
     QVERIFY(original.profile.isEmpty());
     GroupDialog dialog(original);
-    dialog.setProfiles(profiles::all(local));
+    dialog.setProfiles(profiles::all(local), profiles::nameOf(local, local.defaultProfile()));
     QCOMPARE(dialog.value(), original);
 
-    // Default first, then by name.
+    // The default profile first, stored as no profile, then the profiles: the
+    // default first, then by name.
     auto *combo = dialog.findChild<QComboBox *>(QStringLiteral("profile"));
     QVERIFY(combo);
-    QCOMPARE(combo->count(), 3);
-    QCOMPARE(combo->itemText(0), QStringLiteral("Default"));
-    QCOMPARE(combo->itemText(1), QStringLiteral("Bank"));
+    QCOMPARE(combo->count(), 4);
+    QCOMPARE(combo->itemText(0), QStringLiteral("The default profile (Work)"));
+    QCOMPARE(combo->itemText(1), QStringLiteral("Work"));
+    QCOMPARE(combo->itemText(2), QStringLiteral("Bank"));
+    QCOMPARE(combo->itemText(3), QStringLiteral("Personal"));
     QCOMPARE(combo->currentIndex(), 0);
 
+    // Choosing the default by name stores it, so the group keeps it when the
+    // default changes.
     dialog.setProfile(QStringLiteral("work"));
     QCOMPARE(dialog.value().profile, QStringLiteral("work"));
-    // Default is stored as no profile.
-    dialog.setProfile(kDefaultProfile);
+    dialog.setProfile(QString());
     QVERIFY(dialog.value().profile.isEmpty());
 
     // A profile that is not listed is kept until another is chosen.
     original.profile = QStringLiteral("gone");
     GroupDialog missing(original);
-    missing.setProfiles(profiles::all(local));
+    missing.setProfiles(profiles::all(local), QStringLiteral("Work"));
     auto *missingCombo = missing.findChild<QComboBox *>(QStringLiteral("profile"));
-    QCOMPARE(missingCombo->count(), 4);
+    QCOMPARE(missingCombo->count(), 5);
+    QCOMPARE(missingCombo->currentText(), QStringLiteral("Unknown profile, uses the default"));
     QCOMPARE(missingCombo->currentData().toString(), QStringLiteral("gone"));
     QCOMPARE(missing.value(), original);
 }
@@ -347,7 +354,8 @@ void TestDialogs::groupProfile()
 void TestDialogs::itemProfile()
 {
     Model local;
-    local.setProfiles({profile(QStringLiteral("work"), QStringLiteral("Work"))});
+    local.setProfiles({profile(kDefaultProfile, QStringLiteral("Default")),
+                       profile(QStringLiteral("work"), QStringLiteral("Work"))});
 
     // An item that uses a profile offers the group's profile first, then
     // every profile.
@@ -417,7 +425,8 @@ void TestDialogs::itemFieldsOfTheProfile()
         registrar.addItemType(std::make_unique<ProfileFieldsType>());
     });
     Model profilesModel;
-    profilesModel.setProfiles({profile(QStringLiteral("work"), QStringLiteral("Work"))});
+    profilesModel.setProfiles({profile(kDefaultProfile, QStringLiteral("Default")),
+                               profile(QStringLiteral("work"), QStringLiteral("Work"))});
 
     Item item;
     item.id = QStringLiteral("i8");
@@ -458,7 +467,8 @@ void TestDialogs::itemFieldsOfTheProfile()
 void TestDialogs::profilesDialog()
 {
     Model local;
-    local.setProfiles({profile(QStringLiteral("work"), QStringLiteral("Work"))});
+    local.setProfiles({profile(kDefaultProfile, QStringLiteral("Default")),
+                       profile(QStringLiteral("work"), QStringLiteral("Work"))});
     Group group;
     group.id = QStringLiteral("g1");
     group.profile = QStringLiteral("work");
@@ -475,6 +485,11 @@ void TestDialogs::profilesDialog()
     });
     QSignalSpy deleted(&dialog, &ProfilesDialog::profileDeleted);
     QCOMPARE(dialog.windowTitle(), QStringLiteral("Profiles"));
+    auto *list = dialog.findChild<QListWidget *>(QStringLiteral("profileList"));
+    auto *renameButton = dialog.findChild<QPushButton *>(QStringLiteral("renameProfile"));
+    auto *deleteButton = dialog.findChild<QPushButton *>(QStringLiteral("deleteProfile"));
+    auto *defaultButton = dialog.findChild<QPushButton *>(QStringLiteral("defaultProfile"));
+    QVERIFY(list && renameButton && deleteButton && defaultButton);
 
     // The warning is shown: items in one profile share its logins, servers
     // and tokens.
@@ -483,24 +498,35 @@ void TestDialogs::profilesDialog()
     QVERIFY(warning->text().contains(QStringLiteral("can read the logins and data of all sites")));
     QVERIFY(warning->text().contains(QStringLiteral("share its logins, servers and tokens")));
 
-    // Default is first, and cannot be renamed or deleted.
+    // The default is first and marked. It can be renamed and deleted, but is
+    // already the default.
     QCOMPARE(dialog.ids(), (QStringList{kDefaultProfile, QStringLiteral("work")}));
+    QCOMPARE(list->item(0)->text(), QStringLiteral("Default (default)"));
+    QCOMPARE(list->item(1)->text(), QStringLiteral("Work"));
     dialog.select(kDefaultProfile);
-    QVERIFY(!dialog.findChild<QPushButton *>(QStringLiteral("renameProfile"))->isEnabled());
-    QVERIFY(!dialog.findChild<QPushButton *>(QStringLiteral("deleteProfile"))->isEnabled());
+    QVERIFY(renameButton->isEnabled());
+    QVERIFY(deleteButton->isEnabled());
+    QVERIFY(!defaultButton->isEnabled());
     QVERIFY(!dialog.findChild<QPushButton *>(QStringLiteral("profileConnections")));
-    answer = QStringLiteral("Other");
+    answer = QStringLiteral("Personal");
     dialog.renameSelected();
-    dialog.deleteSelected();
-    QCOMPARE(local.profiles().size(), std::size_t(2));
-    QVERIFY(local.profile(kDefaultProfile)->name.isEmpty());
-    QVERIFY(questions.isEmpty());
+    QCOMPARE(local.profile(kDefaultProfile)->name, QStringLiteral("Personal"));
+    QCOMPARE(list->item(0)->text(), QStringLiteral("Personal (default)"));
+
+    // Set as Default moves the mark, and the default first.
+    dialog.select(QStringLiteral("work"));
+    QVERIFY(defaultButton->isEnabled());
+    dialog.makeSelectedDefault();
+    QCOMPARE(local.defaultProfile(), QStringLiteral("work"));
+    QCOMPARE(dialog.ids(), (QStringList{QStringLiteral("work"), kDefaultProfile}));
+    QCOMPARE(list->item(0)->text(), QStringLiteral("Work (default)"));
+    QVERIFY(!defaultButton->isEnabled());
 
     // New: a blank name, or one in use, is refused.
     answer = QStringLiteral("  ");
     dialog.addProfile();
     QCOMPARE(local.profiles().size(), std::size_t(2));
-    answer = QStringLiteral("default");
+    answer = QStringLiteral("personal");
     dialog.addProfile();
     QCOMPARE(local.profiles().size(), std::size_t(2));
     QVERIFY(dialog.findChild<QLabel *>(QStringLiteral("message"))->isVisibleTo(&dialog));
@@ -509,7 +535,7 @@ void TestDialogs::profilesDialog()
     QCOMPARE(local.profiles().size(), std::size_t(3));
     const QString bank = local.profiles().back().id;
     QCOMPARE(local.profiles().back().name, QStringLiteral("Bank"));
-    QCOMPARE(dialog.ids(), (QStringList{kDefaultProfile, bank, QStringLiteral("work")}));
+    QCOMPARE(dialog.ids(), (QStringList{QStringLiteral("work"), bank, kDefaultProfile}));
 
     // Rename.
     dialog.select(bank);
@@ -520,12 +546,15 @@ void TestDialogs::profilesDialog()
     dialog.renameSelected();
     QCOMPARE(local.profile(bank)->name, QStringLiteral("Banking"));
 
-    // Delete asks first, and names who uses the profile and what goes.
+    // Delete asks first, and names who uses the profile, what goes, and for
+    // the default, which profile becomes the default.
     dialog.select(QStringLiteral("work"));
     dialog.deleteSelected();
     QCOMPARE(questions.size(), 1);
     QVERIFY2(questions.front().contains(QStringLiteral("used by 1 group")), qPrintable(questions.front()));
     QVERIFY2(questions.front().contains(QStringLiteral("module settings are deleted")),
+             qPrintable(questions.front()));
+    QVERIFY2(questions.front().contains(QStringLiteral("\"Banking\" becomes the default")),
              qPrintable(questions.front()));
     QVERIFY(local.profile(QStringLiteral("work")));
     QCOMPARE(deleted.count(), 0);
@@ -534,12 +563,27 @@ void TestDialogs::profilesDialog()
     QVERIFY(!local.profile(QStringLiteral("work")));
     QCOMPARE(deleted.count(), 1);
     QCOMPARE(deleted.at(0).at(0).toString(), QStringLiteral("work"));
-    // The group still names it, and falls back to Default.
+    QCOMPARE(local.defaultProfile(), bank);
+    // The group still names it, and falls back to the new default.
     QCOMPARE(local.group(QStringLiteral("g1"))->profile, QStringLiteral("work"));
-    QCOMPARE(profiles::groupDefault(local, *local.group(QStringLiteral("g1"))), kDefaultProfile);
-    QCOMPARE(dialog.ids(), (QStringList{kDefaultProfile, bank}));
+    QCOMPARE(profiles::groupDefault(local, *local.group(QStringLiteral("g1"))), bank);
+    QCOMPARE(dialog.ids(), (QStringList{bank, kDefaultProfile}));
 
-    // Clear Data works on any profile, Default too, and asks first.
+    // The profile with the id "default" is deleted like any other.
+    dialog.select(kDefaultProfile);
+    dialog.deleteSelected();
+    QCOMPARE(deleted.count(), 2);
+    QCOMPARE(deleted.at(1).at(0).toString(), kDefaultProfile);
+    QCOMPARE(dialog.ids(), QStringList{bank});
+
+    // The last profile stays.
+    dialog.select(bank);
+    QVERIFY(!deleteButton->isEnabled());
+    dialog.deleteSelected();
+    QCOMPARE(deleted.count(), 2);
+    QCOMPARE(local.profiles().size(), std::size_t(1));
+
+    // Clear Data works on any profile, and asks first.
     QStringList clearAsked;
     bool clearYes = false;
     dialog.setConfirmClear([&](const QString &name) {
@@ -547,16 +591,15 @@ void TestDialogs::profilesDialog()
         return clearYes;
     });
     QSignalSpy clearRequested(&dialog, &ProfilesDialog::profileClearRequested);
-    dialog.select(kDefaultProfile);
     QVERIFY(dialog.findChild<QPushButton *>(QStringLiteral("clearProfile"))->isEnabled());
     dialog.clearSelected();
-    QCOMPARE(clearAsked, QStringList{QStringLiteral("Default")});
+    QCOMPARE(clearAsked, QStringList{QStringLiteral("Banking")});
     QCOMPARE(clearRequested.count(), 0);
     clearYes = true;
     dialog.clearSelected();
     QCOMPARE(clearRequested.count(), 1);
-    QCOMPARE(clearRequested.at(0).at(0).toString(), kDefaultProfile);
-    QCOMPARE(dialog.ids(), (QStringList{kDefaultProfile, bank}));
+    QCOMPARE(clearRequested.at(0).at(0).toString(), bank);
+    QCOMPARE(dialog.ids(), QStringList{bank});
 }
 
 void TestDialogs::project()

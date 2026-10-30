@@ -215,8 +215,9 @@ private slots:
         QPointer<QWebEngineProfile> released(work);
         manager->removeProfile(QStringLiteral("work"));
         manager->removeProfile(QStringLiteral("unloaded"));
-        // Default is never removed.
-        manager->removeProfile(kDefaultProfile);
+        // An id that is not a plain name maps to the folder of "default",
+        // which is not its own to remove.
+        manager->removeProfile(QStringLiteral("../x"));
         manager->removeProfile(QString());
 
         QTRY_VERIFY_WITH_TIMEOUT(released.isNull(), 5000);
@@ -226,6 +227,11 @@ private slots:
         QVERIFY(QDir(manager->storagePath(QStringLiteral("p-workshop"))).exists());
         QVERIFY(QDir(manager->storagePath(QStringLiteral("p-default"))).exists());
         QCOMPARE(manager->profile(kDefaultProfile)->storageName(), QStringLiteral("p-default"));
+
+        // Since decision 0057 the profile with the id "default" is deleted
+        // like any other.
+        manager->removeProfile(kDefaultProfile);
+        QTRY_VERIFY_WITH_TIMEOUT(!QDir(manager->storagePath(QStringLiteral("p-default"))).exists(), 15000);
     }
 
     // Clearing a profile deletes its data and keeps the profile: views are

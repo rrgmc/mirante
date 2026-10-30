@@ -1,5 +1,7 @@
 #include "core/ProfileMigration.h"
 
+#include "core/Profiles.h"
+
 #include <QJsonArray>
 #include <QJsonValue>
 #include <QDebug>
@@ -46,6 +48,7 @@ std::size_t defaultIndex(std::vector<Profile> &profiles)
     }
     Profile standard;
     standard.id = kDefaultProfile;
+    standard.name = profiles::defaultName();
     profiles.insert(profiles.begin(), standard);
     return 0;
 }
@@ -201,6 +204,14 @@ bool hasOldConnections(const Profile &profile)
 Changes moveConnections(std::vector<Group> &groups, std::vector<Profile> &profiles)
 {
     Changes changes;
+    // Default is added only when something may move into it: since decision
+    // 0057 a workspace need not have it.
+    const auto groupHasOld = [](const Group &group) { return hasOldConnections(group); };
+    const auto profileHasOld = [](const Profile &profile) { return hasOldConnections(profile); };
+    if (std::none_of(groups.begin(), groups.end(), groupHasOld)
+        && std::none_of(profiles.begin(), profiles.end(), profileHasOld))
+        return changes;
+    // Added before the loops below, which keep references into the list.
     defaultIndex(profiles);
 
     for (Profile &profile : profiles) {
@@ -240,6 +251,8 @@ Changes moveConnections(std::vector<Group> &groups, std::vector<Profile> &profil
 
 bool moveModuleSettings(const QJsonObject &oldSettings, std::vector<Profile> &profiles)
 {
+    if (oldSettings.isEmpty())
+        return false;
     Profile &standard = profiles[defaultIndex(profiles)];
     bool changed = false;
     for (auto module = oldSettings.begin(); module != oldSettings.end(); ++module) {

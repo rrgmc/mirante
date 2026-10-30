@@ -149,7 +149,10 @@ struct EntityActions::Private
     }
 
     // Offers the workspace's profiles in a group dialog.
-    void offerProfiles(GroupDialog &dialog) const { dialog.setProfiles(profiles::all(model)); }
+    void offerProfiles(GroupDialog &dialog) const
+    {
+        dialog.setProfiles(profiles::all(model), profiles::nameOf(model, model.defaultProfile()));
+    }
 
     // Offers the workspace's profiles in an item dialog, naming the profile
     // of the task's group.
@@ -158,7 +161,7 @@ struct EntityActions::Private
         const Task *task = model.task(taskId);
         const Project *project = task ? model.project(task->projectId) : nullptr;
         const Group *group = project ? model.group(project->groupId) : nullptr;
-        const QString groupProfile = group ? profiles::groupDefault(model, *group) : kDefaultProfile;
+        const QString groupProfile = group ? profiles::groupDefault(model, *group) : model.defaultProfile();
         dialog.setProfiles(profiles::all(model), groupProfile, profiles::nameOf(model, groupProfile));
     }
 

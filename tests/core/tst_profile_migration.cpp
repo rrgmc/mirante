@@ -389,9 +389,11 @@ private slots:
         const QJsonArray profiles = readJson(dir.filePath(QStringLiteral("workspace.mirante")))
                                         .value(QStringLiteral("profiles"))
                                         .toArray();
-        QCOMPARE(profiles.size(), 1);
-        QVERIFY(!profiles.at(0).toObject().contains(QStringLiteral("connections")));
-        QCOMPARE(profiles.at(0)
+        // Default comes first: the file is from before decision 0057.
+        QCOMPARE(profiles.size(), 2);
+        QCOMPARE(profiles.at(0).toObject().value(QStringLiteral("id")).toString(), kDefaultProfile);
+        QVERIFY(!profiles.at(1).toObject().contains(QStringLiteral("connections")));
+        QCOMPARE(profiles.at(1)
                      .toObject()
                      .value(QStringLiteral("moduleSettings"))
                      .toObject()

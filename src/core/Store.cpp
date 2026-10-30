@@ -7,6 +7,7 @@
 #include "core/Migrations.h"
 #include "core/Model.h"
 #include "core/ProfileMigration.h"
+#include "core/Profiles.h"
 
 #include <QDateTime>
 #include <QDir>
@@ -42,6 +43,8 @@ const QString kFiles = QStringLiteral("files");
 const QString kWorkspaceFile = QStringLiteral("workspace.mirante");
 const QString kName = QStringLiteral("name");
 const QString kProfiles = QStringLiteral("profiles");
+// The id of the default profile; missing before decision 0057.
+const QString kDefaultProfileKey = QStringLiteral("defaultProfile");
 // Keys of workspace.mirante from before decision 0050: the list of profiles,
 // and module settings for the whole workspace.
 const QString kOldWebProfiles = QStringLiteral("webProfiles");
@@ -256,8 +259,7 @@ std::optional<QJsonObject> readWorkspaceFile(const QString &dir, Loaded *loaded)
 
 // The profiles listed in workspace.mirante, under "profiles", or under
 // "webProfiles" before decision 0050. An entry that cannot be used, and one
-// that repeats an id, are skipped. Default's entry holds its data; its name
-// is not used. *old tells whether the old key was read.
+// that repeats an id, are skipped. *old tells whether the old key was read.
 std::vector<Profile> profilesOf(const QJsonObject &workspace, bool *old = nullptr)
 {
     const bool useOld = !workspace.value(kProfiles).isArray() && workspace.value(kOldWebProfiles).isArray();
@@ -269,8 +271,6 @@ std::vector<Profile> profilesOf(const QJsonObject &workspace, bool *old = nullpt
         std::optional<Profile> profile = Profile::fromJson(value.toObject());
         if (!profile || ids.contains(profile->id))
             continue;
-        if (profile->id == kDefaultProfile)
-            profile->name.clear();
         ids.insert(profile->id);
         profiles.push_back(std::move(*profile));
     }
@@ -278,9 +278,14 @@ std::vector<Profile> profilesOf(const QJsonObject &workspace, bool *old = nullpt
 }
 
 // The profiles of workspace.mirante, with the module settings from before
-// decision 0050 moved into Default. *changed tells whether the old keys gave
-// anything that should be written in the new form.
-std::vector<Profile> migratedProfilesOf(const QJsonObject &workspace, bool *changed)
+// decision 0050 moved into Default, and *defaultId set to the id of the
+// default profile. *changed tells whether the old keys gave anything that
+// should be written in the new form.
+//
+// A file without defaultProfile is from before decision 0057, when a profile
+// called Default, with the id kDefaultProfile, always existed and was listed
+// without a name. That profile is added, named, and made the default.
+std::vector<Profile> migratedProfilesOf(const QJsonObject &workspace, bool *changed, QString *defaultId)
 {
     bool old = false;
     std::vector<Profile> profiles = profilesOf(workspace, &old);
@@ -291,6 +296,26 @@ std::vector<Profile> migratedProfilesOf(const QJsonObject &workspace, bool *chan
     std::vector<Group> noGroups;
     const bool connections = profilemigration::moveConnections(noGroups, profiles).profiles;
     *changed = old || moved || connections;
+
+    auto standard = std::find_if(profiles.begin(), profiles.end(),
+                                 [](const Profile &profile) { return profile.id == kDefaultProfile; });
+    if (workspace.value(kDefaultProfileKey).isString()) {
+        *defaultId = workspace.value(kDefaultProfileKey).toString();
+        if (standard != profiles.end() && standard->name.isEmpty())
+            standard->name = profiles::defaultName();
+        return profiles;
+    }
+    // Before decision 0057: Default came first, and its stored name, if any,
+    // was never shown.
+    Profile first;
+    if (standard != profiles.end()) {
+        first = std::move(*standard);
+        profiles.erase(standard);
+    }
+    first.id = kDefaultProfile;
+    first.name = profiles::defaultName();
+    profiles.insert(profiles.begin(), std::move(first));
+    *defaultId = kDefaultProfile;
     return profiles;
 }
 
@@ -300,6 +325,7 @@ QJsonObject withoutName(QJsonObject json)
 {
     json.remove(kName);
     json.remove(kProfiles);
+    json.remove(kDefaultProfileKey);
     json.remove(kOldWebProfiles);
     // A value that is not an object is not read, so it is kept as it is.
     if (json.value(kOldModuleSettings).isObject())
@@ -328,10 +354,11 @@ Loaded loadFolder(const QString &dir, Model &model)
     // Decisions 0050 and 0054: connections become module settings of
     // profiles, and the workspace's module settings move into Default. Not while workspace.mirante cannot be written over.
     std::vector<Profile> profiles;
+    QString defaultProfile = kDefaultProfile;
     if (!loaded.newer.contains(kWorkspaceFile)) {
         bool workspaceMigrated = false;
         if (workspace)
-            profiles = migratedProfilesOf(*workspace, &workspaceMigrated);
+            profiles = migratedProfilesOf(*workspace, &workspaceMigrated, &defaultProfile);
         loaded.migrated = profilemigration::moveConnections(groups, profiles);
         loaded.migrated.profiles = loaded.migrated.profiles || workspaceMigrated;
     }
@@ -346,6 +373,7 @@ Loaded loadFolder(const QString &dir, Model &model)
         loaded.workspaceExtra = withoutName(*workspace);
     }
     model.setProfiles(std::move(profiles));
+    model.setDefaultProfile(defaultProfile);
     return loaded;
 }
 
@@ -371,22 +399,15 @@ std::optional<QJsonObject> fileFor(const Model &model, const QString &relPath)
         return std::nullopt;
     switch (ref->kind) {
     case FileKind::Workspace: {
-        // Default is listed only when it holds data, and without a name.
+        // Every profile is listed, with its name. See decision 0057.
         QJsonArray profiles;
-        for (const Profile &profile : model.profiles()) {
-            if (profile.id != kDefaultProfile) {
-                profiles.append(profile.toJson());
-            } else if (profile.hasData()) {
-                QJsonObject standard = profile.toJson();
-                standard.remove(kName);
-                profiles.append(standard);
-            }
-        }
-        if (model.workspaceName().isEmpty() && profiles.isEmpty())
-            return std::nullopt;
-        QJsonObject json{{kName, model.workspaceName()}};
-        if (!profiles.isEmpty())
-            json.insert(kProfiles, profiles);
+        for (const Profile &profile : model.profiles())
+            profiles.append(profile.toJson());
+        QJsonObject json{
+            {kName, model.workspaceName()},
+            {kProfiles, profiles},
+            {kDefaultProfileKey, model.defaultProfile()},
+        };
         return withSchemaVersion(json);
     }
     case FileKind::Group:
@@ -816,7 +837,9 @@ Store::Private::Reload Store::Private::reloadFile(const QString &path)
         // back. The next write of the file drops them.
         {
             bool changed = false;
-            model->setProfiles(migratedProfilesOf(*json, &changed));
+            QString defaultProfile;
+            model->setProfiles(migratedProfilesOf(*json, &changed, &defaultProfile));
+            model->setDefaultProfile(defaultProfile);
         }
         break;
     case FileKind::Group:
