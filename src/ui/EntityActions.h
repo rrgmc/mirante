@@ -106,6 +106,8 @@ public:
     void editProject(const QString &id);
     void editTask(const QString &id);
     void editItem(const QString &taskId, const QString &itemId);
+    // Watches the item or stops watching it. See decision 0087.
+    void setItemWatched(const QString &taskId, const QString &itemId, bool watch);
     void renameDashboard(const QString &taskId, const QString &dashboardId);
 
     // The trash. See docs/ui.md#trash. Moving a project or task to the trash
@@ -168,6 +170,8 @@ signals:
 private:
     // Adds "Paste Image…" for the task, enabled while the clipboard holds an image.
     void addPasteImage(QMenu *menu, const QString &taskId);
+    // Adds the checkable "Watch" for an item whose type reports status.
+    void addWatch(QMenu *menu, const QString &taskId, const QString &itemId);
 
     struct Private;
     std::unique_ptr<Private> d;

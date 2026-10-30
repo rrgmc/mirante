@@ -66,6 +66,8 @@ public:
     // For tests.
     void setProfile(const QString &id);   // empty for the group's profile
     bool showsProfile() const;
+    bool showsWatch() const;
+    void setWatch(bool watch);
     // Chooses a registered type while creating, as the type page does, and
     // shows the item's page. Does nothing while editing.
     void setType(const QString &typeId);

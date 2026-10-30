@@ -116,7 +116,7 @@ The Profiles menu, between View and Help, lists what can be done with profiles. 
 "New item…", in the context menu of a task or its Items row, opens the item dialog in two steps. See [decision 0043](decisions/0043-pick-the-item-type-first.md).
 
 1. **Choose a type.** A grid of large icons, 48 pixels, with each type's name under its icon, like the icon view of a file manager. Names wrap onto up to three lines, so types that differ only at the end, such as "GitLab MR (page)" and "GitLab MR (summary)", stay apart. The selected type has a soft rounded fill around its icon and name, and the type under the mouse a lighter one. The grid wraps, so many types show at once. It lists the [item types](item-types.md) of the build, by name; types of missing modules are not offered. A tooltip repeats the name. A double click on a type, or Enter, or **Next**, goes on with the selected type.
-2. **Edit the item.** The chosen type, shown with its icon, then the name, the profile for a type that uses one, and the configuration. A type uses a profile when its views are web views or its module has settings screens. The profile list starts with "<name> (from the group)", such as "Work (from the group)". The configuration uses the type's own editor if it has one, or else a form built from the type's fields for the profile the item would use, such as GitLab's project paths of that profile. Choosing another profile builds the form again and keeps what was entered. **Back** returns to the grid. Choosing another type starts from that type's defaults; choosing the same type keeps what was entered. OK is refused while the name is empty or the configuration has problems, and a message under the page says why.
+2. **Edit the item.** The chosen type, shown with its icon, then the name, the profile for a type that uses one, the [Watch](#watched-items) check box for a type that reports status, and the configuration. A type uses a profile when its views are web views or its module has settings screens. The profile list starts with "<name> (from the group)", such as "Work (from the group)". The configuration uses the type's own editor if it has one, or else a form built from the type's fields for the profile the item would use, such as GitLab's project paths of that profile. Choosing another profile builds the form again and keeps what was entered. **Back** returns to the grid. Choosing another type starts from that type's defaults; choosing the same type keeps what was entered. OK is refused while the name is empty or the configuration has problems, and a message under the page says why.
 
 **From a link.** Above the grid, a field says "Paste a link to create an item from it". While it holds an `http` or `https` address, the grid shows only the types that can show it, best first: the types of modules, then Web page. The first is selected, so Enter goes on with it. Choosing a type fills its configuration from the link, and the name too, unless one was typed. Each type reads the link with the server in its module settings, in the profile of the item's group, such as a self-hosted GitLab. The item names no server of its own: it uses that of its profile. A note under the grid says when no type can show the link, or when the text is not a web address; every type is shown then. Clearing the field shows every type again. Which types take which links is listed in [item types](item-types.md#items-from-a-link). See [decision 0049](decisions/0049-items-from-a-pasted-link.md).
 
@@ -260,6 +260,7 @@ Some work, such as signing in to a site, is easier on a large page than in a sma
 - **Open Alone.** The cell menu entry "Open Alone" opens the item alone in the preview slot, as a double click on the item in the sidebar does. See [decision 0023](decisions/0023-item-tabs.md). The preview has a view of its own, in the same web profile, so a login made there reaches the cell when its page reloads. An item preview already shows its item alone, so it does not offer "Open Alone". Every item cell also has an "Open Alone" button, last in its header, as a task cell has its own. The cell menu button (⋮) shows only while the dashboard is unlocked; locked, these buttons cover its view commands, and a right click on the cell still opens the menu.
 - **Changing the item from its cell.** The menu of an item cell also offers two entries that change the item, not the layout, so they work on a locked dashboard and in an item preview too:
   - "Edit Item…" opens the item dialog.
+  - "Watch", checked while the item is [watched](#watched-items), for a type that reports status. It turns watching on or off.
   - "Use Current Address" is there for a cell that shows a web page, when the item's type has an address field. It saves the address the page shows now in that field, such as the Address of a Web page item. It is disabled when the two are already the same, and its tooltip shows the address.
 
 On a locked dashboard the cell menu of an item cell holds only these entries. On an unlocked one they come first, before the [editing commands](#editing-layouts).
@@ -394,6 +395,17 @@ Some reasons are events, such as an approval or a new Jira status. They stop cou
 - **Problems.** When the item's status cannot be fetched, the cell header shows an amber pill in place of the badge: "Token not set", "Token refused", "No server set", "Not found", or "Error" for a network or server error with no older data. For the first three the pill is a button that opens the profile's settings screen of the module. Its tooltip gives the message and the profile's name.
 - **Old data.** When the last fetch failed with a network or server error but older data exists, the header shows the data's age in grey, such as "12 min ago". The badges keep the older data's count.
 - **Refresh.** The refresh button in the cell header fetches the item's status at once. Otherwise the app checks the servers at the interval set in the [settings window](#settings).
+
+### Watched items
+
+Attention can also reach the user outside the app, through the tray icon and desktop notifications. Only **watched** items do this. See [decision 0087](decisions/0087-watched-items.md).
+
+- A watched item that needs attention counts on the [tray icon](#tray-and-notifications), and a failed pipeline in it sends a desktop notification. An item that is not watched does neither.
+- Items start not watched, also those made before watching existed.
+- Watching changes nothing else: the badges above show every item's attention.
+- Watching is offered for types that report status. The item dialog has a "Watch" row with "Count on the tray icon, and notify". The context menus of the item in the sidebar and in a cell header have a checkable "Watch".
+- The choice is stored in the item, so every device of the workspace watches the same items.
+- A watched item of an active task is polled even when nothing shows it, so a failure is seen while the window is hidden.
 
 ## Quick add
 

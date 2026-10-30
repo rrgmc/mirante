@@ -118,6 +118,9 @@ public:
     void setProject(const Project &project);   // a new groupId moves the project
     void setTask(const Task &task);            // normalises its dashboards; a new projectId moves it
     void setRootDashboard(const RootDashboard &dashboard);   // normalises its layout
+    // Replaces the item with the same id in its task, through setTask().
+    // Nothing happens if the task does not hold it.
+    void setItem(const QString &taskId, const Item &item);
     // Removers. Each emits the removed signal for every entity it removes,
     // children first. Root dashboards that show a removed task are not changed:
     // their cells show "Removed" through refExists().
