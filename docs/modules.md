@@ -8,7 +8,7 @@ A module is one folder of item types and the code they share. Modules are compil
 |---|---|---|---|
 | `gitlab` | `gitlab.mr.summary`, `gitlab.mr.page`, `gitlab.mr.list`, `gitlab.pipeline`, `gitlab.pipeline.list`, `gitlab.issue.summary`, `gitlab.issue.page`, `gitlab.issue.list` | General Configuration: base URL, token, project paths | `project` |
 | `jira` | `jira.issue.summary`, `jira.issue.page`, `jira.list` | General Configuration: base URL, token | `projectKey` |
-| `claude` | `claude.session.web`, `claude.session.local` | none | none |
+| `claude` | `claude.session.web` | none | none |
 | `web` | `web.page` | none | none |
 | `notes` | `notes` | none | none |
 | `folder` | `folder` | none | none |
@@ -198,7 +198,6 @@ Each item's code gets an `ItemContext`. It gives access to the configuration the
 | `item()`, `task()`, `project()`, `group()` | Read-only views of the item and where it sits | planned |
 | `projectSetting(key)` | A project setting the module declared, such as `project` for GitLab. Undefined if the project does not set it. | M4 |
 | `deviceSetting(key)` | A device setting the module declared, or its field's default | M7 |
-| `deviceName()` | This device's name, from the settings window; the host name by default | M7 |
 | `filePath(fileName)` | The absolute path of a file in the data folder's `files/`, such as an image | M7 |
 | `moduleSettings(screenId)` | The values of one of the module's [settings screens](#settings-screens), in the item's profile. Empty if nothing is stored. A module reads its server here, such as GitLab's base URL. Added after M4; see decisions [0050](decisions/0050-profiles-hold-logins-connections-and-settings.md) and [0054](decisions/0054-module-settings-replace-connections.md). | after M4 |
 | `server()` | The module's server in the item's profile, or null for a module without a `ServerType`. See [servers and tokens](#servers-and-tokens). | M5 |
@@ -332,6 +331,7 @@ The core suggests marking a task done when every item whose type reports `closed
 Synced data can reach a build that does not include a module. For example, one device builds without `jira`. The core then:
 
 - **Items:** shows a placeholder: "This item needs the jira module, which this build does not include." The item's `type` and `config` are kept unchanged.
+- **Removed types:** an item whose module is in the build but no longer registers its type, such as `claude.session.local` ([decision 0084](decisions/0084-no-local-claude-sessions.md)), is handled the same way. Its placeholder says "This item type is no longer available: claude.session.local." The item dialog changes only its name.
 - **Project settings:** keeps the module's settings unchanged and does not show them.
 - **Module settings:** keeps the values of the module's settings screens unchanged in each profile in `workspace.mirante`. The Profiles menu has no entry for the module.
 - **Cells and Focus:** show the item's name. No status or attention is computed for it.

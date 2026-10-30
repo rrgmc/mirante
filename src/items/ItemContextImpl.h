@@ -54,7 +54,6 @@ public:
     void mapFolder(const QString &folderId) override;
     void onConfigChanged(QObject *receiver, std::function<void(const QJsonObject &)> changed) override;
     QJsonValue deviceSetting(const QString &key) const override;
-    QString deviceName() const override;
     QString filePath(const QString &fileName) const override;
     QString gitHead(const QString &path) const override;
     void gitStatus(const QString &path, QObject *receiver, std::function<void(const GitState &)> done) override;
@@ -87,7 +86,8 @@ QString moduleOfType(const QString &typeId);
 QLabel *createMessageLabel(const QString &text, QWidget *parent);
 
 // What the body of an item's cell says when its type makes no view: the
-// missing module, or the type, name and id of the item. type may be null.
+// missing module, the removed type, or the type, name and id of the item.
+// type may be null.
 QString itemPlaceholderText(const ItemType *type, const QString &itemName, const QString &itemId);
 
 } // namespace mirante

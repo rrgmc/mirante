@@ -16,7 +16,6 @@
 #include <QPushButton>
 #include <QSignalBlocker>
 #include <QSpinBox>
-#include <QSysInfo>
 #include <QVBoxLayout>
 
 namespace mirante {
@@ -128,17 +127,6 @@ SettingsDialog::SettingsDialog(DeviceSettings &settings, QWidget *parent)
         emit changed();
     });
     terminal->addRow(tr("Terminal command"), terminalCommand);
-    // The field is empty while the device keeps the host name.
-    const QString hostName = QSysInfo::machineHostName();
-    auto *deviceName = new QLineEdit(settings.deviceName() == hostName ? QString() : settings.deviceName(), this);
-    deviceName->setObjectName(QStringLiteral("deviceName"));
-    deviceName->setPlaceholderText(hostName);
-    deviceName->setToolTip(tr("Shown on items that only work on this device, such as a local Claude session."));
-    connect(deviceName, &QLineEdit::textChanged, this, [this](const QString &text) {
-        d->settings->setDeviceName(text);
-        emit changed();
-    });
-    terminal->addRow(tr("Device name"), deviceName);
 
     resize(480, sizeHint().height());
 }

@@ -292,24 +292,9 @@ Module `claude`.
 
 There is no public API for these sessions, so the app has no status or summary for them. See [decision 0008](decisions/0008-claude-sessions.md).
 
-### Claude session (local)
+### Claude session (local), removed
 
-`claude.session.local`, native.
-
-- **Configuration:**
-  - `sessionId`, the session id, required;
-  - `folder`, one of the project's folders, the main folder when empty;
-  - `device`, a note about which device the session lives on.
-- **Shows:** the session id, the folder's name and local path, and the device, plus a "Resume in terminal" button.
-- **Action:** runs the `claude` module's `program` device setting (default `claude`) with `--resume <id>`, in a terminal in the folder's local path. See [terminal launch](integrations.md#terminal-launch).
-
-The button is disabled, with the reason under it, in this order of priority:
-
-- the id is empty, or holds anything but letters, digits and dashes;
-- `device` is set and differs from this device's name, ignoring case and surrounding spaces ("This session lives on <device>."). Local sessions exist on one device only;
-- the folder has no local path on this device ("Set the folder's path on this device."), with a **Choose folder…** button.
-
-A launch failure shows its message under the button.
+M7 added `claude.session.local`, a Claude Code session resumed in a terminal. [Decision 0084](decisions/0084-no-local-claude-sessions.md) removed it. An item of that type that is still in a workspace is kept unchanged. Its cell says "This item type is no longer available: claude.session.local.", and the user can delete it.
 
 ## General
 

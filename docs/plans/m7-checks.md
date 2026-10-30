@@ -1,6 +1,6 @@
 # M7 checks by hand
 
-These are the checks for [milestone M7](../roadmap.md#m7-quick-add-claude-local-folders-and-notes) that tests cannot make. Run them on Windows with the release build:
+These are the checks for [milestone M7](../roadmap.md#m7-quick-add-folders-and-notes) that tests cannot make. Run them on Windows with the release build:
 
 ```powershell
 task build PRESET=release
@@ -12,7 +12,6 @@ Use a test workspace with at least two groups. You need:
 - a GitLab token in a profile, a merge request on gitlab.com whose title or branch holds a Jira key, and a project whose `gitlab.project` setting is that merge request's project;
 - a Jira Cloud token in the same profile, and an issue whose key appears in a merge request's branch or title;
 - a local Git repository mapped as a project's main folder, with a worktree of it, and a plain folder that is not a repository;
-- Claude Code installed, and the id of a local session in that repository;
 - Visual Studio Code, or another editor, on the `PATH`.
 
 Tick each box, or note what is wrong next to it.
@@ -31,21 +30,18 @@ Tick each box, or note what is wrong next to it.
 - [ ] In it, pasting a link searches for related items in the task's project at once. Items the task already has are not offered.
 - [ ] Add Items adds the checked items to the end of the task's items, in the sidebar, and selects the task there. No dashboard changes, and the open tab stays.
 
-## Claude session (local)
+## Removed Claude session (local)
 
-- [ ] Settings > Terminal shows the device name, the host name by default. Settings > Modules shows the Claude Code program and the folder's editor command.
-- [ ] An item with a valid session id and its device name: Resume in terminal opens Windows Terminal in the folder, running `claude --resume <id>`.
-- [ ] With `wt.exe` not found (rename it, or set a terminal command that does not exist and clear it again), the `cmd.exe` fallback opens in the folder and runs the same command. A folder path with spaces and a `&` in it works.
-- [ ] An item whose device is another name disables the button and says "This session lives on <device>."
-- [ ] A session id with a space or a `;` disables the button with a message.
-- [ ] A folder not mapped on this device shows "Choose folder…". Choosing one enables the button at once.
-- [ ] A terminal command template in Settings, such as `wt.exe -p "Windows PowerShell" -d {dir} {command}`, is used instead of the default.
+- [ ] A workspace that still has a `claude.session.local` item, such as one from before [decision 0084](../decisions/0084-no-local-claude-sessions.md), loads. Its cell says "This item type is no longer available: claude.session.local." Its dialog changes only the name, and its task file keeps the item unchanged after a save.
+- [ ] Settings > Terminal has no device name. Settings > Modules shows only the folder's editor command.
 
 ## Folder / terminal
 
 - [ ] In a repository: the path, the branch, and a status line such as "2 ahead · 3 changed · 1 untracked", or "Clean". Changing a file in an editor updates the line within about 10 seconds.
 - [ ] In a worktree: its own branch. On a detached head: "Detached at <commit>". In a plain folder: "Not a Git repository", and the buttons still work.
 - [ ] Terminal opens a terminal in the folder. Editor opens it with `code`, or the command in Settings. File manager opens it in Explorer.
+- [ ] With `wt.exe` not found (rename it, or set a terminal command that does not exist and clear it again), Terminal opens the `cmd.exe` fallback in the folder. A folder path with spaces and a `&` in it works.
+- [ ] A terminal command template in Settings, such as `wt.exe -p "Windows PowerShell" -d {dir} {command}`, is used instead of the default.
 - [ ] An editor command that does not exist shows "<program> was not found."
 
 ## CI Pipeline following the main folder

@@ -133,11 +133,6 @@ public:
     QString terminalCommand() const;
     void setTerminalCommand(const QString &command);
 
-    // This device's name, shown on local Claude session items. The host name
-    // if not set; an empty name goes back to it.
-    QString deviceName() const;
-    void setDeviceName(const QString &name);
-
     // A module's device setting, under modules/<moduleId>/<key>. Undefined if
     // not set; an undefined or null value removes it. See decision 0079.
     QJsonValue moduleSetting(const QString &moduleId, const QString &key) const;

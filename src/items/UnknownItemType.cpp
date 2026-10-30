@@ -43,8 +43,9 @@ public:
 
 } // namespace
 
-UnknownItemType::UnknownItemType(const QString &id)
+UnknownItemType::UnknownItemType(const QString &id, bool moduleInBuild)
     : m_id(id)
+    , m_moduleInBuild(moduleInBuild)
 {
 }
 
@@ -58,5 +59,7 @@ QString UnknownItemType::name() const
 QIcon UnknownItemType::icon() const { return QIcon(new UnknownIconEngine); }
 
 QString UnknownItemType::moduleId() const { return m_id.section(QLatin1Char('.'), 0, 0); }
+
+bool UnknownItemType::moduleInBuild() const { return m_moduleInBuild; }
 
 } // namespace mirante
