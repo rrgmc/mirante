@@ -1,15 +1,22 @@
 #include <mirante/widgets/ItemListView.h>
 
 #include <mirante/widgets/ActionRow.h>
+#include <mirante/widgets/FlowRow.h>
 
 #include <QAbstractTableModel>
 #include <QApplication>
+#include <QComboBox>
 #include <QEvent>
+#include <QHash>
 #include <QHeaderView>
 #include <QHBoxLayout>
 #include <QItemSelectionModel>
+#include <QKeyEvent>
 #include <QLabel>
+#include <QMouseEvent>
 #include <QPainter>
+#include <QPersistentModelIndex>
+#include <QPushButton>
 #include <QScrollBar>
 #include <QSet>
 #include <QSortFilterProxyModel>
@@ -27,7 +34,7 @@ namespace mirante::widgets {
 
 namespace {
 
-enum Role { SortKeyRole = Qt::UserRole, RowKeyRole, StatusColoursRole };
+enum Role { SortKeyRole = Qt::UserRole, RowKeyRole, StatusColoursRole, LinkLabelsRole, LinkIdsRole };
 
 // The least room a stretching column, such as the title, needs before other
 // columns start to hide.
@@ -37,6 +44,22 @@ constexpr int headerPadding = 28;
 constexpr int pillPadding = 8;
 constexpr int pillMargin = 4;
 constexpr int pillVerticalMargin = 3;
+constexpr int linkMargin = 6;
+constexpr int linkSpacing = 12;
+
+// Where a cell draws its links, one rectangle per label. The drawing and the
+// mouse both use it.
+QList<QRect> linkRects(const QRect &cell, const QFontMetrics &metrics, const QStringList &labels)
+{
+    QList<QRect> rects;
+    int left = cell.left() + linkMargin;
+    for (const QString &label : labels) {
+        const int width = metrics.horizontalAdvance(label);
+        rects.append(QRect(left, cell.top(), width, cell.height()));
+        left += width + linkSpacing;
+    }
+    return rects;
+}
 
 class ListModel : public QAbstractTableModel
 {
@@ -97,6 +120,23 @@ public:
         return -1;
     }
 
+    // The different texts of a column, in reading order, without empty ones.
+    QStringList valuesOf(int column) const
+    {
+        QSet<QString> values;
+        for (const ListRow &row : m_rows) {
+            const QString text = row.cells.value(column).text;
+            if (!text.isEmpty())
+                values.insert(text);
+        }
+        QStringList sorted(values.cbegin(), values.cend());
+        std::sort(sorted.begin(), sorted.end(), [](const QString &a, const QString &b) {
+            const int order = a.compare(b, Qt::CaseInsensitive);
+            return order != 0 ? order < 0 : a < b;
+        });
+        return sorted;
+    }
+
     int rowCount(const QModelIndex &parent = {}) const override
     {
         return parent.isValid() ? 0 : int(m_rows.size());
@@ -126,6 +166,13 @@ public:
             return cell.sortKey.isNull() ? QVariant(cell.text) : cell.sortKey;
         case StatusColoursRole:
             return cell.role ? QVariant(int(*cell.role)) : QVariant();
+        case LinkLabelsRole:
+        case LinkIdsRole: {
+            QStringList values;
+            for (const ListLink &link : cell.links)
+                values.append(role == LinkLabelsRole ? link.label : link.id);
+            return values;
+        }
         default:
             return {};
         }
@@ -144,15 +191,64 @@ private:
     QList<ListRow> m_rows;
 };
 
-// Draws a cell with a status role as a pill. Other cells are drawn as usual.
-class PillDelegate : public QStyledItemDelegate
+// Sorts the rows and keeps those that match the filters' choices. A choice
+// compares with a cell's text, as the drop-down shows it.
+class ListProxy : public QSortFilterProxyModel
+{
+public:
+    using QSortFilterProxyModel::QSortFilterProxyModel;
+
+    // An empty value takes the filter off.
+    void setChoice(int column, const QString &value)
+    {
+        if (value.isEmpty())
+            m_choices.remove(column);
+        else
+            m_choices.insert(column, value);
+        invalidateFilter();
+    }
+
+protected:
+    bool filterAcceptsRow(int sourceRow, const QModelIndex &sourceParent) const override
+    {
+        for (auto choice = m_choices.cbegin(); choice != m_choices.cend(); ++choice) {
+            const QModelIndex cell = sourceModel()->index(sourceRow, choice.key(), sourceParent);
+            if (cell.data().toString() != choice.value())
+                return false;
+        }
+        return true;
+    }
+
+private:
+    QHash<int, QString> m_choices;
+};
+
+// Draws a cell with links as links, and a cell with a status role as a pill.
+// Other cells are drawn as usual.
+class CellDelegate : public QStyledItemDelegate
 {
 public:
     using QStyledItemDelegate::QStyledItemDelegate;
 
+    // The link under the mouse. A negative link means none.
+    void setHovered(const QModelIndex &index, int link)
+    {
+        m_hoveredIndex = index;
+        m_hoveredLink = link;
+    }
+
+    QModelIndex hoveredIndex() const { return m_hoveredIndex; }
+    int hoveredLink() const { return m_hoveredLink; }
+
     void paint(QPainter *painter, const QStyleOptionViewItem &option,
                const QModelIndex &index) const override
     {
+        const QStringList labels = index.data(LinkLabelsRole).toStringList();
+        if (!labels.isEmpty()) {
+            paintLinks(painter, option, index, labels);
+            return;
+        }
+
         const QVariant role = index.data(StatusColoursRole);
         if (!role.isValid()) {
             QStyledItemDelegate::paint(painter, option, index);
@@ -190,12 +286,46 @@ public:
     QSize sizeHint(const QStyleOptionViewItem &option, const QModelIndex &index) const override
     {
         QSize size = QStyledItemDelegate::sizeHint(option, index);
-        if (index.data(StatusColoursRole).isValid()) {
+        const QStringList labels = index.data(LinkLabelsRole).toStringList();
+        if (!labels.isEmpty()) {
+            const QRect last = linkRects(QRect(), option.fontMetrics, labels).last();
+            size.setWidth(last.left() + last.width() + linkMargin);
+        } else if (index.data(StatusColoursRole).isValid()) {
             const int wanted = option.fontMetrics.horizontalAdvance(index.data().toString());
             size.setWidth(wanted + 2 * (pillPadding + pillMargin));
         }
         return size;
     }
+
+private:
+    void paintLinks(QPainter *painter, const QStyleOptionViewItem &option, const QModelIndex &index,
+                    const QStringList &labels) const
+    {
+        QStyleOptionViewItem cell(option);
+        initStyleOption(&cell, index);
+        // The background and the selection, without the text.
+        cell.text.clear();
+        QStyle *style = cell.widget ? cell.widget->style() : QApplication::style();
+        style->drawControl(QStyle::CE_ItemViewItem, &cell, painter, cell.widget);
+
+        painter->save();
+        painter->setClipRect(option.rect);
+        painter->setPen(option.palette.color((option.state & QStyle::State_Selected)
+                                                     ? QPalette::HighlightedText
+                                                     : QPalette::Link));
+        const QList<QRect> rects = linkRects(option.rect, option.fontMetrics, labels);
+        for (int link = 0; link < labels.size(); ++link) {
+            QFont font = option.font;
+            font.setUnderline(index == m_hoveredIndex && link == m_hoveredLink);
+            painter->setFont(font);
+            painter->drawText(rects[link], Qt::AlignVCenter | Qt::AlignLeft | Qt::TextSingleLine,
+                              labels[link]);
+        }
+        painter->restore();
+    }
+
+    QPersistentModelIndex m_hoveredIndex;
+    int m_hoveredLink = -1;
 };
 
 // Removes a widget that its layout has already dropped. See the same function
@@ -211,9 +341,30 @@ void discard(QWidget *widget)
 
 struct ItemListView::Private : public QObject
 {
+    struct Filter
+    {
+        int column = 0;
+        QComboBox *choice = nullptr;
+    };
+
+    ItemListView *q = nullptr;
     ListModel *model = nullptr;
-    QSortFilterProxyModel *proxy = nullptr;
+    ListProxy *proxy = nullptr;
     QTableView *table = nullptr;
+    CellDelegate *delegate = nullptr;
+    QWidget *filterRow = nullptr;
+    FlowRow *filterFlow = nullptr;
+    QList<Filter> filters;
+    QWidget *pageRow = nullptr;
+    QLabel *pageLine = nullptr;
+    QPushButton *previousPage = nullptr;
+    QPushButton *nextPage = nullptr;
+    int pageSize = 0;
+    int page = 0;
+    QStringList visibleKeys;
+    // The link under the mouse button, so that a click starts and ends on it.
+    QPersistentModelIndex pressedIndex;
+    int pressedLink = -1;
     QSplitter *splitter = nullptr;
     QWidget *previewArea = nullptr;
     QVBoxLayout *previewLayout = nullptr;
@@ -225,7 +376,8 @@ struct ItemListView::Private : public QObject
     // The key of the last selected row, so that a signal goes out only when it
     // really changes.
     QString currentKey;
-    // While rows change, the selection moves around and is put right after.
+    // While rows change, the selection moves around and is put right after. The
+    // page waits too, since the number of rows can pass through a low point.
     bool changingRows = false;
 
     QString selectedKey() const
@@ -237,13 +389,184 @@ struct ItemListView::Private : public QObject
     void select(const QString &key)
     {
         const int row = key.isEmpty() ? -1 : model->rowOf(key);
-        if (row < 0) {
+        // A row that a filter removes has no index in the table.
+        const QModelIndex index = row < 0 ? QModelIndex() : proxy->mapFromSource(model->index(row, 0));
+        if (!index.isValid()) {
             table->selectionModel()->clear();
             return;
         }
-        table->selectionModel()->setCurrentIndex(proxy->mapFromSource(model->index(row, 0)),
-                                                 QItemSelectionModel::ClearAndSelect
-                                                         | QItemSelectionModel::Rows);
+        table->selectionModel()->setCurrentIndex(index, QItemSelectionModel::ClearAndSelect
+                                                                | QItemSelectionModel::Rows);
+    }
+
+    // Makes a change to the rows or to which of them show. The selection stays on
+    // its row, without a signal. The view does not move, although selecting a row
+    // scrolls to it.
+    template<typename Change>
+    void changeRows(Change change)
+    {
+        const QString key = selectedKey();
+        const int position = table->verticalScrollBar()->value();
+
+        changingRows = true;
+        change();
+        select(key);
+        changingRows = false;
+        currentKey = selectedKey();
+
+        updatePage();
+        table->verticalScrollBar()->setValue(position);
+        updateColumns();
+    }
+
+    // Pages hide the table's other rows, and do not take them from the model. So
+    // the selection stays on its row across pages, and sorting and filtering see
+    // all rows without any extra work.
+    void updatePage()
+    {
+        if (changingRows)
+            return;
+        const int total = proxy->rowCount();
+        const int size = pageSize > 0 ? pageSize : std::max(total, 1);
+        const int lastPage = total > 0 ? (total - 1) / size : 0;
+        page = std::clamp(page, 0, lastPage);
+        const int first = page * size;
+        const int end = std::min(first + size, total);
+
+        bool changed = false;
+        for (int row = 0; row < total; ++row) {
+            const bool hidden = row < first || row >= end;
+            if (table->isRowHidden(row) != hidden) {
+                table->setRowHidden(row, hidden);
+                changed = true;
+            }
+        }
+        if (changed) {
+            // Columns that fit their contents measure only the rows that show,
+            // and hiding rows does not make them measure again.
+            table->horizontalHeader()->doItemsLayout();
+            updateColumns();
+        }
+
+        pageRow->setVisible(total > size);
+        pageLine->setText(ItemListView::tr("%1-%2 of %3").arg(first + 1).arg(end).arg(total));
+        previousPage->setEnabled(page > 0);
+        nextPage->setEnabled(page < lastPage);
+
+        QStringList keys;
+        for (int row = first; row < end; ++row)
+            keys.append(proxy->index(row, 0).data(RowKeyRole).toString());
+        if (keys != visibleKeys) {
+            visibleKeys = keys;
+            emit q->visibleKeysChanged();
+        }
+    }
+
+    void goToPage(int wanted)
+    {
+        page = wanted;
+        updatePage();
+        table->scrollToTop();
+    }
+
+    // Fills the drop-downs from the rows. A list that has not changed stays as it
+    // is, so that new rows do not disturb an open drop-down.
+    void updateFilters()
+    {
+        for (const Filter &filter : std::as_const(filters)) {
+            QStringList shown;
+            for (int item = 1; item < filter.choice->count(); ++item)
+                shown.append(filter.choice->itemText(item));
+            const QStringList values = model->valuesOf(filter.column);
+            if (values == shown && filter.choice->count() > 0)
+                continue;
+
+            const QSignalBlocker blocker(filter.choice);
+            const QString chosen = filter.choice->currentData().toString();
+            filter.choice->clear();
+            filter.choice->addItem(ItemListView::tr("All"));
+            for (const QString &value : values)
+                filter.choice->addItem(value, value);
+            const int kept = chosen.isEmpty() ? 0 : filter.choice->findData(chosen);
+            filter.choice->setCurrentIndex(std::max(kept, 0));
+            if (kept < 0) {
+                proxy->setChoice(filter.column, QString());
+                page = 0;
+            }
+        }
+    }
+
+    // Which link of a cell is at a point in the viewport, or -1.
+    int linkAt(const QModelIndex &index, const QPoint &pos) const
+    {
+        const QStringList labels = index.data(LinkLabelsRole).toStringList();
+        const QList<QRect> rects = linkRects(table->visualRect(index), table->fontMetrics(), labels);
+        for (int link = 0; link < rects.size(); ++link) {
+            if (rects[link].contains(pos))
+                return link;
+        }
+        return -1;
+    }
+
+    void updateHover(const QModelIndex &index, int link)
+    {
+        const QModelIndex old = delegate->hoveredIndex();
+        if (index == old && link == delegate->hoveredLink())
+            return;
+        delegate->setHovered(index, link);
+        if (old.isValid())
+            table->viewport()->update(table->visualRect(old));
+        if (index.isValid())
+            table->viewport()->update(table->visualRect(index));
+        if (link >= 0)
+            table->viewport()->setCursor(Qt::PointingHandCursor);
+        else
+            table->viewport()->unsetCursor();
+    }
+
+    void activateLink(const QModelIndex &index, int link)
+    {
+        const QString id = index.data(LinkIdsRole).toStringList().value(link);
+        emit q->rowLinkActivated(index.data(RowKeyRole).toString(), id);
+    }
+
+    // Return on a row activates its first link. The others are in the row menu.
+    bool activateFirstLinkOfCurrentRow()
+    {
+        const QModelIndex current = table->currentIndex();
+        if (!current.isValid() || table->isRowHidden(current.row()))
+            return false;
+        for (int column = 0; column < proxy->columnCount(); ++column) {
+            const QModelIndex cell = current.siblingAtColumn(column);
+            if (!cell.data(LinkIdsRole).toStringList().isEmpty()) {
+                activateLink(cell, 0);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    void mouseOnViewport(QEvent *event)
+    {
+        const auto *mouse = static_cast<QMouseEvent *>(event);
+        const QPoint pos = mouse->position().toPoint();
+        const QModelIndex index = table->indexAt(pos);
+        const int link = index.isValid() ? linkAt(index, pos) : -1;
+        const QModelIndex hit = link >= 0 ? index : QModelIndex();
+        updateHover(hit, link);
+
+        if (mouse->button() != Qt::LeftButton)
+            return;
+        if (event->type() == QEvent::MouseButtonPress) {
+            pressedIndex = hit;
+            pressedLink = link;
+        } else if (event->type() == QEvent::MouseButtonRelease) {
+            const bool sameLink = link >= 0 && hit == QModelIndex(pressedIndex) && link == pressedLink;
+            pressedIndex = QModelIndex();
+            pressedLink = -1;
+            if (sameLink)
+                activateLink(hit, link);
+        }
     }
 
     int neededWidth(int column) const
@@ -293,8 +616,27 @@ struct ItemListView::Private : public QObject
 
     bool eventFilter(QObject *watched, QEvent *event) override
     {
-        if (watched == table->viewport() && event->type() == QEvent::Resize)
-            updateColumns();
+        if (watched == table->viewport()) {
+            switch (event->type()) {
+            case QEvent::Resize:
+                updateColumns();
+                break;
+            case QEvent::MouseMove:
+            case QEvent::MouseButtonPress:
+            case QEvent::MouseButtonRelease:
+                mouseOnViewport(event);
+                break;
+            case QEvent::Leave:
+                updateHover({}, -1);
+                break;
+            default:
+                break;
+            }
+        } else if (watched == table && event->type() == QEvent::KeyPress) {
+            const int key = static_cast<QKeyEvent *>(event)->key();
+            if ((key == Qt::Key_Return || key == Qt::Key_Enter) && activateFirstLinkOfCurrentRow())
+                return true;
+        }
         return QObject::eventFilter(watched, event);
     }
 };
@@ -305,13 +647,14 @@ ItemListView::ItemListView(QWidget *parent)
 {
     auto *layout = new QVBoxLayout(this);
     layout->setContentsMargins(0, 0, 0, 0);
+    d->q = this;
 
     d->webRow = new ActionRow(this);
     layout->addWidget(d->webRow);
     d->webRow->hide();
 
     d->model = new ListModel(this);
-    d->proxy = new QSortFilterProxyModel(this);
+    d->proxy = new ListProxy(this);
     d->proxy->setSourceModel(d->model);
     d->proxy->setSortRole(SortKeyRole);
     d->proxy->setSortCaseSensitivity(Qt::CaseInsensitive);
@@ -320,9 +663,20 @@ ItemListView::ItemListView(QWidget *parent)
     d->splitter->setChildrenCollapsible(false);
     layout->addWidget(d->splitter, 1);
 
-    d->table = new QTableView(d->splitter);
+    auto *tableArea = new QWidget(d->splitter);
+    auto *tableLayout = new QVBoxLayout(tableArea);
+    tableLayout->setContentsMargins(0, 0, 0, 0);
+
+    d->filterRow = new QWidget(tableArea);
+    d->filterFlow = new FlowRow(d->filterRow);
+    tableLayout->addWidget(d->filterRow);
+    d->filterRow->hide();
+
+    d->table = new QTableView(tableArea);
+    tableLayout->addWidget(d->table, 1);
     d->table->setModel(d->proxy);
-    d->table->setItemDelegate(new PillDelegate(d->table));
+    d->delegate = new CellDelegate(d->table);
+    d->table->setItemDelegate(d->delegate);
     d->table->setSelectionBehavior(QAbstractItemView::SelectRows);
     d->table->setSelectionMode(QAbstractItemView::SingleSelection);
     d->table->setEditTriggers(QAbstractItemView::NoEditTriggers);
@@ -332,7 +686,35 @@ ItemListView::ItemListView(QWidget *parent)
     d->table->setSortingEnabled(true);
     d->table->verticalHeader()->hide();
     d->table->setContextMenuPolicy(Qt::CustomContextMenu);
+    d->table->viewport()->setMouseTracking(true);
     d->table->viewport()->installEventFilter(d.get());
+    d->table->installEventFilter(d.get());
+
+    d->pageRow = new QWidget(tableArea);
+    auto *pageLayout = new QHBoxLayout(d->pageRow);
+    pageLayout->setContentsMargins(0, 0, 0, 0);
+    d->pageLine = new QLabel(d->pageRow);
+    d->pageLine->setObjectName(QStringLiteral("pageLine"));
+    d->pageLine->setTextFormat(Qt::PlainText);
+    pageLayout->addWidget(d->pageLine, 1);
+    d->previousPage = new QPushButton(tr("Previous"), d->pageRow);
+    d->previousPage->setObjectName(QStringLiteral("previousPage"));
+    pageLayout->addWidget(d->previousPage);
+    d->nextPage = new QPushButton(tr("Next"), d->pageRow);
+    d->nextPage->setObjectName(QStringLiteral("nextPage"));
+    pageLayout->addWidget(d->nextPage);
+    tableLayout->addWidget(d->pageRow);
+    d->pageRow->hide();
+    connect(d->previousPage, &QPushButton::clicked, d.get(), [this] { d->goToPage(d->page - 1); });
+    connect(d->nextPage, &QPushButton::clicked, d.get(), [this] { d->goToPage(d->page + 1); });
+
+    // A new sort starts from its top.
+    connect(d->table->horizontalHeader(), &QHeaderView::sortIndicatorChanged, d.get(),
+            [this] { d->goToPage(0); });
+    connect(d->proxy, &QAbstractItemModel::layoutChanged, d.get(), [this] { d->updatePage(); });
+    connect(d->proxy, &QAbstractItemModel::modelReset, d.get(), [this] { d->updatePage(); });
+    connect(d->proxy, &QAbstractItemModel::rowsInserted, d.get(), [this] { d->updatePage(); });
+    connect(d->proxy, &QAbstractItemModel::rowsRemoved, d.get(), [this] { d->updatePage(); });
 
     connect(d->table->selectionModel(), &QItemSelectionModel::selectionChanged, d.get(), [this] {
         if (d->changingRows)
@@ -396,7 +778,7 @@ void ItemListView::setColumns(const QList<ListColumn> &columns, int sortColumn)
     }
     header->setStretchLastSection(!anyStretch);
     d->table->sortByColumn(sortColumn, Qt::DescendingOrder);
-    d->updateColumns();
+    d->changeRows([this] { d->updateFilters(); });
 }
 
 void ItemListView::setColumnVisible(int column, bool visible)
@@ -410,27 +792,67 @@ void ItemListView::setColumnVisible(int column, bool visible)
 
 void ItemListView::setRows(const QList<ListRow> &rows)
 {
-    const QString key = d->selectedKey();
-    // Selecting a row scrolls to it, but new rows should not move the view.
-    const int position = d->table->verticalScrollBar()->value();
-
-    d->changingRows = true;
-    d->model->setRows(rows);
-    d->select(key);
-    d->changingRows = false;
-    d->currentKey = d->selectedKey();
-
-    d->table->verticalScrollBar()->setValue(position);
-    d->updateColumns();
+    d->changeRows([this, &rows] {
+        d->model->setRows(rows);
+        d->updateFilters();
+    });
 }
 
 void ItemListView::setCell(const QString &key, int column, const ListCell &cell)
 {
-    d->model->setCell(key, column, cell);
-    d->updateColumns();
+    d->changeRows([this, &key, column, &cell] {
+        d->model->setCell(key, column, cell);
+        d->updateFilters();
+    });
 }
 
 QString ItemListView::selectedKey() const { return d->selectedKey(); }
+
+void ItemListView::setPageSize(int rows)
+{
+    const int size = std::max(rows, 0);
+    if (size == d->pageSize)
+        return;
+    d->pageSize = size;
+    d->goToPage(0);
+}
+
+int ItemListView::pageSize() const { return d->pageSize; }
+
+QStringList ItemListView::visibleKeys() const { return d->visibleKeys; }
+
+void ItemListView::addFilter(int column, const QString &label)
+{
+    const bool known = std::any_of(d->filters.cbegin(), d->filters.cend(),
+                                   [column](const Private::Filter &filter) { return filter.column == column; });
+    Q_ASSERT_X(!known, "ItemListView", "a column has two filters");
+    if (known)
+        return;
+
+    auto *holder = new QWidget(d->filterRow);
+    auto *holderLayout = new QHBoxLayout(holder);
+    holderLayout->setContentsMargins(0, 0, 0, 0);
+    auto *caption = new QLabel(label, holder);
+    caption->setTextFormat(Qt::PlainText);
+    holderLayout->addWidget(caption);
+    auto *choice = new QComboBox(holder);
+    choice->setObjectName(QStringLiteral("filter.%1").arg(column));
+    caption->setBuddy(choice);
+    holderLayout->addWidget(choice);
+    d->filterFlow->addWidget(holder);
+    holder->show();
+    d->filterRow->show();
+
+    d->filters.append({column, choice});
+    d->updateFilters();
+    connect(choice, &QComboBox::currentIndexChanged, d.get(), [this, column, choice] {
+        d->changeRows([this, column, choice] {
+            d->proxy->setChoice(column, choice->currentData().toString());
+            d->page = 0;
+        });
+        d->table->scrollToTop();
+    });
+}
 
 void ItemListView::setPreview(QWidget *preview)
 {
