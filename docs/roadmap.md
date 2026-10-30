@@ -82,11 +82,11 @@ See [the M5 plan](plans/m5-servers-and-status.md).
 
 See [the M6 plan](plans/m6-native-item-types.md) and [the changes after trying it](plans/m6-feedback.md).
 
-- [ ] GitLab MR (summary), MR List, CI Pipeline, CI Pipeline List, Issue (summary) and Issue List.
-- [ ] Jira Issue (summary) and Jira List.
-- [ ] CI actions: retry a pipeline or a job, cancel, play a manual job, trigger a pipeline. Other changes use the web page. See [decision 0070](decisions/0070-read-mostly-native-views.md).
+- [x] GitLab MR (summary), MR List, CI Pipeline, CI Pipeline List, Issue (summary) and Issue List.
+- [x] Jira Issue (summary) and Jira List.
+- [x] CI actions: retry a pipeline or a job, cancel, play a manual job, trigger a pipeline. Other changes use the web page. See [decision 0070](decisions/0070-read-mostly-native-views.md).
 - [x] Pasting a URL into the item dialog picks the right type and fills its fields. See [decision 0049](decisions/0049-items-from-a-pasted-link.md).
-- [ ] Tests cover URL recognition and the attention rules.
+- [x] Tests cover URL recognition and the attention rules.
 
 ## M7: Quick add, Claude local, folders and notes
 
