@@ -1,6 +1,6 @@
 # 0041. Mirante draws its own tabs and tool buttons
 
-- Status: Accepted
+- Status: Accepted; the current tab's colour by [0065](0065-current-tab-in-the-highlight-colour.md)
 - Date: 2026-10-29
 
 ## Context
