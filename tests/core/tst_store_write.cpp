@@ -211,31 +211,37 @@ void TestStoreWrite::writesProfiles()
     Profile work;
     work.id = QStringLiteral("w1");
     work.name = QStringLiteral("Work");
-    model.setProfiles({work});
+    model.setProfile(work);
     store.flush();
     QJsonObject written = json(QStringLiteral("workspace.mirante"));
     QCOMPARE(written.value(QStringLiteral("name")).toString(), QStringLiteral("Old"));
     QCOMPARE(written.value(QStringLiteral("futureField")).toInt(), 7);
+    // Every profile, with its name, and the default.
     QCOMPARE(written.value(QStringLiteral("profiles")).toArray(),
-             (QJsonArray{QJsonObject{{QStringLiteral("id"), QStringLiteral("w1")},
+             (QJsonArray{QJsonObject{{QStringLiteral("id"), kDefaultProfile},
+                                     {QStringLiteral("name"), QStringLiteral("Default")}},
+                         QJsonObject{{QStringLiteral("id"), QStringLiteral("w1")},
                                      {QStringLiteral("name"), QStringLiteral("Work")}}}));
+    QCOMPARE(written.value(QStringLiteral("defaultProfile")).toString(), kDefaultProfile);
 
-    // A module setting of Default lists Default, without a name.
-    model.setModuleSettings(kDefaultProfile, QStringLiteral("gitlab"), QStringLiteral("general"),
-                            QJsonObject{{QStringLiteral("baseUrl"), QStringLiteral("https://gitlab.com")}});
+    // Renaming Default and choosing another default are written.
+    Profile renamed = *model.profile(kDefaultProfile);
+    renamed.name = QStringLiteral("Personal");
+    model.setProfile(renamed);
+    model.setDefaultProfile(QStringLiteral("w1"));
     store.flush();
     written = json(QStringLiteral("workspace.mirante"));
     const QJsonObject first = written.value(QStringLiteral("profiles")).toArray().at(0).toObject();
     QCOMPARE(first.value(QStringLiteral("id")).toString(), kDefaultProfile);
-    QVERIFY(!first.contains(QStringLiteral("name")));
-    QVERIFY(first.contains(QStringLiteral("moduleSettings")));
-    model.setModuleSettings(kDefaultProfile, QStringLiteral("gitlab"), QStringLiteral("general"), {});
+    QCOMPARE(first.value(QStringLiteral("name")).toString(), QStringLiteral("Personal"));
+    QCOMPARE(written.value(QStringLiteral("defaultProfile")).toString(), QStringLiteral("w1"));
 
-    // Deleting the last one removes the key.
+    // Deleting the default writes the one that follows it.
     QVERIFY(profiles::remove(model, QStringLiteral("w1")));
     store.flush();
     written = json(QStringLiteral("workspace.mirante"));
-    QVERIFY(!written.contains(QStringLiteral("profiles")));
+    QCOMPARE(written.value(QStringLiteral("profiles")).toArray().size(), 1);
+    QCOMPARE(written.value(QStringLiteral("defaultProfile")).toString(), kDefaultProfile);
     QCOMPARE(written.value(QStringLiteral("name")).toString(), QStringLiteral("Old"));
     QCOMPARE(written.value(QStringLiteral("futureField")).toInt(), 7);
 }
@@ -285,7 +291,9 @@ void TestStoreWrite::writesModuleSettings()
     store.flush();
     written = json(QStringLiteral("workspace.mirante"));
     QCOMPARE(written.value(QStringLiteral("profiles")).toArray(),
-             (QJsonArray{QJsonObject{{QStringLiteral("id"), QStringLiteral("w1")},
+             (QJsonArray{QJsonObject{{QStringLiteral("id"), kDefaultProfile},
+                                     {QStringLiteral("name"), QStringLiteral("Default")}},
+                         QJsonObject{{QStringLiteral("id"), QStringLiteral("w1")},
                                      {QStringLiteral("name"), QStringLiteral("Work")}}}));
     QCOMPARE(written.value(QStringLiteral("futureField")).toInt(), 7);
 }

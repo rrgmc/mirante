@@ -247,10 +247,12 @@ void ProfileManager::removeStorage(const QString &storageName, std::function<voi
 
 void ProfileManager::removeProfile(const QString &profileId)
 {
-    if (profileId.isEmpty() || profileId == kDefaultProfile)
+    if (profileId.isEmpty())
         return;
+    // An id that is not a plain name maps to Default's folder, which is not
+    // its own to remove.
     const QString name = storageName(profileId);
-    if (name == storageName(kDefaultProfile))
+    if (name == storageName(kDefaultProfile) && profileId != kDefaultProfile)
         return;
     removeStorage(name);
 }

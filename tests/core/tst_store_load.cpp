@@ -195,7 +195,10 @@ void TestStoreLoad::profiles()
     QVERIFY(model.profiles()[0].moduleSettings.contains(QStringLiteral("gitlab")));
     QCOMPARE(model.profiles()[1].name, QStringLiteral("Work"));
     QVERIFY(model.profiles()[1].moduleSettings.contains(QStringLiteral("jira")));
+    QCOMPARE(model.defaultProfile(), kDefaultProfile);
 
+    // A file from before decision 0057, without defaultProfile: Default
+    // comes first and is the default, and a stored name for it is not used.
     QTemporaryDir dir;
     QVERIFY(dir.isValid());
     writeFile(dir.path(), QStringLiteral("workspace.mirante"), R"({ "schemaVersion": 1, "name": "W",
@@ -205,28 +208,57 @@ void TestStoreLoad::profiles()
     QVERIFY(store::load(dir.path(), model).empty());
     QCOMPARE(model.profiles().size(), std::size_t(3));
     QCOMPARE(model.profiles()[0].id, kDefaultProfile);
-    QVERIFY(model.profiles()[0].name.isEmpty());
+    QCOMPARE(model.profiles()[0].name, QStringLiteral("Default"));
     QVERIFY(model.profiles()[0].extra.value(QStringLiteral("lock")).toBool());
+    QCOMPARE(model.defaultProfile(), kDefaultProfile);
     QCOMPARE(model.profiles()[1].id, QStringLiteral("b"));
     QCOMPARE(model.profiles()[1].name, QStringLiteral("Bank"));
     QCOMPARE(model.profiles()[2].id, QStringLiteral("a"));
     QCOMPARE(model.profiles()[2].extra.value(QStringLiteral("color")).toInt(), 1);
 
-    // The file holds them in their order, with their unknown keys, and
-    // Default without a name.
+    // The file holds them in their order, with their names and unknown keys,
+    // and names the default.
     const std::optional<QJsonObject> json = store::fileFor(model, QStringLiteral("workspace.mirante"));
     QVERIFY(json);
     const QJsonArray profiles = json->value(QStringLiteral("profiles")).toArray();
     QCOMPARE(profiles.size(), 3);
     QCOMPARE(profiles.at(0).toObject(), QJsonObject({{QStringLiteral("id"), QStringLiteral("default")},
+                                                     {QStringLiteral("name"), QStringLiteral("Default")},
                                                      {QStringLiteral("lock"), true}}));
     QCOMPARE(profiles.at(2).toObject().value(QStringLiteral("color")).toInt(), 1);
+    QCOMPARE(json->value(QStringLiteral("defaultProfile")).toString(), kDefaultProfile);
 
-    // Default without data is not listed. Without a name or profiles there
-    // is nothing to write.
-    model.setWorkspaceName(QString());
-    model.setProfiles({});
-    QVERIFY(!store::fileFor(model, QStringLiteral("workspace.mirante")));
+    // A file from this version keeps the order and names as stored, and its
+    // default.
+    writeFile(dir.path(), QStringLiteral("workspace.mirante"), R"({ "schemaVersion": 1, "name": "W",
+        "profiles": [ { "id": "b", "name": "Bank" }, { "id": "default", "name": "Personal" } ],
+        "defaultProfile": "b" })");
+    QVERIFY(store::load(dir.path(), model).empty());
+    QCOMPARE(model.profiles().size(), std::size_t(2));
+    QCOMPARE(model.profiles()[1].name, QStringLiteral("Personal"));
+    QCOMPARE(model.defaultProfile(), QStringLiteral("b"));
+    QCOMPARE(store::fileFor(model, QStringLiteral("workspace.mirante"))->value(QStringLiteral("defaultProfile")),
+             QJsonValue(QStringLiteral("b")));
+
+    // Without Default, when another profile is the default.
+    writeFile(dir.path(), QStringLiteral("workspace.mirante"), R"({ "schemaVersion": 1, "name": "W",
+        "profiles": [ { "id": "b", "name": "Bank" } ], "defaultProfile": "b" })");
+    QVERIFY(store::load(dir.path(), model).empty());
+    QCOMPARE(model.profiles().size(), std::size_t(1));
+    QVERIFY(!model.profile(kDefaultProfile));
+
+    // A default that is not listed falls back on the first by name. An empty
+    // list gets Default.
+    writeFile(dir.path(), QStringLiteral("workspace.mirante"), R"({ "schemaVersion": 1, "name": "W",
+        "profiles": [ { "id": "w", "name": "Work" }, { "id": "b", "name": "Bank" } ], "defaultProfile": "gone" })");
+    QVERIFY(store::load(dir.path(), model).empty());
+    QCOMPARE(model.defaultProfile(), QStringLiteral("b"));
+    writeFile(dir.path(), QStringLiteral("workspace.mirante"), R"({ "schemaVersion": 1, "name": "W",
+        "profiles": [], "defaultProfile": "gone" })");
+    QVERIFY(store::load(dir.path(), model).empty());
+    QCOMPARE(model.profiles().size(), std::size_t(1));
+    QCOMPARE(model.defaultProfile(), kDefaultProfile);
+    QCOMPARE(model.profiles()[0].name, QStringLiteral("Default"));
 }
 
 // Before decision 0050 the list was "webProfiles". It is read when there is
@@ -244,7 +276,7 @@ void TestStoreLoad::oldWebProfiles()
     const std::optional<QJsonObject> json = store::fileFor(model, QStringLiteral("workspace.mirante"));
     QVERIFY(json);
     QVERIFY(!json->contains(QStringLiteral("webProfiles")));
-    QCOMPARE(json->value(QStringLiteral("profiles")).toArray().size(), 1);
+    QCOMPARE(json->value(QStringLiteral("profiles")).toArray().size(), 2);
 
     // A file with both, from an older version that kept the new key, uses
     // "profiles".
@@ -281,10 +313,11 @@ void TestStoreLoad::moduleSettings()
     QVERIFY(model.moduleSettings(work, QStringLiteral("none"), QStringLiteral("general")).isEmpty());
     QVERIFY(model.moduleSettings(kDefaultProfile, QStringLiteral("gitlab"), QStringLiteral("general")).isEmpty());
 
-    // Written back unchanged.
+    // Written back unchanged, after Default, which a file from before
+    // decision 0057 gets first.
     const std::optional<QJsonObject> json = store::fileFor(model, QStringLiteral("workspace.mirante"));
     QVERIFY(json);
-    QCOMPARE(json->value(QStringLiteral("profiles")).toArray().at(0).toObject().value(QStringLiteral("moduleSettings")),
+    QCOMPARE(json->value(QStringLiteral("profiles")).toArray().at(1).toObject().value(QStringLiteral("moduleSettings")),
              QJsonValue(model.profile(work)->moduleSettings));
     QVERIFY(!json->contains(QStringLiteral("moduleSettings")));
 

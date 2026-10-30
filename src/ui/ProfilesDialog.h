@@ -9,10 +9,10 @@ namespace mirante {
 
 class Model;
 
-// Lists the workspace's profiles, Default first, and creates, renames and
-// deletes them, and clears a profile's web data on this device. Changes go to
-// the model at once. Default cannot be renamed or deleted, but can be
-// cleared. A warning says that items in one profile share its logins,
+// Lists the workspace's profiles, the default first, and creates, renames and
+// deletes them, chooses the default, and clears a profile's web data on this
+// device. Changes go to the model at once. The last profile cannot be
+// deleted. A warning says that items in one profile share its logins,
 // servers and tokens. Module settings are edited from the Profiles menu.
 // Opened with Profiles > Manage Profiles….
 // See docs/ui.md#profiles. Implemented in ProfilesDialog.cpp.
@@ -33,7 +33,7 @@ public:
     // default shows a warning with the warning icon; tests replace it.
     void setConfirmClear(std::function<bool(const QString &profileName)> confirm);
 
-    // The ids in the list, in its order: Default first, then by name.
+    // The ids in the list, in its order: the default first, then by name.
     QStringList ids() const;
     void select(const QString &id);
 
@@ -42,6 +42,8 @@ public:
     void renameSelected();
     void deleteSelected();
     void clearSelected();
+    // Makes the selected profile the workspace's default. Does not ask.
+    void makeSelectedDefault();
 
 signals:
     // A profile was deleted from the list. Its web logins on this device go next.

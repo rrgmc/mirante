@@ -14,6 +14,8 @@
 #include <QStyle>
 #include <QVBoxLayout>
 
+#include <algorithm>
+
 namespace mirante {
 
 namespace {
@@ -36,6 +38,7 @@ struct ProfilesDialog::Private
     QListWidget *list = nullptr;
     QPushButton *renameButton = nullptr;
     QPushButton *deleteButton = nullptr;
+    QPushButton *defaultButton = nullptr;
     QPushButton *clearButton = nullptr;
     QLabel *message = nullptr;
 
@@ -51,7 +54,7 @@ struct ProfilesDialog::Private
         const QString selected = keep.isEmpty() ? selectedId() : keep;
         list->clear();
         for (const Profile &profile : profiles::all(*model)) {
-            auto *item = new QListWidgetItem(profile.name, list);
+            auto *item = new QListWidgetItem(profiles::listName(*model, profile), list);
             item->setData(Qt::UserRole, profile.id);
             if (profile.id == selected)
                 list->setCurrentItem(item);
@@ -64,10 +67,10 @@ struct ProfilesDialog::Private
     void updateButtons()
     {
         const QString id = selectedId();
-        const bool editable = !id.isEmpty() && id != kDefaultProfile;
-        renameButton->setEnabled(editable);
-        deleteButton->setEnabled(editable);
-        // Any profile can be cleared, Default too.
+        renameButton->setEnabled(!id.isEmpty());
+        // The workspace always keeps one profile.
+        deleteButton->setEnabled(!id.isEmpty() && model->profiles().size() > 1);
+        defaultButton->setEnabled(!id.isEmpty() && id != model->defaultProfile());
         clearButton->setEnabled(!id.isEmpty());
     }
 
@@ -147,9 +150,10 @@ ProfilesDialog::ProfilesDialog(Model &model, QWidget *parent)
     resize(480, 480);
 
     auto *help = new QLabel(tr("A profile holds web logins and module settings, such as the GitLab or Jira server "
-                               "and its token. Each group chooses a default profile, and each item can choose its "
-                               "own. The list and the settings are shared with the workspace; logins and tokens "
-                               "stay on this device. A profile's module settings are in the Profiles menu."),
+                               "and its token. Each group chooses a profile, and each item can choose its own. "
+                               "Those that choose none use the default profile. The list and the settings are "
+                               "shared with the workspace; logins and tokens stay on this device. A profile's "
+                               "module settings are in the Profiles menu."),
                             this);
     help->setObjectName(QStringLiteral("help"));
     help->setWordWrap(true);
@@ -187,6 +191,9 @@ ProfilesDialog::ProfilesDialog(Model &model, QWidget *parent)
     d->renameButton->setObjectName(QStringLiteral("renameProfile"));
     d->deleteButton = new QPushButton(tr("Delete…"), this);
     d->deleteButton->setObjectName(QStringLiteral("deleteProfile"));
+    d->defaultButton = new QPushButton(tr("Set as Default"), this);
+    d->defaultButton->setObjectName(QStringLiteral("defaultProfile"));
+    d->defaultButton->setToolTip(tr("Use this profile for groups and items that choose none"));
     d->clearButton = new QPushButton(tr("Clear Data…"), this);
     d->clearButton->setObjectName(QStringLiteral("clearProfile"));
     d->clearButton->setToolTip(tr("Sign out of every site in this profile, on this device"));
@@ -200,6 +207,7 @@ ProfilesDialog::ProfilesDialog(Model &model, QWidget *parent)
     rowButtons->addWidget(addButton);
     rowButtons->addWidget(d->renameButton);
     rowButtons->addWidget(d->deleteButton);
+    rowButtons->addWidget(d->defaultButton);
     rowButtons->addStretch(1);
     rowButtons->addWidget(d->clearButton);
 
@@ -217,6 +225,7 @@ ProfilesDialog::ProfilesDialog(Model &model, QWidget *parent)
     connect(addButton, &QPushButton::clicked, this, &ProfilesDialog::addProfile);
     connect(d->renameButton, &QPushButton::clicked, this, &ProfilesDialog::renameSelected);
     connect(d->deleteButton, &QPushButton::clicked, this, &ProfilesDialog::deleteSelected);
+    connect(d->defaultButton, &QPushButton::clicked, this, &ProfilesDialog::makeSelectedDefault);
     connect(d->clearButton, &QPushButton::clicked, this, &ProfilesDialog::clearSelected);
     connect(d->list, &QListWidget::currentRowChanged, this, [this] { d->updateButtons(); });
     connect(d->list, &QListWidget::itemDoubleClicked, this, &ProfilesDialog::renameSelected);
@@ -279,8 +288,6 @@ void ProfilesDialog::renameSelected()
     const Profile *current = d->model->profile(id);
     if (!current)
         return;
-    if (id == kDefaultProfile)
-        return;
     const QString name = d->askName(tr("Rename profile"), current->name).trimmed();
     if (name.isEmpty() || name == current->name || !d->check(name, id))
         return;
@@ -293,7 +300,7 @@ void ProfilesDialog::deleteSelected()
 {
     const QString id = d->selectedId();
     const Profile *current = d->model->profile(id);
-    if (!current || id == kDefaultProfile)
+    if (!current || d->model->profiles().size() < 2)
         return;
     const auto [groups, items] = d->users(id);
     QString question = tr("Delete the profile \"%1\"? Its module settings are deleted, and its logins and "
@@ -306,13 +313,30 @@ void ProfilesDialog::deleteSelected()
             : groups > 0 ? countText(groups, tr("1 group"), tr("%1 groups"))
                          : countText(items, tr("1 item"), tr("%1 items"));
         question += QLatin1Char(' ')
-            + tr("It is used by %1. A group then uses Default, and an item its group's profile.").arg(users);
+            + tr("It is used by %1. A group then uses the default profile, and an item its group's profile.")
+                  .arg(users);
+    }
+    if (id == d->model->defaultProfile()) {
+        // The one the model falls back on without it: the first of the others by name.
+        const std::vector<Profile> listed = profiles::all(*d->model);
+        const auto next = std::min_element(listed.begin() + 1, listed.end(), [](const Profile &a, const Profile &b) {
+            const int byName = a.name.compare(b.name, Qt::CaseInsensitive);
+            return byName != 0 ? byName < 0 : a.id < b.id;
+        });
+        question += QLatin1Char(' ') + tr("It is the default profile; \"%1\" becomes the default.").arg(next->name);
     }
     if (!d->confirm(question))
         return;
     d->message->hide();
     if (profiles::remove(*d->model, id))
         emit profileDeleted(id);
+}
+
+void ProfilesDialog::makeSelectedDefault()
+{
+    const QString id = d->selectedId();
+    if (d->model->profile(id))
+        d->model->setDefaultProfile(id);
 }
 
 void ProfilesDialog::clearSelected()
