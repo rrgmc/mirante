@@ -103,6 +103,7 @@ Each file records one design decision: what was decided, what else was considere
 | [0096](0096-app-icon-arcada.md) | The app icon is a landscape seen through three arches | Superseded by 0097 |
 | [0097](0097-app-icon-monte.md) | The app icon is an M drawn as two peaks under the sun | Accepted |
 | [0100](0100-item-types-in-a-module-tree.md) | A new item picks its type in a tree of modules, with a description | Accepted |
+| [0102](0102-github-module.md) | A GitHub module, shaped like the GitLab module | Proposed |
 
 ## Template
 
