@@ -109,8 +109,9 @@ class TestPageKeys : public QObject
         parent->show();
         QSignalSpy loads(view.get(), &QWebEngineView::loadFinished);
         view->setHtml(QStringLiteral("<input id=field autofocus><script>window.keys = [];"
-                                     "document.addEventListener('keydown', e => window.keys.push("
-                                     "(e.ctrlKey ? 'Ctrl+' : '') + e.key), true);</script>"));
+                                     "document.addEventListener('keydown', e => {"
+                                     "if (!['Control', 'Shift', 'Alt', 'Meta'].includes(e.key))"
+                                     "window.keys.push((e.ctrlKey ? 'Ctrl+' : '') + e.key); }, true);</script>"));
         if (!loads.wait(kTimeout))
             return nullptr;
         return view;
