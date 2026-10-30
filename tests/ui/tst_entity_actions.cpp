@@ -911,7 +911,7 @@ void TestEntityActions::typedTokenIsWritten()
     SecretStore secrets(makeMemoryBackend());
     fill = [](QDialog &dialog) {
         if (QLineEdit *line = tokenLine(dialog))
-            line->setText(QStringLiteral("s3cret"));
+            line->setText(QStringLiteral(" s3cret "));
     };
 
     // Dropped without a store.

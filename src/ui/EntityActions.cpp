@@ -304,9 +304,14 @@ void EntityActions::editModuleSettings(const QString &profileId, const QString &
             for (const QString &fieldKey : form->removedSecrets())
                 secrets->remove(secretKey(workspaceId, profileId, moduleId, fieldKey));
         }
+        // A pasted token often brings a line break along, which a server
+        // refuses; no token has spaces at its ends.
         const QJsonObject typed = dialog.secrets();
-        for (auto it = typed.begin(); it != typed.end(); ++it)
-            secrets->write(secretKey(workspaceId, profileId, moduleId, it.key()), it.value().toString());
+        for (auto it = typed.begin(); it != typed.end(); ++it) {
+            const QString token = it.value().toString().trimmed();
+            if (!token.isEmpty())
+                secrets->write(secretKey(workspaceId, profileId, moduleId, it.key()), token);
+        }
     }
 }
 
