@@ -321,6 +321,9 @@ ProjectDialog::ProjectDialog(const Project &project, const Model &model, const D
         section.fields = types.projectSettings(moduleId);
         auto *box = new QGroupBox(section.moduleName, this);
         box->setObjectName(QStringLiteral("section.") + moduleId);
+        // The macOS style leaves the title out of the box's layout rectangle,
+        // so the title overlaps the widget above it.
+        box->setAttribute(Qt::WA_LayoutUsesWidgetRect);
         section.form = new FieldForm(section.fields, EditorContext(), box);
         section.form->setObjectName(QStringLiteral("moduleSettings.") + moduleId);
         section.form->setConfig(project.moduleSettings.value(moduleId).toObject());
