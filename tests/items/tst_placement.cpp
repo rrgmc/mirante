@@ -38,7 +38,6 @@
 #include <QPushButton>
 #include <QSettings>
 #include <QSignalSpy>
-#include <QSysInfo>
 #include <QTemporaryDir>
 #include <QTest>
 #include <QTimer>
@@ -1518,7 +1517,7 @@ private slots:
     }
 
     // The context's M7 members that read this device: the main folder,
-    // device settings, the device name and files.
+    // device settings and files.
     void contextReadsTheDevice()
     {
         QTemporaryDir dir;
@@ -1556,10 +1555,6 @@ private slots:
         // Another module's item does not see them.
         ItemContextImpl stat(services, QStringLiteral("t1"), QStringLiteral("s1"));
         QVERIFY(stat.deviceSetting(QStringLiteral("editor")).isUndefined());
-
-        QCOMPARE(context.deviceName(), QSysInfo::machineHostName());
-        device.setDeviceName(QStringLiteral("Desk"));
-        QCOMPARE(context.deviceName(), QStringLiteral("Desk"));
 
         // Files: only an existing plain name in files/.
         QVERIFY(context.filePath(QStringLiteral("a.png")).isEmpty());

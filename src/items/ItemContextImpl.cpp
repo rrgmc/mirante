@@ -22,7 +22,6 @@
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QLabel>
-#include <QSysInfo>
 
 #include <algorithm>
 
@@ -318,11 +317,6 @@ QJsonValue ItemContextImpl::deviceSetting(const QString &key) const
         return stored.isUndefined() ? field.defaultValue : stored;
     }
     return QJsonValue(QJsonValue::Undefined);
-}
-
-QString ItemContextImpl::deviceName() const
-{
-    return m_services.settings ? m_services.settings->deviceName() : QSysInfo::machineHostName();
 }
 
 // Only a plain file name is looked up: the name comes from synced data, and

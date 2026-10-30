@@ -118,9 +118,6 @@ public:
         return {};
     }
 
-    // This device's name, set in the settings window; the host name by default.
-    virtual QString deviceName() const { return {}; }
-
     // The absolute path of a file in the data folder's files/, such as an
     // Image item's file, or empty if there is no such file. See decision 0021.
     virtual QString filePath(const QString &fileName) const

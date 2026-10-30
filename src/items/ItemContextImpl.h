@@ -54,7 +54,6 @@ public:
     void mapFolder(const QString &folderId) override;
     void onConfigChanged(QObject *receiver, std::function<void(const QJsonObject &)> changed) override;
     QJsonValue deviceSetting(const QString &key) const override;
-    QString deviceName() const override;
     QString filePath(const QString &fileName) const override;
     QString gitHead(const QString &path) const override;
     void gitStatus(const QString &path, QObject *receiver, std::function<void(const GitState &)> done) override;

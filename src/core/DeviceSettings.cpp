@@ -6,7 +6,6 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QSettings>
-#include <QSysInfo>
 
 #include <algorithm>
 
@@ -28,7 +27,6 @@ const QString focusAttentionFirstKey = QStringLiteral("focus/attentionFirst");
 const QString globalHotkeyKey = QStringLiteral("window/globalHotkey");
 const QString closeToTrayKey = QStringLiteral("window/closeToTray");
 const QString terminalCommandKey = QStringLiteral("terminal/command");
-const QString deviceNameKey = QStringLiteral("device/name");
 
 constexpr int defaultHiddenViewLimit = 8;
 
@@ -441,21 +439,6 @@ void DeviceSettings::setTerminalCommand(const QString &command)
         d->settings->remove(terminalCommandKey);
     else
         d->settings->setValue(terminalCommandKey, command);
-}
-
-QString DeviceSettings::deviceName() const
-{
-    const QString name = d->settings->value(deviceNameKey).toString().trimmed();
-    return name.isEmpty() ? QSysInfo::machineHostName() : name;
-}
-
-void DeviceSettings::setDeviceName(const QString &name)
-{
-    const QString trimmed = name.trimmed();
-    if (trimmed.isEmpty())
-        d->settings->remove(deviceNameKey);
-    else
-        d->settings->setValue(deviceNameKey, trimmed);
 }
 
 // The value is kept as JSON text, such as "code" with its quotes, or true, so
