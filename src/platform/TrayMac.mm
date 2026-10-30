@@ -95,7 +95,9 @@
 
 namespace {
 
-NSImage *toNSImage(const QIcon &icon)
+// A template image: macOS uses only its alpha and draws it in the menu bar's
+// colour.
+NSImage *toTemplateImage(const QIcon &icon)
 {
     const NSSize size = NSMakeSize(18, 18);
     NSImage *image = [[NSImage alloc] initWithSize:size];
@@ -109,7 +111,7 @@ NSImage *toNSImage(const QIcon &icon)
         rep.size = size;
         [image addRepresentation:rep];
     }
-    [image setTemplate:icon.isMask()];    // "template" is a C++ keyword
+    [image setTemplate:YES];    // "template" is a C++ keyword
     return image;
 }
 
@@ -124,7 +126,38 @@ struct Tray::Private
     MiranteTrayMenuDelegate *delegate = nil;
     MiranteReopenHandler *reopenHandler = nil;
     int count = 0;
+    // The last state asked for, which a delayed change checks it still applies.
+    bool dockIconVisible = true;
 };
+
+namespace {
+
+void applyActivationPolicy(bool dockIconVisible)
+{
+    // An accessory app has no Dock icon and no menu bar, like a menu bar app.
+    const NSApplicationActivationPolicy policy =
+        dockIconVisible ? NSApplicationActivationPolicyRegular : NSApplicationActivationPolicyAccessory;
+    if (NSApp.activationPolicy == policy)
+        return;
+    // The bundle has no icon file, so Qt sets the Dock icon at run time.
+    // Becoming a regular app again shows the bundle's icon, a blank one, so
+    // that icon is set again.
+    NSImage *icon = NSApp.applicationIconImage;
+    [NSApp setActivationPolicy:policy];
+    if (dockIconVisible && icon) {
+        NSApp.applicationIconImage = nil;
+        NSApp.applicationIconImage = icon;
+    }
+    // An app that was an accessory does not come to the front by itself.
+    if (dockIconVisible) {
+        if (@available(macOS 14, *))
+            [NSApp activate];
+        else
+            [NSApp activateIgnoringOtherApps:YES];
+    }
+}
+
+} // namespace
 
 bool Tray::isAvailable()
 {
@@ -132,17 +165,19 @@ bool Tray::isAvailable()
     return QGuiApplication::platformName() == QLatin1String("cocoa");
 }
 
-Tray::Tray(const QIcon &icon, const QString &toolTip, QMenu *menu, QObject *parent)
+Tray::Tray(const QIcon &icon, const QIcon &monochromeIcon, const QString &toolTip, QMenu *menu,
+           QObject *parent)
     : QObject(parent)
     , d(std::make_unique<Private>())
 {
+    Q_UNUSED(icon);
     d->delegate = [[MiranteTrayMenuDelegate alloc] initWithMenu:menu];
     d->menu = [[NSMenu alloc] init];
     d->menu.autoenablesItems = NO;
     d->menu.delegate = d->delegate;
 
     d->item = [NSStatusBar.systemStatusBar statusItemWithLength:NSSquareStatusItemLength];
-    d->item.button.image = toNSImage(icon);
+    d->item.button.image = toTemplateImage(monochromeIcon);
     d->item.button.toolTip = toolTip.toNSString();
     d->item.menu = d->menu;
 
@@ -192,19 +227,19 @@ void Tray::showMessage(const QString &title, const QString &text)
 
 void Tray::setDockIconVisible(bool visible)
 {
-    // An accessory app has no Dock icon and no menu bar, like a menu bar app.
-    const NSApplicationActivationPolicy policy =
-        visible ? NSApplicationActivationPolicyRegular : NSApplicationActivationPolicyAccessory;
-    if (NSApp.activationPolicy == policy)
-        return;
-    [NSApp setActivationPolicy:policy];
-    // An app that was an accessory does not come to the front by itself.
+    d->dockIconVisible = visible;
     if (visible) {
-        if (@available(macOS 14, *))
-            [NSApp activate];
-        else
-            [NSApp activateIgnoringOtherApps:YES];
+        applyActivationPolicy(true);
+        return;
     }
+    // On macOS 27, becoming an accessory while AppKit handles the window's
+    // close button changes NSApp.activationPolicy but leaves the Dock icon. The
+    // same change made once that event is handled removes it.
+    QPointer<Tray> tray(this);
+    dispatch_async(dispatch_get_main_queue(), ^{
+        if (tray && !tray->d->dockIconVisible)
+            applyActivationPolicy(false);
+    });
 }
 
 } // namespace mirante::platform
