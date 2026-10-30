@@ -948,14 +948,25 @@ struct MainWindow::Private
         store->open(dir);
         // Each workspace keeps its own web logins, under its id, before the
         // tabs make pages that use them. A workspace that just got its id is
-        // from before decision 0059, and takes the logins kept for all.
+        // from before decision 0059, and takes the logins kept for all. One
+        // whose id another device changed takes the logins of its old id
+        // (decision 0062).
         if (profiles) {
             const QString id = model->workspaceId();
             profiles->setWorkspace(id.isEmpty() ? QDir(dir).absolutePath() : id);
             if (store->assignedWorkspaceId()) {
                 if (const int moved = profiles->adoptRootProfiles())
                     qInfo().noquote() << "Moved the web logins of" << moved << "profiles into this workspace";
+            } else if (!id.isEmpty()) {
+                const QString known = settings->workspaceId(dir);
+                if (!known.isEmpty() && known != id) {
+                    const int moved = profiles->adoptProfilesOf(known);
+                    qInfo().noquote() << "The workspace's id changed from" << known << "to" << id << "on another device;"
+                                      << "moved the web logins of" << moved << "profiles";
+                }
             }
+            if (!id.isEmpty())
+                settings->setWorkspaceId(dir, id);
         }
         restoreOpenTabs();
         updateWarnings();

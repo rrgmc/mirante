@@ -233,6 +233,30 @@ private slots:
         QCOMPARE(manager->adoptRootProfiles(), 0);
     }
 
+    // After another device gave the workspace a new id, the profile folders
+    // of the old id move to the new one, and the old folder goes. A folder
+    // the workspace has stays, and so does the old folder holding it.
+    void adoptProfilesOf()
+    {
+        const QDir dir(root->path());
+        QVERIFY(QDir().mkpath(dir.filePath(QStringLiteral("old-id/p-default/cache"))));
+        QVERIFY(QDir().mkpath(dir.filePath(QStringLiteral("old-id/p-work"))));
+        QVERIFY(QDir().mkpath(dir.filePath(QStringLiteral("new-id/p-work"))));
+
+        // Without a workspace there is nowhere to move them.
+        QCOMPARE(manager->adoptProfilesOf(QStringLiteral("old-id")), 0);
+
+        manager->setWorkspace(QStringLiteral("new-id"));
+        QCOMPARE(manager->adoptProfilesOf(QStringLiteral("new-id")), 0);
+        QCOMPARE(manager->adoptProfilesOf(QStringLiteral("old-id")), 1);
+        QVERIFY(QDir(dir.filePath(QStringLiteral("new-id/p-default/cache"))).exists());
+        QVERIFY(QDir(dir.filePath(QStringLiteral("old-id/p-work"))).exists());
+
+        QVERIFY(QDir(dir.filePath(QStringLiteral("old-id/p-work"))).removeRecursively());
+        QCOMPARE(manager->adoptProfilesOf(QStringLiteral("old-id")), 0);
+        QVERIFY(!QDir(dir.filePath(QStringLiteral("old-id"))).exists());
+    }
+
     // Ids come from synced files, so one that could name another folder gives
     // Default.
     void oddIdsGiveDefault()

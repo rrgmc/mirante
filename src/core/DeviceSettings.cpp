@@ -38,15 +38,21 @@ QString cleanAbsolute(const QString &path)
     return path.isEmpty() ? QString() : QDir::cleanPath(QFileInfo(path).absoluteFilePath());
 }
 
-// The group holding one workspace's open tabs. A path can hold characters a
-// settings key cannot, so the group is named by a hash of the cleaned absolute
+// A key for one workspace under prefix. A path can hold characters a
+// settings key cannot, so the key is named by a hash of the cleaned absolute
 // path.
-QString tabsGroup(const QString &workspace)
+QString workspaceKey(const QString &prefix, const QString &workspace)
 {
     const QString path = QDir::cleanPath(QFileInfo(workspace).absoluteFilePath());
     const QByteArray hash = QCryptographicHash::hash(path.toUtf8(), QCryptographicHash::Sha1).toHex();
-    return QStringLiteral("tabs/") + QString::fromLatin1(hash);
+    return prefix + QString::fromLatin1(hash);
 }
+
+// The group holding one workspace's open tabs.
+QString tabsGroup(const QString &workspace) { return workspaceKey(QStringLiteral("tabs/"), workspace); }
+
+// The id this device last opened a workspace with.
+QString workspaceIdKey(const QString &workspace) { return workspaceKey(QStringLiteral("workspaceIds/"), workspace); }
 
 } // namespace
 
@@ -150,6 +156,12 @@ void DeviceSettings::moveWorkspace(const QString &from, const QString &to)
         settings.remove(tabsGroup(oldPath));
     }
 
+    const QString id = workspaceId(oldPath);
+    if (!id.isEmpty()) {
+        setWorkspaceId(newPath, id);
+        setWorkspaceId(oldPath, QString());
+    }
+
     // Project folders kept inside the workspace's folder moved with it.
     settings.beginGroup(QStringLiteral("folders"));
     const QStringList folderIds = settings.childKeys();
@@ -159,6 +171,23 @@ void DeviceSettings::moveWorkspace(const QString &from, const QString &to)
         if (!path.isEmpty())
             setFolderPath(folderId, path);
     }
+}
+
+QString DeviceSettings::workspaceId(const QString &workspace) const
+{
+    if (workspace.isEmpty())
+        return {};
+    return d->settings->value(workspaceIdKey(workspace)).toString();
+}
+
+void DeviceSettings::setWorkspaceId(const QString &workspace, const QString &id)
+{
+    if (workspace.isEmpty())
+        return;
+    if (id.isEmpty())
+        d->settings->remove(workspaceIdKey(workspace));
+    else
+        d->settings->setValue(workspaceIdKey(workspace), id);
 }
 
 QString DeviceSettings::folderPath(const QString &folderId) const

@@ -190,6 +190,27 @@ private slots:
 
     // After a workspace moves, everything that named its folder names the
     // new one. Other workspaces and folders outside it stay.
+    // The id last seen for each workspace folder, kept apart by path.
+    void workspaceIds()
+    {
+        const QString one = dir->filePath(QStringLiteral("one"));
+        const QString two = dir->filePath(QStringLiteral("two"));
+        {
+            DeviceSettings device(settings.get());
+            QVERIFY(device.workspaceId(one).isEmpty());
+            device.setWorkspaceId(one, QStringLiteral("id-1"));
+            device.setWorkspaceId(two, QStringLiteral("id-2"));
+            device.setWorkspaceId(QString(), QStringLiteral("ignored"));
+        }
+        reopen();
+        DeviceSettings device(settings.get());
+        QCOMPARE(device.workspaceId(one), QStringLiteral("id-1"));
+        QCOMPARE(device.workspaceId(two), QStringLiteral("id-2"));
+        QVERIFY(device.workspaceId(QString()).isEmpty());
+        device.setWorkspaceId(one, QString());
+        QVERIFY(device.workspaceId(one).isEmpty());
+    }
+
     void moveWorkspace()
     {
         const QString from = dir->filePath(QStringLiteral("old"));
@@ -205,6 +226,7 @@ private slots:
             device.addRecentWorkspace(other);
             device.setLastWorkspace(from);
             device.setOpenTabs(from, tabs);
+            device.setWorkspaceId(from, QStringLiteral("ws-id"));
             device.setFolderPath(QStringLiteral("inside"), from + QStringLiteral("/code"));
             device.setFolderPath(QStringLiteral("outside"), other + QStringLiteral("/code"));
             device.setFolderPath(QStringLiteral("similar"), from + QStringLiteral("er/code"));
@@ -220,6 +242,8 @@ private slots:
         QCOMPARE(read.ids, tabs.ids);
         QCOMPARE(read.current, tabs.current);
         QCOMPARE(read.detached, tabs.detached);
+        QVERIFY(device.workspaceId(from).isEmpty());
+        QCOMPARE(device.workspaceId(to), QStringLiteral("ws-id"));
         QCOMPARE(device.folderPath(QStringLiteral("inside")), to + QStringLiteral("/code"));
         QCOMPARE(device.folderPath(QStringLiteral("outside")), other + QStringLiteral("/code"));
         QCOMPARE(device.folderPath(QStringLiteral("similar")), from + QStringLiteral("er/code"));
