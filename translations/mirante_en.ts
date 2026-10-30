@@ -17,6 +17,13 @@
             <numerusform>%1: %n tasks need attention</numerusform>
         </translation>
     </message>
+    <message numerus="yes">
+        <source>%n watched item(s) need attention</source>
+        <translation>
+            <numerusform>%n watched item needs attention</numerusform>
+            <numerusform>%n watched items need attention</numerusform>
+        </translation>
+    </message>
 </context>
 <context>
     <name>mirante::Placement</name>

@@ -111,6 +111,14 @@ public:
     void setSeenAttention(const QString &workspaceId, const QString &itemId, const QStringList &keys);
     void removeSeenAttention(const QString &workspaceId, const QString &itemId);
 
+    // The keys of the reasons a watched item has sent a desktop notification
+    // for, so none is sent twice, also after a restart. Kept like the seen
+    // keys. See docs/decisions/0087-watched-items.md.
+    QStringList notifiedAttention(const QString &workspaceId, const QString &itemId) const;
+    bool hasNotifiedAttention(const QString &workspaceId, const QString &itemId) const;
+    void setNotifiedAttention(const QString &workspaceId, const QString &itemId, const QStringList &keys);
+    void removeNotifiedAttention(const QString &workspaceId, const QString &itemId);
+
     // Whether Focus lists the tasks that need attention first. Off if not
     // set. See docs/ui.md#focus-view.
     bool focusAttentionFirst() const;

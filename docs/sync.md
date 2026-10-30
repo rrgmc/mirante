@@ -95,6 +95,7 @@ Settings that only make sense on one device are stored with `QSettings`, outside
 - the device settings that modules declare, such as the `folder` module's editor command, under `modules/<module id>/<key>` ([decision 0079](decisions/0079-module-device-settings.md));
 - the status poll interval, from 30 seconds to one hour, two minutes if not set ([polling](integrations.md#polling-and-caching)), and the hidden-view limit;
 - the attention reasons seen on each item, by workspace id and item id: the keys of the reasons that clear when seen ([decision 0061](decisions/0061-attention-from-status-of-any-rendering.md)). They are not synced, so each device shows an event until it is seen there. Removing an item removes its record;
+- the attention reasons each [watched item](ui.md#watched-items) has sent a desktop notification for, kept the same way, so a reason notifies once on each device;
 - whether Focus lists the tasks that need attention first;
 - the global hotkey, and whether closing the window hides it to the tray;
 - the language, under `language`: `system`, the default and not stored, `en` or `pt_BR`. It is read at start, before any window is made ([decision 0086](decisions/0086-english-and-brazilian-portuguese.md)).
