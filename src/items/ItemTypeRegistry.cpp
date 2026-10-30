@@ -245,9 +245,11 @@ const ItemType &ItemTypeRegistry::type(const QString &id) const
     const auto found = d->byId.find(id);
     if (found != d->byId.end())
         return *found->second;
+    // Modules register at start, before any item is looked up, so whether the
+    // module is in the build is known when the type is made.
     auto &slot = d->unknown[id];
     if (!slot)
-        slot = std::make_unique<UnknownItemType>(id);
+        slot = std::make_unique<UnknownItemType>(id, d->modules.count(id.section(QLatin1Char('.'), 0, 0)) != 0);
     return *slot;
 }
 

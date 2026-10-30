@@ -1,8 +1,8 @@
 // Tests DeviceSettings on a QSettings in a temporary INI file: the keys M2
 // used, the recent list, folder paths, the open tabs of each workspace, the
 // windows of detached dashboards, the hidden-view limit, the poll interval,
-// the seen attention keys, Focus's attention order, the terminal command, the
-// device name and module device settings.
+// the seen attention keys, Focus's attention order, the terminal command and
+// module device settings.
 #include "core/DeviceSettings.h"
 
 #include <QDir>
@@ -11,7 +11,6 @@
 #include <QJsonArray>
 #include <QJsonObject>
 #include <QSettings>
-#include <QSysInfo>
 #include <QTemporaryDir>
 #include <QTest>
 
@@ -565,21 +564,6 @@ private slots:
         device.setTerminalCommand(QStringLiteral("  "));
         QVERIFY(device.terminalCommand().isEmpty());
         QVERIFY(!settings->contains(QStringLiteral("terminal/command")));
-    }
-
-    // The host name until a name is set; an empty name goes back to it.
-    void deviceName()
-    {
-        {
-            DeviceSettings device(settings.get());
-            QCOMPARE(device.deviceName(), QSysInfo::machineHostName());
-            device.setDeviceName(QStringLiteral(" Laptop "));
-        }
-        reopen();
-        DeviceSettings device(settings.get());
-        QCOMPARE(device.deviceName(), QStringLiteral("Laptop"));
-        device.setDeviceName(QString());
-        QCOMPARE(device.deviceName(), QSysInfo::machineHostName());
     }
 
     void moduleSettingsKeepTheirType_data()

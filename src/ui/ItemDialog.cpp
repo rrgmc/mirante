@@ -372,9 +372,14 @@ ItemDialog::ItemDialog(const Item &item, bool creating, const ItemTypeRegistry &
     itemLayout->addLayout(form);
     itemLayout->addLayout(d->editorBox, 1);
     if (!creating && !types.contains(d->item.type)) {
+        // A type whose module is in the build was removed from it; see
+        // decision 0084.
+        const bool removed = types.moduleIds().contains(d->item.type.section(QLatin1Char('.'), 0, 0));
         auto *missing = new QLabel(
-            tr("The module of this item type is not available, so only the name can be changed. "
-               "The rest of the item is kept."),
+            removed ? tr("This item type is no longer available, so only the name can be changed. "
+                         "The rest of the item is kept.")
+                    : tr("The module of this item type is not available, so only the name can be changed. "
+                         "The rest of the item is kept."),
             d->itemPage);
         missing->setObjectName(QStringLiteral("missing"));
         missing->setWordWrap(true);

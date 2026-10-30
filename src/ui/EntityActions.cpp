@@ -871,6 +871,7 @@ void EntityActions::fillMenu(QMenu *menu, SidebarModel::Kind kind, const QString
         menu->addAction(tr("New item…"), this, [this, id] { newItem(id); });
         menu->addAction(tr("Paste URL…"), this, [this, id] { pasteUrl(id); })->setEnabled(!clipboardUrl().isEmpty());
         addPasteImage(menu, id);
+        menu->addAction(tr("Add Items from Link…"), this, [this, id] { emit addItemsFromLinkRequested(id); });
         menu->addAction(tr("New dashboard…"), this, [this, id] { newDashboard(id); });
         menu->addSeparator();
         menu->addAction(tr("Edit task…"), this, [this, id] { editTask(id); });
@@ -892,6 +893,7 @@ void EntityActions::fillMenu(QMenu *menu, SidebarModel::Kind kind, const QString
         menu->addAction(tr("Paste URL…"), this, [this, taskId] { pasteUrl(taskId); })
             ->setEnabled(!clipboardUrl().isEmpty());
         addPasteImage(menu, taskId);
+        menu->addAction(tr("Add Items from Link…"), this, [this, taskId] { emit addItemsFromLinkRequested(taskId); });
         break;
     case SidebarModel::Kind::DashboardList:
         if (!model.task(taskId))

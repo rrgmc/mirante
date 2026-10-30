@@ -87,7 +87,7 @@ Jira priority is shown in the summary but never used for sorting. See [decision 
 ## Claude
 
 - **Remote Control and cloud sessions** open as claude.ai pages in a [web view](web-views.md). There is no public API to list them or read their state, so the app shows no status for them.
-- **Local Claude Code sessions** start in a terminal with `claude --resume <id>`, in the folder's local path. See [terminal launch](#terminal-launch).
+- **Local Claude Code sessions** have no item. M7 had one that ran `claude --resume <id>` in a terminal; [decision 0084](decisions/0084-no-local-claude-sessions.md) removed it.
 - The app does not use the undocumented endpoints behind the claude.ai web interface, and it does not read Claude Code's stored login credentials. See [decision 0008](decisions/0008-claude-sessions.md).
 
 If Anthropic publishes an API for sessions later, a new decision record will cover adding it.
@@ -140,7 +140,7 @@ Each server client keeps the `ETag` and body of the 500 URLs it used last, and s
 
 ## Terminal launch
 
-`Launcher` in `src/platform/` starts a program in a new terminal window, in a given folder, and starts programs such as an editor on their own. It is used by local Claude sessions and by the folder item. Modules pass a program and a list of arguments, never one command string, as [decision 0082](decisions/0082-commands-as-argument-lists.md) says. `Launcher` quotes them for each layer they pass through.
+`Launcher` in `src/platform/` starts a program in a new terminal window, in a given folder, and starts programs such as an editor on their own. It is used by the folder item, and stays in `ItemContext` for other modules that need it. Modules pass a program and a list of arguments, never one command string, as [decision 0082](decisions/0082-commands-as-argument-lists.md) says. `Launcher` quotes them for each layer they pass through.
 
 | Platform | Default, in the order tried |
 |---|---|
@@ -155,7 +155,7 @@ With no program, as for the folder item's **Terminal** action, the terminal open
 - **Windows Terminal** reads `;` as the start of a new tab, so each `;` in the folder and the arguments is passed as `\;`.
 - **`cmd.exe`** has its own rules. Each argument is first quoted for the program, as the Microsoft C runtime reads it, then each character that `cmd` treats as special (`( ) % ! ^ " < > & |`) gets a `^` before it, and so do the separators space, `;` and `,`. A quote escaped this way does not start a quoted region, so without this `cmd` would split a path such as `...\Microsoft VS Code\bin\code.cmd` at its spaces. The fallback terminal passes through two `cmd.exe`, the one that runs `start` and the one that `start` opens, so the command is escaped twice.
 - **macOS:** each word is quoted for the shell in single quotes, unless it holds only safe characters. The whole line is then escaped for the AppleScript string, with `\\` for `\` and `\"` for `"`.
-- On Windows, `launchTerminal()` finds the program on the `PATH` first, and passes its full path, because the terminal does not try `.cmd` files. `claude` installed with npm is `claude.cmd`.
+- On Windows, `launchTerminal()` finds the program on the `PATH` first, and passes its full path, because the terminal does not try `.cmd` files. A program installed with npm, for example, is a `.cmd` file.
 
 **Programs on their own,** such as the editor, are found on the `PATH` unless they have a path, and started detached in the folder. On Windows the `PATH` lookup tries the suffixes in `PATHEXT`, so `code` finds `code.cmd`. A `.cmd` or `.bat` file runs as `cmd.exe /c <file> <arguments>`, quoted and escaped for `cmd` as above, without a console window of its own.
 

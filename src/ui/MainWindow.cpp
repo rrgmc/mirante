@@ -199,8 +199,8 @@ struct MainWindow::Private
     QStackedWidget *stack = nullptr;
     Shortcuts *shortcuts = nullptr;
     QuickSwitcher *switcher = nullptr;
-    QAction *quickAddAction = nullptr;      // in the File menu, with Ctrl+Shift+N
-    QPointer<QuickAddDialog> quickAdd;      // while open
+    QAction *quickAddAction = nullptr;      // New Task from Link, in the File menu, with Ctrl+Shift+N
+    QPointer<QuickAddDialog> quickAdd;      // while open, for a new task or a task
     QToolButton *listButton = nullptr;
     QPointer<RootDashboardsDialog> dashboardList;
     QPointer<LogWindow> logWindow;
@@ -1137,12 +1137,12 @@ struct MainWindow::Private
         return button;
     }
 
-    // The quick add button in the sidebar header. See docs/ui.md#quick-add.
+    // The New Task from Link button in the sidebar header. See docs/ui.md#quick-add.
     QToolButton *buildQuickAddButton()
     {
         auto *button = new QToolButton;
         button->setObjectName(QStringLiteral("quickAddButton"));
-        button->setText(MainWindow::tr("Quick Add"));
+        button->setText(MainWindow::tr("New Task from Link…"));
         button->setToolTip(MainWindow::tr("Make a task from a link or a key (%1)")
                                .arg(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_N).toString(QKeySequence::NativeText)));
         button->setAutoRaise(true);
@@ -1150,28 +1150,55 @@ struct MainWindow::Private
         return button;
     }
 
-    // Opens the quick add dialog, or brings it to the front. It starts in the
-    // profile of the selected sidebar entry's group, else the workspace's
-    // default, and opens the task it creates in the preview slot.
-    void showQuickAdd()
+    // Brings an open quick add dialog to the front. False if none is open.
+    bool raiseQuickAdd()
     {
-        if (quickAdd) {
-            quickAdd->raise();
-            quickAdd->activateWindow();
-            return;
-        }
-        const Group *group = model->group(selectedGroupAndProject().first);
-        const QString profileId = group ? profiles::groupDefault(*model, *group) : QString();
-        auto *run = new QuickAddRun(*model, *types, api.servers);
-        quickAdd = new QuickAddDialog(*model, *types, *run, profileId, q);
+        if (!quickAdd)
+            return false;
+        quickAdd->raise();
+        quickAdd->activateWindow();
+        return true;
+    }
+
+    // Opens a quick add dialog with its own run, which goes after it.
+    void openQuickAdd(QuickAddDialog *dialog, QuickAddRun *run)
+    {
+        quickAdd = dialog;
         // The run goes after the dialog, which cancels it as it goes.
         QObject::connect(quickAdd, &QObject::destroyed, run, &QObject::deleteLater);
         quickAdd->setAttribute(Qt::WA_DeleteOnClose);
-        QObject::connect(quickAdd, &QuickAddDialog::taskCreated, q, [this](const QString &taskId) {
+        quickAdd->open();
+    }
+
+    // New Task from Link: opens the quick add dialog, or brings it to the
+    // front. It starts in the profile of the selected sidebar entry's group,
+    // else the workspace's default, and opens the task it creates in the
+    // preview slot.
+    void showQuickAdd()
+    {
+        if (raiseQuickAdd())
+            return;
+        const Group *group = model->group(selectedGroupAndProject().first);
+        const QString profileId = group ? profiles::groupDefault(*model, *group) : QString();
+        auto *run = new QuickAddRun(*model, *types, api.servers);
+        auto *dialog = new QuickAddDialog(*model, *types, *run, profileId, q);
+        QObject::connect(dialog, &QuickAddDialog::taskCreated, q, [this](const QString &taskId) {
             q->openTaskPreview(taskId);
             revealNew(taskId);
         });
-        quickAdd->open();
+        openQuickAdd(dialog, run);
+    }
+
+    // Add Items from Link: opens the quick add dialog for a task. The task
+    // is revealed in the sidebar after; the open tab stays.
+    void showQuickAddForTask(const QString &taskId)
+    {
+        if (raiseQuickAdd() || !model->task(taskId))
+            return;
+        auto *run = new QuickAddRun(*model, *types, api.servers);
+        auto *dialog = QuickAddDialog::forTask(*model, *types, *run, taskId, q);
+        QObject::connect(dialog, &QuickAddDialog::itemsAdded, q, [this](const QString &id) { revealNew(id); });
+        openQuickAdd(dialog, run);
     }
 
     void revealNew(const QString &id)
@@ -1547,7 +1574,7 @@ struct MainWindow::Private
         file->addSeparator();
         QAction *newGroup = file->addAction(MainWindow::tr("New &Group…"));
         QObject::connect(newGroup, &QAction::triggered, q, [this] { revealNew(actions->newGroup()); });
-        quickAddAction = file->addAction(MainWindow::tr("&Quick Add…"));
+        quickAddAction = file->addAction(MainWindow::tr("New Task from &Link…"));
         quickAddAction->setObjectName(QStringLiteral("quickAddAction"));
         quickAddAction->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_N));
         QObject::connect(quickAddAction, &QAction::triggered, q, [this] { showQuickAdd(); });
@@ -2005,6 +2032,8 @@ MainWindow::MainWindow(Model &model, const ItemTypeRegistry &types, Store &store
             });
     d->sidebar->addHeaderWidget(d->buildNewButton());
     d->sidebar->addHeaderWidget(d->buildQuickAddButton());
+    connect(d->actions, &EntityActions::addItemsFromLinkRequested, this,
+            [this](const QString &taskId) { d->showQuickAddForTask(taskId); });
     connect(&model, &Model::workspaceNameChanged, this, [this] { d->updateTitle(); });
     connect(d->showSidebarButton, &QToolButton::clicked, this, [this] { d->showSidebar(true); });
 

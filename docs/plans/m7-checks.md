@@ -1,6 +1,6 @@
 # M7 checks by hand
 
-These are the checks for [milestone M7](../roadmap.md#m7-quick-add-claude-local-folders-and-notes) that tests cannot make. Run them on Windows with the release build:
+These are the checks for [milestone M7](../roadmap.md#m7-quick-add-folders-and-notes) that tests cannot make. Run them on Windows with the release build:
 
 ```powershell
 task build PRESET=release
@@ -12,37 +12,36 @@ Use a test workspace with at least two groups. You need:
 - a GitLab token in a profile, a merge request on gitlab.com whose title or branch holds a Jira key, and a project whose `gitlab.project` setting is that merge request's project;
 - a Jira Cloud token in the same profile, and an issue whose key appears in a merge request's branch or title;
 - a local Git repository mapped as a project's main folder, with a worktree of it, and a plain folder that is not a repository;
-- Claude Code installed, and the id of a local session in that repository;
 - Visual Studio Code, or another editor, on the `PATH`.
 
 Tick each box, or note what is wrong next to it.
 
 ## Quick add
 
-- [ ] File > Quick Add…, `Ctrl+Shift+N` and the "Quick Add" button in the sidebar header open the dialog. A one-line link on the clipboard fills the text box.
+- [ ] File > New Task from Link…, `Ctrl+Shift+N` and the "New Task from Link…" button in the sidebar header open the dialog "New Task from Link", whose button is Create Task. A one-line link on the clipboard fills the text box.
 - [ ] Pasting a merge request link shows "Reading…", then its title, the project that matches `gitlab.project`, and two items: the MR summary and its CI Pipeline. A Jira key in its title or branch adds a Jira Issue item under "Related".
 - [ ] Pasting a Jira key, and a Jira issue link, shows the summary as the title, the project that matches `jira.projectKey`, and a Jira Issue item. Merge requests whose branch or title hold the key appear under "Related".
-- [ ] With no matching project, the dialog says "No project matches …" and Create waits for a choice. With two matching projects, it says "Several projects match". A new project choice searches again.
+- [ ] With no matching project, the dialog says "No project matches …" and Create Task waits for a choice. With two matching projects, it says "Several projects match". A new project choice searches again.
 - [ ] Text that no module reads says "Mirante does not recognise this text."
 - [ ] Changing the Profile reads the text again with that profile's servers.
-- [ ] Unchecking an item and renaming the title, then Create, makes the task with only the checked items, opens it in the preview slot, and shows it in the sidebar. With several items, its dashboard shows them as tabs in one cell; with one, the item fills the cell.
+- [ ] Unchecking an item and renaming the title, then Create Task, makes the task with only the checked items, opens it in the preview slot, and shows it in the sidebar. With several items, its dashboard shows them as tabs in one cell; with one, the item fills the cell.
 - [ ] Cancel while "Reading…" closes the dialog, and nothing is created.
+- [ ] "Add Items from Link…" in the context menu of a task, and of its Items row, opens "Add Items from Link: <task title>" with no Title or Project, and the profile of the task's group. Its button is Add Items.
+- [ ] In it, pasting a link searches for related items in the task's project at once. Items the task already has are not offered.
+- [ ] Add Items adds the checked items to the end of the task's items, in the sidebar, and selects the task there. No dashboard changes, and the open tab stays.
 
-## Claude session (local)
+## Removed Claude session (local)
 
-- [ ] Settings > Terminal shows the device name, the host name by default. Settings > Modules shows the Claude Code program and the folder's editor command.
-- [ ] An item with a valid session id and its device name: Resume in terminal opens Windows Terminal in the folder, running `claude --resume <id>`.
-- [ ] With `wt.exe` not found (rename it, or set a terminal command that does not exist and clear it again), the `cmd.exe` fallback opens in the folder and runs the same command. A folder path with spaces and a `&` in it works.
-- [ ] An item whose device is another name disables the button and says "This session lives on <device>."
-- [ ] A session id with a space or a `;` disables the button with a message.
-- [ ] A folder not mapped on this device shows "Choose folder…". Choosing one enables the button at once.
-- [ ] A terminal command template in Settings, such as `wt.exe -p "Windows PowerShell" -d {dir} {command}`, is used instead of the default.
+- [ ] A workspace that still has a `claude.session.local` item, such as one from before [decision 0084](../decisions/0084-no-local-claude-sessions.md), loads. Its cell says "This item type is no longer available: claude.session.local." Its dialog changes only the name, and its task file keeps the item unchanged after a save.
+- [ ] Settings > Terminal has no device name. Settings > Modules shows only the folder's editor command.
 
 ## Folder / terminal
 
 - [ ] In a repository: the path, the branch, and a status line such as "2 ahead · 3 changed · 1 untracked", or "Clean". Changing a file in an editor updates the line within about 10 seconds.
 - [ ] In a worktree: its own branch. On a detached head: "Detached at <commit>". In a plain folder: "Not a Git repository", and the buttons still work.
 - [ ] Terminal opens a terminal in the folder. Editor opens it with `code`, or the command in Settings. File manager opens it in Explorer.
+- [ ] With `wt.exe` not found (rename it, or set a terminal command that does not exist and clear it again), Terminal opens the `cmd.exe` fallback in the folder. A folder path with spaces and a `&` in it works.
+- [ ] A terminal command template in Settings, such as `wt.exe -p "Windows PowerShell" -d {dir} {command}`, is used instead of the default.
 - [ ] An editor command that does not exist shows "<program> was not found."
 
 ## CI Pipeline following the main folder

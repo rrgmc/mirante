@@ -47,7 +47,7 @@ The sidebar can be collapsed.
   - Dragging a group, project or task among its siblings changes its place. It never changes a priority. Nothing is dragged in the Trash list.
   - Dragging an item among the items of its task, or a task dashboard among the dashboards of its task, changes its place in the task's list. It stays in its task. The same drag still drops the item or dashboard on a dashboard.
   - A task itself is not dragged onto dashboards. Drag one of its items, to show that item, or one of its dashboards, to show the task with that dashboard in a root dashboard. See [placing tasks](#placing-tasks-and-items).
-- The context menu holds new, edit, rename, set priority, set state and delete, and on a task dashboard "Set as default". On a task and its Items row it also holds "Paste Image…", after "New item…". See [pasting images](#pasting-images). On a task dashboard or an item it also holds "Open in new root dashboard", which makes a root dashboard showing just that dashboard or item.
+- The context menu holds new, edit, rename, set priority, set state and delete, and on a task dashboard "Set as default". On a task and its Items row it also holds "Paste Image…", after "New item…", and then "Add Items from Link…". See [pasting images](#pasting-images) and [quick add](#quick-add). On a task dashboard or an item it also holds "Open in new root dashboard", which makes a root dashboard showing just that dashboard or item.
 - Project rows have a light tint of their group's colour, a rounded shape like the selection. They stand out between groups and tasks, and show their group while its heading is scrolled away. Task rows have no tint. See [decision 0046](decisions/0046-group-colours.md).
 - While the mouse is over a dashboard cell, the sidebar row of what the cell shows gets a soft tint: the item's row for an item cell, also one inside a task cell, and the task's row for a task cell. The tint goes when the mouse leaves the cell. The tree does not expand or scroll for it. The [settings window](#settings) can turn the tint off. If a collapsed row hides that row, the nearest row that can be seen takes the tint instead: the task of an item whose task or Items row is closed, or the project or group if that is closed. The tint follows as rows open and close.
 - "Delete project…" and "Delete task…" move the project or task to the [trash](#trash), without a question, since it can be undone. Holding `Shift` while choosing them deletes for good, after a confirmation. Every other delete, such as of a group, an item or a task dashboard, asks for confirmation first and cannot be undone.
@@ -162,7 +162,6 @@ The settings window holds settings of this device. They are kept in the [device 
   - "Closing the window keeps Mirante running in the tray", on by default. See [tray and notifications](#tray-and-notifications). Without a tray it is off and disabled.
 - **Terminal:**
   - "Terminal command", the command that opens a terminal, with `{dir}` for the folder and `{command}` for the program to run. Empty, the default, uses the system's terminal; the grey placeholder says so and shows an example. See [terminal launch](integrations.md#terminal-launch).
-  - "Device name", shown on items that only work on one device, such as a local Claude session. Empty, it is the computer's host name, which the placeholder shows.
 - **Modules:** a group for each module that declares device settings, titled with the module's name, with one field per setting, such as the `folder` module's editor. Each field shows the stored value, else the module's default. Only a value the user changes is stored; emptying a text field removes it, so the default applies again. Without such modules, as in a build without modules, the section is left out. See [decision 0079](decisions/0079-module-device-settings.md).
 
 ## Window
@@ -396,7 +395,12 @@ Some reasons are events, such as an approval or a new Jira status. They stop cou
 
 ## Quick add
 
-Quick add creates a task from a link. Open it with the "Quick Add" button in the sidebar header or `Ctrl+Shift+N`, then paste a link. What it recognises depends on the [modules](modules.md#quick-add) in the build. With the `gitlab` and `jira` modules:
+Quick add creates a task from a link, or adds items to a task from a link. It has two entries, named after what they do (see [decision 0083](decisions/0083-quick-add-into-a-task.md)):
+
+- **New Task from Link…**, in the File menu, as a button in the sidebar header, and with `Ctrl+Shift+N`, creates a task. The dialog's title is "New Task from Link".
+- **Add Items from Link…**, in the context menu of a task and of its Items row in the sidebar, adds items to that task. The dialog's title is "Add Items from Link: <task title>".
+
+Open either, then paste a link. What it recognises depends on the [modules](modules.md#quick-add) in the build. With the `gitlab` and `jira` modules:
 
 - **A Jira key or issue URL:**
   - The task is named after the issue summary.
@@ -409,7 +413,7 @@ Quick add creates a task from a link. Open it with the "Quick Add" button in the
 
 The project is chosen by matching the merge request's GitLab project or the issue's Jira project key against the projects' module settings. If no project matches, or several do, the app asks.
 
-The dialog, from top to bottom (see [decision 0078](decisions/0078-quick-add-dialog.md)):
+The dialog for a new task, from top to bottom (see [decision 0078](decisions/0078-quick-add-dialog.md)):
 
 - **Text.** When the dialog opens with one line of text on the clipboard, that text is filled in and read at once. Otherwise the app reads the text when it is pasted or when the user presses Return. Typing alone does not start a reading.
 - **Profile.** The modules read the text with the servers of this profile. It starts as the profile of the group of the entry selected in the sidebar, else the workspace's default. Choosing another profile reads the text again. The new items still use their group's profile.
@@ -418,16 +422,23 @@ The dialog, from top to bottom (see [decision 0078](decisions/0078-quick-add-dia
 - **Title.** The proposed task title, which the user can change.
 - **Project.** Chosen when exactly one project matches. Otherwise it is empty, and the user must choose one. A line below says "No project matches acme/backend" or "Several projects match". Projects in the trash are not offered.
 - **Items.** Each item has a check box, its type's icon and its name. Related items join the list, checked, under "Related", as the modules find them. Choosing another project searches for related items again.
-- **Create** makes an active task of Normal priority in the project, with the checked items in order. Its dashboard has one cell: a single item fills it, and several items are tabs of it, the first one current. The task opens in the preview slot. **Cancel** stops the readings and searches still running.
+- **Create Task** makes an active task of Normal priority in the project, with the checked items in order. Its dashboard has one cell: a single item fills it, and several items are tabs of it, the first one current. The task opens in the preview slot. **Cancel** stops the readings and searches still running.
 
-Without any project, the dialog says "Create a project first." and has no Create button. A module that does not answer in 30 seconds counts as not taking the text. Quick add is in the File menu as "Quick Add…", and the sidebar header has a "Quick Add" button.
+Without any project, the dialog says "Create a project first." and has no Create Task button. A module that does not answer in 30 seconds counts as not taking the text.
+
+The dialog for a task differs:
+
+- It has no Title and no Project. The project is the task's, so related items are searched for as soon as a reading is shown.
+- The profile starts as the profile of the task's group.
+- Items whose type and configuration the task already has are not offered.
+- **Add Items** adds the checked items to the end of the task's items, in order, as "Add to task as item" does. No dashboard changes, as for [pasted images](#pasting-images): the items show in the sidebar, and the user drags them onto a dashboard if wanted. The sidebar then shows the task; the open tab stays.
 
 ## Keyboard
 
 | Key | Action |
 |---|---|
 | `Ctrl+K` | Quick switcher: fuzzy search over groups, projects, tasks, items and dashboards. Entries in the [trash](#trash) are left out. |
-| `Ctrl+Shift+N` | Quick add |
+| `Ctrl+Shift+N` | New Task from Link… ([quick add](#quick-add)) |
 | `Ctrl+B` | Show or hide the sidebar |
 | `Ctrl+Shift+E` | Focus the sidebar's tree, showing the sidebar if it is hidden |
 | `Ctrl+D` | All Dashboards… |

@@ -38,7 +38,6 @@
 #include <QPushButton>
 #include <QSettings>
 #include <QSignalSpy>
-#include <QSysInfo>
 #include <QTemporaryDir>
 #include <QTest>
 #include <QTimer>
@@ -503,6 +502,37 @@ private slots:
         // A new name shows in the placeholder.
         changeItem(*model, QStringLiteral("x1"), [](Item &item) { item.name = QStringLiteral("Renamed"); });
         QVERIFY(showsText(placement.get(), QStringLiteral("Name: Renamed")));
+    }
+
+    // A type that is not registered, though its module is in the build, has
+    // been removed from the module: the cell says so, not that the module is
+    // missing. The item is kept unchanged. See decision 0084.
+    void removedTypeShowsPlaceholder()
+    {
+        const QJsonObject config{{QStringLiteral("sessionId"), QStringLiteral("abc")}};
+        Task task = *model->task(QStringLiteral("t1"));
+        task.items.push_back(makeItem(QStringLiteral("r1"), QStringLiteral("test.removed"), config));
+        task.items.push_back(makeItem(QStringLiteral("m1"), QStringLiteral("gone.thing"), config));
+        model->setTask(task);
+
+        auto removed = make(QStringLiteral("r1"));
+        removed->show();
+        QVERIFY(!removed->view());
+        QVERIFY(showsText(removed.get(), QStringLiteral("This item type is no longer available: test.removed.")));
+        QVERIFY(!showsText(removed.get(), QStringLiteral("module")));
+
+        auto missing = make(QStringLiteral("m1"));
+        missing->show();
+        QVERIFY(!missing->view());
+        QVERIFY(showsText(missing.get(),
+                          QStringLiteral("This item needs the gone module, which this build does not include.")));
+
+        const Item *item = model->item(QStringLiteral("t1"), QStringLiteral("r1"));
+        QVERIFY(item);
+        QCOMPARE(item->type, QStringLiteral("test.removed"));
+        QCOMPARE(item->name, QStringLiteral("Item r1"));
+        QCOMPARE(item->config, config);
+        QCOMPARE(viewsMade, 0);
     }
 
     void hiddenWebViewIsUnloadedAndLoadsAgain()
@@ -1518,7 +1548,7 @@ private slots:
     }
 
     // The context's M7 members that read this device: the main folder,
-    // device settings, the device name and files.
+    // device settings and files.
     void contextReadsTheDevice()
     {
         QTemporaryDir dir;
@@ -1556,10 +1586,6 @@ private slots:
         // Another module's item does not see them.
         ItemContextImpl stat(services, QStringLiteral("t1"), QStringLiteral("s1"));
         QVERIFY(stat.deviceSetting(QStringLiteral("editor")).isUndefined());
-
-        QCOMPARE(context.deviceName(), QSysInfo::machineHostName());
-        device.setDeviceName(QStringLiteral("Desk"));
-        QCOMPARE(context.deviceName(), QStringLiteral("Desk"));
 
         // Files: only an existing plain name in files/.
         QVERIFY(context.filePath(QStringLiteral("a.png")).isEmpty());

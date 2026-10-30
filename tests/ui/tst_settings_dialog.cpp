@@ -16,7 +16,6 @@
 #include <QSettings>
 #include <QSignalSpy>
 #include <QSpinBox>
-#include <QSysInfo>
 #include <QTemporaryDir>
 #include <QTest>
 
@@ -204,8 +203,8 @@ private slots:
         buttons->button(QDialogButtonBox::Close)->click();
         QVERIFY(!dialog.isVisible());
     }
-    // The terminal command and the device name are saved as typed. The name
-    // shows the host name as its placeholder until one is set.
+    // The terminal command is saved as typed. The section has no device name;
+    // see decision 0084.
     void terminalSection()
     {
         QTemporaryDir dir;
@@ -224,20 +223,11 @@ private slots:
         QCOMPARE(settings.terminalCommand(), QStringLiteral("alacritty --working-directory {dir} -e {command}"));
         QVERIFY(changed.count() >= 1);
 
-        auto *name = dialog.findChild<QLineEdit *>(QStringLiteral("deviceName"));
-        QVERIFY(name);
-        QVERIFY(name->text().isEmpty());
-        QCOMPARE(name->placeholderText(), QSysInfo::machineHostName());
-        name->setText(QStringLiteral("Desk"));
-        QCOMPARE(settings.deviceName(), QStringLiteral("Desk"));
+        QVERIFY(!dialog.findChild<QLineEdit *>(QStringLiteral("deviceName")));
 
         SettingsDialog again(settings);
         QCOMPARE(again.findChild<QLineEdit *>(QStringLiteral("terminalCommand"))->text(),
                  QStringLiteral("alacritty --working-directory {dir} -e {command}"));
-        auto *againName = again.findChild<QLineEdit *>(QStringLiteral("deviceName"));
-        QCOMPARE(againName->text(), QStringLiteral("Desk"));
-        againName->clear();
-        QCOMPARE(settings.deviceName(), QSysInfo::machineHostName());
     }
 
     // One group per module with device settings, showing the stored value or

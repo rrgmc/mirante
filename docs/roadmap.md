@@ -88,12 +88,12 @@ See [the M6 plan](plans/m6-native-item-types.md) and [the changes after trying i
 - [x] Pasting a URL into the item dialog picks the right type and fills its fields. See [decision 0049](decisions/0049-items-from-a-pasted-link.md).
 - [x] Tests cover URL recognition and the attention rules.
 
-## M7: Quick add, Claude local, folders and notes
+## M7: Quick add, folders and notes
 
 See [the M7 plan](plans/m7-quick-add-and-local-items.md) and [the changes after trying it](plans/m7-feedback.md).
 
 - [ ] Quick add from a Jira key or merge request URL, through the modules' quick add handlers and related-item finders, including the project match and related merge requests.
-- [ ] Claude session (local) starts `claude --resume` in a terminal, on all three platforms.
+- [x] Claude session (local) starts `claude --resume` in a terminal, on all three platforms. Dropped by [decision 0084](decisions/0084-no-local-claude-sessions.md).
 - [ ] The Folder / terminal item shows the branch and status, and opens a terminal, editor and file manager.
 - [ ] The CI Pipeline item can follow the current branch of the main folder.
 - [ ] Notes item with Markdown editing and preview.

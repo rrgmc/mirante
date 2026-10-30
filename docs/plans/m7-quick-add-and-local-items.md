@@ -1,6 +1,6 @@
 # M7 code plan: quick add, Claude local, folders and notes
 
-This plan implements [milestone M7](../roadmap.md#m7-quick-add-claude-local-folders-and-notes). After M7, a pasted Jira key or merge request link makes a whole task, a local Claude session resumes in a terminal, the Folder item shows its Git state and opens tools, the CI Pipeline can follow the main folder's branch, and the Notes and Image items have real views.
+This plan implements [milestone M7](../roadmap.md#m7-quick-add-folders-and-notes). After M7, a pasted Jira key or merge request link makes a whole task, a local Claude session resumes in a terminal, the Folder item shows its Git state and opens tools, the CI Pipeline can follow the main folder's branch, and the Notes and Image items have real views.
 
 ## Decisions
 

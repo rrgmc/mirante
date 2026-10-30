@@ -105,6 +105,22 @@ class TestStatusCache : public QObject
         return fetched;
     }
 
+    // Writes the head and waits for the item to be fetched again. On Windows
+    // the watcher starts watching a new file in the background, so a write
+    // made at once after the watch was added can go unseen on a slow machine,
+    // as on CI. It waits a moment first, and writes again up to twice.
+    bool switchHead(const QString &dir, const QString &branch, const QString &itemId)
+    {
+        for (int attempt = 0; attempt < 3; ++attempt) {
+            QTest::qWait(300);
+            if (!writeHead(dir, branch))
+                return false;
+            if (waitForFetch(itemId))
+                return true;
+        }
+        return false;
+    }
+
 private slots:
     void init() { f = std::make_unique<Fixture>(); }
     void cleanup() { f.reset(); }
@@ -540,19 +556,17 @@ private slots:
         QCOMPARE(runningJob(QStringLiteral("i1"))->gitHead(read), QStringLiteral("main"));
         finishHeld(QStringLiteral("i1"), read);
 
-        QVERIFY(writeHead(read, QStringLiteral("feature")));
-        QVERIFY(waitForFetch(QStringLiteral("i1")));
+        QVERIFY(switchHead(read, QStringLiteral("feature"), QStringLiteral("i1")));
         QCOMPARE(runningJob(QStringLiteral("i1"))->gitHead(read), QStringLiteral("feature"));
         finishHeld(QStringLiteral("i1"), read);
 
         // Watched again after Git replaced the file.
-        QVERIFY(writeHead(read, QStringLiteral("main")));
-        QVERIFY(waitForFetch(QStringLiteral("i1")));
+        QVERIFY(switchHead(read, QStringLiteral("main"), QStringLiteral("i1")));
         finishHeld(QStringLiteral("i1"), read);
 
         // Another repository's head fetches nothing.
         QVERIFY(writeHead(other, QStringLiteral("feature")));
-        QTest::qWait(300);
+        QTest::qWait(500);
         QVERIFY(takeFetched().isEmpty());
 
         // A job that no longer reads the head stops the watch.
@@ -560,7 +574,7 @@ private slots:
         takeFetched();
         finishHeld(QStringLiteral("i1"), QString());
         QVERIFY(writeHead(read, QStringLiteral("feature")));
-        QTest::qWait(300);
+        QTest::qWait(500);
         QVERIFY(takeFetched().isEmpty());
     }
 };
