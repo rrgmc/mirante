@@ -223,6 +223,7 @@ private slots:
     void forbiddenPutDoesNotPause();
     void errorsMapped();
     void destroyedReceiverGetsNoCallback();
+    void queuedGetOfDestroyedReceiverIsNotSent();
     void clearDropsRequestsInFlight();
 
 private:
@@ -666,6 +667,31 @@ void TestServerClient::destroyedReceiverGetsNoCallback()
     QTRY_VERIFY(other);
     QTest::qWait(20);
     QVERIFY(!called);
+}
+
+void TestServerClient::queuedGetOfDestroyedReceiverIsNotSent()
+{
+    for (int i = 0; i < 4; ++i)
+        client()->get(QStringLiteral("r%1").arg(i), {}, {}, this, [](const ApiReply &) {});
+    QTRY_COMPARE(m_network->sent.size(), 4);
+
+    // These wait in the queue. The receiver goes before their turn comes.
+    auto *receiver = new QObject;
+    client()->get(QStringLiteral("dropped"), {}, {}, receiver, [](const ApiReply &) {});
+    client()->post(QStringLiteral("action"), QJsonDocument(QJsonObject()), receiver, [](const ApiReply &) {});
+    client()->get(QStringLiteral("kept"), {}, {}, this, [](const ApiReply &) {});
+    delete receiver;
+
+    m_network->sent.at(0).reply->respond(200, "[]");
+    m_network->sent.at(1).reply->respond(200, "[]");
+    QTRY_COMPARE(m_network->sent.size(), 6);
+    // The user asked for the POST, so it still goes.
+    QCOMPARE(m_network->url(4), QStringLiteral("https://git.example/action"));
+    QCOMPARE(m_network->url(5), QStringLiteral("https://git.example/kept"));
+    for (int i = 2; i < m_network->sent.size(); ++i)
+        m_network->sent.at(i).reply->respond(200, "[]");
+    QTest::qWait(20);
+    QCOMPARE(m_network->sent.size(), 6);
 }
 
 void TestServerClient::clearDropsRequestsInFlight()

@@ -17,6 +17,7 @@
 #include <QRegularExpression>
 #include <QTimer>
 
+#include <algorithm>
 #include <deque>
 #include <map>
 #include <set>
@@ -308,6 +309,14 @@ void ServerClient::loadToken()
 
 void ServerClient::pump()
 {
+    // Nobody waits for the answer of a GET whose receiver is gone, so it is
+    // not sent. A POST or a PUT still goes: the user asked for it.
+    m_queue.erase(std::remove_if(m_queue.begin(), m_queue.end(),
+                                 [](const RequestPtr &request) {
+                                     return request->method == Method::Get && request->hasReceiver
+                                         && !request->receiver;
+                                 }),
+                  m_queue.end());
     if (m_queue.empty())
         return;
     if (m_failing) {
