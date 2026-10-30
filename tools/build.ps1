@@ -3,13 +3,16 @@
 #   tools/build.ps1                  the dev preset
 #   tools/build.ps1 -Preset release  another preset
 #   tools/build.ps1 -NoTest          build only
+#   tools/build.ps1 -Target <name>   build one target only, without tests,
+#                                    such as update_translations
 #
 # Downloads Qt with tools/setup-qt.ps1 if it is missing, and enters the
 # Visual Studio 2022 developer environment if the shell is not in one.
 
 param(
     [string]$Preset = 'dev',
-    [switch]$NoTest
+    [switch]$NoTest,
+    [string]$Target
 )
 
 $ErrorActionPreference = 'Stop'
@@ -49,6 +52,10 @@ function Invoke-Tool {
 Push-Location $Repo
 try {
     Invoke-Tool cmake --preset $Preset "-DCMAKE_PREFIX_PATH=$QtDir"
+    if ($Target) {
+        Invoke-Tool cmake --build --preset $Preset --target $Target
+        return
+    }
     Invoke-Tool cmake --build --preset $Preset
     if (-not $NoTest) {
         # The tests load the Qt DLLs from Qt's bin folder.
