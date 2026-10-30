@@ -61,6 +61,21 @@ public:
     // Changes the item's configuration through the model.
     virtual void updateConfig(const QJsonObject &config) = 0;
 
+    // Shows a web page in place of the view, in the item's profile, with a
+    // way back. The view stays alive behind it. Does nothing where the core
+    // has no web views, as in tests. See decision 0069.
+    virtual void showPage(const QUrl &url) { Q_UNUSED(url) }
+
+    // Adds an item to the task this item belongs to, and returns its id, or
+    // an empty string if it could not. No dashboard changes.
+    virtual QString addItemToTask(const QString &typeId, const QString &name, const QJsonObject &config)
+    {
+        Q_UNUSED(typeId)
+        Q_UNUSED(name)
+        Q_UNUSED(config)
+        return {};
+    }
+
     // The module's server in the item's profile, or null for a module that
     // registered no ServerType, or where the core keeps no servers, as in
     // tests. Include <mirante/ApiClient.h> to use it. See

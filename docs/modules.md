@@ -105,6 +105,7 @@ The module interface contains the headers below. The "Since" column gives the mi
 | `ItemContext.h` | `ItemContext`, everything an item's code can reach. See [below](#item-context). | M4 |
 | `ApiClient.h` | `ServerType`, how a module's server is set up and authenticated, and `ApiClient`, a module's server in one profile: requests with ETags, paging, rate limits and request limits. See [servers and tokens](#servers-and-tokens). | M5 |
 | `Status.h` | `ItemStatus`, `AttentionReason`, `StatusJob` and `ItemStatusSource`, for the [status cache](integrations.md#polling-and-caching). See [status](#status). | M5 |
+| `widgets/*.h` | The [view kit](#the-view-kit): small widgets that native views share. | M6 |
 | `QuickAdd.h` | Quick add handlers and related-item finders | M7 |
 | `Values.h` | Read-only views of a group, project, task, item and folder | planned |
 
@@ -206,6 +207,8 @@ Each item's code gets an `ItemContext`. It gives access to the configuration the
 | `gitHead(path)` | The current branch of a folder | M7 |
 | `launchTerminal(dir, command)` | Starts a command in a terminal. See [terminal launch](integrations.md#terminal-launch). | M7 |
 | `updateConfig(config)` | Changes the item's configuration through `Model` | M4 |
+| `showPage(url)` | Shows a web page in place of the view, with a way back. See [decision 0069](decisions/0069-open-page-in-the-placement.md). | M6 |
+| `addItemToTask(typeId, name, config)` | Adds an item to the item's task, for "Add to task as item" | M6 |
 
 ### Servers and tokens
 
@@ -229,7 +232,7 @@ public:
 
 The core then gives the module an `ApiClient` for the server of each profile, through `ItemContext::server()` in a view and `StatusJob::server()` in a status fetch:
 
-- **`get()` and `post()`:** the normal way to call an API. The path is relative to the base URL. The client adds the token, sends the last ETag, follows `Link` pages when asked, waits on `429`, and runs at most four requests at once for each profile's server. Item code never sees the token.
+- **`get()`, `post()` and `put()`:** the normal way to call an API. The path is relative to the base URL. The client adds the token, sends the last ETag, follows `Link` pages when asked, waits on `429`, and runs at most four requests at once for each profile's server. Item code never sees the token.
 - **`authorize(request)`:** adds the authentication to a `QNetworkRequest` the module makes itself.
 - **`secret()`:** returns the raw token, asynchronously. Use it only when a request is not enough, such as passing a token to a command in a terminal. Every call needs a comment that says why `authorize()` does not work there.
 
@@ -242,6 +245,17 @@ An item type that shows one object on a server, such as a merge request, reports
 An `ItemStatus` holds a state, a one-line summary, the data a view needs, the attention reasons and whether the work is closed. `statusFromReply(reply)` turns a failed reply into the matching state. Each `AttentionReason` has a stable key, a text, and two flags: `notify`, for a desktop notification, and `clearsOnView`, for an event that stops counting once the user has seen the item. See [decision 0061](decisions/0061-attention-from-status-of-any-rendering.md).
 
 A view reads its item's status with `ItemContext::status()`, and subscribes to its changes.
+
+### The view kit
+
+Native views of different modules need the same small widgets, and modules cannot depend on each other. The library `mirante_module_widgets`, linked through `mirante::module_api`, holds them under `<mirante/widgets/...>`. It uses only Qt, never core headers.
+
+- `StatusPill` and `statusColours()`: a pill for a `StatusRole`. A module names a role, never a colour.
+- `FlowRow`: a layout that wraps.
+- `SummaryView`: the fixed layout of a summary, with sections that can be hidden. See [decision 0066](decisions/0066-fixed-native-layouts-with-sections.md).
+- `ActionRow`: the buttons of a view, the "Web" link, and the error of the last action.
+- `askComment()`: asks for the text of a comment.
+- `ItemListView`: a sortable table with a preview of the selected row.
 
 ### Testing
 

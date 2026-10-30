@@ -70,6 +70,10 @@ Each file records one design decision: what was decided, what else was considere
 | [0063](0063-tokens-follow-a-new-workspace-id.md) | Tokens follow a workspace id that another device changed | Accepted |
 | [0064](0064-keychain-entries-start-with-mirante.md) | Keychain entries start with "mirante/" | Accepted |
 | [0065](0065-current-tab-in-the-highlight-colour.md) | The current tab is filled with the highlight colour | Accepted |
+| [0066](0066-fixed-native-layouts-with-sections.md) | Native views have fixed layouts, with sections that can be hidden | Accepted |
+| [0067](0067-lists-report-status.md) | Lists report a status, without attention | Proposed |
+| [0068](0068-views-read-what-the-user-asked-for.md) | Views ask the server directly only for what the user asked for | Proposed |
+| [0069](0069-open-page-in-the-placement.md) | "Open page" is shown by the placement | Proposed |
 
 ## Template
 
