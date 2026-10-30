@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QIcon>
 #include <QString>
 
 // Code that differs between Windows, macOS and Linux lives in this folder.
@@ -12,5 +13,10 @@ namespace mirante::platform {
 
 // "windows", "macos" or "linux".
 QString systemName();
+
+// Sets the icon of the app's windows, and of the taskbar on Windows and Linux.
+// On macOS it does nothing: the Dock shows the bundle's icon file, which is
+// drawn on the macOS icon grid, and windows have no icon. See decision 0092.
+void setAppIcon(const QIcon &icon);
 
 } // namespace mirante::platform

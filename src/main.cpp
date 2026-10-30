@@ -15,6 +15,7 @@
 #include "items/ViewPool.h"
 #include "platform/AttachedDialogs.h"
 #include "platform/Foreground.h"
+#include "platform/Platform.h"
 #include "ui/AppStyle.h"
 #include "ui/MainWindow.h"
 #include "web/ProfileManager.h"
@@ -50,7 +51,7 @@ int main(int argc, char *argv[])
     QApplication::setApplicationName(QStringLiteral(MIRANTE_APP_NAME));
     QApplication::setOrganizationName(QStringLiteral(MIRANTE_ORGANISATION));
     QApplication::setApplicationVersion(QStringLiteral(MIRANTE_VERSION));
-    QApplication::setWindowIcon(QIcon(QStringLiteral(":/icons/mirante.svg")));
+    mirante::platform::setAppIcon(QIcon(QStringLiteral(":/icons/mirante.svg")));
 
     QCommandLineParser parser;
     parser.addHelpOption();

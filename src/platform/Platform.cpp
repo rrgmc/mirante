@@ -1,5 +1,7 @@
 #include "platform/Platform.h"
 
+#include <QApplication>
+
 namespace mirante::platform {
 
 QString systemName()
@@ -10,6 +12,15 @@ QString systemName()
     return QStringLiteral("macos");
 #else
     return QStringLiteral("linux");
+#endif
+}
+
+void setAppIcon(const QIcon &icon)
+{
+#if defined(Q_OS_MACOS)
+    Q_UNUSED(icon);
+#else
+    QApplication::setWindowIcon(icon);
 #endif
 }
 
