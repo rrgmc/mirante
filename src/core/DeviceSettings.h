@@ -116,7 +116,7 @@ public:
     void setFocusAttentionFirst(bool on);
 
     // The global hotkey that shows or hides the window, as portable key
-    // sequence text. Alt+Shift+M if not set (Control+Option+M on macOS); empty
+    // sequence text. Alt+Shift+D if not set (Control+Shift+D on macOS); empty
     // turns it off. See docs/ui.md#keyboard.
     QString globalHotkey() const;
     void setGlobalHotkey(const QString &sequence);

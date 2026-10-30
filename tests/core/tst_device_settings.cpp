@@ -526,7 +526,7 @@ private slots:
     {
         {
             DeviceSettings device(settings.get());
-            QVERIFY(device.globalHotkey().endsWith(QStringLiteral("+M")));
+            QVERIFY(device.globalHotkey().endsWith(QStringLiteral("+Shift+D")));
             device.setGlobalHotkey(QStringLiteral("Ctrl+Alt+K"));
         }
         reopen();
