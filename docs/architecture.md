@@ -117,7 +117,7 @@ Native views are ordinary widgets. Lists use `QTableView` with a model fed from 
 |---|---|
 | `TerminalLauncher` | Opens a terminal running a command, in a folder. See [terminal launch](integrations.md#terminal-launch). |
 | `GlobalHotkey` | Wraps QHotkey. Reports when the platform cannot register a hotkey. |
-| `Tray` | `QSystemTrayIcon` with the attention count. It falls back when no tray exists. |
+| `Tray` | The tray icon and its menu: `QSystemTrayIcon`, or a native status item on macOS. The attention count arrives in M8. It reports when no tray exists, so the window can fall back. |
 | `Foreground` | `allowForegroundFor(pid)`: on Windows, lets another process bring its window to the front. A later start calls it for the running instance before it hands over. |
 | `GitHead` | Reads the current branch from a folder's `.git/HEAD`, including worktrees |
 

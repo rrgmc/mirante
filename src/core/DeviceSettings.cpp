@@ -22,6 +22,8 @@ const QString sidebarHoverTintKey = QStringLiteral("sidebar/hoverTint");
 const QString hiddenViewLimitKey = QStringLiteral("webViews/hiddenLimit");
 const QString pollIntervalKey = QStringLiteral("status/pollInterval");
 const QString focusAttentionFirstKey = QStringLiteral("focus/attentionFirst");
+const QString globalHotkeyKey = QStringLiteral("window/globalHotkey");
+const QString closeToTrayKey = QStringLiteral("window/closeToTray");
 
 constexpr int defaultHiddenViewLimit = 8;
 
@@ -388,6 +390,33 @@ bool DeviceSettings::focusAttentionFirst() const
 void DeviceSettings::setFocusAttentionFirst(bool on)
 {
     d->settings->setValue(focusAttentionFirstKey, on);
+}
+
+QString DeviceSettings::globalHotkey() const
+{
+#if defined(Q_OS_MACOS)
+    // Qt's Meta is the Control key on macOS. macOS 15 refuses hotkeys that use
+    // only Option and Shift.
+    const QString standard = QStringLiteral("Meta+Alt+M");
+#else
+    const QString standard = QStringLiteral("Alt+Shift+M");
+#endif
+    return d->settings->value(globalHotkeyKey, standard).toString();
+}
+
+void DeviceSettings::setGlobalHotkey(const QString &sequence)
+{
+    d->settings->setValue(globalHotkeyKey, sequence);
+}
+
+bool DeviceSettings::closeToTray() const
+{
+    return d->settings->value(closeToTrayKey, true).toBool();
+}
+
+void DeviceSettings::setCloseToTray(bool on)
+{
+    d->settings->setValue(closeToTrayKey, on);
 }
 
 } // namespace mirante

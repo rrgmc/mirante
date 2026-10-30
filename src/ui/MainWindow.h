@@ -137,6 +137,26 @@ public:
     // on macOS. Leaving it brings back the maximized or normal window.
     void setFullScreen(bool on);
 
+    // The tray icon and the global hotkey. main() calls this once; tests do not,
+    // so they touch neither. It waits for a tray that is not there yet, as at
+    // sign-in. See docs/ui.md#tray-and-notifications.
+    void startTrayAndHotkey();
+    // Whether a tray exists to hide into. With one, the app no longer quits with
+    // its last window, so it quits through QApplication::quit(). Tests set it
+    // themselves.
+    void setTrayPresent(bool present);
+    // Brings the window back, restored if minimized, with the windows that were
+    // hidden with it. An open modal dialog comes to the front with it.
+    void showAndRaise();
+    // Hides this window and the other open windows to the tray, or minimizes it
+    // if there is no tray. The window's place and the open tabs are saved first.
+    void hideToTray();
+    // The global hotkey: hides the app if it is in front, else brings it back.
+    void toggleVisible();
+    // The app is quitting: the next close saves everything and really closes.
+    // The application's quit event calls it, whatever asked for the quit.
+    void prepareToQuit();
+
     RootTabBar *rootTabBar() const;
     SlotTabBar *slotTabBar() const;
     LayoutView *currentLayoutView() const;
@@ -151,8 +171,11 @@ signals:
 protected:
     // Saves the window's place and size, whether it is maximized, the sidebar
     // width and the open tabs on this device. The window opens at the saved
-    // place only while that is still visible on a screen.
+    // place only while that is still visible on a screen. With a tray and the
+    // device setting on, the window hides instead, unless the app is quitting.
     void closeEvent(QCloseEvent *event) override;
+    // Sees the application's quit event before Qt closes the windows.
+    bool eventFilter(QObject *watched, QEvent *event) override;
     // Keeps View > Full Screen checked while the window is full screen.
     void changeEvent(QEvent *event) override;
 

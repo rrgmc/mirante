@@ -28,6 +28,11 @@ public:
 
     // "Highlight the sidebar row of the cell under the mouse".
     QCheckBox *sidebarHoverTint() const;
+    // Shows why the global hotkey could not be registered, or nothing if empty.
+    void setHotkeyError(const QString &error);
+    // Without a tray, "keep running in the tray" is off and cannot be changed.
+    // The stored choice stays, for when a tray appears.
+    void setTrayAvailable(bool available);
 
 signals:
     // An option changed, and is already saved in the device settings.

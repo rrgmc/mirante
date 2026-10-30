@@ -115,6 +115,17 @@ public:
     bool focusAttentionFirst() const;
     void setFocusAttentionFirst(bool on);
 
+    // The global hotkey that shows or hides the window, as portable key
+    // sequence text. Alt+Shift+M if not set (Control+Option+M on macOS); empty
+    // turns it off. See docs/ui.md#keyboard.
+    QString globalHotkey() const;
+    void setGlobalHotkey(const QString &sequence);
+
+    // Whether closing the main window hides it to the tray instead of quitting.
+    // On if not set. See docs/ui.md#tray-and-notifications.
+    bool closeToTray() const;
+    void setCloseToTray(bool on);
+
 private:
     struct Private;
     std::unique_ptr<Private> d;

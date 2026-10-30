@@ -5,7 +5,11 @@
 #include <QCheckBox>
 #include <QDialogButtonBox>
 #include <QFormLayout>
+#include <QHBoxLayout>
+#include <QKeySequenceEdit>
 #include <QLabel>
+#include <QPushButton>
+#include <QSignalBlocker>
 #include <QSpinBox>
 #include <QVBoxLayout>
 
@@ -16,6 +20,8 @@ struct SettingsDialog::Private
     DeviceSettings *settings = nullptr;
     QVBoxLayout *sections = nullptr;
     QCheckBox *sidebarHoverTint = nullptr;
+    QLabel *hotkeyError = nullptr;
+    QCheckBox *closeToTray = nullptr;
 };
 
 SettingsDialog::SettingsDialog(DeviceSettings &settings, QWidget *parent)
@@ -70,12 +76,57 @@ SettingsDialog::SettingsDialog(DeviceSettings &settings, QWidget *parent)
     });
     status->addRow(tr("Check servers every"), pollInterval);
 
+    // Window.
+    QFormLayout *window = addSection(tr("Window"));
+    auto *hotkey = new QKeySequenceEdit(this);
+    hotkey->setObjectName(QStringLiteral("globalHotkey"));
+    hotkey->setMaximumSequenceLength(1);
+    hotkey->setToolTip(tr("Shows or hides Mirante from any application."));
+    hotkey->setKeySequence(QKeySequence::fromString(settings.globalHotkey(), QKeySequence::PortableText));
+    connect(hotkey, &QKeySequenceEdit::keySequenceChanged, this, [this](const QKeySequence &sequence) {
+        d->settings->setGlobalHotkey(sequence.toString(QKeySequence::PortableText));
+        emit changed();
+    });
+    auto *clear = new QPushButton(tr("Clear"), this);
+    clear->setObjectName(QStringLiteral("clearGlobalHotkey"));
+    connect(clear, &QPushButton::clicked, hotkey, &QKeySequenceEdit::clear);
+    auto *hotkeyRow = new QHBoxLayout;
+    hotkeyRow->addWidget(hotkey, 1);
+    hotkeyRow->addWidget(clear);
+    window->addRow(tr("Global hotkey"), hotkeyRow);
+    d->hotkeyError = new QLabel(this);
+    d->hotkeyError->setObjectName(QStringLiteral("globalHotkeyError"));
+    d->hotkeyError->setWordWrap(true);
+    d->hotkeyError->hide();
+    window->addRow(d->hotkeyError);
+    d->closeToTray = new QCheckBox(tr("Closing the window keeps Mirante running in the tray"), this);
+    d->closeToTray->setObjectName(QStringLiteral("closeToTray"));
+    d->closeToTray->setChecked(settings.closeToTray());
+    connect(d->closeToTray, &QCheckBox::toggled, this, [this](bool on) {
+        d->settings->setCloseToTray(on);
+        emit changed();
+    });
+    window->addRow(d->closeToTray);
+
     resize(480, sizeHint().height());
 }
 
 SettingsDialog::~SettingsDialog() = default;
 
 QCheckBox *SettingsDialog::sidebarHoverTint() const { return d->sidebarHoverTint; }
+
+void SettingsDialog::setHotkeyError(const QString &error)
+{
+    d->hotkeyError->setText(error);
+    d->hotkeyError->setVisible(!error.isEmpty());
+}
+
+void SettingsDialog::setTrayAvailable(bool available)
+{
+    const QSignalBlocker blocker(d->closeToTray);
+    d->closeToTray->setChecked(available && d->settings->closeToTray());
+    d->closeToTray->setEnabled(available);
+}
 
 QFormLayout *SettingsDialog::addSection(const QString &title)
 {

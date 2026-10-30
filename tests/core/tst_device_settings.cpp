@@ -520,6 +520,33 @@ private slots:
         device.setFocusAttentionFirst(false);
         QVERIFY(!device.focusAttentionFirst());
     }
+
+    // A hotkey is set unless the user cleared it, which is kept as empty.
+    void globalHotkey()
+    {
+        {
+            DeviceSettings device(settings.get());
+            QVERIFY(device.globalHotkey().endsWith(QStringLiteral("+M")));
+            device.setGlobalHotkey(QStringLiteral("Ctrl+Alt+K"));
+        }
+        reopen();
+        DeviceSettings device(settings.get());
+        QCOMPARE(device.globalHotkey(), QStringLiteral("Ctrl+Alt+K"));
+        device.setGlobalHotkey(QString());
+        QVERIFY(device.globalHotkey().isEmpty());
+    }
+
+    void closeToTray()
+    {
+        {
+            DeviceSettings device(settings.get());
+            QVERIFY(device.closeToTray());
+            device.setCloseToTray(false);
+        }
+        reopen();
+        DeviceSettings device(settings.get());
+        QVERIFY(!device.closeToTray());
+    }
 };
 
 QTEST_GUILESS_MAIN(TestDeviceSettings)

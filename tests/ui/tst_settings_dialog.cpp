@@ -5,6 +5,7 @@
 
 #include <QCheckBox>
 #include <QDialogButtonBox>
+#include <QKeySequenceEdit>
 #include <QLabel>
 #include <QPushButton>
 #include <QSettings>
@@ -82,6 +83,66 @@ private slots:
         SettingsDialog third(settings);
         QCOMPARE(third.findChild<QSpinBox *>(QStringLiteral("pollInterval"))->value(), 1);
         QCOMPARE(settings.pollInterval(), 30);
+    }
+
+    // A new hotkey is saved as portable text, and Clear turns it off.
+    void globalHotkey()
+    {
+        QTemporaryDir dir;
+        QSettings ini(dir.filePath(QStringLiteral("settings.ini")), QSettings::IniFormat);
+        DeviceSettings settings(&ini);
+        SettingsDialog dialog(settings);
+        QSignalSpy changed(&dialog, &SettingsDialog::changed);
+        auto *edit = dialog.findChild<QKeySequenceEdit *>(QStringLiteral("globalHotkey"));
+        QVERIFY(edit);
+        QCOMPARE(edit->keySequence().toString(QKeySequence::PortableText), settings.globalHotkey());
+        QCOMPARE(changed.count(), 0);
+
+        edit->setKeySequence(QKeySequence(QStringLiteral("Ctrl+Alt+K")));
+        QCOMPARE(changed.count(), 1);
+        QCOMPARE(settings.globalHotkey(), QStringLiteral("Ctrl+Alt+K"));
+
+        dialog.findChild<QPushButton *>(QStringLiteral("clearGlobalHotkey"))->click();
+        QVERIFY(settings.globalHotkey().isEmpty());
+        QVERIFY(edit->keySequence().isEmpty());
+    }
+
+    void hotkeyError()
+    {
+        QTemporaryDir dir;
+        QSettings ini(dir.filePath(QStringLiteral("settings.ini")), QSettings::IniFormat);
+        DeviceSettings settings(&ini);
+        SettingsDialog dialog(settings);
+        auto *label = dialog.findChild<QLabel *>(QStringLiteral("globalHotkeyError"));
+        QVERIFY(label);
+        QVERIFY(label->isHidden());
+        dialog.setHotkeyError(QStringLiteral("taken"));
+        QVERIFY(!label->isHidden());
+        QCOMPARE(label->text(), QStringLiteral("taken"));
+        dialog.setHotkeyError(QString());
+        QVERIFY(label->isHidden());
+    }
+
+    // Without a tray the box is off and disabled, and the stored choice stays.
+    void closeToTray()
+    {
+        QTemporaryDir dir;
+        QSettings ini(dir.filePath(QStringLiteral("settings.ini")), QSettings::IniFormat);
+        DeviceSettings settings(&ini);
+        SettingsDialog dialog(settings);
+        auto *box = dialog.findChild<QCheckBox *>(QStringLiteral("closeToTray"));
+        QVERIFY(box);
+        QVERIFY(box->isChecked());
+
+        dialog.setTrayAvailable(false);
+        QVERIFY(!box->isChecked());
+        QVERIFY(!box->isEnabled());
+        QVERIFY(settings.closeToTray());
+
+        dialog.setTrayAvailable(true);
+        QVERIFY(box->isChecked());
+        box->setChecked(false);
+        QVERIFY(!settings.closeToTray());
     }
 
     // The options sit under section headings, and the dialog closes with Close.
