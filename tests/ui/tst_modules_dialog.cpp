@@ -204,7 +204,9 @@ private slots:
         entries.removeFirst();   // Settings…, which macOS shows in the application menu
 #endif
         QCOMPARE(entries.value(0), modules);
-        QCOMPARE(entries.value(1)->text(), QStringLiteral("&About Mirante"));
+        QCOMPARE(entries.value(1)->text(), QStringLiteral("Open &Sample Data"));
+        QVERIFY(entries.value(2)->isSeparator());
+        QCOMPARE(entries.value(3)->text(), QStringLiteral("&About Mirante"));
 
         modules->trigger();
         QPointer<ModulesDialog> dialog = window.findChild<ModulesDialog *>();

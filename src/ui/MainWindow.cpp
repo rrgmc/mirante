@@ -1526,6 +1526,15 @@ struct MainWindow::Private
         QMenuBar *bar = q->menuBar();
 
         QMenu *file = bar->addMenu(MainWindow::tr("&File"));
+        // Making things first, then workspaces. The commands on the open
+        // workspace, used rarely, are in a submenu. See docs/ui.md#menus.
+        quickAddAction = file->addAction(MainWindow::tr("New Task from &Link…"));
+        quickAddAction->setObjectName(QStringLiteral("quickAddAction"));
+        quickAddAction->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_N));
+        QObject::connect(quickAddAction, &QAction::triggered, q, [this] { showQuickAdd(); });
+        QAction *newGroup = file->addAction(MainWindow::tr("New &Group…"));
+        QObject::connect(newGroup, &QAction::triggered, q, [this] { revealNew(actions->newGroup()); });
+        file->addSeparator();
         QAction *newWorkspace = file->addAction(MainWindow::tr("&New Workspace…"));
         newWorkspace->setShortcut(QKeySequence::New);
         QObject::connect(newWorkspace, &QAction::triggered, q, [this] {
@@ -1562,32 +1571,26 @@ struct MainWindow::Private
             clear->setEnabled(!folders.isEmpty());
             QObject::connect(clear, &QAction::triggered, q, [this] { settings->clearRecentWorkspaces(); });
         });
-        QAction *rename = file->addAction(MainWindow::tr("Re&name Workspace…"));
+        QMenu *workspaceMenu = file->addMenu(MainWindow::tr("&Workspace"));
+        workspaceMenu->setObjectName(QStringLiteral("workspaceMenu"));
+        QAction *rename = workspaceMenu->addAction(MainWindow::tr("Re&name…"));
         QObject::connect(rename, &QAction::triggered, q, [this] { promptRename(); });
-        QAction *move = file->addAction(MainWindow::tr("&Move Workspace…"));
+        QAction *move = workspaceMenu->addAction(MainWindow::tr("&Move…"));
         move->setObjectName(QStringLiteral("moveWorkspace"));
         QObject::connect(move, &QAction::triggered, q, [this] { promptMove(); });
         // Opens the folder in Explorer, Finder or the desktop's file manager.
-        QAction *showFolder = file->addAction(MainWindow::tr("Show Workspace &Folder"));
+        QAction *showFolder = workspaceMenu->addAction(MainWindow::tr("Show &Folder"));
         QObject::connect(showFolder, &QAction::triggered, q,
                          [this] { QDesktopServices::openUrl(QUrl::fromLocalFile(workspace)); });
-        QObject::connect(file, &QMenu::aboutToShow, q, [this, rename, move, showFolder] {
+        QObject::connect(workspaceMenu, &QMenu::aboutToShow, q, [this, rename, move, showFolder] {
             rename->setEnabled(!workspace.isEmpty());
             move->setEnabled(!workspace.isEmpty() && !store->readOnly());
             showFolder->setEnabled(!workspace.isEmpty());
         });
-        QAction *sample = file->addAction(MainWindow::tr("Open &Sample Data"));
-        QObject::connect(sample, &QAction::triggered, q, &MainWindow::openSampleData);
-        QAction *reload = file->addAction(MainWindow::tr("Re&load Workspace"));
+        workspaceMenu->addSeparator();
+        QAction *reload = workspaceMenu->addAction(MainWindow::tr("Re&load"));
         reload->setShortcut(QKeySequence::Refresh);
         QObject::connect(reload, &QAction::triggered, q, &MainWindow::reloadWorkspace);
-        file->addSeparator();
-        QAction *newGroup = file->addAction(MainWindow::tr("New &Group…"));
-        QObject::connect(newGroup, &QAction::triggered, q, [this] { revealNew(actions->newGroup()); });
-        quickAddAction = file->addAction(MainWindow::tr("New Task from &Link…"));
-        quickAddAction->setObjectName(QStringLiteral("quickAddAction"));
-        quickAddAction->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_N));
-        QObject::connect(quickAddAction, &QAction::triggered, q, [this] { showQuickAdd(); });
         file->addSeparator();
         QAction *quit = file->addAction(MainWindow::tr("&Quit"));
         quit->setShortcut(QKeySequence::Quit);
@@ -1666,6 +1669,9 @@ struct MainWindow::Private
         // Keeps macOS from moving it to the application menu by its text.
         modules->setMenuRole(QAction::NoRole);
         QObject::connect(modules, &QAction::triggered, q, &MainWindow::showModules);
+        QAction *sample = help->addAction(MainWindow::tr("Open &Sample Data"));
+        QObject::connect(sample, &QAction::triggered, q, &MainWindow::openSampleData);
+        help->addSeparator();
         QAction *about = help->addAction(MainWindow::tr("&About Mirante"));
         about->setMenuRole(QAction::AboutRole);
         QObject::connect(about, &QAction::triggered, q, &MainWindow::showAbout);
