@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/LayoutTree.h"
+#include "items/CellStatus.h"
 
 #include <QColor>
 #include <QFrame>
@@ -65,10 +66,21 @@ public:
     // Switches the button between "Maximise" and "Restore".
     void setMaximised(bool maximised);
 
+    // The item's status, before the menu button: an attention badge, a
+    // problem pill, or the data's age. See the M5 plan, part 8.
+    void setStatus(const CellStatus &status);
+    CellStatus status() const;
+    // Shows the refresh button, which emits refreshRequested. Off by default;
+    // on for items of types with status.
+    void setRefreshVisible(bool visible);
+
 signals:
     void menuRequested(const QPoint &globalPos);
     void dragStarted();     // the header was dragged in edit mode
     void maximiseRequested();
+    void refreshRequested();
+    // The problem pill was clicked, such as "Token not set".
+    void fixRequested();
 
 private:
     struct Private;

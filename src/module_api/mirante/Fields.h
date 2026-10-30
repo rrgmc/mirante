@@ -10,7 +10,7 @@ namespace mirante {
 // screen. The core builds a form from a list of fields and checks the values.
 // See docs/decisions/0028-item-fields-in-m3.md and
 // docs/decisions/0044-module-settings-in-the-workspace.md. Project settings
-// use the same struct from M5.
+// use it too; see ModuleRegistrar::addProjectSetting().
 struct Field
 {
     enum class Type {
@@ -25,7 +25,8 @@ struct Field
         TextList,       // a JSON array of one-line texts, edited one per line
         // A token or password, edited hidden. Settings screens only. It is
         // never part of the stored values: the core keeps it on this device,
-        // in the keychain under "<profile id>/<module id>/<key>". See decision 0054.
+        // in the keychain under "<workspace id>/<profile id>/<module id>/<key>".
+        // See decisions 0054 and 0059.
         Secret,
     };
 

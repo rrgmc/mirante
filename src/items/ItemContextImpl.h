@@ -37,6 +37,8 @@ public:
     QWebEngineProfile *profile() override;
     QWidget *createMessageView(const QString &text, QWidget *parent) override;
     void updateConfig(const QJsonObject &config) override;
+    ApiClient *server() override;
+    ItemStatusSource *status() override;
 
 private:
     PlacementServices m_services;

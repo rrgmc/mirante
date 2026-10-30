@@ -1,5 +1,7 @@
 #pragma once
 
+#include "api/ModuleDirectory.h"
+
 #include <mirante/ItemType.h>
 #include <mirante/Module.h>
 
@@ -15,11 +17,11 @@ namespace mirante {
 
 // Owns the item types and settings screens that modules register. Implemented
 // in ItemTypeRegistry.cpp.
-class ItemTypeRegistry
+class ItemTypeRegistry : public ModuleDirectory
 {
 public:
     ItemTypeRegistry();
-    ~ItemTypeRegistry();
+    ~ItemTypeRegistry() override;
     ItemTypeRegistry(const ItemTypeRegistry &) = delete;
     ItemTypeRegistry &operator=(const ItemTypeRegistry &) = delete;
 
@@ -55,7 +57,7 @@ public:
     void setSettingsReader(SettingsReader reader);
 
     // The ids of the registered modules, sorted.
-    QStringList moduleIds() const;
+    QStringList moduleIds() const override;
     // The name the module gave itself, else its id.
     QString moduleName(const QString &moduleId) const;
     // The description the module gave itself, else empty.
@@ -65,11 +67,21 @@ public:
     std::vector<const ItemType *> moduleTypes(const QString &moduleId) const;
     // The module's settings screens, in the order it added them. Empty for an
     // unknown module.
-    std::vector<const SettingsScreen *> settingsScreens(const QString &moduleId) const;
+    std::vector<const SettingsScreen *> settingsScreens(const QString &moduleId) const override;
     // One screen, or null.
     const SettingsScreen *settingsScreen(const QString &moduleId, const QString &screenId) const;
     // The ModuleSettings the module was given, or null for an unknown module.
-    const ModuleSettings *moduleSettings(const QString &moduleId) const;
+    const ModuleSettings *moduleSettings(const QString &moduleId) const override;
+
+    // A registered type, or null. Unlike type(), never makes an UnknownItemType.
+    const ItemType *findType(const QString &typeId) const override;
+    // The module's server, or null if it registered none.
+    const ServerType *serverType(const QString &moduleId) const override;
+    // The module's project settings, in the order it added them. Empty for
+    // an unknown module. See ModuleRegistrar::addProjectSetting().
+    std::vector<Field> projectSettings(const QString &moduleId) const;
+    // The ids of the modules with project settings, sorted.
+    QStringList projectSettingModules() const;
 
 private:
     struct Private;

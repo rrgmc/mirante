@@ -1,5 +1,7 @@
 #pragma once
 
+#include <mirante/ApiClient.h>
+#include <mirante/Fields.h>
 #include <mirante/ItemType.h>
 #include <mirante/ModuleSettings.h>
 
@@ -43,6 +45,20 @@ public:
     // item types, so they may keep a pointer to it, for example to offer
     // configured values in their fields().
     virtual const ModuleSettings &settings() const = 0;
+
+    // Takes ownership of the description of the module's server: the screen
+    // and token field that hold it, and how requests are authenticated. A
+    // module has at most one. Item types reach the server through
+    // ItemContext::server() and StatusJob::server(). See
+    // docs/modules.md#servers-and-tokens.
+    virtual void setServerType(std::unique_ptr<ServerType> type) = 0;
+
+    // A field of the project dialog's section for this module, such as
+    // GitLab's project path. Its value is kept in the project's
+    // moduleSettings.<module id>.<key>, and items read it with
+    // ItemContext::projectSetting(). Fields of the types Secret, Folder and
+    // Image are refused. See docs/data-model.md#project.
+    virtual void addProjectSetting(const Field &field) = 0;
 };
 
 } // namespace mirante

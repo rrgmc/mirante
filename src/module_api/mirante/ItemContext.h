@@ -13,6 +13,9 @@ class QWidget;
 
 namespace mirante {
 
+class ApiClient;
+class ItemStatusSource;
+
 // What an item's code can reach. The core makes one for each placement, and
 // it outlives the placement's view. See docs/modules.md#item-context.
 class ItemContext
@@ -57,6 +60,17 @@ public:
 
     // Changes the item's configuration through the model.
     virtual void updateConfig(const QJsonObject &config) = 0;
+
+    // The module's server in the item's profile, or null for a module that
+    // registered no ServerType, or where the core keeps no servers, as in
+    // tests. Include <mirante/ApiClient.h> to use it. See
+    // docs/modules.md#servers-and-tokens.
+    virtual ApiClient *server() { return nullptr; }
+
+    // The item's entry in the status cache, or null for a type without
+    // status, or where the core keeps none, as in tests. Include
+    // <mirante/Status.h> to use it.
+    virtual ItemStatusSource *status() { return nullptr; }
 };
 
 } // namespace mirante

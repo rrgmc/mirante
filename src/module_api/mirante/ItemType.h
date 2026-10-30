@@ -1,6 +1,7 @@
 #pragma once
 
 #include <mirante/Fields.h>
+#include <mirante/Status.h>
 #include <mirante/UrlMatch.h>
 
 #include <QIcon>
@@ -97,6 +98,15 @@ public:
 
     virtual Rendering rendering() const { return Rendering::Native; }
 
+    // True if the status cache fetches a status for items of this type. A
+    // type reports status when its configuration names one object on a
+    // server, whether it shows a summary or a page. See
+    // docs/decisions/0061-attention-from-status-of-any-rendering.md.
+    virtual bool hasStatus() const { return false; }
+    // Fetches one item's status through the job's server, and ends with
+    // job.finish(). Called only if hasStatus(). The default finishes with State::None.
+    virtual void fetchStatus(StatusJob &job) const { job.finish(ItemStatus()); }
+
     // Creates the view for one placement. The context outlives the view.
     // Null shows the type's placeholder. Include <mirante/ItemContext.h> to
     // implement it. See docs/item-types.md#the-view.
@@ -109,3 +119,4 @@ public:
 };
 
 } // namespace mirante
+

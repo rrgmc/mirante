@@ -367,4 +367,24 @@ QWidget *Placement::view() const { return d->view; }
 
 QWidget *Placement::headerWidget() const { return d->header; }
 
+// Stubs of T0. Task T8 of the M5 plan implements them.
+
+CellStatus Placement::cellStatus() const
+{
+    return {};
+}
+
+bool Placement::hasStatus() const
+{
+    return false;
+}
+
+void Placement::refresh()
+{
+}
+
+void Placement::openSettings()
+{
+}
+
 } // namespace mirante

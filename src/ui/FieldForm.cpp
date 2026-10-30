@@ -414,4 +414,18 @@ QWidget *FieldForm::editorFor(const QString &key) const
     return nullptr;
 }
 
+
+// Stubs of T0. Task T9 of the M5 plan implements them.
+
+void FieldForm::setSecretState(const QString &key, SecretState state)
+{
+    Q_UNUSED(key)
+    Q_UNUSED(state)
+}
+
+QStringList FieldForm::removedSecrets() const
+{
+    return {};
+}
+
 } // namespace mirante

@@ -1,10 +1,11 @@
 # One static library per folder. Dependencies point downwards only:
-# ui -> layout -> items -> web -> core, with platform used by ui only.
+# ui -> layout -> items -> web, api -> core, with platform used by ui only.
 # See docs/architecture.md#source-folders.
 
 add_subdirectory(module_api)
 add_subdirectory(core)
 add_subdirectory(web)
+add_subdirectory(api)
 add_subdirectory(items)
 add_subdirectory(layout)
 add_subdirectory(platform)

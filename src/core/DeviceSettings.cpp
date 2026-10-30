@@ -318,4 +318,53 @@ void DeviceSettings::setHiddenViewLimit(int limit)
     d->settings->setValue(hiddenViewLimitKey, limit);
 }
 
+// Stubs of T0. Task T3 of the M5 plan implements them.
+
+int DeviceSettings::pollInterval() const
+{
+    return 120;
+}
+
+void DeviceSettings::setPollInterval(int seconds)
+{
+    Q_UNUSED(seconds)
+}
+
+QStringList DeviceSettings::seenAttention(const QString &workspaceId, const QString &itemId) const
+{
+    Q_UNUSED(workspaceId)
+    Q_UNUSED(itemId)
+    return {};
+}
+
+bool DeviceSettings::hasSeenAttention(const QString &workspaceId, const QString &itemId) const
+{
+    Q_UNUSED(workspaceId)
+    Q_UNUSED(itemId)
+    return false;
+}
+
+void DeviceSettings::setSeenAttention(const QString &workspaceId, const QString &itemId, const QStringList &keys)
+{
+    Q_UNUSED(workspaceId)
+    Q_UNUSED(itemId)
+    Q_UNUSED(keys)
+}
+
+void DeviceSettings::removeSeenAttention(const QString &workspaceId, const QString &itemId)
+{
+    Q_UNUSED(workspaceId)
+    Q_UNUSED(itemId)
+}
+
+bool DeviceSettings::focusAttentionFirst() const
+{
+    return false;
+}
+
+void DeviceSettings::setFocusAttentionFirst(bool on)
+{
+    Q_UNUSED(on)
+}
+
 } // namespace mirante

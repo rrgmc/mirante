@@ -1,5 +1,6 @@
 #pragma once
 
+#include "api/ApiServices.h"
 #include "core/Store.h"
 
 #include <QMainWindow>
@@ -43,6 +44,12 @@ public:
     MainWindow(Model &model, const ItemTypeRegistry &types, Store &store, DeviceSettings &settings,
                ProfileManager *profiles = nullptr, ViewPool *pool = nullptr, QWidget *parent = nullptr);
     ~MainWindow() override;
+
+    // The tokens, servers and status cache. Call it before the first
+    // workspace opens. Without them, as in most tests, cells show no status
+    // and tokens typed into settings screens are dropped. They must outlive
+    // the window. See the M5 plan, part 9.
+    void setApiServices(const ApiServices &services);
 
     // Shows the problems in the warning bar, with the Store's own problems,
     // or hides it if there are none. Opening a workspace clears them.

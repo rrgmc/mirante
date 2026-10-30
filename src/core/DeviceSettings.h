@@ -95,6 +95,26 @@ public:
     int hiddenViewLimit() const;
     void setHiddenViewLimit(int limit);
 
+    // How often the status cache fetches a due item, in seconds: 120 if not
+    // set, kept between 30 and 3600. Set in the settings window. See
+    // docs/integrations.md#polling-and-caching.
+    int pollInterval() const;
+    void setPollInterval(int seconds);
+
+    // The keys of the attention reasons the user has seen on an item, in a
+    // workspace. Empty if none, and empty too for an item never recorded:
+    // hasSeenAttention() tells the two apart. See
+    // docs/decisions/0061-attention-from-status-of-any-rendering.md.
+    QStringList seenAttention(const QString &workspaceId, const QString &itemId) const;
+    bool hasSeenAttention(const QString &workspaceId, const QString &itemId) const;
+    void setSeenAttention(const QString &workspaceId, const QString &itemId, const QStringList &keys);
+    void removeSeenAttention(const QString &workspaceId, const QString &itemId);
+
+    // Whether Focus lists the tasks that need attention first. Off if not
+    // set. See docs/ui.md#focus-view.
+    bool focusAttentionFirst() const;
+    void setFocusAttentionFirst(bool on);
+
 private:
     struct Private;
     std::unique_ptr<Private> d;
