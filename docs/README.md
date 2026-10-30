@@ -16,6 +16,7 @@ Mirante is a personal desktop dashboard for all of one person's work, built with
 | [Sync](sync.md) | Data folder, conflict copies, device settings, secrets |
 | [Architecture](architecture.md) | Modules, classes, data flow, build, tests |
 | [Roadmap](roadmap.md) | Milestones with acceptance criteria |
+| [Releasing](releasing.md) | Version tags, the release workflow and its signing secrets |
 | [Plans](plans/) | Detailed code plans, one per milestone, written just before it starts |
 | [Decisions](decisions/README.md) | Records of design decisions and their reasons |
 

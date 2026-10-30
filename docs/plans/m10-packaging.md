@@ -38,7 +38,7 @@ New `cmake/MiranteInstall.cmake`, included from `src/CMakeLists.txt` after the e
 - `qt_generate_deploy_app_script(... NO_TRANSLATIONS NO_UNSUPPORTED_PLATFORM_ERROR)`, with `--no-compiler-runtime --no-system-d3d-compiler --no-system-dxc-compiler --no-opengl-sw` on Windows, and `install(SCRIPT)`.
 - `qtbase_pt_BR.qm` from the Qt in use, installed where the deployed app looks for translations. Which folder that is, per platform, is checked first by starting the installed app and logging `QLibraryInfo::path(QLibraryInfo::TranslationsPath)`.
 - Windows: `InstallRequiredSystemLibraries` into `bin`.
-- Linux, per [decision 0099](../decisions/0099-linux-package-in-opt.md): install prefix `/opt/mirante` for CPack; `resources/linux/mirante.desktop`; the icon from `resources/icons/mirante.svg`; the link `/usr/bin/mirante`; `resources/linux/apparmor-mirante`; `postinst` and `postrm` scripts in `resources/linux/`. If CPack's DEB generator does not take the absolute destinations under `/usr` and `/etc`, the package uses `CPACK_SET_DESTDIR`.
+- Linux, per [decision 0099](../decisions/0099-linux-package-in-opt.md): install prefix `/opt/mirante` for CPack; `resources/linux/mirante.desktop`; the icon from `resources/icons/mirante.svg`; the link `/usr/bin/mirante`; `resources/linux/apparmor-mirante`; `postinst` and `prerm` scripts in `resources/linux/`. If CPack's DEB generator does not take the absolute destinations under `/usr` and `/etc`, the package uses `CPACK_SET_DESTDIR`.
 - macOS: the signing step of Part 4.
 
 ## Part 3: CPack

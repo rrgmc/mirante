@@ -11,7 +11,7 @@ The `.deb` package targets Ubuntu 24.04 and later. Mirante needs Qt 6.8, and Ubu
 
 - The package installs the app with its own copy of Qt in `/opt/mirante`, as Qt's deploy script lays it out: `bin`, `lib`, `plugins`, `libexec`, `resources` and `translations`, with a `qt.conf`.
 - It also installs a link `/usr/bin/mirante`, a desktop file in `/usr/share/applications` and the icon in `/usr/share/icons/hicolor/scalable/apps`, so the app appears in the desktop's menu.
-- It installs an AppArmor profile, `/etc/apparmor.d/mirante`, that allows user namespaces for the app and for `QtWebEngineProcess`. Its `postinst` script loads the profile, and `postrm` unloads it. This is what Ubuntu does for other Chromium-based apps.
+- It installs an AppArmor profile, `/etc/apparmor.d/mirante`, that allows user namespaces for the app and for `QtWebEngineProcess`. Its `postinst` script loads the profile, and `prerm` unloads it. This is what Ubuntu does for other Chromium-based apps.
 - `dpkg-shlibdeps` works out the package's dependencies on system libraries, looking into the bundled Qt for the libraries it links.
 - The package is built on Ubuntu 24.04, for 64-bit x86.
 
