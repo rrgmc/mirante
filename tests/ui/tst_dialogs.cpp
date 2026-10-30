@@ -23,6 +23,7 @@
 
 #include <QComboBox>
 #include <QDialogButtonBox>
+#include <QGroupBox>
 #include <QLabel>
 #include <QLineEdit>
 #include <QListWidget>
@@ -204,6 +205,7 @@ private slots:
     void projectFolders();
     void projectMainFolder();
     void projectNewFolder();
+    void projectSettings();
     void task();
     void itemWithForm();
     void itemWithOwnEditor();
@@ -632,7 +634,7 @@ void TestDialogs::project()
 {
     const Project original = *model.project(backendProject);
     const DeviceSettings device(settings.get());
-    ProjectDialog dialog(original, model, device);
+    ProjectDialog dialog(original, model, device, types);
     QCOMPARE(dialog.value(), original);
 
     // Groups in manual order.
@@ -662,7 +664,7 @@ void TestDialogs::projectFolders()
 {
     DeviceSettings device(settings.get());
     device.setFolderPath(backendFolder, QStringLiteral("C:/src/backend"));
-    ProjectDialog dialog(*model.project(backendProject), model, device);
+    ProjectDialog dialog(*model.project(backendProject), model, device, types);
 
     // Paths come from the settings, and are not written back.
     QMap<QString, QString> paths = dialog.folderPaths();
@@ -699,7 +701,7 @@ void TestDialogs::projectFolders()
 void TestDialogs::projectMainFolder()
 {
     const DeviceSettings device(settings.get());
-    ProjectDialog dialog(*model.project(backendProject), model, device);
+    ProjectDialog dialog(*model.project(backendProject), model, device, types);
 
     Folder a;
     a.id = QStringLiteral("a");
@@ -746,7 +748,7 @@ void TestDialogs::projectNewFolder()
     Project project;
     project.id = QStringLiteral("new");
     project.groupId = workGroup;
-    ProjectDialog dialog(project, model, device);
+    ProjectDialog dialog(project, model, device, types);
     dialog.setName(QStringLiteral("new project"));
 
     auto *add = dialog.findChild<QPushButton *>(QStringLiteral("addFolder"));
@@ -768,6 +770,88 @@ void TestDialogs::projectNewFolder()
     table->item(1, 0)->setText(QStringLiteral("two"));
     dialog.accept();
     QCOMPARE(dialog.result(), int(QDialog::Accepted));
+}
+
+// A section for each module with project settings, which edits
+// project.moduleSettings.<module id> and keeps what it does not show.
+void TestDialogs::projectSettings()
+{
+    ItemTypeRegistry projectTypes;
+    projectTypes.registerModule(QStringLiteral("pmod"), [](ModuleRegistrar &registrar) {
+        registrar.setModuleName(QStringLiteral("Proj Mod"));
+        Field path;
+        path.key = QStringLiteral("path");
+        path.label = QStringLiteral("Path");
+        Field site;
+        site.key = QStringLiteral("site");
+        site.label = QStringLiteral("Site");
+        site.type = Field::Type::Url;
+        registrar.addProjectSetting(path);
+        registrar.addProjectSetting(site);
+    });
+    projectTypes.registerModule(QStringLiteral("testmod"), &registerTestModule);
+
+    Project project = *model.project(backendProject);
+    project.moduleSettings = QJsonObject{
+        {QStringLiteral("pmod"), QJsonObject{{QStringLiteral("path"), QStringLiteral("acme/api")},
+                                             {QStringLiteral("extra"), QStringLiteral("kept")}}},
+        {QStringLiteral("gone"), QJsonObject{{QStringLiteral("key"), 1}}},
+    };
+    const DeviceSettings device(settings.get());
+    ProjectDialog dialog(project, model, device, projectTypes);
+
+    // Only modules with project settings get a section, titled with the
+    // module's name.
+    auto *box = dialog.findChild<QGroupBox *>(QStringLiteral("section.pmod"));
+    QVERIFY(box);
+    QCOMPARE(box->title(), QStringLiteral("Proj Mod"));
+    QVERIFY(!dialog.findChild<QGroupBox *>(QStringLiteral("section.testmod")));
+
+    // Values round-trip unchanged.
+    auto *form = dialog.findChild<FieldForm *>(QStringLiteral("moduleSettings.pmod"));
+    QVERIFY(form);
+    auto *path = qobject_cast<QLineEdit *>(form->editorFor(QStringLiteral("path")));
+    auto *site = qobject_cast<QLineEdit *>(form->editorFor(QStringLiteral("site")));
+    QVERIFY(path && site);
+    QCOMPARE(path->text(), QStringLiteral("acme/api"));
+    QCOMPARE(dialog.value(), project);
+
+    // Edits reach the module's object. Keys the form does not show, and the
+    // settings of a module not in the build, are kept.
+    path->setText(QStringLiteral("acme/web"));
+    site->setText(QStringLiteral("https://example.com"));
+    QJsonObject expected{{QStringLiteral("path"), QStringLiteral("acme/web")},
+                         {QStringLiteral("site"), QStringLiteral("https://example.com")},
+                         {QStringLiteral("extra"), QStringLiteral("kept")}};
+    QCOMPARE(dialog.value().moduleSettings.value(QStringLiteral("pmod")).toObject(), expected);
+    QCOMPARE(dialog.value().moduleSettings.value(QStringLiteral("gone")), project.moduleSettings.value(QStringLiteral("gone")));
+
+    // A problem in a section refuses OK and names the module.
+    site->setText(QStringLiteral("not a link"));
+    dialog.accept();
+    QCOMPARE(dialog.result(), int(QDialog::Rejected));
+    auto *message = dialog.findChild<QLabel *>(QStringLiteral("message"));
+    QVERIFY(message->text().startsWith(QStringLiteral("Proj Mod: ")));
+
+    // An empty value removes its key.
+    site->clear();
+    path->setText(QStringLiteral("  "));
+    expected = QJsonObject{{QStringLiteral("extra"), QStringLiteral("kept")}};
+    QCOMPARE(dialog.value().moduleSettings.value(QStringLiteral("pmod")).toObject(), expected);
+    dialog.accept();
+    QCOMPARE(dialog.result(), int(QDialog::Accepted));
+
+    // A module object left empty is removed.
+    project.moduleSettings = QJsonObject{{QStringLiteral("pmod"), QJsonObject{{QStringLiteral("path"), QStringLiteral("a")}}}};
+    ProjectDialog emptied(project, model, device, projectTypes);
+    auto *emptiedForm = emptied.findChild<FieldForm *>(QStringLiteral("moduleSettings.pmod"));
+    qobject_cast<QLineEdit *>(emptiedForm->editorFor(QStringLiteral("path")))->clear();
+    QVERIFY(emptied.value().moduleSettings.isEmpty());
+
+    // A project without settings gets none from an untouched section.
+    project.moduleSettings = QJsonObject();
+    ProjectDialog untouched(project, model, device, projectTypes);
+    QVERIFY(untouched.value().moduleSettings.isEmpty());
 }
 
 void TestDialogs::task()

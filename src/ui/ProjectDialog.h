@@ -10,23 +10,27 @@
 namespace mirante {
 
 class DeviceSettings;
+class ItemTypeRegistry;
 class Model;
 
 // Creates or edits a project: name, group, priority and folders. Each folder
 // has a name, a remote URL, the main flag, and its local path on this device,
 // shown as "Folder not set on this device" when empty, with "Choose…".
-// Exactly one folder is main when there are any. Module settings arrive in
-// M5. OK is refused while the name is empty.
-// See the M3 plan, part 5. Implemented in ProjectDialog.cpp.
+// Exactly one folder is main when there are any. After the folders, a section
+// for each module with project settings edits project.moduleSettings. OK is
+// refused while the name is empty or a section has problems.
+// See the M3 plan, part 5, and the M5 plan, part 5. Implemented in
+// ProjectDialog.cpp.
 class ProjectDialog : public QDialog
 {
     Q_OBJECT
 
 public:
     // settings gives the folders' current local paths. The dialog does not
-    // write them; the caller saves folderPaths() after OK.
+    // write them; the caller saves folderPaths() after OK. types gives the
+    // modules' project settings.
     ProjectDialog(const Project &project, const Model &model, const DeviceSettings &settings,
-                  QWidget *parent = nullptr);
+                  const ItemTypeRegistry &types, QWidget *parent = nullptr);
     ~ProjectDialog() override;
 
     // The project with the edited fields; every other field as given. New
