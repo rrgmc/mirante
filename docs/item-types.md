@@ -178,7 +178,7 @@ The summaries have fixed layouts, as in [decision 0066](decisions/0066-fixed-nat
 - **Status:** a summary of the latest, such as "Failed · main · 1 failed job", or "No pipeline on main" for a branch without pipelines. The item is never closed. A pipeline that follows the main folder reads the folder's branch at each fetch, and reports no status, with a message, when the folder has no path on this device or is not on a branch.
 - **Attention:** a pipeline of the group failed, whichever is shown. Each failed pipeline is a new reason with its own key, so a failure is not hidden by a later pipeline that passed, and a retry that fails again counts again. Together with the merge request's failed pipeline, this is the only event that sends a [desktop notification](ui.md#tray-and-notifications).
 
-"Current branch of the main folder" reads `.git/HEAD` of the folder's local path on this device. If the folder is not mapped on this device, the panel asks for a branch.
+"Current branch of the main folder" reads `.git/HEAD` of the folder's local path on this device. If the folder is not mapped on this device, the panel says "Set the main folder's path on this device."
 
 ### GitLab CI Pipeline List
 
