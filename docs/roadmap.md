@@ -109,7 +109,7 @@ See [the M8 plan](plans/m8-tray-notifications-and-keyboard.md).
 - [x] Desktop notification when a linked pipeline fails. Clicking it opens the task.
 - [x] The global hotkey shows or hides the app on Windows, macOS and X11, and reports clearly on Wayland.
 - [ ] All shortcuts in [ui](ui.md#keyboard) work, including inside focused web pages. An item can give keys to its page. See [decision 0088](decisions/0088-keys-a-page-keeps.md).
-- [ ] The File menu puts creating first and holds the workspace commands in a submenu.
+- [x] The File menu puts creating first and holds the workspace commands in a submenu.
 
 ## M9: Built-in panels
 

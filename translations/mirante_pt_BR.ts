@@ -2475,24 +2475,8 @@
         <translation>Limpar recentes</translation>
     </message>
     <message>
-        <source>Re&amp;name Workspace…</source>
-        <translation>Reno&amp;mear espaço de trabalho…</translation>
-    </message>
-    <message>
-        <source>&amp;Move Workspace…</source>
-        <translation>Mo&amp;ver espaço de trabalho…</translation>
-    </message>
-    <message>
-        <source>Show Workspace &amp;Folder</source>
-        <translation>Mostrar &amp;pasta do espaço de trabalho</translation>
-    </message>
-    <message>
         <source>Open &amp;Sample Data</source>
         <translation>Abrir &amp;dados de exemplo</translation>
-    </message>
-    <message>
-        <source>Re&amp;load Workspace</source>
-        <translation>Re&amp;carregar espaço de trabalho</translation>
     </message>
     <message>
         <source>New Task from &amp;Link…</source>
@@ -2658,6 +2642,26 @@
             <numerusform>%n item acompanhado precisa de atenção</numerusform>
             <numerusform>%n itens acompanhados precisam de atenção</numerusform>
         </translation>
+    </message>
+    <message>
+        <source>&amp;Workspace</source>
+        <translation>&amp;Espaço de trabalho</translation>
+    </message>
+    <message>
+        <source>Re&amp;name…</source>
+        <translation>Re&amp;nomear…</translation>
+    </message>
+    <message>
+        <source>&amp;Move…</source>
+        <translation>&amp;Mover…</translation>
+    </message>
+    <message>
+        <source>Show &amp;Folder</source>
+        <translation>Mostrar &amp;pasta</translation>
+    </message>
+    <message>
+        <source>Re&amp;load</source>
+        <translation>Re&amp;carregar</translation>
     </message>
 </context>
 <context>
