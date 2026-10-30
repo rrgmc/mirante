@@ -19,6 +19,16 @@ bool hasData(const ItemStatus &status)
     return status.updatedAt.isValid();
 }
 
+QStringList notifyKeys(const ItemStatus &status)
+{
+    QStringList keys;
+    for (const AttentionReason &reason : status.attention) {
+        if (reason.notify && !keys.contains(reason.key))
+            keys << reason.key;
+    }
+    return keys;
+}
+
 QStringList clearsOnViewKeys(const ItemStatus &status)
 {
     QStringList keys;
@@ -59,7 +69,53 @@ struct Attention::Private
         const ItemStatus current = status->status(itemId);
         if (hasData(current) && !workspaceId.isEmpty() && !settings->hasSeenAttention(workspaceId, itemId))
             settings->setSeenAttention(workspaceId, itemId, clearsOnViewKeys(current));
+        notify(itemId, current);
         scheduleCounts();
+    }
+
+    // Emits notificationDue for each new notify key of a watched item, and
+    // records the current keys. The first record is made without notifying.
+    // An item that is not watched, or not in an active task, has no record,
+    // so watching it again starts with a silent record too.
+    void notify(const QString &itemId, const ItemStatus &current)
+    {
+        const QString workspaceId = model->workspaceId();
+        if (workspaceId.isEmpty() || !hasData(current))
+            return;
+        const Task *task = model->taskOfItem(itemId);
+        const Item *item = task ? model->item(task->id, itemId) : nullptr;
+        if (!item || !item->watch || task->state != TaskState::Active || model->taskInTrash(*task)) {
+            settings->removeNotifiedAttention(workspaceId, itemId);
+            return;
+        }
+        const QStringList keys = notifyKeys(current);
+        if (settings->hasNotifiedAttention(workspaceId, itemId)) {
+            const QStringList before = settings->notifiedAttention(workspaceId, itemId);
+            if (before == keys)
+                return;
+            settings->setNotifiedAttention(workspaceId, itemId, keys);
+            for (const AttentionReason &reason : current.attention) {
+                if (reason.notify && !before.contains(reason.key))
+                    emit q->notificationDue(task->id, itemId, reason);
+            }
+            return;
+        }
+        settings->setNotifiedAttention(workspaceId, itemId, keys);
+    }
+
+    // Drops the records of the task's items that no longer notify, so
+    // watching one again does not notify for what is already true.
+    void forgetUnwatched(const QString &taskId)
+    {
+        const QString workspaceId = model->workspaceId();
+        const Task *task = model->task(taskId);
+        if (!task || workspaceId.isEmpty())
+            return;
+        const bool active = task->state == TaskState::Active && !model->taskInTrash(*task);
+        for (const Item &item : task->items) {
+            if (!active || !item.watch)
+                settings->removeNotifiedAttention(workspaceId, item.id);
+        }
     }
 
     int taskCount(const Task &task) const
@@ -112,6 +168,7 @@ Attention::Attention(const Model &model, StatusCache &status, DeviceSettings &se
     connect(&model, &Model::projectRemoved, this, counts);
     connect(&model, &Model::taskAdded, this, counts);
     connect(&model, &Model::taskChanged, this, counts);
+    connect(&model, &Model::taskChanged, this, [this](const QString &taskId) { d->forgetUnwatched(taskId); });
     connect(&model, &Model::taskRemoved, this, counts);
 }
 

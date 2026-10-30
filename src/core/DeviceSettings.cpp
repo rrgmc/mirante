@@ -60,6 +60,12 @@ QString seenAttentionKey(const QString &workspaceId, const QString &itemId)
     return QStringLiteral("seenAttention/") + workspaceId + QLatin1Char('/') + itemId;
 }
 
+// The notified attention keys of one item, named like the seen keys.
+QString notifiedAttentionKey(const QString &workspaceId, const QString &itemId)
+{
+    return QStringLiteral("notifiedAttention/") + workspaceId + QLatin1Char('/') + itemId;
+}
+
 QString cleanAbsolute(const QString &path)
 {
     return path.isEmpty() ? QString() : QDir::cleanPath(QFileInfo(path).absoluteFilePath());
@@ -390,6 +396,36 @@ void DeviceSettings::removeSeenAttention(const QString &workspaceId, const QStri
     if (workspaceId.isEmpty() || itemId.isEmpty())
         return;
     d->settings->remove(seenAttentionKey(workspaceId, itemId));
+}
+
+QStringList DeviceSettings::notifiedAttention(const QString &workspaceId, const QString &itemId) const
+{
+    if (workspaceId.isEmpty() || itemId.isEmpty())
+        return {};
+    return d->settings->value(notifiedAttentionKey(workspaceId, itemId)).toStringList();
+}
+
+bool DeviceSettings::hasNotifiedAttention(const QString &workspaceId, const QString &itemId) const
+{
+    if (workspaceId.isEmpty() || itemId.isEmpty())
+        return false;
+    return d->settings->contains(notifiedAttentionKey(workspaceId, itemId));
+}
+
+// An empty list is kept as a record, as for the seen keys.
+void DeviceSettings::setNotifiedAttention(const QString &workspaceId, const QString &itemId,
+                                          const QStringList &keys)
+{
+    if (workspaceId.isEmpty() || itemId.isEmpty())
+        return;
+    d->settings->setValue(notifiedAttentionKey(workspaceId, itemId), keys);
+}
+
+void DeviceSettings::removeNotifiedAttention(const QString &workspaceId, const QString &itemId)
+{
+    if (workspaceId.isEmpty() || itemId.isEmpty())
+        return;
+    d->settings->remove(notifiedAttentionKey(workspaceId, itemId));
 }
 
 bool DeviceSettings::focusAttentionFirst() const

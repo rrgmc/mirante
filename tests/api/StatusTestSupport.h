@@ -199,12 +199,13 @@ inline ItemStatus okStatus(const QString &summary, QList<AttentionReason> attent
     return status;
 }
 
-inline AttentionReason reason(const QString &key, bool clearsOnView = false)
+inline AttentionReason reason(const QString &key, bool clearsOnView = false, bool notify = false)
 {
     AttentionReason r;
     r.key = key;
     r.text = key;
     r.clearsOnView = clearsOnView;
+    r.notify = notify;
     return r;
 }
 

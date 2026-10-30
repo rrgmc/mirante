@@ -346,8 +346,10 @@ struct StatusCache::Private
         known = std::move(now);
 
         for (const QString &itemId : removed) {
-            if (forgetSeen)
+            if (forgetSeen) {
                 settings->removeSeenAttention(model->workspaceId(), itemId);
+                settings->removeNotifiedAttention(model->workspaceId(), itemId);
+            }
             empty(itemId);
         }
         for (const QString &itemId : changed)

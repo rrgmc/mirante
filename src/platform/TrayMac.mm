@@ -184,6 +184,12 @@ void Tray::setCount(int count)
 
 void Tray::setToolTip(const QString &toolTip) { d->item.button.toolTip = toolTip.toNSString(); }
 
+void Tray::showMessage(const QString &title, const QString &text)
+{
+    Q_UNUSED(title);
+    Q_UNUSED(text);
+}
+
 void Tray::setDockIconVisible(bool visible)
 {
     // An accessory app has no Dock icon and no menu bar, like a menu bar app.

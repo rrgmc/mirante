@@ -2652,6 +2652,13 @@
             <numerusform>%1: %n tarefas precisam de atenção</numerusform>
         </translation>
     </message>
+    <message numerus="yes">
+        <source>%n watched item(s) need attention</source>
+        <translation>
+            <numerusform>%n item acompanhado precisa de atenção</numerusform>
+            <numerusform>%n itens acompanhados precisam de atenção</numerusform>
+        </translation>
+    </message>
 </context>
 <context>
     <name>mirante::ModuleSettingsDialog</name>

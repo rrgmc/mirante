@@ -32,6 +32,7 @@ Tray::Tray(const QIcon &icon, const QString &toolTip, QMenu *menu, QObject *pare
         if (reason == QSystemTrayIcon::Trigger)
             emit triggered();
     });
+    connect(d->icon, &QSystemTrayIcon::messageClicked, this, &Tray::messageClicked);
     d->icon->show();
 }
 
@@ -46,6 +47,11 @@ void Tray::setCount(int count)
 }
 
 void Tray::setToolTip(const QString &toolTip) { d->icon->setToolTip(toolTip); }
+
+void Tray::showMessage(const QString &title, const QString &text)
+{
+    d->icon->showMessage(title, text, QSystemTrayIcon::Warning);
+}
 
 void Tray::setDockIconVisible(bool visible) { Q_UNUSED(visible); }
 

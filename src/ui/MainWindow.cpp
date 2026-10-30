@@ -31,6 +31,7 @@
 #include "platform/Foreground.h"
 #include "platform/GlobalHotkey.h"
 #include "platform/Platform.h"
+#include "platform/Notifier.h"
 #include "platform/Tray.h"
 #include "ui/ConflictBar.h"
 #include "ui/DashboardDialog.h"
@@ -213,6 +214,15 @@ struct MainWindow::Private
 
     // Hiding to the tray. See docs/ui.md#tray-and-notifications.
     platform::Tray *tray = nullptr;
+    platform::Notifier *notifier = nullptr;
+    // Notifications due in this pass of the event loop: task id and text.
+    struct DueNotification
+    {
+        QString taskId;
+        QString title;
+        QString text;
+    };
+    QList<DueNotification> dueNotifications;
     int trayAttempts = 0;
     bool trayPresent = false;
     bool quitting = false;
@@ -1730,8 +1740,44 @@ struct MainWindow::Private
             if (!q->isVisible())
                 q->showAndRaise();
         });
+        notifier = new platform::Notifier(tray, q);
+        QObject::connect(notifier, &platform::Notifier::clicked, q, [this](const QString &taskId) {
+            q->showAndRaise();
+            if (!taskId.isEmpty() && !QApplication::activeModalWidget())
+                q->openTaskPreview(taskId);
+        });
         q->setTrayPresent(true);
         updateTray();
+    }
+
+    // Collects a notification, and sends those of one pass together. More
+    // than three become one summary, which only brings the window to the
+    // front. Without a tray, notifications are dropped. See
+    // docs/ui.md#tray-and-notifications.
+    void queueNotification(const QString &taskId, const QString &itemId, const AttentionReason &reason)
+    {
+        const Task *task = model->task(taskId);
+        const Item *item = model->item(taskId, itemId);
+        if (!task || !item)
+            return;
+        if (dueNotifications.isEmpty())
+            QTimer::singleShot(0, q, [this] { sendNotifications(); });
+        dueNotifications.append({taskId, reason.text, task->title + QStringLiteral(" / ") + item->name});
+    }
+
+    void sendNotifications()
+    {
+        const QList<DueNotification> due = std::exchange(dueNotifications, {});
+        if (!notifier)
+            return;
+        if (due.size() > 3) {
+            notifier->show(QStringLiteral(MIRANTE_APP_NAME),
+                           MainWindow::tr("%n watched item(s) need attention", nullptr, int(due.size())),
+                           QString());
+            return;
+        }
+        for (const DueNotification &notification : due)
+            notifier->show(notification.title, notification.text, notification.taskId);
     }
 
     // The tray shows how many tasks need attention through watched items.
@@ -2699,8 +2745,13 @@ void MainWindow::setApiServices(const ApiServices &services)
     d->sidebar->model()->setAttention(services.attention);
     if (d->focus)
         d->focus->focus->setAttention(services.attention);
-    if (services.attention)
+    if (services.attention) {
         connect(services.attention, &Attention::countsChanged, this, [this] { d->updateTray(); });
+        connect(services.attention, &Attention::notificationDue, this,
+                [this](const QString &taskId, const QString &itemId, const AttentionReason &reason) {
+                    d->queueNotification(taskId, itemId, reason);
+                });
+    }
     d->updateTray();
     if (services.servers) {
         connect(services.servers, &ServerClients::failingChanged, this, [this] { d->updateWarnings(); });
