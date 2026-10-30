@@ -168,6 +168,109 @@ private slots:
         QCOMPARE(attention->groupCount(QStringLiteral("g1")), 0);
     }
 
+    // The tray counts active tasks with a watched item that needs attention:
+    // a task with two such items once, an unwatched item never.
+    void trayCount()
+    {
+        Task t1 = *f->model.task(QStringLiteral("t1"));
+        t1.items.push_back(makeItem(QStringLiteral("i9")));
+        f->model.setTask(t1);
+        const auto watch = [this](const QString &taskId, const QString &itemId) {
+            Item item = *f->model.item(taskId, itemId);
+            item.watch = true;
+            f->model.setItem(taskId, item);
+        };
+        watch(QStringLiteral("t1"), QStringLiteral("i1"));
+        watch(QStringLiteral("t1"), QStringLiteral("i9"));
+        watch(QStringLiteral("t3"), QStringLiteral("i5"));
+
+        const ItemStatus failed = okStatus(QStringLiteral("Open"), {reason(QStringLiteral("pipeline-failed"))});
+        for (const QString &itemId : {QStringLiteral("i1"), QStringLiteral("i9"), QStringLiteral("i4"),
+                                      QStringLiteral("i5")})
+            give(itemId, failed);
+        // i4 needs attention but is not watched; t3 is done.
+        QCOMPARE(attention->trayCount(), 1);
+
+        watch(QStringLiteral("t2"), QStringLiteral("i4"));
+        QCOMPARE(attention->trayCount(), 2);
+
+        // Watching is a change of the task, so the counts change.
+        QSignalSpy counts(attention.get(), &Attention::countsChanged);
+        Item i4 = *f->model.item(QStringLiteral("t2"), QStringLiteral("i4"));
+        i4.watch = false;
+        f->model.setItem(QStringLiteral("t2"), i4);
+        QTRY_COMPARE(counts.size(), 1);
+        QCOMPARE(attention->trayCount(), 1);
+    }
+
+    // Notifications: none for what the first status already shows, one for
+    // each new reason with notify on a watched item, none for an unwatched
+    // item or a reason without notify, none again after a restart, and one
+    // again when a key left and came back.
+    void notifications()
+    {
+        const QString i1 = QStringLiteral("i1");
+        Item item = *f->model.item(QStringLiteral("t1"), i1);
+        item.watch = true;
+        f->model.setItem(QStringLiteral("t1"), item);
+        QSignalSpy due(attention.get(), &Attention::notificationDue);
+
+        const AttentionReason failed1 = reason(QStringLiteral("pipeline-failed:1"), false, true);
+        const AttentionReason failed2 = reason(QStringLiteral("pipeline-failed:2"), false, true);
+        give(i1, okStatus(QStringLiteral("Open"), {failed1}));
+        QCOMPARE(due.size(), 0);
+
+        give(i1, okStatus(QStringLiteral("Open"), {failed1, failed2, reason(QStringLiteral("review"))}));
+        QCOMPARE(due.size(), 1);
+        QCOMPARE(due.at(0).at(0).toString(), QStringLiteral("t1"));
+        QCOMPARE(due.at(0).at(1).toString(), i1);
+        QCOMPARE(due.at(0).at(2).value<AttentionReason>().key, QStringLiteral("pipeline-failed:2"));
+
+        // The same status again, and after a restart with the same settings.
+        give(i1, okStatus(QStringLiteral("Open"), {failed1, failed2}));
+        attention = std::make_unique<Attention>(f->model, *f->cache, *f->device);
+        QSignalSpy dueAgain(attention.get(), &Attention::notificationDue);
+        give(i1, okStatus(QStringLiteral("Open"), {failed1, failed2}));
+        QCOMPARE(due.size(), 1);
+        QCOMPARE(dueAgain.size(), 0);
+
+        // A key that left and came back notifies again.
+        give(i1, okStatus(QStringLiteral("Open"), {failed2}));
+        give(i1, okStatus(QStringLiteral("Open"), {failed1, failed2}));
+        QCOMPARE(dueAgain.size(), 1);
+
+        // An item that is not watched never notifies.
+        give(QStringLiteral("i4"), okStatus(QStringLiteral("Open")));
+        give(QStringLiteral("i4"), okStatus(QStringLiteral("Open"), {failed1}));
+        QCOMPARE(dueAgain.size(), 1);
+    }
+
+    // Turning Watch on records what is already true, so it sends nothing.
+    void watchingStartsSilently()
+    {
+        const QString i1 = QStringLiteral("i1");
+        const AttentionReason failed = reason(QStringLiteral("pipeline-failed:1"), false, true);
+        give(i1, okStatus(QStringLiteral("Open")));
+        give(i1, okStatus(QStringLiteral("Open"), {failed}));
+
+        QSignalSpy due(attention.get(), &Attention::notificationDue);
+        Item item = *f->model.item(QStringLiteral("t1"), i1);
+        item.watch = true;
+        f->model.setItem(QStringLiteral("t1"), item);
+        give(i1, okStatus(QStringLiteral("Open"), {failed}));
+        QCOMPARE(due.size(), 0);
+
+        // Watching off and on again starts silently again.
+        item.watch = false;
+        f->model.setItem(QStringLiteral("t1"), item);
+        QVERIFY(!f->device->hasNotifiedAttention(ws, i1));
+        give(i1, okStatus(QStringLiteral("Open"), {failed, reason(QStringLiteral("pipeline-failed:2"), false, true)}));
+        item.watch = true;
+        f->model.setItem(QStringLiteral("t1"), item);
+        give(i1, okStatus(QStringLiteral("Open"), {failed, reason(QStringLiteral("pipeline-failed:2"), false, true)}));
+        QCOMPARE(due.size(), 0);
+    }
+
     void countsChangedOncePerPass()
     {
         QSignalSpy counts(attention.get(), &Attention::countsChanged);

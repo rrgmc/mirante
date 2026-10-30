@@ -48,6 +48,7 @@ The [glossary](../docs/README.md#glossary) terms always take the same Portuguese
 | Priority: Urgent, High, Normal, Low | Prioridade: Urgente, Alta, Normal, Baixa |
 | Task state: active, done, archived | Ativa, concluída, arquivada |
 | Attention | Atenção |
+| Watch, watched item | Acompanhar, item acompanhado |
 | Server | Servidor |
 | Token | Token |
 | Profile, default profile | Perfil, perfil padrão |

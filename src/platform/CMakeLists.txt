@@ -4,7 +4,7 @@ mirante_add_library(mirante_platform LIBS Qt6::Widgets qt6keychain QHotkey::QHot
 
 # macOS code in Objective-C++, which the library's *.cpp glob leaves out.
 if(APPLE)
-    target_sources(mirante_platform PRIVATE AttachedDialogsMac.mm TrayMac.mm)
-    set_source_files_properties(TrayMac.mm PROPERTIES COMPILE_OPTIONS -fobjc-arc)
-    target_link_libraries(mirante_platform PRIVATE "-framework AppKit")
+    target_sources(mirante_platform PRIVATE AttachedDialogsMac.mm NotifierMac.mm TrayMac.mm)
+    set_source_files_properties(NotifierMac.mm TrayMac.mm PROPERTIES COMPILE_OPTIONS -fobjc-arc)
+    target_link_libraries(mirante_platform PRIVATE "-framework AppKit" "-framework UserNotifications")
 endif()

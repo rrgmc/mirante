@@ -5,6 +5,7 @@
 #include <QJsonObject>
 #include <QMap>
 #include <QString>
+#include <QStringList>
 
 #include <optional>
 #include <vector>
@@ -104,6 +105,8 @@ struct Item
     QString name;
     QJsonObject config;         // fields of the item type; opaque to the core
     QString profile;            // id of a profile overriding the group's; empty if not set
+    bool watch = false;         // counts on the tray and notifies; decision 0087
+    QStringList pageKeys;       // keys its web page keeps, in PortableText; decision 0088
     QJsonObject extra;
 
     static std::optional<Item> fromJson(const QJsonObject &json, QString *error = nullptr);

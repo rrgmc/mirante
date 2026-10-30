@@ -116,7 +116,7 @@ The Profiles menu, between View and Help, lists what can be done with profiles. 
 "New item…", in the context menu of a task or its Items row, opens the item dialog in two steps. See [decision 0043](decisions/0043-pick-the-item-type-first.md).
 
 1. **Choose a type.** A grid of large icons, 48 pixels, with each type's name under its icon, like the icon view of a file manager. Names wrap onto up to three lines, so types that differ only at the end, such as "GitLab MR (page)" and "GitLab MR (summary)", stay apart. The selected type has a soft rounded fill around its icon and name, and the type under the mouse a lighter one. The grid wraps, so many types show at once. It lists the [item types](item-types.md) of the build, by name; types of missing modules are not offered. A tooltip repeats the name. A double click on a type, or Enter, or **Next**, goes on with the selected type.
-2. **Edit the item.** The chosen type, shown with its icon, then the name, the profile for a type that uses one, and the configuration. A type uses a profile when its views are web views or its module has settings screens. The profile list starts with "<name> (from the group)", such as "Work (from the group)". The configuration uses the type's own editor if it has one, or else a form built from the type's fields for the profile the item would use, such as GitLab's project paths of that profile. Choosing another profile builds the form again and keeps what was entered. **Back** returns to the grid. Choosing another type starts from that type's defaults; choosing the same type keeps what was entered. OK is refused while the name is empty or the configuration has problems, and a message under the page says why.
+2. **Edit the item.** The chosen type, shown with its icon, then the name, the profile for a type that uses one, the [Watch](#watched-items) check box for a type that reports status, and the configuration. A type uses a profile when its views are web views or its module has settings screens. The profile list starts with "<name> (from the group)", such as "Work (from the group)". The configuration uses the type's own editor if it has one, or else a form built from the type's fields for the profile the item would use, such as GitLab's project paths of that profile. Choosing another profile builds the form again and keeps what was entered. **Back** returns to the grid. Choosing another type starts from that type's defaults; choosing the same type keeps what was entered. OK is refused while the name is empty or the configuration has problems, and a message under the page says why.
 
 **From a link.** Above the grid, a field says "Paste a link to create an item from it". While it holds an `http` or `https` address, the grid shows only the types that can show it, best first: the types of modules, then Web page. The first is selected, so Enter goes on with it. Choosing a type fills its configuration from the link, and the name too, unless one was typed. Each type reads the link with the server in its module settings, in the profile of the item's group, such as a self-hosted GitLab. The item names no server of its own: it uses that of its profile. A note under the grid says when no type can show the link, or when the text is not a web address; every type is shown then. Clearing the field shows every type again. Which types take which links is listed in [item types](item-types.md#items-from-a-link). See [decision 0049](decisions/0049-items-from-a-pasted-link.md).
 
@@ -141,9 +141,10 @@ Help > Modules… opens the Modules window. It shows what this build of the app 
 - **Opening it.** The window is not modal, like the [settings window](#settings). Choosing Modules… again brings it to the front. Close closes it.
 - **The list.** On the left, the modules by name, such as GitLab and Jira, in bold. Under each, its item types by name, with their icons. A module's or type's description is also its tooltip.
 - **The details.** On the right, a pane describes the selected row. The first module is selected when the window opens.
-  - For a module: its name and description, then its settings screens, such as "Settings: General Configuration", and where each profile edits them, in Profiles > <profile> > Modules > <module>. A module without screens says "No settings." Then each of its item types, with its icon, name and description.
+  - For a module: its name and description, then its version, author, homepage and UUID, each on its own line and only when the module gave it, then its settings screens, such as "Settings: General Configuration", and where each profile edits them, in Profiles > <profile> > Modules > <module>. A module without screens says "No settings." Then each of its item types, with its icon, name and description.
   - For an item type: its icon, name and description, and the module it belongs to.
 - **Descriptions.** Each module and each item type gives its own, in one or two plain sentences. See [what a module registers](modules.md#what-a-module-registers) and [the type registry](item-types.md#the-type-registry).
+- **Homepage.** A module's homepage is a link. Clicking it opens the page in the system's browser. See [decision 0089](decisions/0089-module-identity.md).
 - **Built-in types.** The core registers no item type of its own yet, so the window lists modules only. Built-in panels will be listed under "Built in" once the core registers them.
 
 ## Settings
@@ -260,6 +261,7 @@ Some work, such as signing in to a site, is easier on a large page than in a sma
 - **Open Alone.** The cell menu entry "Open Alone" opens the item alone in the preview slot, as a double click on the item in the sidebar does. See [decision 0023](decisions/0023-item-tabs.md). The preview has a view of its own, in the same web profile, so a login made there reaches the cell when its page reloads. An item preview already shows its item alone, so it does not offer "Open Alone". Every item cell also has an "Open Alone" button, last in its header, as a task cell has its own. The cell menu button (⋮) shows only while the dashboard is unlocked; locked, these buttons cover its view commands, and a right click on the cell still opens the menu.
 - **Changing the item from its cell.** The menu of an item cell also offers two entries that change the item, not the layout, so they work on a locked dashboard and in an item preview too:
   - "Edit Item…" opens the item dialog.
+  - "Watch", checked while the item is [watched](#watched-items), for a type that reports status. It turns watching on or off.
   - "Use Current Address" is there for a cell that shows a web page, when the item's type has an address field. It saves the address the page shows now in that field, such as the Address of a Web page item. It is disabled when the two are already the same, and its tooltip shows the address.
 
 On a locked dashboard the cell menu of an item cell holds only these entries. On an unlocked one they come first, before the [editing commands](#editing-layouts).
@@ -395,6 +397,17 @@ Some reasons are events, such as an approval or a new Jira status. They stop cou
 - **Old data.** When the last fetch failed with a network or server error but older data exists, the header shows the data's age in grey, such as "12 min ago". The badges keep the older data's count.
 - **Refresh.** The refresh button in the cell header fetches the item's status at once. Otherwise the app checks the servers at the interval set in the [settings window](#settings).
 
+### Watched items
+
+Attention can also reach the user outside the app, through the tray icon and desktop notifications. Only **watched** items do this. See [decision 0087](decisions/0087-watched-items.md).
+
+- A watched item that needs attention counts on the [tray icon](#tray-and-notifications), and a failed pipeline in it sends a desktop notification. An item that is not watched does neither.
+- Items start not watched, also those made before watching existed.
+- Watching changes nothing else: the badges above show every item's attention.
+- Watching is offered for types that report status. The item dialog has a "Watch" row with "Count on the tray icon, and notify". The context menus of the item in the sidebar and in a cell header have a checkable "Watch".
+- The choice is stored in the item, so every device of the workspace watches the same items.
+- A watched item of an active task is polled even when nothing shows it, so a failure is seen while the window is hidden.
+
 ## Quick add
 
 Quick add creates a task from a link, or adds items to a task from a link. It has two entries, named after what they do (see [decision 0083](decisions/0083-quick-add-into-a-task.md)):
@@ -471,6 +484,10 @@ The global hotkey uses the QHotkey library. It works on Windows, macOS and X11, 
 - The macOS menu bar shows a monochrome icon, `resources/icons/mirante-tray.svg`, as a template image. macOS draws it in the menu bar's colour, like other apps' icons, with its three panels in shades of that colour. Windows and Linux show the app icon.
 - Clicking the tray icon brings Mirante to the front. On macOS, a click opens the menu instead.
 - The tray menu has "Show Mirante", "Settings…" and "Quit". File > Quit also exits. Under an open modal dialog, "Quit" brings the dialog to the front instead.
-- The tray icon shows the number of tasks that need attention. This is not built yet; see the [roadmap](roadmap.md#m8-tray-notifications-and-keyboard).
+- The tray icon shows the number of tasks that need attention through a [watched item](#watched-items): active tasks, not in the trash, with at least one watched item that needs attention. A task with two such items counts once. On Windows and Linux the number is a red badge with a white rim at the icon's lower right, "99+" above 99. On macOS it is the status item's title, next to the icon, so it follows the menu bar's light or dark look. With no such task the icon is plain. The tooltip says "Mirante: 2 tasks need attention", or "Mirante" alone.
 - If the platform has no system tray, for example GNOME without an extension, closing the window quits the app, and the global hotkey minimizes the window instead of hiding it. At start, Mirante looks for a tray for one minute, because at sign-in the taskbar may not be there yet.
-- A desktop notification appears only when a pipeline linked to a task fails. Clicking it opens the task.
+- A desktop notification appears only when a pipeline of a [watched item](#watched-items) fails: the modules mark those reasons to notify. Its title is the reason, such as "Pipeline failed", and its text names the task and the item, such as "Rotate TLS certificates / Pipeline". Clicking it brings Mirante to the front and opens the task's default dashboard in the preview. A task deleted or moved to the trash since then only brings Mirante to the front, and an open modal dialog stays in front.
+  - Each reason notifies once. The keys of the reasons already notified are kept on the device, so a restart sends nothing again. A pipeline that fails again later is a new reason and notifies again.
+  - What is already true when an item is first fetched, or when it starts to be watched, does not notify.
+  - When more than three notifications are due at once, one notification says "4 watched items need attention", and clicking it only brings Mirante to the front.
+  - Windows and Linux show the tray icon's message. The system shows one at a time, and some Linux desktops do not report the click. macOS uses its notification centre, which asks for permission the first time. Without a tray there are no notifications.

@@ -33,6 +33,16 @@ public:
          QObject *parent = nullptr);
     ~Tray() override;
 
+    // The number of tasks that need attention, shown on the icon. 0 shows
+    // the plain icon. On macOS it is the status item's title, next to the
+    // icon, so it follows the menu bar's appearance.
+    void setCount(int count);
+    void setToolTip(const QString &toolTip);
+
+    // Shows a message from the icon, a notification on Windows and Linux.
+    // Does nothing on macOS, where Notifier uses the system's notifications.
+    void showMessage(const QString &title, const QString &text);
+
     // Shows or removes the Dock icon while the window is shown or hidden in the
     // menu bar. Showing it also brings Mirante to the front. Does nothing
     // outside macOS.
@@ -41,6 +51,8 @@ public:
 signals:
     // A left click. Not emitted on macOS, where any click opens the menu.
     void triggered();
+    // The last message was clicked. Not emitted on macOS.
+    void messageClicked();
     // macOS only: the app was opened again from the Finder or the Dock. A second
     // process does not start there, so this is its way to bring the window back.
     void reopened();

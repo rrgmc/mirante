@@ -1,5 +1,7 @@
 #include "platform/Tray.h"
 
+#include "platform/TrayBadge.h"
+
 // macOS has its own implementation in TrayMac.mm.
 #if !defined(Q_OS_MACOS)
 
@@ -12,6 +14,8 @@ namespace mirante::platform {
 struct Tray::Private
 {
     QSystemTrayIcon *icon = nullptr;
+    QIcon base;
+    int count = 0;
 };
 
 bool Tray::isAvailable() { return QSystemTrayIcon::isSystemTrayAvailable(); }
@@ -22,6 +26,7 @@ Tray::Tray(const QIcon &icon, const QIcon &monochromeIcon, const QString &toolTi
     , d(std::make_unique<Private>())
 {
     Q_UNUSED(monochromeIcon);
+    d->base = icon;
     d->icon = new QSystemTrayIcon(icon, this);
     d->icon->setToolTip(toolTip);
     d->icon->setContextMenu(menu);
@@ -29,10 +34,26 @@ Tray::Tray(const QIcon &icon, const QIcon &monochromeIcon, const QString &toolTi
         if (reason == QSystemTrayIcon::Trigger)
             emit triggered();
     });
+    connect(d->icon, &QSystemTrayIcon::messageClicked, this, &Tray::messageClicked);
     d->icon->show();
 }
 
 Tray::~Tray() = default;
+
+void Tray::setCount(int count)
+{
+    if (count == d->count)
+        return;
+    d->count = count;
+    d->icon->setIcon(withTrayBadge(d->base, count));
+}
+
+void Tray::setToolTip(const QString &toolTip) { d->icon->setToolTip(toolTip); }
+
+void Tray::showMessage(const QString &title, const QString &text)
+{
+    d->icon->showMessage(title, text, QSystemTrayIcon::Warning);
+}
 
 void Tray::setDockIconVisible(bool visible) { Q_UNUSED(visible); }
 

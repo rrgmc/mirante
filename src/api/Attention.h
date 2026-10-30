@@ -19,6 +19,10 @@ class StatusCache;
 // among the item's seen keys, kept in DeviceSettings. An item's first status
 // records its clearsOnView keys as seen. See the M5 plan, part 4, and
 // docs/decisions/0061-attention-from-status-of-any-rendering.md.
+//
+// It also decides when a watched item sends a desktop notification: once for
+// each new reason with notify, never for what was true when the item was
+// first fetched or watched. See docs/decisions/0087-watched-items.md.
 // Implemented in Attention.cpp.
 class Attention : public QObject
 {
@@ -39,6 +43,10 @@ public:
     int projectCount(const QString &projectId) const;
     int groupCount(const QString &groupId) const;
 
+    // The number of tasks for the tray: active tasks, not in the trash, with
+    // a watched item that needs attention. See decision 0087.
+    int trayCount() const;
+
     // The user looked at the item: its current clearsOnView reasons become
     // seen.
     void markSeen(const QString &itemId);
@@ -46,6 +54,8 @@ public:
 signals:
     // Some count may have changed. Emitted at most once per event loop pass.
     void countsChanged();
+    // A watched item has a new reason with notify.
+    void notificationDue(const QString &taskId, const QString &itemId, const mirante::AttentionReason &reason);
 
 private:
     struct Private;

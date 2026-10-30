@@ -346,8 +346,10 @@ struct StatusCache::Private
         known = std::move(now);
 
         for (const QString &itemId : removed) {
-            if (forgetSeen)
+            if (forgetSeen) {
                 settings->removeSeenAttention(model->workspaceId(), itemId);
+                settings->removeNotifiedAttention(model->workspaceId(), itemId);
+            }
             empty(itemId);
         }
         for (const QString &itemId : changed)
@@ -456,8 +458,9 @@ struct StatusCache::Private
         if (const auto it = openedTasks.find(task.id);
             it != openedTasks.end() && it->second.secsTo(now()) < openedTaskSecs)
             return true;
+        // A watched item notifies while the window is hidden; decision 0087.
         return task.state == TaskState::Active
-               && (task.priority == Priority::Urgent || task.priority == Priority::High);
+               && (item.watch || task.priority == Priority::Urgent || task.priority == Priority::High);
     }
 
     bool isStale(const QString &itemId) const

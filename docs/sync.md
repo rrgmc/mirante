@@ -95,6 +95,7 @@ Settings that only make sense on one device are stored with `QSettings`, outside
 - the device settings that modules declare, such as the `folder` module's editor command, under `modules/<module id>/<key>` ([decision 0079](decisions/0079-module-device-settings.md));
 - the status poll interval, from 30 seconds to one hour, two minutes if not set ([polling](integrations.md#polling-and-caching)), and the hidden-view limit;
 - the attention reasons seen on each item, by workspace id and item id: the keys of the reasons that clear when seen ([decision 0061](decisions/0061-attention-from-status-of-any-rendering.md)). They are not synced, so each device shows an event until it is seen there. Removing an item removes its record;
+- the attention reasons each [watched item](ui.md#watched-items) has sent a desktop notification for, kept the same way, so a reason notifies once on each device;
 - whether Focus lists the tasks that need attention first;
 - the global hotkey, and whether closing the window hides it to the tray;
 - the language, under `language`: `system`, the default and not stored, `en` or `pt_BR`. It is read at start, before any window is made ([decision 0086](decisions/0086-english-and-brazilian-portuguese.md)).
@@ -113,7 +114,7 @@ Started with `--settings <file>`, the app keeps these settings in that INI file 
 - Tokens are never written to the data folder and never synced. Each device asks for each token once. See [decision 0054](decisions/0054-module-settings-replace-connections.md).
 - Tokens are stored from M5. No earlier version stored a token, so there are no old keys to move. The log never holds a token's value.
 - The app keeps each token in memory after the first read, so it asks the keychain once per key in a session.
-- macOS asks for permission before an app reads a keychain entry. **Always Allow** remembers the app's signature. An ad hoc signature changes with each build, so set `MIRANTE_MACOS_SIGN_IDENTITY` to keep the answer across builds. See [decision 0087](decisions/0087-sign-the-macos-bundle.md).
+- macOS asks for permission before an app reads a keychain entry. **Always Allow** remembers the app's signature. An ad hoc signature changes with each build, so set `MIRANTE_MACOS_SIGN_IDENTITY` to keep the answer across builds. See [decision 0090](decisions/0090-sign-the-macos-bundle.md).
 - A keychain error, such as a locked keychain or no Secret Service on Linux, shows "Could not use the keychain: <message>" in the main window's warning bar. The token then counts as not set.
 - With `--no-keychain`, tokens are kept in memory only and are lost at exit. Tests, and checks run with a scratch settings file, use it so they never touch the user's keychain.
 - The keychain cannot list its keys. To remove or move tokens, the app builds every key a workspace can have: each profile in `workspace.mirante`, with each `Secret` field of the modules' settings screens in this build. Deleting a profile removes its tokens on this device.

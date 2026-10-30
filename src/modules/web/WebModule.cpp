@@ -7,6 +7,8 @@
 #include <mirante/Module.h>
 
 #include <QCoreApplication>
+#include <QUrl>
+#include <QUuid>
 
 #include <memory>
 #include <vector>
@@ -78,6 +80,10 @@ void registerModule(ModuleRegistrar &registrar)
     registrar.setModuleName(QCoreApplication::translate("web", "Web"));
     registrar.setModuleDescription(QCoreApplication::translate(
         "web", "Any web page as an item."));
+    registrar.setModuleUuid(QUuid(QStringLiteral("bb731c5c-9a18-4e74-81f9-ae98f1fb24d1")));
+    registrar.setModuleVersion(QStringLiteral("0.1.0"));
+    registrar.setModuleAuthor(QStringLiteral("Rangel Reale"));
+    registrar.setModuleHomepage(QUrl(QStringLiteral("https://github.com/rrgmc/mirante/tree/master/src/modules/web")));
     registrar.addItemType(std::make_unique<PageItemType>(
         QStringLiteral("web.page"), QCoreApplication::translate("web", "Web page")));
 }

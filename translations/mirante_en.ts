@@ -10,6 +10,20 @@
             <numerusform>not opened: a newer version of Mirante wrote %n of its files, such as %1. Update Mirante to open it.</numerusform>
         </translation>
     </message>
+    <message numerus="yes">
+        <source>%1: %n task(s) need attention</source>
+        <translation>
+            <numerusform>%1: %n task needs attention</numerusform>
+            <numerusform>%1: %n tasks need attention</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>%n watched item(s) need attention</source>
+        <translation>
+            <numerusform>%n watched item needs attention</numerusform>
+            <numerusform>%n watched items need attention</numerusform>
+        </translation>
+    </message>
 </context>
 <context>
     <name>mirante::Placement</name>

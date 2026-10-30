@@ -2,6 +2,7 @@
 
 #include "items/ItemTypeRegistry.h"
 
+#include <QDesktopServices>
 #include <QDialogButtonBox>
 #include <QLabel>
 #include <QSplitter>
@@ -9,6 +10,7 @@
 #include <QTextDocument>
 #include <QTreeWidget>
 #include <QUrl>
+#include <QUuid>
 #include <QVBoxLayout>
 
 #include <algorithm>
@@ -73,6 +75,24 @@ QString ModulesDialog::Private::moduleHtml(const QString &moduleId) const
     const QString description = types->moduleDescription(moduleId);
     if (!description.isEmpty())
         html += QStringLiteral("<p>%1</p>").arg(description.toHtmlEscaped());
+
+    // The module's identity, one line for each part it gave. See decision 0089.
+    QStringList identity;
+    const auto line = [&identity](const QString &label, const QString &value) {
+        identity << QStringLiteral("<b>%1</b> %2").arg(label, value);
+    };
+    if (const QString version = types->moduleVersion(moduleId); !version.isEmpty())
+        line(ModulesDialog::tr("Version:"), version.toHtmlEscaped());
+    if (const QString author = types->moduleAuthor(moduleId); !author.isEmpty())
+        line(ModulesDialog::tr("Author:"), author.toHtmlEscaped());
+    if (const QUrl homepage = types->moduleHomepage(moduleId); !homepage.isEmpty()) {
+        const QString address = homepage.toString().toHtmlEscaped();
+        line(ModulesDialog::tr("Homepage:"), QStringLiteral("<a href=\"%1\">%1</a>").arg(address));
+    }
+    if (const QUuid uuid = types->moduleUuid(moduleId); !uuid.isNull())
+        line(ModulesDialog::tr("UUID:"), uuid.toString(QUuid::WithoutBraces));
+    if (!identity.isEmpty())
+        html += QStringLiteral("<p>%1</p>").arg(identity.join(QStringLiteral("<br>")));
 
     QStringList screens;
     for (const SettingsScreen *screen : types->settingsScreens(moduleId))
@@ -143,6 +163,11 @@ ModulesDialog::ModulesDialog(const ItemTypeRegistry &types, QWidget *parent)
     d->details = new DetailsBrowser(types, this);
     d->details->setObjectName(QStringLiteral("details"));
     d->details->setOpenLinks(false);
+    // A module's homepage opens in the system's browser.
+    connect(d->details, &QTextBrowser::anchorClicked, this, [](const QUrl &url) {
+        if (url.scheme() == QLatin1String("http") || url.scheme() == QLatin1String("https"))
+            QDesktopServices::openUrl(url);
+    });
 
     // Modules by name, as the user sees them.
     QStringList moduleIds = types.moduleIds();

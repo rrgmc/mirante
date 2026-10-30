@@ -2,6 +2,7 @@
 
 #include <QJsonArray>
 #include <QJsonValue>
+#include <QVariant>
 
 #include <cmath>
 #include <limits>
@@ -44,6 +45,22 @@ public:
     {
         if (const auto value = take(key, [](const QJsonValue &v) { return v.isBool(); }))
             *out = value->toBool();
+    }
+
+    // An array of strings. An array with any other element stays in extra.
+    void strings(const QString &key, QStringList *out)
+    {
+        const auto isStrings = [](const QJsonValue &v) {
+            if (!v.isArray())
+                return false;
+            for (const QJsonValue &element : v.toArray()) {
+                if (!element.isString())
+                    return false;
+            }
+            return true;
+        };
+        if (const auto value = take(key, isStrings))
+            *out = value->toVariant().toStringList();
     }
 
     void integer(const QString &key, int *out)
@@ -304,6 +321,8 @@ std::optional<Item> Item::fromJson(const QJsonObject &json, QString *error)
     // "webProfile" is the name used before decision 0050. "profile" wins.
     r.string(QStringLiteral("webProfile"), &item.profile);
     r.string(QStringLiteral("profile"), &item.profile);
+    r.boolean(QStringLiteral("watch"), &item.watch);
+    r.strings(QStringLiteral("pageKeys"), &item.pageKeys);
     item.extra = r.extra();
     return item;
 }
@@ -318,6 +337,10 @@ QJsonObject Item::toJson() const
     };
     if (!profile.isEmpty())
         json.insert(QStringLiteral("profile"), profile);
+    if (watch)
+        json.insert(QStringLiteral("watch"), true);
+    if (!pageKeys.isEmpty())
+        json.insert(QStringLiteral("pageKeys"), QJsonArray::fromStringList(pageKeys));
     return withExtra(json, extra);
 }
 

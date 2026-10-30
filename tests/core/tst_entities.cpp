@@ -260,6 +260,31 @@ private slots:
         QVERIFY(!old->toJson().contains(QStringLiteral("webProfile")));
     }
 
+    // watch and pageKeys are written only when set, so other items keep their
+    // files unchanged. A pageKeys that is not a list of strings stays as it was.
+    void itemWatchAndPageKeys()
+    {
+        const auto item = Item::fromJson(parse(R"({ "id": "i-1", "type": "web.page",
+            "watch": true, "pageKeys": ["Ctrl+K", "Ctrl+Shift+P"] })"));
+        QVERIFY(item);
+        QVERIFY(item->watch);
+        QCOMPARE(item->pageKeys, QStringList({QStringLiteral("Ctrl+K"), QStringLiteral("Ctrl+Shift+P")}));
+        QVERIFY(item->extra.isEmpty());
+        QCOMPARE(item->toJson(), parse(R"({ "id": "i-1", "type": "web.page", "name": "", "config": {},
+            "watch": true, "pageKeys": ["Ctrl+K", "Ctrl+Shift+P"] })"));
+
+        Item cleared = *item;
+        cleared.watch = false;
+        cleared.pageKeys.clear();
+        QVERIFY(!cleared.toJson().contains(QStringLiteral("watch")));
+        QVERIFY(!cleared.toJson().contains(QStringLiteral("pageKeys")));
+
+        const auto odd = Item::fromJson(parse(R"({ "id": "i-1", "type": "web.page", "pageKeys": ["Ctrl+K", 3] })"));
+        QVERIFY(odd);
+        QVERIFY(odd->pageKeys.isEmpty());
+        QCOMPARE(odd->toJson().value(QStringLiteral("pageKeys")), parse(R"({ "k": ["Ctrl+K", 3] })").value(QStringLiteral("k")));
+    }
+
     // Profile
 
     void profileFields()

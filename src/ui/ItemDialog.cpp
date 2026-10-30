@@ -7,6 +7,7 @@
 
 #include <mirante/ItemType.h>
 
+#include <QCheckBox>
 #include <QComboBox>
 #include <QDialogButtonBox>
 #include <QFormLayout>
@@ -79,6 +80,7 @@ struct ItemDialog::Private
     QLineEdit *name = nullptr;
     QFormLayout *form = nullptr;
     QComboBox *profile = nullptr;       // shown for types that use a profile
+    QCheckBox *watch = nullptr;         // shown for types that report status
     QString groupProfile;               // the profile of the item's group
     QStringList profileIds;             // the profiles offered, without an unknown one
     QVBoxLayout *editorBox = nullptr;
@@ -183,8 +185,14 @@ struct ItemDialog::Private
         editorBox->addWidget(editor);
     }
 
-    // The profile row is shown only for a type that uses a profile.
-    void showProfile() { form->setRowVisible(profile, types->usesProfile(item.type)); }
+    // The profile row is shown only for a type that uses a profile, and the
+    // watch row only for a type that reports status, since only those have
+    // attention. See decision 0087.
+    void showTypeRows()
+    {
+        form->setRowVisible(profile, types->usesProfile(item.type));
+        form->setRowVisible(watch, types->contains(item.type) && types->type(item.type).hasStatus());
+    }
 
     // The profile the item would use with the chosen entry: its own, or else
     // its group's. An unknown profile falls back to the group's.
@@ -264,7 +272,7 @@ struct ItemDialog::Private
             }
         }
         showTypeName();
-        showProfile();
+        showTypeRows();
         showPage(false);
     }
 
@@ -364,6 +372,14 @@ ItemDialog::ItemDialog(const Item &item, bool creating, const ItemTypeRegistry &
                               "read the logins and data of every site in the profile."));
     form->addRow(tr("Profile:"), d->profile);
 
+    d->watch = new QCheckBox(tr("Count on the tray icon, and notify"), d->itemPage);
+    d->watch->setObjectName(QStringLiteral("watch"));
+    d->watch->setChecked(item.watch);
+    d->watch->setToolTip(tr("A watched item that needs attention counts on the tray icon, and a failed "
+                            "pipeline sends a desktop notification. The sidebar shows every item's "
+                            "attention either way."));
+    form->addRow(tr("Watch:"), d->watch);
+
     d->editorBox = new QVBoxLayout;
     d->editorBox->setContentsMargins(0, 0, 0, 0);
 
@@ -444,7 +460,7 @@ ItemDialog::ItemDialog(const Item &item, bool creating, const ItemTypeRegistry &
     } else {
         d->makeEditor(item.config);
         d->showTypeName();
-        d->showProfile();
+        d->showTypeRows();
         d->showPage(false);
     }
     connect(d->profile, &QComboBox::currentIndexChanged, this, [this] { d->profileChosen(); });
@@ -475,6 +491,8 @@ Item ItemDialog::value() const
     // it had, such as an item of a missing module.
     if (d->form->isRowVisible(d->profile))
         item.profile = d->profile->currentData().toString();
+    if (d->form->isRowVisible(d->watch))
+        item.watch = d->watch->isChecked();
     return item;
 }
 
@@ -532,6 +550,10 @@ void ItemDialog::setProfile(const QString &id)
 }
 
 bool ItemDialog::showsProfile() const { return d->form->isRowVisible(d->profile); }
+
+bool ItemDialog::showsWatch() const { return d->form->isRowVisible(d->watch); }
+
+void ItemDialog::setWatch(bool watch) { d->watch->setChecked(watch); }
 
 QString ItemDialog::effectiveProfile() const { return d->effectiveProfile(); }
 

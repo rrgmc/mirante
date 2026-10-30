@@ -101,11 +101,15 @@ See [the M7 plan](plans/m7-quick-add-and-local-items.md) and [the changes after 
 
 ## M8: Tray, notifications and keyboard
 
+See [the M8 plan](plans/m8-tray-notifications-and-keyboard.md).
+
 - [x] Hiding to the tray on close. The fallback works where no tray exists. ([decision 0075](decisions/0075-hide-to-tray-and-show-hide-hotkey.md))
-- [ ] The attention count on the tray icon.
-- [ ] Desktop notification when a linked pipeline fails. Clicking it opens the task.
+- [x] Items can be watched. Only watched items count on the tray and send notifications. See [decision 0087](decisions/0087-watched-items.md).
+- [x] The attention count on the tray icon.
+- [x] Desktop notification when a linked pipeline fails. Clicking it opens the task.
 - [x] The global hotkey shows or hides the app on Windows, macOS and X11, and reports clearly on Wayland.
-- [ ] All shortcuts in [ui](ui.md#keyboard) work, including inside focused web pages.
+- [ ] All shortcuts in [ui](ui.md#keyboard) work, including inside focused web pages. An item can give keys to its page. See [decision 0088](decisions/0088-keys-a-page-keeps.md).
+- [ ] The File menu puts creating first and holds the workspace commands in a submenu.
 
 ## M9: Built-in panels
 
