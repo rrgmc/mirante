@@ -7,7 +7,7 @@ tools/build.ps1 -Preset release
 tools/run.ps1 -Preset release -Data <a test workspace> -Settings <a scratch .ini file>
 ```
 
-The sections on tokens and on the workspace id test the keychain itself, so run them without `-NoKeychain`. Tokens then go to Windows Credential Manager, under the generic credentials named `mirante`. Every other section can add `-NoKeychain`, so a test run leaves this device's keychain alone; type the tokens again after each start in that case.
+The sections on tokens and on the workspace id test the keychain itself, so run them without `-NoKeychain`. Tokens then go to Windows Credential Manager, as generic credentials whose names start with `mirante/`. Every other section can add `-NoKeychain`, so a test run leaves this device's keychain alone; type the tokens again after each start in that case.
 
 Use a test workspace with at least one group, a project and a task. You need:
 
@@ -19,9 +19,9 @@ Tick each box, or note what is wrong next to it.
 
 ## Tokens and the keychain
 
-- [ ] Profiles > the profile > Modules > GitLab: set the server to `https://gitlab.com` and type the token. After OK, open the screen again. The token field is empty, its placeholder says "Set on this device. Type to replace it.", and it has a Remove button.
-- [ ] The same for Jira, with your Atlassian site, the deployment left at "auto", your email and the API token.
-- [ ] Windows Credential Manager, Generic Credentials, has two entries for `mirante`, with keys of the form `<workspace id>/<profile id>/gitlab/token` and `<workspace id>/<profile id>/jira/token`. The workspace id is the `id` in `workspace.mirante`.
+- [X] Profiles > the profile > Modules > GitLab: set the server to `https://gitlab.com` and type the token. After OK, open the screen again. The token field is empty, its placeholder says "Set on this device. Type to replace it.", and it has a Remove button.
+- [X] The same for Jira, with your Atlassian site, the deployment left at "auto", your email and the API token.
+- [X] Windows Credential Manager, Generic Credentials, has two entries for `mirante`, named `mirante/<workspace id>/<profile id>/gitlab/token` and `mirante/<workspace id>/<profile id>/jira/token`. The workspace id is the `id` in `workspace.mirante`.
 - [ ] Quit and start again. Both screens still say the token is set, and the items below show their status without typing anything.
 - [ ] Remove on the GitLab screen, then OK: its entry is gone from Credential Manager, and the screen says "Not set on this device.". Type the token again afterwards.
 - [ ] Make a second profile, set a GitLab token in it, then delete the profile. The question mentions its tokens. Its entry is gone from Credential Manager.
