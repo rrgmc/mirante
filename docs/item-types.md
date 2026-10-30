@@ -21,6 +21,7 @@ A module registers each of its types in the `ItemTypeRegistry` with:
 | `createEditor` | Optional: an editor of the type's own for the configuration, used instead of the form built from `fields`. It receives the project's folders and a way to save an image into `files/`. |
 | `pastedImageField` | Optional: the key of an image field that a pasted image fills. If set, "Paste Image…" in a task's Items menu creates an item of this type, and `Ctrl+V` replaces the image of such an item. See [Image](#image). |
 | `rendering` | `native` (a Qt widget) or `web` (a [web view](web-views.md)). The [memory policy](web-views.md#memory-policy) unloads web views. |
+| `viewKeys` | Optional: configuration keys the view writes itself, such as a note's text. A change to only these keys keeps the view, which is told of it, instead of making it again. See [decision 0081](decisions/0081-views-that-keep-their-own-keys.md). |
 
 | `status` | Optional: how to fetch status and attention from the [status cache](integrations.md#polling-and-caching) |
 | `actions` | Optional: the light actions it offers |
@@ -174,10 +175,10 @@ The summaries have fixed layouts, as in [decision 0066](decisions/0066-fixed-nat
   - "Open page" and "Web", on the page of the pipeline shown.
 - **Refresh:** while the pipeline shown is unfinished and the view is visible, the view asks for a new status every 15 seconds. A pipeline that waits on a manual job counts as finished here, since it waits for a person. Otherwise the usual interval holds.
 - **Messages:** a branch without pipelines shows "No pipeline on <branch>" as its title, with only "Trigger pipeline" and the merge request's link. A pipeline that follows the main folder shows its status's message, in place of everything else.
-- **Status:** a summary of the latest, such as "Failed · main · 1 failed job", or "No pipeline on main" for a branch without pipelines. The item is never closed. Until M7, a pipeline that follows the main folder reports no status.
+- **Status:** a summary of the latest, such as "Failed · main · 1 failed job", or "No pipeline on main" for a branch without pipelines. The item is never closed. A pipeline that follows the main folder reads the folder's branch at each fetch, and reports no status, with a message, when the folder has no path on this device or is not on a branch.
 - **Attention:** a pipeline of the group failed, whichever is shown. Each failed pipeline is a new reason with its own key, so a failure is not hidden by a later pipeline that passed, and a retry that fails again counts again. Together with the merge request's failed pipeline, this is the only event that sends a [desktop notification](ui.md#tray-and-notifications).
 
-"Current branch of the main folder" reads `.git/HEAD` of the folder's local path on this device. If the folder is not mapped on this device, the panel asks for a branch.
+"Current branch of the main folder" reads `.git/HEAD` of the folder's local path on this device. If the folder is not mapped on this device, the panel says "Set the main folder's path on this device."
 
 ### GitLab CI Pipeline List
 
@@ -291,18 +292,9 @@ Module `claude`.
 
 There is no public API for these sessions, so the app has no status or summary for them. See [decision 0008](decisions/0008-claude-sessions.md).
 
-### Claude session (local)
+### Claude session (local), removed
 
-`claude.session.local`, native.
-
-- **Configuration:**
-  - `sessionId`, the session id, required;
-  - `folder`, one of the project's folders, the main folder when empty;
-  - `device`, a note about which device the session lives on.
-- **Shows:** the session id, folder and device, plus a "Resume in terminal" button.
-- **Action:** runs `claude --resume <id>` in a terminal in the folder's local path. See [terminal launch](integrations.md#terminal-launch).
-
-Local sessions exist on one device only. On other devices the panel shows the device name and disables the button.
+M7 added `claude.session.local`, a Claude Code session resumed in a terminal. [Decision 0084](decisions/0084-no-local-claude-sessions.md) removed it. An item of that type that is still in a workspace is kept unchanged. Its cell says "This item type is no longer available: claude.session.local.", and the user can delete it.
 
 ## General
 
@@ -317,20 +309,22 @@ Local sessions exist on one device only. On other devices the panel shows the de
 
 `notes`, native, module `notes`.
 
-- **Configuration:** none. The item dialog edits only the name.
-- **Shows:** a Markdown editor with a preview. The text is stored in the task file, so it syncs.
+- **Configuration:** none that the item dialog shows; it edits only the name. The text is kept in the configuration under `text`, which the dialog keeps unchanged.
+- **Shows:** a Markdown editor and its preview, with an **Edit** and a **Preview** button above them. It opens in Preview when the note has text, else in Edit. `Ctrl+E` switches while the keyboard's focus is in the note. The preview loads no images or other resources, and opens web and mail links in the external programs.
+- **Saving:** the text is stored in the task file, so it syncs. It is saved 800 ms after the last change, when the editor loses the keyboard's focus, and when the view closes. Empty text removes `text`. `viewKeys` is `text`, so saving does not make the editor again. A change from another device replaces the text only when the note has no unsaved change; otherwise the local text wins when it is saved. See [decision 0081](decisions/0081-views-that-keep-their-own-keys.md).
 
 ### Image
 
 `image`, native, module `image`. See [decision 0021](decisions/0021-image-items-as-files.md).
 
 - **Configuration:** `file`, the image's file in the data folder's `files/` folder, required; `link`, an optional URL; `memo`, optional plain text. The type returns `file` from `pastedImageField`.
-- **Shows:** the image, scaled to fit the cell, with the memo under it. A click on the image opens the link, if there is one.
+- **Shows:** the image, scaled to fit the cell with its aspect ratio kept, and centred, with the memo under it as plain, selectable text. The memo is hidden when empty. With an `http` or `https` link, the pointer is a hand over the image, the tooltip is the link, and a click opens it in the external browser. A missing file shows "The image file is missing.", and a file that is not an image "The image file cannot be read."
 - **Paste:** an image on the clipboard is pasted in one of two ways. The [paste dialog](ui.md#pasting-images) opens first, to preview the image and crop it. The cropped image is saved as PNG in `files/`, and the item's `file` is set to the new file's name. `ImagePaste` does the work, and the status bar shows its message. The "Paste" button of the item dialog's image field opens the same dialog. A pasted image is never added straight to a dashboard. See [decision 0051](decisions/0051-paste-images-from-the-items-menu.md).
   - **Paste Image…**, in the context menu of a task or its Items row, adds a new Image item to that task, named "Image", or "Image 2", "Image 3" and so on if the task already has an item with that name. No dashboard changes. The user drags the item from the sidebar onto a dashboard if wanted.
   - `Ctrl+V` replaces the image of the Image item in the focused cell, or of the item shown alone in a tab. This is an item edit, so it works on a locked dashboard, and in a root dashboard cell that shows the item. The old file is deleted when no item refers to it any more ([decision 0030](decisions/0030-deleting-image-files.md)). On any other cell, or without a focused cell, nothing changes, no dialog opens, and the status bar says "To add an image, use Paste Image… in a task's Items menu."
   - The new item is of the first type, by name, whose `pastedImageField` is set. In a build without such a type, such as one without the `image` module, nothing is pasted and the status bar says "This build cannot show images."
   - If the image cannot be saved, for example in the read-only sample data, nothing changes and the status bar says "The image could not be saved." For the read-only sample data this shows before any dialog opens.
+- **Drop:** an image file or image dropped from another app goes where the same image would go by pasting: on a task or its Items row in the sidebar, a new item as Paste Image… adds; on an Image item's cell, the item's image is replaced as `Ctrl+V` does; on the item dialog's image field, as its "Paste" button. The paste dialog opens first, and the rules above apply. `ImagePaste::imageFromMime()` reads the drop. See [ui](ui.md#pasting-images) and [decision 0085](decisions/0085-drop-images-from-other-apps.md).
 
 ### Folder / terminal
 
@@ -338,12 +332,14 @@ Local sessions exist on one device only. On other devices the panel shows the de
 
 - **Configuration:** `folder`, one of the project's folders, required.
 - **Shows:**
-  - the local path on this device;
-  - the current Git branch;
-  - a short `git status` summary.
-- **Actions:** open a terminal, open in the editor, open in the file manager.
+  - the folder's name, which is the last part of its local path, and the path;
+  - the current Git branch, or "Detached at <commit>";
+  - one line of `git status`, such as "2 ahead · 3 changed · 1 untracked", without the counts that are zero, or "Clean". Outside a repository it says "Not a Git repository", and without Git "Git was not found"; the branch still comes from the files.
+- **Actions:** open a terminal, open in the editor, open in the file manager. They work whatever Git says. A failure shows its message under them.
 
-The editor command is a device setting of the `folder` module. The terminal command is a core device setting.
+The Git state is read when the view shows and every 10 seconds while it is visible. A folder with no local path on this device shows "Folder not set on this device" with **Choose folder…** instead of the actions.
+
+The editor command is a device setting of the `folder` module, default `code`. It is split like a command line: its first part is the program, the rest its arguments, and the folder's path the last argument. The terminal command is a core device setting. See [decision 0082](decisions/0082-commands-as-argument-lists.md).
 
 ### Built-in panels
 

@@ -1,9 +1,18 @@
 #include "ui/SidebarTree.h"
 
+#include "ui/ImagePaste.h"
 #include "ui/SidebarDelegate.h"
 #include "ui/SidebarModel.h"
 
+#include <QDragEnterEvent>
+#include <QDragLeaveEvent>
+#include <QDragMoveEvent>
+#include <QDropEvent>
+#include <QMimeData>
 #include <QPainter>
+#include <QTimer>
+
+#include <algorithm>
 
 namespace mirante {
 
@@ -56,8 +65,9 @@ void SidebarTree::drawRow(QPainter *painter, const QStyleOptionViewItem &option,
                 tint = option.palette.color(QPalette::Highlight);
             fill = mix(option.palette.color(QPalette::Base), tint, projectTint);
         }
-        // The row of what the hovered dashboard cell shows.
-        if (delegate && delegate->isHoverTinted(index)) {
+        // The row of what the hovered dashboard cell shows, or the row an
+        // image dragged from another app would be dropped on.
+        if ((delegate && delegate->isHoverTinted(index)) || (m_imageDropRow.isValid() && index == m_imageDropRow)) {
             const QColor base = fill.isValid() ? fill : option.palette.color(QPalette::Base);
             fill = mix(base, option.palette.color(QPalette::Highlight), 0.22);
         }
@@ -77,6 +87,101 @@ void SidebarTree::drawRow(QPainter *painter, const QStyleOptionViewItem &option,
     for (const auto group : {QPalette::Active, QPalette::Inactive})
         rowOption.palette.setColor(group, QPalette::Highlight, Qt::transparent);
     QTreeView::drawRow(painter, rowOption, index);
+}
+
+bool SidebarTree::isOwnDrag(const QMimeData *mime) const
+{
+    if (!model())
+        return false;
+    const QStringList formats = model()->mimeTypes();
+    return std::any_of(formats.begin(), formats.end(), [mime](const QString &format) { return mime->hasFormat(format); });
+}
+
+QModelIndex SidebarTree::imageDropRow(const QPoint &pos) const
+{
+    // The Trash list takes no drops at all: its top level is not drop enabled.
+    if (!model() || !(model()->flags(QModelIndex()) & Qt::ItemIsDropEnabled))
+        return {};
+    const QModelIndex index = indexAt(pos);
+    const auto kind = SidebarModel::Kind(index.data(SidebarModel::KindRole).toInt());
+    if (!index.isValid() || (kind != SidebarModel::Kind::Task && kind != SidebarModel::Kind::ItemList))
+        return {};
+    return index;
+}
+
+void SidebarTree::setImageDropRow(const QModelIndex &index)
+{
+    if (index == m_imageDropRow)
+        return;
+    m_imageDropRow = index;
+    viewport()->update();
+}
+
+void SidebarTree::endImageDrag()
+{
+    m_dragImage = QImage();
+    setImageDropRow({});
+}
+
+// An image from another app is copied, never moved: a file manager would
+// otherwise delete the file once the drop is accepted. The drag is taken on
+// entering anywhere, so the move events keep coming, and each move accepts
+// or refuses it by the row under the pointer.
+void SidebarTree::dragEnterEvent(QDragEnterEvent *event)
+{
+    endImageDrag();
+    if (!isOwnDrag(event->mimeData()) && (event->possibleActions() & Qt::CopyAction)
+        && model() && (model()->flags(QModelIndex()) & Qt::ItemIsDropEnabled)) {
+        m_dragImage = ImagePaste::imageFromMime(event->mimeData());
+        if (!m_dragImage.isNull()) {
+            setImageDropRow(imageDropRow(event->position().toPoint()));
+            event->setDropAction(Qt::CopyAction);
+            event->accept();
+            return;
+        }
+    }
+    QTreeView::dragEnterEvent(event);
+}
+
+void SidebarTree::dragMoveEvent(QDragMoveEvent *event)
+{
+    if (m_dragImage.isNull()) {
+        QTreeView::dragMoveEvent(event);
+        return;
+    }
+    const QModelIndex row = imageDropRow(event->position().toPoint());
+    setImageDropRow(row);
+    if (row.isValid()) {
+        event->setDropAction(Qt::CopyAction);
+        event->accept();
+    } else {
+        event->ignore();
+    }
+}
+
+void SidebarTree::dragLeaveEvent(QDragLeaveEvent *event)
+{
+    endImageDrag();
+    QTreeView::dragLeaveEvent(event);
+}
+
+void SidebarTree::dropEvent(QDropEvent *event)
+{
+    if (m_dragImage.isNull()) {
+        QTreeView::dropEvent(event);
+        return;
+    }
+    const QImage image = m_dragImage;
+    const QModelIndex row = imageDropRow(event->position().toPoint());
+    endImageDrag();
+    if (!row.isValid()) {
+        event->ignore();
+        return;
+    }
+    event->setDropAction(Qt::CopyAction);
+    event->accept();
+    const QString taskId = row.data(SidebarModel::TaskIdRole).toString();
+    QTimer::singleShot(0, this, [this, taskId, image] { emit imageDropped(taskId, image); });
 }
 
 } // namespace mirante

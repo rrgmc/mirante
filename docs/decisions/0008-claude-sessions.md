@@ -1,6 +1,6 @@
 # 0008. Claude sessions through web views and the terminal only
 
-- Status: Accepted
+- Status: Accepted; local sessions superseded by [0084](0084-no-local-claude-sessions.md)
 - Date: 2026-10-28
 
 ## Context

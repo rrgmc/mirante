@@ -8,7 +8,7 @@ A module is one folder of item types and the code they share. Modules are compil
 |---|---|---|---|
 | `gitlab` | `gitlab.mr.summary`, `gitlab.mr.page`, `gitlab.mr.list`, `gitlab.pipeline`, `gitlab.pipeline.list`, `gitlab.issue.summary`, `gitlab.issue.page`, `gitlab.issue.list` | General Configuration: base URL, token, project paths | `project` |
 | `jira` | `jira.issue.summary`, `jira.issue.page`, `jira.list` | General Configuration: base URL, token | `projectKey` |
-| `claude` | `claude.session.web`, `claude.session.local` | none | none |
+| `claude` | `claude.session.web` | none | none |
 | `web` | `web.page` | none | none |
 | `notes` | `notes` | none | none |
 | `folder` | `folder` | none | none |
@@ -96,17 +96,18 @@ The module interface contains the headers below. The "Since" column gives the mi
 
 | Header | Contents | Since |
 |---|---|---|
-| `Module.h` | `ModuleRegistrar`, the object a module registers its parts with. `setModuleName()`, `addSettingsScreen()` and `settings()` were added after M4; see [settings screens](#settings-screens). So was `setModuleDescription()`; see [decision 0056](decisions/0056-modules-window.md). M5 adds `setServerType()` and `addProjectSetting()`. | M2 |
+| `Module.h` | `ModuleRegistrar`, the object a module registers its parts with. `setModuleName()`, `addSettingsScreen()` and `settings()` were added after M4; see [settings screens](#settings-screens). So was `setModuleDescription()`; see [decision 0056](decisions/0056-modules-window.md). M5 adds `setServerType()` and `addProjectSetting()`. M7 adds `addQuickAddHandler()`, `addRelatedItemFinder()` and `addDeviceSetting()`. | M2 |
 | `ModuleSettings.h` | `SettingsScreen`, one configuration screen of a module, and `ModuleSettings`, which reads the values of the module's screens in a profile. See [settings screens](#settings-screens). | after M4 |
-| `ItemType.h` | The `ItemType` interface. See [item types](item-types.md#the-type-registry). `shortName()`, the short label in cell headers, was added after M3; see [decision 0033](decisions/0033-cell-header-pills.md). M4 adds `rendering()` and `createView()`; its `connectionKinds()` was removed by [decision 0054](decisions/0054-module-settings-replace-connections.md). `fromUrl()` was added after M4; see [items from a link](#items-from-a-link). So was `fieldsForProfile()`; see [decision 0050](decisions/0050-profiles-hold-logins-connections-and-settings.md). `description()` was added after M4; see [decision 0056](decisions/0056-modules-window.md). M5 adds `hasStatus()` and `fetchStatus()`; see [status](#status). | M2 |
+| `ItemType.h` | The `ItemType` interface. See [item types](item-types.md#the-type-registry). `shortName()`, the short label in cell headers, was added after M3; see [decision 0033](decisions/0033-cell-header-pills.md). M4 adds `rendering()` and `createView()`; its `connectionKinds()` was removed by [decision 0054](decisions/0054-module-settings-replace-connections.md). `fromUrl()` was added after M4; see [items from a link](#items-from-a-link). So was `fieldsForProfile()`; see [decision 0050](decisions/0050-profiles-hold-logins-connections-and-settings.md). `description()` was added after M4; see [decision 0056](decisions/0056-modules-window.md). M5 adds `hasStatus()` and `fetchStatus()`; see [status](#status). M7 adds `viewKeys()`; see [decision 0081](decisions/0081-views-that-keep-their-own-keys.md). | M2 |
 | `UrlMatch.h` | `UrlMatch`, what an item type makes of a pasted web address, and `pathBelow()`, which reads an address below a server's base URL. See [items from a link](#items-from-a-link). | after M4 |
 | `Fields.h` | `Field`: a key, a label, a type, a default value, a required flag, and for a choice its values and labels. The types are text, multi-line text, URL, integer, boolean, choice, folder, image, text list and secret. A text field can offer `suggestions` in an editable drop-down list. A secret, such as a token, is for settings screens only; its value is never stored with the others. Used for item configuration and settings screens, and from M5 for project settings. See decisions [0028](decisions/0028-item-fields-in-m3.md), [0044](decisions/0044-module-settings-in-the-workspace.md) and [0054](decisions/0054-module-settings-replace-connections.md). | M3 |
 | `ItemEditor.h` | `ItemEditor`, the base of an item type's own configuration editor, and `EditorContext`, what an editor can reach: the project's folders and a way to save an image into `files/` | M3 |
 | `ItemContext.h` | `ItemContext`, everything an item's code can reach. See [below](#item-context). | M4 |
 | `ApiClient.h` | `ServerType`, how a module's server is set up and authenticated, and `ApiClient`, a module's server in one profile: requests with ETags, paging, rate limits and request limits. See [servers and tokens](#servers-and-tokens). | M5 |
-| `Status.h` | `ItemStatus`, `AttentionReason`, `StatusJob` and `ItemStatusSource`, for the [status cache](integrations.md#polling-and-caching). See [status](#status). | M5 |
+| `Status.h` | `ItemStatus`, `AttentionReason`, `StatusJob` and `ItemStatusSource`, for the [status cache](integrations.md#polling-and-caching). See [status](#status). M7 adds `StatusJob::folderPath()` and `gitHead()`. | M5 |
 | `widgets/*.h` | The [view kit](#the-view-kit): small widgets that native views share. | M6 |
-| `QuickAdd.h` | Quick add handlers and related-item finders | M7 |
+| `QuickAdd.h` | Quick add handlers and related-item finders. See [quick add](#quick-add). | M7 |
+| `GitState.h` | `GitState`, a folder's Git state, as `ItemContext::gitStatus()` reports it | M7 |
 | `Values.h` | Read-only views of a group, project, task, item and folder | planned |
 
 Modules see entities only through read-only views. Changes go through actions on `ItemContext`, which call the core's `Model` methods.
@@ -123,9 +124,9 @@ The register function receives a `ModuleRegistrar` and adds any of the following
 | Settings screens | Configuration screens of the whole module, such as GitLab's "General Configuration", with values kept in each profile of the workspace. See [settings screens](#settings-screens). |
 | Project settings | Fields shown in the project dialog, such as the GitLab project path, with `addProjectSetting()`. They are defaults for the module's items. |
 | Server | How the module's server is set up and authenticated, with `setServerType()`. See [servers and tokens](#servers-and-tokens). |
-| Device settings | Fields kept on each device, such as an editor command |
-| Quick add handlers | Recognise pasted text and propose a task. See [quick add](#quick-add). |
-| Related-item finders | Find items related to a piece of text, such as merge requests whose branch contains a Jira key |
+| Device settings | Fields kept on each device, such as an editor command, with `addDeviceSetting()`. Types Text, Integer, Bool and Choice. The [settings window](ui.md#settings) edits them, and items read them with `ItemContext::deviceSetting()`. See [decision 0079](decisions/0079-module-device-settings.md). |
+| Quick add handlers | Recognise pasted text and propose a task, with `addQuickAddHandler()`. See [quick add](#quick-add). |
+| Related-item finders | Find items related to a piece of text, such as merge requests whose branch contains a Jira key, with `addRelatedItemFinder()` |
 
 The core builds every dialog from the field definitions, and checks the values against them. It stores and edits the values without knowing what they mean. The one exception is an item type with its own editor: the item dialog shows that editor instead of a form. Either way, keys of the configuration that the form or editor does not show are kept unchanged.
 
@@ -196,16 +197,22 @@ Each item's code gets an `ItemContext`. It gives access to the configuration the
 | `itemName()`, `config()` | The item's name and configuration, read from the model on each call | M4 |
 | `item()`, `task()`, `project()`, `group()` | Read-only views of the item and where it sits | planned |
 | `projectSetting(key)` | A project setting the module declared, such as `project` for GitLab. Undefined if the project does not set it. | M4 |
-| `deviceSetting(key)` | A device setting the module declared | M7 |
+| `deviceSetting(key)` | A device setting the module declared, or its field's default | M7 |
+| `filePath(fileName)` | The absolute path of a file in the data folder's `files/`, such as an image | M7 |
 | `moduleSettings(screenId)` | The values of one of the module's [settings screens](#settings-screens), in the item's profile. Empty if nothing is stored. A module reads its server here, such as GitLab's base URL. Added after M4; see decisions [0050](decisions/0050-profiles-hold-logins-connections-and-settings.md) and [0054](decisions/0054-module-settings-replace-connections.md). | after M4 |
 | `server()` | The module's server in the item's profile, or null for a module without a `ServerType`. See [servers and tokens](#servers-and-tokens). | M5 |
 | `status()` | This item's entry in the status cache: read the current status, refresh, subscribe. Null for a type without status. See [status](#status). | M5 |
 | `createWebView(url)` | A live web page in a plain `QWidget`, in the web logins of the item's [profile](web-views.md#profiles), with popups, permissions, downloads and the toolbar handled by the core. The normal way for a web type to show a page. See [decision 0037](decisions/0037-core-makes-web-views.md). | M4 |
 | `profile()` | The web logins of the item's [profile](web-views.md#profiles), as a `QWebEngineProfile`, for a module that builds its own `QWebEngineView`. Such a module links Qt WebEngine with `QT_LIBS`, and handles popups, permissions and downloads itself. The profile holds the logins of every site that its items visit, including those of other modules; see [decision 0042](decisions/0042-user-managed-web-profiles.md). | M4 |
 | `createMessageView(text)` | A grey message in the cell, such as "Set the issue key in the item's settings." | M4 |
-| `folderPath(folderId)` | The local path of a project folder on this device, or empty if not mapped | M4 |
-| `gitHead(path)` | The current branch of a folder | M7 |
-| `launchTerminal(dir, command)` | Starts a command in a terminal. See [terminal launch](integrations.md#terminal-launch). | M7 |
+| `folderPath(folderId)` | The local path of a project folder on this device, or empty if not mapped. An empty id means the main folder, from M7. | M4 |
+| `mapFolder(folderId)` | Asks the user for a folder's local path on this device, and stores it | M7 |
+| `gitHead(path)` | The current branch of a folder, read from its files. See [decision 0080](decisions/0080-git-read-by-the-core.md). | M7 |
+| `gitStatus(path, receiver, done)` | Runs `git status` in the background and reports a `GitState` | M7 |
+| `launchTerminal(dir, program, arguments)` | Starts a program in a terminal, or a terminal alone. See [terminal launch](integrations.md#terminal-launch) and [decision 0082](decisions/0082-commands-as-argument-lists.md). | M7 |
+| `startProgram(dir, program, arguments)` | Starts a program, such as an editor, detached | M7 |
+| `showFolder(path)` | Shows a folder in the file manager | M7 |
+| `onConfigChanged(receiver, changed)` | Reports a change to the type's `viewKeys()`, which does not make the view again. See [decision 0081](decisions/0081-views-that-keep-their-own-keys.md). | M7 |
 | `updateConfig(config)` | Changes the item's configuration through `Model` | M4 |
 | `showPage(url)` | Shows a web page in place of the view, with a way back. See [decision 0069](decisions/0069-open-page-in-the-placement.md). | M6 |
 | `addItemToTask(typeId, name, config)` | Adds an item to the item's task, for "Add to task as item" | M6 |
@@ -253,20 +260,22 @@ Native views of different modules need the same small widgets, and modules canno
 - `StatusPill` and `statusColours()`: a pill for a `StatusRole`. A module names a role, never a colour.
 - `FlowRow`: a layout that wraps.
 - `SummaryView`: the fixed layout of a summary, with sections that can be hidden. See [decision 0066](decisions/0066-fixed-native-layouts-with-sections.md).
-- `ActionRow`: the buttons of a view, the "Web" link, and the error of the last action.
+- `ActionRow`: the buttons of a view, the "Web" link, and the error of the last action. `addLinkAction()` adds an entry that goes somewhere and changes nothing, such as "Open page". It looks like a link, so it stands apart from the commands.
+- `styleAsLink()`: makes a button look like a link, as the links in a list's rows do.
 - `askComment()`: asks for the text of a comment.
 - `ItemListView`: a sortable table. See [decision 0071](decisions/0071-lists-link-out-without-a-preview.md).
   - A `ListCell` can hold `links`, each with an id and a label. A cell draws them as links, and a click emits `rowLinkActivated(key, linkId)`. Return on a row activates its first link. A column that holds links takes `hidePriority` 0, so that it never hides by width.
   - `setPageSize(n)` shows `n` rows at a time, with Previous and Next and a line such as "1-50 of 100". Zero or less means no pages, and the controls hide when all rows fit. `visibleKeys()` gives the current page's keys in table order, and `visibleKeysChanged()` says when they change.
   - `addFilter(column, label)` adds a drop-down above the table, filled from that column's values, with "All" first. The choice survives `setRows()` while its value exists, and otherwise falls back to "All".
   - Sorting and filtering cover all rows. A new sort or filter goes back to the first page. New rows keep the page, or move to the last page if there are now fewer.
+  - `setDescription(text)` shows a line above the table that says what the list shows, such as "Of merge request !42 · acme/backend". Each list type sets it from its configuration.
   - The object names `filter.<column>`, `previousPage`, `nextPage` and `pageLine` let tests find the controls.
   - A selected row keeps its highlight across new rows, sorts and pages, so that Return acts on the row the user chose.
 - `compactDate()`: a date for a table, in local time: `10-30 14:32` in this year, `2025-10-30` otherwise.
 
 ### Testing
 
-A module's tests also link `mirante::module_api_testing`. It holds `<mirante/testing/FakeApiClient.h>`, an `ApiClient` that answers from a table of recorded replies and records the requests, and `<mirante/testing/FakeStatusJob.h>`. Recorded responses live in the module's `tests/data/` folder.
+A module's tests also link `mirante::module_api_testing`. It holds `<mirante/testing/FakeApiClient.h>`, an `ApiClient` that answers from a table of recorded replies and records the requests, `<mirante/testing/FakeStatusJob.h>`, and `<mirante/testing/FakeQuickAdd.h>`. Recorded responses live in the module's `tests/data/` folder.
 
 ## Quick add
 
@@ -274,11 +283,39 @@ Quick add is generic. The core passes the pasted text to every quick add handler
 
 - recognise the text, such as a merge request URL or a Jira key;
 - propose a task title and its items;
-- name a project setting and value to match, such as `gitlab.project = acme/backend`. The core picks the project whose setting has that value. If none matches, or several do, it asks the user.
+- name a project setting and value to match, such as `gitlab.project = acme/backend`. The core picks the project whose setting has that value. If none matches, or several do, it asks the user. When the items go to an existing task, the task's project is used and the match is ignored.
 
-The core then passes the new task's title and its items' text, such as a branch name, to every related-item finder. A finder can offer more items. For example, the `gitlab` module finds merge requests whose branch contains a Jira key, and the `jira` module recognises a Jira key in a merge request title.
+The core then passes the task's title and its items' text, such as a branch name, to every related-item finder. A finder can offer more items. For example, the `gitlab` module finds merge requests whose branch contains a Jira key, and the `jira` module recognises a Jira key in a merge request title.
 
-This lets the `jira` and `gitlab` modules work together without depending on each other. See [ui](ui.md#quick-add).
+The core either creates a task with the chosen items, or adds them to an existing task. See [decision 0083](decisions/0083-quick-add-into-a-task.md).
+
+This lets the `jira` and `gitlab` modules work together without depending on each other. See [ui](ui.md#quick-add) and [decision 0078](decisions/0078-quick-add-dialog.md).
+
+```cpp
+class GitLabQuickAddHandler : public mirante::QuickAddHandler
+{
+public:
+    void propose(QuickAddRequest &request) const override
+    {
+        // Not a merge request address: finish at once, without asking the server.
+        // Otherwise ask request.server(), with request.owner() as the receiver,
+        // and finish with a QuickAddProposal: title, items, project match, texts.
+        request.finish(std::nullopt);
+    }
+};
+
+void registerModule(ModuleRegistrar &registrar)
+{
+    registrar.addQuickAddHandler(std::make_unique<GitLabQuickAddHandler>());
+    registrar.addRelatedItemFinder(std::make_unique<GitLabRelatedItemFinder>());
+}
+```
+
+- **Requests.** A handler gets a `QuickAddRequest`, a finder a `RelatedItemRequest`. Like a `StatusJob`, each gives the module's settings and server, in the profile the dialog shows, and ends with `finish()`, exactly once. A run that does not finish in 30 seconds counts as finding nothing.
+- **Proposals.** A `QuickAddProposal` has the task's title, its items in order, an optional `ProjectMatch` of one of the module's project settings, and texts for the finders, such as a branch name.
+- **Items.** A `QuickAddItem` has a type id, a name and a configuration, as the item dialog would make. Its profile is empty, so it follows its group. The core drops an item whose type and configuration are already offered, or, when adding to a task, that the task already has. Finders see the task's items among the offered items.
+- **Finders** also read the chosen project's settings with `projectSetting()`, such as the GitLab project to search.
+- **Tests.** `<mirante/testing/FakeQuickAdd.h>` has `FakeQuickAddRequest` and `FakeRelatedItemRequest`.
 
 ## Attention
 
@@ -294,6 +331,7 @@ The core suggests marking a task done when every item whose type reports `closed
 Synced data can reach a build that does not include a module. For example, one device builds without `jira`. The core then:
 
 - **Items:** shows a placeholder: "This item needs the jira module, which this build does not include." The item's `type` and `config` are kept unchanged.
+- **Removed types:** an item whose module is in the build but no longer registers its type, such as `claude.session.local` ([decision 0084](decisions/0084-no-local-claude-sessions.md)), is handled the same way. Its placeholder says "This item type is no longer available: claude.session.local." The item dialog changes only its name.
 - **Project settings:** keeps the module's settings unchanged and does not show them.
 - **Module settings:** keeps the values of the module's settings screens unchanged in each profile in `workspace.mirante`. The Profiles menu has no entry for the module.
 - **Cells and Focus:** show the item's name. No status or attention is computed for it.
@@ -308,6 +346,18 @@ Everything is written back exactly as it was loaded. See [sync](sync.md#the-data
 - Everything runs on the main thread. See [threading](architecture.md#threading).
 - Each module tests at least its URL recognition and its attention rules, on recorded API responses.
 - Each module's `README.md` lists its item types, settings and settings screens.
+- Texts follow [texts](#texts).
+
+## Texts
+
+The app speaks English and Brazilian Portuguese ([decision 0086](decisions/0086-english-and-brazilian-portuguese.md)).
+
+- Every text the user sees uses `QCoreApplication::translate()` with the module id as its context, such as `QCoreApplication::translate("gitlab", "Open")`. This includes the module's name, item type names, field labels, choice labels and messages. Module code does not call `tr()`, because its views have no `Q_OBJECT` of their own, so `lupdate` would file the text under a context that the running app does not ask for. `task check` fails on a `tr()` in module code.
+- The source text is written out in the call, not passed through a helper function, so `lupdate` finds it. A text chosen in one place and translated in another is marked with `QT_TRANSLATE_NOOP("<module id>", "…")`.
+- Texts made from parts use `arg()`, such as `QCoreApplication::translate("jira", "%1 more").arg(count)`, never string addition.
+- Each new text is translated in the same change, in `translations/mirante_pt_BR.ts`. See [translations/README.md](../translations/README.md).
+- Ids, stored values, API values, URLs and log messages stay in English.
+- Dates and numbers shown to the user are formatted with the default `QLocale`, such as `QLocale().toString(date, QLocale::ShortFormat)`, or with `widgets::compactDate()`.
 
 ## Adding a module
 

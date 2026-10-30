@@ -13,14 +13,14 @@ Each file records one design decision: what was decided, what else was considere
 | [0005](0005-profiles-per-group.md) | One web login profile per group, with a shared option | Superseded by 0042 |
 | [0006](0006-connections-per-group.md) | API connections per group, tokens in the keychain | Superseded by 0054 |
 | [0007](0007-separate-item-types-per-rendering.md) | Separate item types for summary and page | Accepted |
-| [0008](0008-claude-sessions.md) | Claude sessions through web views and the terminal only | Accepted |
+| [0008](0008-claude-sessions.md) | Claude sessions through web views and the terminal only | Accepted; local sessions superseded by 0084 |
 | [0009](0009-priority-and-attention.md) | Four priority levels; attention as badges | Accepted; sorting superseded by 0034 |
 | [0010](0010-folder-identity.md) | Folders stored as identities, mapped to paths per device | Accepted |
 | [0011](0011-root-cells-reference-task-dashboards.md) | Root dashboard cells refer to task dashboards | Accepted |
 | [0012](0012-html-prototype-first.md) | HTML prototype and Qt spike before features | Superseded by 0015 |
 | [0013](0013-compiled-in-modules.md) | Item types in compiled-in modules, chosen at build time | Accepted |
 | [0014](0014-name-mirante.md) | Name the app Mirante | Accepted |
-| [0015](0015-app-skeleton-instead-of-spike.md) | Build the app skeleton directly, with CI from M2 | Accepted |
+| [0015](0015-app-skeleton-instead-of-spike.md) | Build the app skeleton directly, with CI from M2 | Accepted; macOS in CI by 0077 |
 | [0016](0016-generic-items.md) | Generic items: any `QWidget`, with two view flags | Accepted |
 | [0017](0017-parallel-tasks-with-fixed-interfaces.md) | Parallel tasks with fixed interfaces and globbed sources | Accepted |
 | [0018](0018-no-default-task.md) | No Default task in projects | Accepted |
@@ -79,7 +79,19 @@ Each file records one design decision: what was decided, what else was considere
 | [0072](0072-pipelines-started-together.md) | A pipeline item shows the pipelines started together | Accepted |
 | [0073](0073-jira-extra-fields.md) | Jira's extra fields are named in the profile's settings | Accepted |
 | [0074](0074-refuse-workspaces-from-newer-versions.md) | A workspace from a newer version is not opened | Accepted |
-| [0075](0075-sign-the-macos-bundle.md) | Sign the macOS bundle with a certificate when one is set | Accepted |
+| [0075](0075-hide-to-tray-and-show-hide-hotkey.md) | Closing hides to the tray, and a global hotkey shows or hides the app | Accepted; the default hotkey by 0076 |
+| [0076](0076-left-hand-default-hotkey.md) | The default global hotkey is pressed with the left hand | Accepted |
+| [0077](0077-no-macos-in-ci-during-development.md) | No macOS in CI during development | Accepted |
+| [0078](0078-quick-add-dialog.md) | Quick add is a dialog that reads text through the modules | Accepted; in part superseded by 0083 |
+| [0079](0079-module-device-settings.md) | Modules declare device settings as fields | Accepted |
+| [0080](0080-git-read-by-the-core.md) | The core reads Git state for modules | Accepted |
+| [0081](0081-views-that-keep-their-own-keys.md) | A view can keep configuration keys it writes itself | Accepted |
+| [0082](0082-commands-as-argument-lists.md) | Commands are passed as a program and its arguments | Accepted |
+| [0083](0083-quick-add-into-a-task.md) | Quick add can add items to an existing task, and says which it does | Accepted |
+| [0084](0084-no-local-claude-sessions.md) | No Claude session (local) item | Accepted |
+| [0085](0085-drop-images-from-other-apps.md) | Images can be dropped from other apps | Accepted |
+| [0086](0086-english-and-brazilian-portuguese.md) | The app speaks English and Brazilian Portuguese | Accepted |
+| [0087](0087-sign-the-macos-bundle.md) | Sign the macOS bundle with a certificate when one is set | Accepted |
 
 ## Template
 

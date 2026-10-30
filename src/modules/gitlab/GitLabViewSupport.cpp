@@ -6,7 +6,9 @@
 #include <mirante/ItemContext.h>
 #include <mirante/widgets/ActionRow.h>
 #include <mirante/widgets/FlowRow.h>
+#include <mirante/widgets/LinkStyle.h>
 
+#include <QCoreApplication>
 #include <QDate>
 #include <QDateTime>
 #include <QDesktopServices>
@@ -29,11 +31,6 @@ namespace {
 
 const QString kOpenPage = QStringLiteral("open-page");
 
-QString translated(const char *source)
-{
-    return QCoreApplication::translate("gitlab", source);
-}
-
 } // namespace
 
 QString localDateTime(const QString &text)
@@ -54,16 +51,16 @@ QString durationText(const QJsonValue &seconds)
         return {};
     const qint64 total = std::llround(seconds.toDouble());
     if (total < 60)
-        return translated("%1 s").arg(total);
+        return QCoreApplication::translate("gitlab", "%1 s").arg(total);
     if (total < 3600)
-        return translated("%1 min %2 s").arg(total / 60).arg(total % 60);
-    return translated("%1 h %2 min").arg(total / 3600).arg(total / 60 % 60);
+        return QCoreApplication::translate("gitlab", "%1 min %2 s").arg(total / 60).arg(total % 60);
+    return QCoreApplication::translate("gitlab", "%1 h %2 min").arg(total / 3600).arg(total / 60 % 60);
 }
 
 QString statusText(const QString &status)
 {
     if (status == QLatin1String("success"))
-        return translated("Passed");
+        return QCoreApplication::translate("gitlab", "Passed");
     QString words = status;
     words.replace(QLatin1Char('_'), QLatin1Char(' '));
     if (!words.isEmpty())
@@ -103,8 +100,8 @@ QUrl webAddress(const QJsonObject &object, const QUrl &fallback)
 QString actionError(const ApiReply &reply)
 {
     if (reply.error == ApiReply::Error::Forbidden || reply.httpStatus == 403)
-        return translated("The token cannot do this. It needs the api scope.");
-    return reply.message.isEmpty() ? translated("The action failed.") : reply.message;
+        return QCoreApplication::translate("gitlab", "The token cannot do this. It needs the api scope.");
+    return reply.message.isEmpty() ? QCoreApplication::translate("gitlab", "The action failed.") : reply.message;
 }
 
 QString userNames(const QJsonArray &users)
@@ -135,13 +132,13 @@ QLabel *plainWord(const QString &text)
 StatusPill *statePill(const QString &state)
 {
     if (state == QLatin1String("opened"))
-        return new StatusPill(translated("Open"), StatusRole::Good);
+        return new StatusPill(QCoreApplication::translate("gitlab", "Open"), StatusRole::Good);
     if (state == QLatin1String("merged"))
-        return new StatusPill(translated("Merged"), StatusRole::Good);
+        return new StatusPill(QCoreApplication::translate("gitlab", "Merged"), StatusRole::Good);
     if (state == QLatin1String("closed"))
-        return new StatusPill(translated("Closed"), StatusRole::Neutral);
+        return new StatusPill(QCoreApplication::translate("gitlab", "Closed"), StatusRole::Neutral);
     if (state == QLatin1String("locked"))
-        return new StatusPill(translated("Locked"), StatusRole::Neutral);
+        return new StatusPill(QCoreApplication::translate("gitlab", "Locked"), StatusRole::Neutral);
     return new StatusPill(statusText(state), StatusRole::Neutral);
 }
 
@@ -149,7 +146,7 @@ StatusPill *jobPill(const QJsonObject &job)
 {
     const QString status = job.value(QStringLiteral("status")).toString();
     if (status == QLatin1String("failed") && job.value(QStringLiteral("allow_failure")).toBool())
-        return new StatusPill(translated("Failed, allowed"), StatusRole::Waiting);
+        return new StatusPill(QCoreApplication::translate("gitlab", "Failed, allowed"), StatusRole::Waiting);
     return new StatusPill(statusText(status), statusRole(status));
 }
 
@@ -157,8 +154,7 @@ QPushButton *linkButton(const QString &text, const QString &name)
 {
     auto *button = new QPushButton(text);
     button->setObjectName(name);
-    button->setFlat(true);
-    button->setCursor(Qt::PointingHandCursor);
+    widgets::styleAsLink(button);
     return button;
 }
 
@@ -182,7 +178,7 @@ QWidget *newColumn()
 QWidget *labelChips(const QJsonArray &labels)
 {
     if (labels.isEmpty())
-        return plainLine(translated("No labels"));
+        return plainLine(QCoreApplication::translate("gitlab", "No labels"));
     auto *row = new QWidget;
     auto *flow = new widgets::FlowRow(row);
     for (const QJsonValue &label : labels)
@@ -209,10 +205,12 @@ void GitLabSummary::follow(ItemStatusSource *source)
 
 void GitLabSummary::showStatus(const ItemStatus &status)
 {
-    // Old data stays through an error. Problems show in the cell header.
+    // Old data stays through an error. Problems show in the cell header. A
+    // message without an error, such as a main folder that left its branch,
+    // says the item has nothing to show now, so it replaces the old data.
     if (status.data.isEmpty()) {
-        if (!m_drawn)
-            setMessage(status.message.isEmpty() ? tr("Loading…") : status.message);
+        if (!m_drawn || (status.state == ItemStatus::State::None && !status.message.isEmpty()))
+            setMessage(status.message.isEmpty() ? QCoreApplication::translate("gitlab", "Loading…") : status.message);
         return;
     }
     m_drawn = true;
@@ -252,7 +250,8 @@ void GitLabSummary::applyField(const QString &section, const QString &field)
 
 void GitLabSummary::addOpenPage()
 {
-    actions()->addAction(kOpenPage, tr("Open page"), tr("Page"), [this] { openPage(); });
+    actions()->addLinkAction(kOpenPage, QCoreApplication::translate("gitlab", "Open page"),
+                             QCoreApplication::translate("gitlab", "Page"), [this] { openPage(); });
 }
 
 void GitLabSummary::setPageAddress(const QUrl &url)
@@ -287,7 +286,7 @@ void GitLabSummary::run(const Request &request, const std::function<void()> &fin
     ApiClient *server = m_context->server();
     if (!server) {
         finished();
-        actions()->showError(tr("This item has no server."));
+        actions()->showError(QCoreApplication::translate("gitlab", "This item has no server."));
         return;
     }
     request(GitLabClient(*server, this), [this, finished](const ApiReply &reply) {

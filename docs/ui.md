@@ -47,7 +47,7 @@ The sidebar can be collapsed.
   - Dragging a group, project or task among its siblings changes its place. It never changes a priority. Nothing is dragged in the Trash list.
   - Dragging an item among the items of its task, or a task dashboard among the dashboards of its task, changes its place in the task's list. It stays in its task. The same drag still drops the item or dashboard on a dashboard.
   - A task itself is not dragged onto dashboards. Drag one of its items, to show that item, or one of its dashboards, to show the task with that dashboard in a root dashboard. See [placing tasks](#placing-tasks-and-items).
-- The context menu holds new, edit, rename, set priority, set state and delete, and on a task dashboard "Set as default". On a task and its Items row it also holds "Paste Image…", after "New item…". See [pasting images](#pasting-images). On a task dashboard or an item it also holds "Open in new root dashboard", which makes a root dashboard showing just that dashboard or item.
+- The context menu holds new, edit, rename, set priority, set state and delete, and on a task dashboard "Set as default". On a task and its Items row it also holds "Paste Image…", after "New item…", and then "Add Items from Link…". See [pasting images](#pasting-images) and [quick add](#quick-add). On a task dashboard or an item it also holds "Open in new root dashboard", which makes a root dashboard showing just that dashboard or item.
 - Project rows have a light tint of their group's colour, a rounded shape like the selection. They stand out between groups and tasks, and show their group while its heading is scrolled away. Task rows have no tint. See [decision 0046](decisions/0046-group-colours.md).
 - While the mouse is over a dashboard cell, the sidebar row of what the cell shows gets a soft tint: the item's row for an item cell, also one inside a task cell, and the task's row for a task cell. The tint goes when the mouse leaves the cell. The tree does not expand or scroll for it. The [settings window](#settings) can turn the tint off. If a collapsed row hides that row, the nearest row that can be seen takes the tint instead: the task of an item whose task or Items row is closed, or the project or group if that is closed. The tint follows as rows open and close.
 - "Delete project…" and "Delete task…" move the project or task to the [trash](#trash), without a question, since it can be undone. Holding `Shift` while choosing them deletes for good, after a confirmation. Every other delete, such as of a group, an item or a task dashboard, asks for confirmation first and cannot be undone.
@@ -151,12 +151,20 @@ Help > Modules… opens the Modules window. It shows what this build of the app 
 The settings window holds settings of this device. They are kept in the [device settings](sync.md#device-settings), not in the workspace, so they are not synced. Module settings, which belong to the workspace, are in the [Profiles menu](#profiles-menu).
 
 - **Opening it.** On macOS it is the standard Settings… item of the application menu, with `Cmd+,`. On Windows and Linux it is Tools > Settings…, with the platform's preferences key if it has one. There is no Edit menu, since the app has no edit commands, and Tools is where Windows apps keep their options. See [menus](#menus).
-- **Applying changes.** Each change is saved and applied at once, without a restart. The window has only a Close button.
+- **Applying changes.** Each change is saved and applied at once, without a restart, except the language. The window has only a Close button.
 - **Layout.** The options are grouped in sections. Each section is a bold heading over a form. A note at the top says that the settings apply to this device only.
+- **General:**
+  - "Language": "System", the default, "English" or "Português (Brasil)". "System" takes Brazilian Portuguese when the system's first user interface language is any Portuguese, and English otherwise. Next to it, "Applies at the next start.": unlike the other options, the language changes only when Mirante starts again. Dates and numbers follow the language. See [decision 0086](decisions/0086-english-and-brazilian-portuguese.md).
 - **Sidebar:**
   - "Highlight the sidebar row of the cell under the mouse", on by default. It turns the hover tint of the [sidebar tree](#sidebar-tree) on or off. Turned off, any tint goes at once.
 - **Status:**
   - "Check servers every", a number of minutes from 1 to 60, 2 by default. It sets how often the app asks the servers for the status of the items it watches. See [polling and caching](integrations.md#polling-and-caching).
+- **Window:**
+  - "Global hotkey", the [keys](#keyboard) that show or hide Mirante from any application. "Clear" turns it off. Below it, a message says if the keys could not be registered.
+  - "Closing the window keeps Mirante running in the tray", on by default. See [tray and notifications](#tray-and-notifications). Without a tray it is off and disabled.
+- **Terminal:**
+  - "Terminal command", the command that opens a terminal, with `{dir}` for the folder and `{command}` for the program to run. Empty, the default, uses the system's terminal; the grey placeholder says so and shows an example. See [terminal launch](integrations.md#terminal-launch).
+- **Modules:** a group for each module that declares device settings, titled with the module's name, with one field per setting, such as the `folder` module's editor. Each field shows the stored value, else the module's default. Only a value the user changes is stored; emptying a text field removes it, so the default applies again. Without such modules, as in a build without modules, the section is left out. See [decision 0079](decisions/0079-module-device-settings.md).
 
 ## Window
 
@@ -173,7 +181,7 @@ Otherwise, as after a monitor was unplugged or a resolution shrank, the window o
 
 ### Starting Mirante again
 
-Only one Mirante runs with each [web data folder](README.md#glossary), because two would damage each other's logins. Starting Mirante while it runs brings the running window to the front, restored if it was minimized, and the new start exits. A workspace given with `--data` opens in the running window, unless it is the one already open, or a dialog is open there: then the window only comes to the front, with the dialog. If the running Mirante does not answer within five seconds, the new start says that Mirante is already running with this web data folder. Test runs that must run beside the user's own Mirante use `--web-data <folder>` for their own logins. See [decision 0058](decisions/0058-one-instance-per-web-data-folder.md).
+Only one Mirante runs with each [web data folder](README.md#glossary), because two would damage each other's logins. Starting Mirante while it runs brings the running window to the front, restored if it was minimized or hidden in the tray, and the new start exits. A workspace given with `--data` opens in the running window, unless it is the one already open, or a dialog is open there: then the window only comes to the front, with the dialog. If the running Mirante does not answer within five seconds, the new start says that Mirante is already running with this web data folder. Test runs that must run beside the user's own Mirante use `--web-data <folder>` for their own logins. See [decision 0058](decisions/0058-one-instance-per-web-data-folder.md).
 
 ## Look
 
@@ -308,7 +316,17 @@ A pasted image becomes an item of a task. It is never added straight to a dashbo
 - `Ctrl+V` replaces the image of the Image item in the focused cell, or in the item preview when it is current. It adds nothing. Anywhere else on a dashboard, the status bar says "To add an image, use Paste Image… in a task's Items menu."
 - The "Paste" button of an image field in the item dialog fills that field.
 
-Each of these opens the paste dialog first. What the paste then does is described under [image](item-types.md#image). See [decision 0045](decisions/0045-preview-and-crop-pasted-images.md).
+An image can also be dropped from another app, such as an image file from the file manager or an image from a web page in a browser. See [decision 0085](decisions/0085-drop-images-from-other-apps.md).
+
+- A drop on a task row, or on its Items row, in the sidebar does what **Paste Image…** does there. The row under the image is tinted while it is dragged.
+- A drop on a cell that shows an Image item does what `Ctrl+V` does in that cell: it replaces the image, on a locked dashboard too. The cell shows its focus border while the image is over it.
+- A drop on an image field in the item dialog does what its "Paste" button does.
+- The drop takes the first file whose suffix is `png`, `jpg`, `jpeg`, `gif`, `bmp` or `webp` and that can be read, else the image the drag carries.
+- Anywhere else, and for a drag without such an image, such as a text file, the pointer shows that the drop is refused. The Trash list refuses every drop.
+- A drop is always a copy: the file stays where it was. The dialog opens once the drop is over, so the app the image came from does not wait for it.
+- The sidebar's own drags, and the drags of the layout editor, work as before, also over an Image cell.
+
+Each of these, drops included, opens the paste dialog first. What the paste then does is described under [image](item-types.md#image). See [decision 0045](decisions/0045-preview-and-crop-pasted-images.md).
 
 - The dialog, "Paste Image", shows the image scaled to fit. A small image keeps its own size. Under it, a line gives the image's size in pixels, such as "1920 × 1080 pixels".
 - **Cropping.** Dragging on the image draws a crop rectangle. The image outside it is dimmed. The line under the image then gives both sizes, such as "Crop: 800 × 600 of 1920 × 1080 pixels".
@@ -379,7 +397,12 @@ Some reasons are events, such as an approval or a new Jira status. They stop cou
 
 ## Quick add
 
-Quick add creates a task from a link. Open it with a toolbar button or `Ctrl+Shift+N`, then paste a link. What it recognises depends on the [modules](modules.md#quick-add) in the build. With the `gitlab` and `jira` modules:
+Quick add creates a task from a link, or adds items to a task from a link. It has two entries, named after what they do (see [decision 0083](decisions/0083-quick-add-into-a-task.md)):
+
+- **New Task from Link…**, in the File menu, as a button in the sidebar header, and with `Ctrl+Shift+N`, creates a task. The dialog's title is "New Task from Link".
+- **Add Items from Link…**, in the context menu of a task and of its Items row in the sidebar, adds items to that task. The dialog's title is "Add Items from Link: <task title>".
+
+Open either, then paste a link. What it recognises depends on the [modules](modules.md#quick-add) in the build. With the `gitlab` and `jira` modules:
 
 - **A Jira key or issue URL:**
   - The task is named after the issue summary.
@@ -392,12 +415,32 @@ Quick add creates a task from a link. Open it with a toolbar button or `Ctrl+Shi
 
 The project is chosen by matching the merge request's GitLab project or the issue's Jira project key against the projects' module settings. If no project matches, or several do, the app asks.
 
+The dialog for a new task, from top to bottom (see [decision 0078](decisions/0078-quick-add-dialog.md)):
+
+- **Text.** When the dialog opens with one line of text on the clipboard, that text is filled in and read at once. Otherwise the app reads the text when it is pasted or when the user presses Return. Typing alone does not start a reading.
+- **Profile.** The modules read the text with the servers of this profile. It starts as the profile of the group of the entry selected in the sidebar, else the workspace's default. Choosing another profile reads the text again. The new items still use their group's profile.
+- **Status.** "Reading…" while the modules read the text, "Mirante does not recognise this text." when no module takes it, and "Looking for related items…" while related items are searched.
+- **Read as.** Shown only when several modules take the text. It lists them by module name, and choosing one shows its reading.
+- **Title.** The proposed task title, which the user can change.
+- **Project.** Chosen when exactly one project matches. Otherwise it is empty, and the user must choose one. A line below says "No project matches acme/backend" or "Several projects match". Projects in the trash are not offered.
+- **Items.** Each item has a check box, its type's icon and its name. Related items join the list, checked, under "Related", as the modules find them. Choosing another project searches for related items again.
+- **Create Task** makes an active task of Normal priority in the project, with the checked items in order. Its dashboard has one cell: a single item fills it, and several items are tabs of it, the first one current. The task opens in the preview slot. **Cancel** stops the readings and searches still running.
+
+Without any project, the dialog says "Create a project first." and has no Create Task button. A module that does not answer in 30 seconds counts as not taking the text.
+
+The dialog for a task differs:
+
+- It has no Title and no Project. The project is the task's, so related items are searched for as soon as a reading is shown.
+- The profile starts as the profile of the task's group.
+- Items whose type and configuration the task already has are not offered.
+- **Add Items** adds the checked items to the end of the task's items, in order, as "Add to task as item" does. No dashboard changes, as for [pasted images](#pasting-images): the items show in the sidebar, and the user drags them onto a dashboard if wanted. The sidebar then shows the task; the open tab stays.
+
 ## Keyboard
 
 | Key | Action |
 |---|---|
 | `Ctrl+K` | Quick switcher: fuzzy search over groups, projects, tasks, items and dashboards. Entries in the [trash](#trash) are left out. |
-| `Ctrl+Shift+N` | Quick add |
+| `Ctrl+Shift+N` | New Task from Link… ([quick add](#quick-add)) |
 | `Ctrl+B` | Show or hide the sidebar |
 | `Ctrl+Shift+E` | Focus the sidebar's tree, showing the sidebar if it is hidden |
 | `Ctrl+D` | All Dashboards… |
@@ -412,17 +455,21 @@ The project is chosen by matching the merge request's GitLab project or the issu
 | `F2` | Lock or unlock the current dashboard, as its lock button does. In a detached window, that window's dashboard. Nothing on Focus or an item shown alone. See [editing layouts](#editing-layouts). |
 | `Ctrl+W` | Close the preview or the current tab. Focus cannot be closed. |
 | `Ctrl+V` | With an image on the clipboard: replace the image of the Image item in the focused cell or the current item preview, after the [paste dialog](#pasting-images). It never adds an item to a dashboard; a new image item comes from "Paste Image…" in a task's Items menu. See [image](item-types.md#image). A text field keeps its own paste. |
-| Global hotkey (configurable) | Bring Mirante to the front |
+| Global hotkey (`Alt+Shift+D`, on macOS `Control+Shift+D`; set in the [settings window](#settings)) | From any application: hide Mirante if it is in front, else bring it to the front. An open modal dialog only comes to the front. |
 
 On macOS, `Cmd` replaces `Ctrl`.
 
 A web page with keyboard focus receives keys first. App shortcuts are registered at window level so that they still work. Shortcuts the page needs, such as `Ctrl+K` inside a web app, can be released per item.
 
-The global hotkey uses the QHotkey library. It works on Windows, macOS and X11, but not on Wayland, where the user binds a desktop shortcut instead.
+The global hotkey uses the QHotkey library. It works on Windows, macOS and X11, but not on Wayland, where the user binds a desktop shortcut instead. If it cannot be registered, as on Wayland or when another application holds the keys, the status bar and the settings window say so.
 
 ## Tray and notifications
 
-- Closing the main window hides it to the system tray. Polling and notifications continue. "Quit" in the tray menu exits.
-- The tray icon shows the number of tasks that need attention.
-- If the platform has no system tray, for example GNOME without an extension, closing the window quits the app.
+- Closing the main window hides it to the system tray, the menu bar on macOS. Polling and notifications continue. A device setting turns this off, and closing then quits. See [decision 0075](decisions/0075-hide-to-tray-and-show-hide-hotkey.md).
+- Hiding also hides the other open windows, such as detached dashboards and the settings window. They come back with the main window, and detached dashboards stay detached. The window's place and the open tabs are saved each time it hides.
+- On macOS Mirante leaves the Dock while it is hidden.
+- Clicking the tray icon brings Mirante to the front. On macOS, a click opens the menu instead.
+- The tray menu has "Show Mirante", "Settings…" and "Quit". File > Quit also exits. Under an open modal dialog, "Quit" brings the dialog to the front instead.
+- The tray icon shows the number of tasks that need attention. This is not built yet; see the [roadmap](roadmap.md#m8-tray-notifications-and-keyboard).
+- If the platform has no system tray, for example GNOME without an extension, closing the window quits the app, and the global hotkey minimizes the window instead of hiding it. At start, Mirante looks for a tray for one minute, because at sign-in the taskbar may not be there yet.
 - A desktop notification appears only when a pipeline linked to a task fails. Clicking it opens the task.

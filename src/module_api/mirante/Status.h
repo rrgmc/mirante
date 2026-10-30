@@ -88,6 +88,23 @@ public:
     // The module's server in the item's profile.
     virtual ApiClient &server() = 0;
 
+    // The local path of a project folder on this device, or empty if it is
+    // not mapped. An empty id means the project's main folder.
+    virtual QString folderPath(const QString &folderId) const
+    {
+        Q_UNUSED(folderId)
+        return {};
+    }
+
+    // The branch checked out in a folder, as ItemContext::gitHead() reads it.
+    // The status cache watches the head file the job read, and fetches the
+    // item again when it changes. See decision 0080.
+    virtual QString gitHead(const QString &path)
+    {
+        Q_UNUSED(path)
+        return {};
+    }
+
     // Lives as long as the job: the receiver for its requests.
     virtual QObject *owner() = 0;
 

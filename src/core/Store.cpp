@@ -9,6 +9,7 @@
 #include "core/ProfileMigration.h"
 #include "core/Profiles.h"
 
+#include <QCoreApplication>
 #include <QDateTime>
 #include <QDir>
 #include <QDirIterator>
@@ -104,11 +105,11 @@ std::optional<QJsonObject> parseFile(const QByteArray &bytes, FileKind kind, QSt
     QJsonParseError error;
     const QJsonDocument document = QJsonDocument::fromJson(bytes, &error);
     if (error.error != QJsonParseError::NoError) {
-        *message = QStringLiteral("not valid JSON: %1").arg(error.errorString());
+        *message = QCoreApplication::translate("Store", "not valid JSON: %1").arg(error.errorString());
         return std::nullopt;
     }
     if (!document.isObject()) {
-        *message = QStringLiteral("not a JSON object");
+        *message = QCoreApplication::translate("Store", "not a JSON object");
         return std::nullopt;
     }
     QJsonObject json = document.object();
@@ -177,7 +178,8 @@ std::vector<EntityFile> readFolder(const QString &dir, const QString &subfolder,
         const QString path = subfolder + QLatin1Char('/') + name;
         QFile file(folder.filePath(name));
         if (!file.open(QIODevice::ReadOnly)) {
-            loaded->problems.push_back({path, QStringLiteral("cannot be read: %1").arg(file.errorString())});
+            loaded->problems.push_back(
+                {path, QCoreApplication::translate("Store", "cannot be read: %1").arg(file.errorString())});
             continue;
         }
         QString message;
@@ -245,7 +247,8 @@ std::optional<QJsonObject> readWorkspaceFile(const QString &dir, Loaded *loaded)
     if (!file.exists())
         return std::nullopt;
     if (!file.open(QIODevice::ReadOnly)) {
-        loaded->problems.push_back({kWorkspaceFile, QStringLiteral("cannot be read: %1").arg(file.errorString())});
+        loaded->problems.push_back(
+            {kWorkspaceFile, QCoreApplication::translate("Store", "cannot be read: %1").arg(file.errorString())});
         return std::nullopt;
     }
     QString message;
@@ -544,7 +547,7 @@ bool createWorkspace(const QString &dir, const QString &name, QString *error)
 {
     if (!QDir(dir).exists()) {
         if (error)
-            *error = QStringLiteral("the folder does not exist");
+            *error = QCoreApplication::translate("Store", "the folder does not exist");
         return false;
     }
     // A new workspace gets its id at once, so it never takes the logins of
@@ -570,11 +573,12 @@ bool copyContents(const QString &from, const QString &to, QString *error)
         const QString target = QDir(to).filePath(source.relativeFilePath(info.filePath()));
         if (info.isDir() && !info.isSymLink()) {
             if (!QDir().mkpath(target)) {
-                *error = QStringLiteral("cannot make %1").arg(QDir::toNativeSeparators(target));
+                *error = QCoreApplication::translate("Store", "cannot make %1").arg(QDir::toNativeSeparators(target));
                 return false;
             }
         } else if (!QFile::copy(info.filePath(), target)) {
-            *error = QStringLiteral("cannot copy %1").arg(QDir::toNativeSeparators(info.filePath()));
+            *error
+                = QCoreApplication::translate("Store", "cannot copy %1").arg(QDir::toNativeSeparators(info.filePath()));
             return false;
         }
     }
@@ -605,19 +609,19 @@ bool moveWorkspace(const QString &from, const QString &to, QString *error, QStri
     const QString source = QDir::cleanPath(QFileInfo(from).absoluteFilePath());
     const QString target = QDir::cleanPath(QFileInfo(to).absoluteFilePath());
     if (!isWorkspace(source))
-        return fail(QStringLiteral("the folder is not a workspace"));
+        return fail(QCoreApplication::translate("Store", "the folder is not a workspace"));
     if (target == source || target.startsWith(source + QLatin1Char('/')))
-        return fail(QStringLiteral("the new folder is the workspace's folder or inside it"));
+        return fail(QCoreApplication::translate("Store", "the new folder is the workspace's folder or inside it"));
     const QFileInfo targetInfo(target);
     const bool targetExisted = targetInfo.exists();
     if (targetExisted) {
         if (!targetInfo.isDir())
-            return fail(QStringLiteral("a file has that name"));
+            return fail(QCoreApplication::translate("Store", "a file has that name"));
         if (!QDir(target).isEmpty(QDir::AllEntries | QDir::Hidden | QDir::System | QDir::NoDotAndDotDot))
-            return fail(QStringLiteral("the folder is not empty"));
+            return fail(QCoreApplication::translate("Store", "the folder is not empty"));
     }
     if (!QDir().mkpath(QFileInfo(target).absolutePath()))
-        return fail(QStringLiteral("cannot make the folder that holds it"));
+        return fail(QCoreApplication::translate("Store", "cannot make the folder that holds it"));
 
     // On Windows a folder cannot be renamed while another program has a file
     // or the folder itself open: Explorer, a terminal, a sync tool or a virus
@@ -642,9 +646,10 @@ bool moveWorkspace(const QString &from, const QString &to, QString *error, QStri
         if (targetExisted)
             QDir().mkpath(target);
         if (message.isEmpty())
-            message = QStringLiteral("cannot make the folder");
+            message = QCoreApplication::translate("Store", "cannot make the folder");
         if (!renameRetrying(moving, source))
-            message += QStringLiteral("; the workspace is now in %1").arg(QDir::toNativeSeparators(moving));
+            message = QCoreApplication::translate("Store", "%1; the workspace is now in %2")
+                          .arg(message, QDir::toNativeSeparators(moving));
         return fail(message);
     }
     // The copy is complete. Files that cannot be removed stay in the renamed
@@ -853,7 +858,7 @@ Store::Private::Reload Store::Private::reloadFile(const QString &path)
     if (!file.exists())
         return Reload::Applied;   // its removal is reported apart
     if (!file.open(QIODevice::ReadOnly)) {
-        setFileProblem(path, QStringLiteral("cannot be read: %1").arg(file.errorString()));
+        setFileProblem(path, QCoreApplication::translate("Store", "cannot be read: %1").arg(file.errorString()));
         return Reload::Problem;
     }
 
@@ -1045,7 +1050,8 @@ void Store::Private::removeFiles(QStringList paths)
             continue;
         switch (ref->kind) {
         case FileKind::Workspace:
-            setFileProblem(path, QStringLiteral("was removed, so this folder is no longer a workspace"));
+            setFileProblem(
+                path, QCoreApplication::translate("Store", "was removed, so this folder is no longer a workspace"));
             break;
         case FileKind::Group:
             for (const Project *project : model->projectsOfGroup(ref->id)) {
@@ -1200,7 +1206,7 @@ std::vector<LoadProblem> Store::open(const QString &dir)
             this);
 
         connect(writer, &FileWriter::writeFailed, this, [this](const QString &relPath, const QString &message) {
-            d->writeProblems[relPath] = QStringLiteral("could not be saved: %1").arg(message);
+            d->writeProblems[relPath] = QCoreApplication::translate("Store", "could not be saved: %1").arg(message);
             d->problemsDirty = true;
             d->retryTimer.start();
             d->notifyProblems();
@@ -1274,7 +1280,7 @@ QString Store::saveFile(const QByteArray &data, const QString &extension, QStrin
         return QString();
     };
     if (!d->writer)
-        return fail(QStringLiteral("the workspace is read-only"));
+        return fail(QCoreApplication::translate("Store", "the workspace is read-only"));
 
     QString suffix = extension;
     while (suffix.startsWith(QLatin1Char('.')))
@@ -1285,7 +1291,8 @@ QString Store::saveFile(const QByteArray &data, const QString &extension, QStrin
     // and a reload ignores files/.
     const QString folder = d->dir + QLatin1Char('/') + kFiles;
     if (!QDir().mkpath(folder))
-        return fail(QStringLiteral("could not create the folder %1").arg(QDir::toNativeSeparators(folder)));
+        return fail(QCoreApplication::translate("Store", "could not create the folder %1")
+                        .arg(QDir::toNativeSeparators(folder)));
     QSaveFile file(folder + QLatin1Char('/') + name);
     if (!file.open(QIODevice::WriteOnly))
         return fail(file.errorString());
@@ -1349,7 +1356,8 @@ void Store::useCopy(const Conflict &conflict)
 
     QFile copy(d->dir + QLatin1Char('/') + conflict.copy);
     if (!copy.open(QIODevice::ReadOnly)) {
-        d->writeProblems[conflict.copy] = QStringLiteral("cannot be read: %1").arg(copy.errorString());
+        d->writeProblems[conflict.copy]
+            = QCoreApplication::translate("Store", "cannot be read: %1").arg(copy.errorString());
         d->problemsDirty = true;
         d->notifyProblems();
         return;

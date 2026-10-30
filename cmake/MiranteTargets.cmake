@@ -42,6 +42,10 @@ function(mirante_add_test name)
     cmake_parse_arguments(ARG "" "" "SOURCES;LIBS" ${ARGN})
     add_executable(${name} ${ARG_SOURCES} "${PROJECT_SOURCE_DIR}/tests/support/OffscreenByDefault.cpp")
     target_link_libraries(${name} PRIVATE Qt6::Test ${ARG_LIBS})
+    # Qt6::Test defines QT_TESTCASE_SOURCEDIR as the folder of the CMakeLists.txt,
+    # so QFINDTESTDATA takes a path below that, such as "tests/data/x.json". A path
+    # relative to the test's own file would rely on the path compiled into it,
+    # which ccache can change.
     target_compile_definitions(${name} PRIVATE
         MIRANTE_FIXTURES_DIR="${PROJECT_SOURCE_DIR}/resources/fixtures")
     mirante_set_warnings(${name})

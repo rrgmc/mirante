@@ -9,7 +9,7 @@
 # - Windows: windeployqt. The Visual C++ runtime is not copied; Windows
 #   machines usually have it installed.
 # - macOS: the app bundle, made self-contained with macdeployqt, and signed
-#   with MIRANTE_MACOS_SIGN_IDENTITY if that is set (decision 0075).
+#   with MIRANTE_MACOS_SIGN_IDENTITY if that is set (decision 0087).
 # - Linux: only the executable. It finds Qt through its RPATH, so it runs on
 #   the machine that built it. Linux builds are not packaged yet.
 function(mirante_add_bin_folder target)

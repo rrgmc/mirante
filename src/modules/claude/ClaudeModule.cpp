@@ -16,12 +16,12 @@ namespace mirante::modules::claude {
 
 namespace {
 
-// A type with an id, a name, an icon and its configuration fields. Native
-// views arrive later.
-class StubItemType : public ItemType
+// A type with an id, a name, an icon and its configuration fields. The
+// session type below adds its view.
+class ClaudeItemType : public ItemType
 {
 public:
-    StubItemType(const QString &id, const QString &name, const QString &shortName, const QString &description,
+    ClaudeItemType(const QString &id, const QString &name, const QString &shortName, const QString &description,
                  std::vector<Field> fields)
         : m_id(id)
         , m_name(name)
@@ -51,10 +51,10 @@ private:
 
 // A session on claude.ai: a web view of its address, or a message when the
 // address is missing or is not an http or https address.
-class WebSessionItemType : public StubItemType
+class WebSessionItemType : public ClaudeItemType
 {
 public:
-    using StubItemType::StubItemType;
+    using ClaudeItemType::ClaudeItemType;
 
     Rendering rendering() const override { return Rendering::Web; }
 
@@ -86,45 +86,18 @@ std::vector<Field> webFields()
     return {url};
 }
 
-std::vector<Field> localFields()
-{
-    Field session;
-    session.key = QStringLiteral("sessionId");
-    session.label = QCoreApplication::translate("claude", "Session id");
-    session.required = true;
-
-    // Empty means the project's main folder.
-    Field folder;
-    folder.key = QStringLiteral("folder");
-    folder.label = QCoreApplication::translate("claude", "Folder");
-    folder.type = Field::Type::Folder;
-
-    Field device;
-    device.key = QStringLiteral("device");
-    device.label = QCoreApplication::translate("claude", "Device");
-    device.placeholder = QCoreApplication::translate("claude", "The device the session lives on");
-    return {session, folder, device};
-}
-
 } // namespace
 
 void registerModule(ModuleRegistrar &registrar)
 {
-    registrar.setModuleName(QStringLiteral("Claude"));
-    registrar.setModuleDescription(
-        QCoreApplication::translate("claude", "Claude sessions, on claude.ai or on one of your devices."));
+    registrar.setModuleName(QCoreApplication::translate("claude", "Claude"));
+    registrar.setModuleDescription(QCoreApplication::translate("claude", "Claude sessions on claude.ai."));
     registrar.addItemType(std::make_unique<WebSessionItemType>(
         QStringLiteral("claude.session.web"), QCoreApplication::translate("claude", "Claude session (web)"),
         QCoreApplication::translate("claude", "Claude"),
         QCoreApplication::translate("claude", "A Claude session on claude.ai, such as a Remote Control or cloud "
                                               "session, in a web view."),
         webFields()));
-    registrar.addItemType(std::make_unique<StubItemType>(
-        QStringLiteral("claude.session.local"), QCoreApplication::translate("claude", "Claude session (local)"),
-        QCoreApplication::translate("claude", "Claude"),
-        QCoreApplication::translate("claude", "A Claude Code session on one device, with a button that resumes it "
-                                              "in a terminal in the project's folder."),
-        localFields()));
 }
 
 } // namespace mirante::modules::claude

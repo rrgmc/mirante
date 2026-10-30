@@ -1,13 +1,18 @@
 #pragma once
 
+#include <mirante/GitState.h>
+
+#include <QCoreApplication>
 #include <QJsonObject>
 #include <QJsonValue>
 #include <QString>
 #include <QStringList>
 #include <QUrl>
 
+#include <functional>
 #include <optional>
 
+class QObject;
 class QWebEngineProfile;
 class QWidget;
 
@@ -38,8 +43,14 @@ public:
     // 0054 in docs/decisions/.
     virtual QJsonObject moduleSettings(const QString &screenId) const = 0;
 
-    // The local path of a project folder on this device, or empty.
+    // The local path of a project folder on this device, or empty. An empty
+    // id means the project's main folder.
     virtual QString folderPath(const QString &folderId) const = 0;
+
+    // Asks the user for the local path of a project folder on this device,
+    // and stores it. An empty id means the main folder. Placements of the
+    // project's items are made again afterwards. Does nothing by default.
+    virtual void mapFolder(const QString &folderId) { Q_UNUSED(folderId) }
 
     // A live web page of url, in the item's profile, with its toolbar in
     // the cell header. The normal way for a web type to show a page. See
@@ -87,6 +98,84 @@ public:
     // status, or where the core keeps none, as in tests. Include
     // <mirante/Status.h> to use it.
     virtual ItemStatusSource *status() { return nullptr; }
+
+    // Calls changed with the new configuration when only keys of the type's
+    // viewKeys() changed, here or on another device, until receiver is
+    // destroyed. Any other change makes the view again instead. The default
+    // never calls it. See decision 0081.
+    virtual void onConfigChanged(QObject *receiver, std::function<void(const QJsonObject &)> changed)
+    {
+        Q_UNUSED(receiver)
+        Q_UNUSED(changed)
+    }
+
+    // A device setting the item's module declared with
+    // ModuleRegistrar::addDeviceSetting(), or the field's default value if
+    // none is stored on this device. Undefined for an undeclared key. See
+    // decision 0079.
+    virtual QJsonValue deviceSetting(const QString &key) const
+    {
+        Q_UNUSED(key)
+        return {};
+    }
+
+    // The absolute path of a file in the data folder's files/, such as an
+    // Image item's file, or empty if there is no such file. See decision 0021.
+    virtual QString filePath(const QString &fileName) const
+    {
+        Q_UNUSED(fileName)
+        return {};
+    }
+
+    // Git. See decision 0080.
+
+    // The branch checked out in a folder, read from its .git/HEAD, following
+    // the .git file of a worktree. Empty when the head is detached, or the
+    // folder is not a Git working tree. Starts no process.
+    virtual QString gitHead(const QString &path) const
+    {
+        Q_UNUSED(path)
+        return {};
+    }
+
+    // Runs git status on a folder in the background, and calls done once on
+    // the main thread, unless receiver is destroyed first. The default never
+    // calls it.
+    virtual void gitStatus(const QString &path, QObject *receiver, std::function<void(const GitState &)> done)
+    {
+        Q_UNUSED(path)
+        Q_UNUSED(receiver)
+        Q_UNUSED(done)
+    }
+
+    // Programs. A program and its arguments are passed apart, never as one
+    // command line; the core quotes them for the platform. See decision 0082.
+
+    // Starts program with arguments in a new terminal window, in dir. An
+    // empty program opens the terminal alone. Uses the terminal command of the
+    // device settings, else the platform's default; see
+    // docs/integrations.md#terminal-launch. Returns empty on success, else a
+    // message for the user.
+    virtual QString launchTerminal(const QString &dir, const QString &program, const QStringList &arguments)
+    {
+        Q_UNUSED(dir)
+        Q_UNUSED(program)
+        Q_UNUSED(arguments)
+        return QCoreApplication::translate("ItemContext", "Programs cannot be started here.");
+    }
+
+    // Starts program with arguments, detached, in dir, such as an editor.
+    // Found on the PATH if it has no path. Returns as launchTerminal() does.
+    virtual QString startProgram(const QString &dir, const QString &program, const QStringList &arguments)
+    {
+        Q_UNUSED(dir)
+        Q_UNUSED(program)
+        Q_UNUSED(arguments)
+        return QCoreApplication::translate("ItemContext", "Programs cannot be started here.");
+    }
+
+    // Shows a folder in Explorer, Finder or the desktop's file manager.
+    virtual void showFolder(const QString &path) { Q_UNUSED(path) }
 };
 
 } // namespace mirante

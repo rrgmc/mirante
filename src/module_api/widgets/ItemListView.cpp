@@ -355,6 +355,7 @@ struct ItemListView::Private : public QObject
     // The link under the mouse button, so that a click starts and ends on it.
     QPersistentModelIndex pressedIndex;
     int pressedLink = -1;
+    QLabel *description = nullptr;
     ActionRow *webRow = nullptr;
     QLabel *message = nullptr;
     QSet<int> columnsHiddenByView;
@@ -630,6 +631,13 @@ ItemListView::ItemListView(QWidget *parent)
     layout->setContentsMargins(0, 0, 0, 0);
     d->q = this;
 
+    d->description = new QLabel(this);
+    d->description->setObjectName(QStringLiteral("description"));
+    d->description->setTextFormat(Qt::PlainText);
+    d->description->setWordWrap(true);
+    layout->addWidget(d->description);
+    d->description->hide();
+
     d->webRow = new ActionRow(this);
     layout->addWidget(d->webRow);
     d->webRow->hide();
@@ -797,6 +805,12 @@ void ItemListView::addFilter(int column, const QString &label)
         });
         d->table->scrollToTop();
     });
+}
+
+void ItemListView::setDescription(const QString &text)
+{
+    d->description->setText(text);
+    d->description->setVisible(!text.isEmpty());
 }
 
 void ItemListView::setWebLink(const QUrl &url)

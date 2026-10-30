@@ -40,7 +40,7 @@ The reasons for choosing Qt are in [decision 0001](decisions/0001-qt6-widgets.md
 - Root dashboards can be detached into separate operating system windows.
 - Profiles that the user names and assigns to groups and items. Each holds web logins and module settings, such as the GitLab and Jira servers with their tokens.
 - The first modules: native views of GitLab and Jira data with light actions, web pages, Claude sessions, notes and project folders.
-- Claude sessions on claude.ai in a web view, and local Claude Code sessions started in a terminal.
+- Claude sessions on claude.ai in a web view.
 - Sync between devices through a folder that an external tool syncs.
 - System tray, notifications for failed pipelines, keyboard navigation and a global hotkey.
 - Quick add: create a task from a pasted Jira key or merge request URL.

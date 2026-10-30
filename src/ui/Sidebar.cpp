@@ -251,7 +251,8 @@ Sidebar::Sidebar(const Model &model, const ItemTypeRegistry &types, QWidget *par
     d->header = header;
 
     // The tree.
-    d->tree = new SidebarTree(this);
+    auto *tree = new SidebarTree(this);
+    d->tree = tree;
     d->tree->setModel(d->model);
     d->tree->setItemDelegate(new SidebarDelegate(d->tree));
     d->tree->setHeaderHidden(true);
@@ -270,6 +271,8 @@ Sidebar::Sidebar(const Model &model, const ItemTypeRegistry &types, QWidget *par
     d->tree->setDropIndicatorShown(true);
     d->tree->setExpandsOnDoubleClick(false);    // the sidebar handles double clicks itself
     d->tree->setContextMenuPolicy(Qt::CustomContextMenu);
+    // Images dropped from other apps. See docs/decisions/0085-drop-images-from-other-apps.md.
+    connect(tree, &SidebarTree::imageDropped, this, &Sidebar::imageDropped);
 
     // Footer: four task lists over the same groups: active tasks under every
     // project, active tasks only under projects that have some, done and

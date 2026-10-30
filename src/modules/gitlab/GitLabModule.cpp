@@ -1,4 +1,5 @@
 // The gitlab module: GitLab merge requests, pipelines and issues as items. See README.md.
+#include "GitLabQuickAdd.h"
 #include "GitLabIssueListView.h"
 #include "GitLabIssueView.h"
 #include "GitLabLists.h"
@@ -280,7 +281,7 @@ void registerModule(ModuleRegistrar &registrar)
         sectionField(QStringLiteral("showLabels"), QCoreApplication::translate("gitlab", "Show the labels"));
     const ModuleSettings &settings = registrar.settings();
 
-    registrar.setModuleName(QStringLiteral("GitLab"));
+    registrar.setModuleName(QCoreApplication::translate("gitlab", "GitLab"));
     registrar.setModuleDescription(QCoreApplication::translate(
         "gitlab", "Merge requests, pipelines and issues from a GitLab server. Each profile sets its server and "
                   "token in the module's General Configuration."));
@@ -359,6 +360,9 @@ void registerModule(ModuleRegistrar &registrar)
                     QCoreApplication::translate("gitlab", "Created by me"),
                     QCoreApplication::translate("gitlab", "All open")}),
         settings, &fetchIssueListStatus, &createIssueListView));
+
+    registrar.addQuickAddHandler(std::make_unique<GitLabQuickAddHandler>());
+    registrar.addRelatedItemFinder(std::make_unique<GitLabRelatedItemFinder>());
 }
 
 } // namespace mirante::modules::gitlab

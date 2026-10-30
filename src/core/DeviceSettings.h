@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QByteArray>
+#include <QJsonValue>
 #include <QRect>
 #include <QSize>
 #include <QString>
@@ -114,6 +115,34 @@ public:
     // set. See docs/ui.md#focus-view.
     bool focusAttentionFirst() const;
     void setFocusAttentionFirst(bool on);
+
+    // The global hotkey that shows or hides the window, as portable key
+    // sequence text. Alt+Shift+D if not set (Control+Shift+D on macOS); empty
+    // turns it off. See docs/ui.md#keyboard.
+    QString globalHotkey() const;
+    void setGlobalHotkey(const QString &sequence);
+
+    // Whether closing the main window hides it to the tray instead of quitting.
+    // On if not set. See docs/ui.md#tray-and-notifications.
+    bool closeToTray() const;
+    void setCloseToTray(bool on);
+
+    // The terminal command template, with {dir} and {command}. Empty, the
+    // default, uses the platform's terminal. See
+    // docs/integrations.md#terminal-launch and decision 0082.
+    QString terminalCommand() const;
+    void setTerminalCommand(const QString &command);
+
+    // The language of the app: "system", the default, "en" or "pt_BR". Any
+    // other stored value reads as "system". It applies at the next start. See
+    // docs/decisions/0086-english-and-brazilian-portuguese.md.
+    QString language() const;
+    void setLanguage(const QString &language);
+
+    // A module's device setting, under modules/<moduleId>/<key>. Undefined if
+    // not set; an undefined or null value removes it. See decision 0079.
+    QJsonValue moduleSetting(const QString &moduleId, const QString &key) const;
+    void setModuleSetting(const QString &moduleId, const QString &key, const QJsonValue &value);
 
 private:
     struct Private;

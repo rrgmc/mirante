@@ -9,17 +9,13 @@
 #include <QJsonArray>
 #include <QList>
 #include <QPair>
+#include <QStringList>
 
 #include <utility>
 
 namespace mirante::modules::gitlab {
 
 namespace {
-
-QString tr(const char *text)
-{
-    return QCoreApplication::translate("gitlab", text);
-}
 
 // What a list's configuration points at. problem says what is missing, and is
 // empty when the scope is complete.
@@ -41,15 +37,15 @@ ListScope readScope(const QJsonObject &config, const QJsonValue &defaultProject)
         scope.where = ListScope::Where::Project;
         scope.path = projectPath(config, defaultProject);
         if (scope.path.isEmpty())
-            scope.problem = tr("Set the project in the item's settings.");
+            scope.problem = QCoreApplication::translate("gitlab", "Set the project in the item's settings.");
     } else if (name == QLatin1String("group")) {
         scope.where = ListScope::Where::Group;
         // projectPath() also tidies a group path, given as the default.
         scope.path = projectPath({}, config.value(QStringLiteral("group")));
         if (scope.path.isEmpty())
-            scope.problem = tr("Set the group in the item's settings.");
+            scope.problem = QCoreApplication::translate("gitlab", "Set the group in the item's settings.");
     } else if (name != QLatin1String("all")) {
-        scope.problem = tr("Set the scope in the item's settings.");
+        scope.problem = QCoreApplication::translate("gitlab", "Set the scope in the item's settings.");
     }
     return scope;
 }
@@ -93,10 +89,15 @@ QString listSummary(ListKind kind, int total, int limit)
 {
     const bool mergeRequests = kind == ListKind::MergeRequests;
     if (total >= limit)
-        return (mergeRequests ? tr("%1+ merge requests") : tr("%1+ issues")).arg(limit);
+        return (mergeRequests ? QCoreApplication::translate("gitlab", "%1+ merge requests")
+                              : QCoreApplication::translate("gitlab", "%1+ issues"))
+            .arg(limit);
     if (total == 1)
-        return mergeRequests ? tr("1 merge request") : tr("1 issue");
-    return (mergeRequests ? tr("%1 merge requests") : tr("%1 issues")).arg(total);
+        return mergeRequests ? QCoreApplication::translate("gitlab", "1 merge request")
+                             : QCoreApplication::translate("gitlab", "1 issue");
+    return (mergeRequests ? QCoreApplication::translate("gitlab", "%1 merge requests")
+                          : QCoreApplication::translate("gitlab", "%1 issues"))
+        .arg(total);
 }
 
 // No attention, and closed stays unset, so a list never counts towards a task
@@ -153,8 +154,9 @@ void fetchList(StatusJob &job, ListKind kind)
 QString pipelineSummary(int total, int limit)
 {
     if (total >= limit)
-        return tr("%1+ pipelines").arg(limit);
-    return total == 1 ? tr("1 pipeline") : tr("%1 pipelines").arg(total);
+        return QCoreApplication::translate("gitlab", "%1+ pipelines").arg(limit);
+    return total == 1 ? QCoreApplication::translate("gitlab", "1 pipeline")
+                      : QCoreApplication::translate("gitlab", "%1 pipelines").arg(total);
 }
 
 // A status without a request: the configuration is not complete.
@@ -210,6 +212,60 @@ QUrlQuery listQuery(ListKind kind, const QString &preset, qint64 userId, const Q
     return query;
 }
 
+QString listDescription(ListKind kind, const QJsonObject &config, const QJsonValue &defaultProject)
+{
+    const QString preset = config.value(QStringLiteral("preset")).toString();
+    const bool mergeRequests = kind == ListKind::MergeRequests;
+    QStringList parts;
+    if (preset == QLatin1String("allOpen"))
+        parts << QCoreApplication::translate("gitlab", "All open");
+    else if (preset == QLatin1String("reviewRequested") && mergeRequests)
+        parts << QCoreApplication::translate("gitlab", "Review requested from me");
+    else if (preset == QLatin1String("createdByMe") || (mergeRequests && preset != QLatin1String("assignedToMe")))
+        parts << QCoreApplication::translate("gitlab", "Created by me");
+    else
+        parts << QCoreApplication::translate("gitlab", "Assigned to me");
+
+    const ListScope scope = readScope(config, defaultProject);
+    if (scope.problem.isEmpty()) {
+        switch (scope.where) {
+        case ListScope::Where::Project:
+            parts << scope.path;
+            break;
+        case ListScope::Where::Group:
+            parts << QCoreApplication::translate("gitlab", "group %1").arg(scope.path);
+            break;
+        case ListScope::Where::All:
+            parts << QCoreApplication::translate("gitlab", "all projects");
+            break;
+        }
+    }
+    const QString filter = config.value(QStringLiteral("filter")).toString().trimmed();
+    if (!filter.isEmpty())
+        parts << filter;
+    return parts.join(QStringLiteral(" · "));
+}
+
+QString pipelineListDescription(const QJsonObject &config, const QJsonValue &defaultProject)
+{
+    const QString source = config.value(QStringLiteral("source")).toString();
+    QStringList parts;
+    if (source == QLatin1String("mine")) {
+        parts << QCoreApplication::translate("gitlab", "Started by me");
+    } else if (source == QLatin1String("branch")) {
+        const QString branch = config.value(QStringLiteral("branch")).toString().trimmed();
+        parts << QCoreApplication::translate("gitlab", "Of branch %1").arg(branch.isEmpty() ? kDefaultBranch : branch);
+    } else if (source == QLatin1String("mergeRequest")) {
+        parts << QCoreApplication::translate("gitlab", "Of merge request !%1").arg(itemNumber(config));
+    } else {
+        parts << QCoreApplication::translate("gitlab", "All pipelines");
+    }
+    const QString project = projectPath(config, defaultProject);
+    if (!project.isEmpty())
+        parts << project;
+    return parts.join(QStringLiteral(" · "));
+}
+
 QUrl listWebUrl(ListKind kind, const QUrl &baseUrl, const QJsonObject &config, const QJsonValue &defaultProject)
 {
     const ListScope scope = readScope(config, defaultProject);
@@ -254,7 +310,7 @@ void fetchPipelineListStatus(StatusJob &job)
     const QJsonObject config = job.config();
     const QString project = projectPath(config, job.projectSetting(kProjectSettingKey));
     if (project.isEmpty()) {
-        job.finish(incompleteList(tr("Set the project in the item's settings.")));
+        job.finish(incompleteList(QCoreApplication::translate("gitlab", "Set the project in the item's settings.")));
         return;
     }
 
@@ -275,7 +331,8 @@ void fetchPipelineListStatus(StatusJob &job)
     if (source == QLatin1String("mergeRequest")) {
         const qint64 iid = itemNumber(config);
         if (iid == 0) {
-            job.finish(incompleteList(tr("Set the merge request number in the item's settings.")));
+            job.finish(incompleteList(
+                QCoreApplication::translate("gitlab", "Set the merge request number in the item's settings.")));
             return;
         }
         client.mergeRequestPipelines(project, iid, limit, finishWithRows);
@@ -298,7 +355,7 @@ void fetchPipelineListStatus(StatusJob &job)
     } else if (source.isEmpty() || source == QLatin1String("all")) {
         client.pipelines(project, {}, limit, finishWithRows);
     } else {
-        job.finish(incompleteList(tr("Set the source in the item's settings.")));
+        job.finish(incompleteList(QCoreApplication::translate("gitlab", "Set the source in the item's settings.")));
     }
 }
 

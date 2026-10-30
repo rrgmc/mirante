@@ -7,6 +7,7 @@
 #include "api/ServerClient.h"
 #include "api/StatusCache.h"
 #include "core/DeviceSettings.h"
+#include "core/GitStatusReader.h"
 #include "core/GroupColours.h"
 #include "core/LayoutTree.h"
 #include "core/LogBuffer.h"
@@ -15,6 +16,7 @@
 #include "core/Profiles.h"
 #include "items/ItemTypeRegistry.h"
 #include "items/Placement.h"
+#include "items/QuickAddRun.h"
 #include "layout/CellFrame.h"
 #include "layout/CellHoverTracker.h"
 #include "layout/CellStyle.h"
@@ -26,7 +28,10 @@
 #include "layout/LockState.h"
 #include "layout/SingleViewTracker.h"
 #include "layout/TaskCell.h"
+#include "platform/Foreground.h"
+#include "platform/GlobalHotkey.h"
 #include "platform/Platform.h"
+#include "platform/Tray.h"
 #include "ui/ConflictBar.h"
 #include "ui/DashboardDialog.h"
 #include "ui/DashboardPage.h"
@@ -35,6 +40,7 @@
 #include "ui/FocusView.h"
 #include "ui/LogWindow.h"
 #include "ui/ModulesDialog.h"
+#include "ui/QuickAddDialog.h"
 #include "ui/ProfileSettingsDialog.h"
 #include "ui/ImagePaste.h"
 #include "ui/ImagePasteDialog.h"
@@ -88,6 +94,8 @@
 #include <QToolButton>
 #include <QUrl>
 #include <QUuid>
+
+#include <utility>
 #include <QVBoxLayout>
 #include <QtWebEngineCore/qtwebenginecoreglobal.h>
 
@@ -191,6 +199,8 @@ struct MainWindow::Private
     QStackedWidget *stack = nullptr;
     Shortcuts *shortcuts = nullptr;
     QuickSwitcher *switcher = nullptr;
+    QAction *quickAddAction = nullptr;      // New Task from Link, in the File menu, with Ctrl+Shift+N
+    QPointer<QuickAddDialog> quickAdd;      // while open, for a new task or a task
     QToolButton *listButton = nullptr;
     QPointer<RootDashboardsDialog> dashboardList;
     QPointer<LogWindow> logWindow;
@@ -200,6 +210,17 @@ struct MainWindow::Private
     // Whether the sidebar tints the row of the hovered cell, from the device
     // settings. See applyDeviceSettings().
     bool sidebarHoverTint = true;
+
+    // Hiding to the tray. See docs/ui.md#tray-and-notifications.
+    platform::Tray *tray = nullptr;
+    int trayAttempts = 0;
+    bool trayPresent = false;
+    bool quitting = false;
+    bool savedForQuit = false;
+    platform::GlobalHotkey *hotkey = nullptr;
+    QString hotkeyError;
+    // The other windows hidden with this one, shown again with it.
+    QList<QPointer<QWidget>> hiddenWithWindow;
 
     // The pages of the root tab bar's tabs, in tab order. They are root
     // dashboards only: task dashboards and items open in the preview slot,
@@ -1116,6 +1137,70 @@ struct MainWindow::Private
         return button;
     }
 
+    // The New Task from Link button in the sidebar header. See docs/ui.md#quick-add.
+    QToolButton *buildQuickAddButton()
+    {
+        auto *button = new QToolButton;
+        button->setObjectName(QStringLiteral("quickAddButton"));
+        button->setText(MainWindow::tr("New Task from Link…"));
+        button->setToolTip(MainWindow::tr("Make a task from a link or a key (%1)")
+                               .arg(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_N).toString(QKeySequence::NativeText)));
+        button->setAutoRaise(true);
+        QObject::connect(button, &QToolButton::clicked, q, [this] { showQuickAdd(); });
+        return button;
+    }
+
+    // Brings an open quick add dialog to the front. False if none is open.
+    bool raiseQuickAdd()
+    {
+        if (!quickAdd)
+            return false;
+        quickAdd->raise();
+        quickAdd->activateWindow();
+        return true;
+    }
+
+    // Opens a quick add dialog with its own run, which goes after it.
+    void openQuickAdd(QuickAddDialog *dialog, QuickAddRun *run)
+    {
+        quickAdd = dialog;
+        // The run goes after the dialog, which cancels it as it goes.
+        QObject::connect(quickAdd, &QObject::destroyed, run, &QObject::deleteLater);
+        quickAdd->setAttribute(Qt::WA_DeleteOnClose);
+        quickAdd->open();
+    }
+
+    // New Task from Link: opens the quick add dialog, or brings it to the
+    // front. It starts in the profile of the selected sidebar entry's group,
+    // else the workspace's default, and opens the task it creates in the
+    // preview slot.
+    void showQuickAdd()
+    {
+        if (raiseQuickAdd())
+            return;
+        const Group *group = model->group(selectedGroupAndProject().first);
+        const QString profileId = group ? profiles::groupDefault(*model, *group) : QString();
+        auto *run = new QuickAddRun(*model, *types, api.servers);
+        auto *dialog = new QuickAddDialog(*model, *types, *run, profileId, q);
+        QObject::connect(dialog, &QuickAddDialog::taskCreated, q, [this](const QString &taskId) {
+            q->openTaskPreview(taskId);
+            revealNew(taskId);
+        });
+        openQuickAdd(dialog, run);
+    }
+
+    // Add Items from Link: opens the quick add dialog for a task. The task
+    // is revealed in the sidebar after; the open tab stays.
+    void showQuickAddForTask(const QString &taskId)
+    {
+        if (raiseQuickAdd() || !model->task(taskId))
+            return;
+        auto *run = new QuickAddRun(*model, *types, api.servers);
+        auto *dialog = QuickAddDialog::forTask(*model, *types, *run, taskId, q);
+        QObject::connect(dialog, &QuickAddDialog::itemsAdded, q, [this](const QString &id) { revealNew(id); });
+        openQuickAdd(dialog, run);
+    }
+
     void revealNew(const QString &id)
     {
         if (!id.isEmpty())
@@ -1489,11 +1574,21 @@ struct MainWindow::Private
         file->addSeparator();
         QAction *newGroup = file->addAction(MainWindow::tr("New &Group…"));
         QObject::connect(newGroup, &QAction::triggered, q, [this] { revealNew(actions->newGroup()); });
+        quickAddAction = file->addAction(MainWindow::tr("New Task from &Link…"));
+        quickAddAction->setObjectName(QStringLiteral("quickAddAction"));
+        quickAddAction->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_N));
+        QObject::connect(quickAddAction, &QAction::triggered, q, [this] { showQuickAdd(); });
         file->addSeparator();
         QAction *quit = file->addAction(MainWindow::tr("&Quit"));
         quit->setShortcut(QKeySequence::Quit);
         quit->setMenuRole(QAction::QuitRole);
-        QObject::connect(quit, &QAction::triggered, q, &QWidget::close);
+        // With a tray, closing only hides the window.
+        QObject::connect(quit, &QAction::triggered, q, [this] {
+            if (trayPresent)
+                QApplication::quit();
+            else
+                q->close();
+        });
 
         QMenu *view = bar->addMenu(MainWindow::tr("&View"));
         showSidebarAction = view->addAction(MainWindow::tr("&Sidebar"));
@@ -1586,6 +1681,68 @@ struct MainWindow::Private
         // makes a shorter interval take effect at once.
         if (api.status)
             api.status->poll();
+        registerHotkey();
+    }
+
+    // Registers the global hotkey from the device settings, if it has started,
+    // and shows any problem in the status bar and the settings window.
+    void registerHotkey()
+    {
+        if (!hotkey)
+            return;
+        hotkeyError.clear();
+        hotkey->setShortcut(QKeySequence::fromString(settings->globalHotkey(), QKeySequence::PortableText),
+                            &hotkeyError);
+        if (!hotkeyError.isEmpty())
+            q->statusBar()->showMessage(hotkeyError, 15000);
+        if (settingsDialog)
+            settingsDialog->setHotkeyError(hotkeyError);
+    }
+
+    // Makes the tray icon and its menu. At sign-in Mirante can start before the
+    // taskbar, so a missing tray is tried again for a minute.
+    void createTray()
+    {
+        if (!platform::Tray::isAvailable()) {
+            if (++trayAttempts < 30)
+                QTimer::singleShot(2000, q, [this] { createTray(); });
+            return;
+        }
+        auto *menu = new QMenu(q);
+        menu->addAction(MainWindow::tr("Show Mirante"), q, &MainWindow::showAndRaise);
+        menu->addAction(MainWindow::tr("Settings…"), q, [this] {
+            q->showAndRaise();
+            if (!QApplication::activeModalWidget())
+                q->showSettings();
+        });
+        menu->addSeparator();
+        // Under a modal dialog, which may hold unsaved input, the dialog comes
+        // to the front instead.
+        menu->addAction(MainWindow::tr("Quit"), q, [this] {
+            if (QApplication::activeModalWidget())
+                q->showAndRaise();
+            else
+                QApplication::quit();
+        });
+        tray = new platform::Tray(QApplication::windowIcon(), QStringLiteral(MIRANTE_APP_NAME), menu, q);
+        QObject::connect(tray, &platform::Tray::triggered, q, &MainWindow::toggleVisible);
+        QObject::connect(tray, &platform::Tray::reopened, q, [this] {
+            if (!q->isVisible())
+                q->showAndRaise();
+        });
+        q->setTrayPresent(true);
+    }
+
+    // Saves the window's place and size, whether it is maximized, the sidebar
+    // width and the open tabs. A full screen window is saved as the window it
+    // came from.
+    void saveWindowState()
+    {
+        settings->setWindowSize(q->normalGeometry().size());
+        settings->setWindowGeometry(q->normalGeometry());
+        settings->setWindowMaximized(q->isFullScreen() ? maximizedBeforeFullScreen : q->isMaximized());
+        settings->setSidebarSplitterState(splitter->saveState());
+        saveOpenTabs();
     }
 
     // Opens the log window, or brings it to the front. It has no parent, so it
@@ -1774,6 +1931,8 @@ MainWindow::MainWindow(Model &model, const ItemTypeRegistry &types, Store &store
         d->placements.profiles = profiles;
         d->placements.pool = pool;
         d->placements.settings = &settings;
+        d->placements.store = &store;
+        d->placements.git = new GitStatusReader(this);
         d->services.placements = &d->placements;
     }
     // A bigger view of an item, from its cell's button and menu. A cell in a
@@ -1795,6 +1954,12 @@ MainWindow::MainWindow(Model &model, const ItemTypeRegistry &types, Store &store
     };
     d->services.editItem = [this](const QString &taskId, const QString &itemId) {
         d->actions->editItem(taskId, itemId);
+    };
+    // An image dropped from another app on an image item's cell replaces its
+    // image, as Ctrl+V does. See docs/decisions/0085-drop-images-from-other-apps.md.
+    d->services.readImageDrop = &ImagePaste::imageFromMime;
+    d->services.dropImage = [this](const QString &taskId, const QString &itemId, const QImage &image) {
+        dropImageOnItem(taskId, itemId, image);
     };
     d->editor->setServices(&d->services);
     d->actions->setProfileManager(profiles);
@@ -1843,6 +2008,9 @@ MainWindow::MainWindow(Model &model, const ItemTypeRegistry &types, Store &store
     });
     connect(d->sidebar, &Sidebar::collapseRequested, this, [this] { d->showSidebar(false); });
     connect(d->sidebar, &Sidebar::titleDoubleClicked, this, [this] { d->promptRename(); });
+    // An image dropped from another app on a task or its Items row becomes a
+    // new item, as Paste Image… does.
+    connect(d->sidebar, &Sidebar::imageDropped, d->actions, &EntityActions::addImage);
     // The sidebar tints the row of what the hovered dashboard cell shows,
     // unless the settings window turned that off.
     connect(d->services.hover, &CellHoverTracker::hoveredChanged, d->sidebar, [this](const QString &id) {
@@ -1863,6 +2031,9 @@ MainWindow::MainWindow(Model &model, const ItemTypeRegistry &types, Store &store
                 d->onMoveRequested(kind, id, index, taskId);
             });
     d->sidebar->addHeaderWidget(d->buildNewButton());
+    d->sidebar->addHeaderWidget(d->buildQuickAddButton());
+    connect(d->actions, &EntityActions::addItemsFromLinkRequested, this,
+            [this](const QString &taskId) { d->showQuickAddForTask(taskId); });
     connect(&model, &Model::workspaceNameChanged, this, [this] { d->updateTitle(); });
     connect(d->showSidebarButton, &QToolButton::clicked, this, [this] { d->showSidebar(true); });
 
@@ -2007,16 +2178,107 @@ MainWindow::~MainWindow()
 
 void MainWindow::closeEvent(QCloseEvent *event)
 {
-    // The place and size of the normal, not maximized, window are kept. A
-    // full screen window is saved as the window it came from.
-    d->settings->setWindowSize(normalGeometry().size());
-    d->settings->setWindowGeometry(normalGeometry());
-    d->settings->setWindowMaximized(isFullScreen() ? d->maximizedBeforeFullScreen : isMaximized());
-    d->settings->setSidebarSplitterState(d->splitter->saveState());
-    d->saveOpenTabs();
+    // Qt closes every window again on quit, by which time all is saved.
+    if (d->savedForQuit) {
+        QMainWindow::closeEvent(event);
+        return;
+    }
+    if (d->trayPresent && !d->quitting) {
+        event->ignore();
+        if (d->settings->closeToTray())
+            hideToTray();
+        else
+            QMetaObject::invokeMethod(qApp, &QApplication::quit, Qt::QueuedConnection);
+        return;
+    }
+    d->saveWindowState();
     // After the open tabs are saved, so the windows open again next time.
     d->putBackAll();
+    d->savedForQuit = d->quitting;
     QMainWindow::closeEvent(event);
+}
+
+bool MainWindow::eventFilter(QObject *watched, QEvent *event)
+{
+    if (watched == qApp && event->type() == QEvent::Quit)
+        prepareToQuit();
+    return QMainWindow::eventFilter(watched, event);
+}
+
+void MainWindow::prepareToQuit()
+{
+    if (d->quitting)
+        return;
+    d->quitting = true;
+    // Closed here, before Qt walks its list of windows, because closing this
+    // one puts the detached windows back.
+    close();
+}
+
+void MainWindow::startTrayAndHotkey()
+{
+    d->hotkey = new platform::GlobalHotkey(this);
+    connect(d->hotkey, &platform::GlobalHotkey::activated, this, &MainWindow::toggleVisible);
+    d->registerHotkey();
+    d->createTray();
+}
+
+void MainWindow::setTrayPresent(bool present)
+{
+    d->trayPresent = present;
+    QApplication::setQuitOnLastWindowClosed(!present);
+    if (present)
+        qApp->installEventFilter(this);
+    else
+        qApp->removeEventFilter(this);
+}
+
+void MainWindow::showAndRaise()
+{
+    if (d->tray)
+        d->tray->setDockIconVisible(true);
+    const QList<QPointer<QWidget>> others = std::exchange(d->hiddenWithWindow, {});
+    for (const QPointer<QWidget> &other : others) {
+        if (other)
+            other->show();
+    }
+    setWindowState(windowState() & ~Qt::WindowMinimized);
+    show();
+    raise();
+    activateWindow();
+    if (QWidget *modal = QApplication::activeModalWidget()) {
+        modal->raise();
+        modal->activateWindow();
+    }
+}
+
+void MainWindow::hideToTray()
+{
+    d->saveWindowState();
+    if (!d->trayPresent) {
+        showMinimized();
+        return;
+    }
+    const QWidgetList windows = QApplication::topLevelWidgets();
+    for (QWidget *window : windows) {
+        const Qt::WindowType type = window->windowType();
+        if (window != this && window->isVisible() && (type == Qt::Window || type == Qt::Dialog)) {
+            d->hiddenWithWindow << window;
+            window->hide();
+        }
+    }
+    hide();
+    if (d->tray)
+        d->tray->setDockIconVisible(false);
+}
+
+void MainWindow::toggleVisible()
+{
+    // A modal dialog stays with its window, so it only comes to the front.
+    if (isVisible() && !isMinimized() && platform::appIsInFront() && !QApplication::activeModalWidget())
+        hideToTray();
+    else
+        showAndRaise();
 }
 
 void MainWindow::setFullScreen(bool on)
@@ -2346,11 +2608,30 @@ void MainWindow::pasteImage(const QImage &image)
     showMessage(result);
 }
 
+void MainWindow::dropImageOnItem(const QString &taskId, const QString &itemId, const QImage &image)
+{
+    // As Ctrl+V on the item: a drop that cannot happen, such as in the
+    // read-only sample data, says why before any dialog opens.
+    ImagePaste::Result result = d->imagePaste->checkItem(taskId, itemId);
+    if (result == ImagePaste::Result::ReplacedImage) {
+        const QImage cropped = ImagePasteDialog::ask(image, this, d->exec);
+        if (cropped.isNull())
+            return;
+        result = d->imagePaste->pasteIntoItem(cropped, taskId, itemId);
+    }
+    const QString message = ImagePaste::message(result);
+    if (!message.isEmpty())
+        statusBar()->showMessage(message, 5000);
+}
+
 void MainWindow::showSettings()
 {
     if (!d->settingsDialog) {
         d->settingsDialog = new SettingsDialog(*d->settings, this);
         d->settingsDialog->setAttribute(Qt::WA_DeleteOnClose);
+        d->settingsDialog->setHotkeyError(d->hotkeyError);
+        d->settingsDialog->setTrayAvailable(d->trayPresent);
+        d->settingsDialog->setModules(*d->types);
         connect(d->settingsDialog, &SettingsDialog::changed, this, [this] { d->applyDeviceSettings(); });
     }
     d->settingsDialog->show();

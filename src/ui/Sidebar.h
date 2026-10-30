@@ -2,6 +2,7 @@
 
 #include "ui/SidebarModel.h"
 
+#include <QImage>
 #include <QWidget>
 
 #include <functional>
@@ -84,6 +85,9 @@ signals:
     void titleDoubleClicked();
     // The "Empty Trash…" button, shown under the Trash list, was clicked.
     void emptyTrashRequested();
+    // An image from another app was dropped on a task or its Items row. See
+    // SidebarTree::imageDropped().
+    void imageDropped(const QString &taskId, const QImage &image);
 
 private:
     struct Private;

@@ -4,9 +4,11 @@
 
 #include <mirante/ItemContext.h>
 
+#include <QPointer>
 #include <QString>
 
 #include <functional>
+#include <vector>
 
 class QLabel;
 
@@ -49,8 +51,28 @@ public:
     QString addItemToTask(const QString &typeId, const QString &name, const QJsonObject &config) override;
     ApiClient *server() override;
     ItemStatusSource *status() override;
+    void mapFolder(const QString &folderId) override;
+    void onConfigChanged(QObject *receiver, std::function<void(const QJsonObject &)> changed) override;
+    QJsonValue deviceSetting(const QString &key) const override;
+    QString filePath(const QString &fileName) const override;
+    QString gitHead(const QString &path) const override;
+    void gitStatus(const QString &path, QObject *receiver, std::function<void(const GitState &)> done) override;
+    QString launchTerminal(const QString &dir, const QString &program, const QStringList &arguments) override;
+    QString startProgram(const QString &dir, const QString &program, const QStringList &arguments) override;
+    void showFolder(const QString &path) override;
+
+    // Calls the receivers of onConfigChanged() that are still alive. The
+    // placement calls it when only view keys changed. See decision 0081.
+    void notifyConfigChanged(const QJsonObject &config);
 
 private:
+    struct ConfigReceiver
+    {
+        QPointer<QObject> receiver;
+        std::function<void(const QJsonObject &)> changed;
+    };
+    std::vector<ConfigReceiver> m_configReceivers;
+
     PlacementServices m_services;
     QString m_taskId;
     QString m_itemId;
@@ -64,7 +86,8 @@ QString moduleOfType(const QString &typeId);
 QLabel *createMessageLabel(const QString &text, QWidget *parent);
 
 // What the body of an item's cell says when its type makes no view: the
-// missing module, or the type, name and id of the item. type may be null.
+// missing module, the removed type, or the type, name and id of the item.
+// type may be null.
 QString itemPlaceholderText(const ItemType *type, const QString &itemName, const QString &itemId);
 
 } // namespace mirante

@@ -1,4 +1,4 @@
-# 0075. Sign the macOS bundle with a certificate when one is set
+# 0087. Sign the macOS bundle with a certificate when one is set
 
 - Status: Accepted
 - Date: 2026-10-30

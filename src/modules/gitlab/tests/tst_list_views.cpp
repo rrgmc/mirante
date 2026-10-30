@@ -1,6 +1,7 @@
 // The GitLab lists, drawn from the responses in tests/data/. A handler stands
 // in for the external browser, so nothing is opened.
 #include "../GitLabIssueListView.h"
+#include "../GitLabLists.h"
 #include "../GitLabMergeRequestListView.h"
 #include "../GitLabPipelineListView.h"
 
@@ -59,7 +60,7 @@ QString backendKey(const QString &suffix)
 
 QJsonDocument readJson(const QString &name)
 {
-    QFile file(QFINDTESTDATA(QStringLiteral("data/") + name));
+    QFile file(QFINDTESTDATA(QStringLiteral("tests/data/") + name));
     if (!file.open(QIODevice::ReadOnly))
         qFatal("Cannot read %s", qPrintable(name));
     return QJsonDocument::fromJson(file.readAll());
@@ -311,9 +312,9 @@ bool menuEntryEnabled(const View &view, const QString &key, const QString &text)
 void setUpBackend42(FakeContext &context)
 {
     QVERIFY(context.client.setJsonFile(backendKey(QStringLiteral("merge_requests/42")),
-                                       QFINDTESTDATA("data/merge_request.json")));
+                                       QFINDTESTDATA("tests/data/merge_request.json")));
     QVERIFY(context.client.setJsonFile(backendKey(QStringLiteral("merge_requests/42/approvals")),
-                                       QFINDTESTDATA("data/approvals.json")));
+                                       QFINDTESTDATA("tests/data/approvals.json")));
 }
 
 void setPipelineAnswer(FakeContext &context, const QString &status)
@@ -998,6 +999,12 @@ private slots:
         context.source.status = pipelines();
         View view(createPipelineListView(context, nullptr));
         show(view);
+
+        // The line above the table says what the item shows.
+        const auto *description = view->findChild<QLabel *>(QStringLiteral("description"));
+        QVERIFY(description && !description->isHidden());
+        QCOMPARE(description->text(),
+                 mirante::modules::gitlab::pipelineListDescription(context.itemConfig, QJsonValue(QJsonValue::Undefined)));
 
         // Sorted on the id, newest first.
         QCOMPARE(rowCount(view), 4);

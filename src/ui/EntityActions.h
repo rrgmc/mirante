@@ -93,6 +93,10 @@ public:
     // data, emits message() instead of opening the dialog. Returns the new
     // item's id, or an empty string. See docs/decisions/0051-paste-images-from-the-items-menu.md.
     QString pasteImage(const QString &taskId);
+    // pasteImage() with a given image, such as one dropped from another app
+    // on a task or its Items row in the sidebar. See
+    // docs/decisions/0085-drop-images-from-other-apps.md.
+    QString addImage(const QString &taskId, const QImage &image);
     // Reads the clipboard's image for pasteImage() and its menu entry. The
     // default reads the system clipboard; tests set their own.
     void setClipboardImage(std::function<QImage()> clipboardImage);
@@ -144,7 +148,7 @@ public:
     // Adds the commands for a sidebar row to menu: new, edit, rename, set
     // priority, set state, delete, and on dashboards "Set as default". A task
     // and its Items row also get "Paste Image…", enabled while the clipboard
-    // holds an image. Fits
+    // holds an image, and "Add Items from Link…". Fits
     // Sidebar::MenuFiller. "Delete project…" and "Delete task…" move to the
     // trash, or delete for good while Shift is held.
     void fillMenu(QMenu *menu, SidebarModel::Kind kind, const QString &id, const QString &taskId);
@@ -157,6 +161,9 @@ signals:
     void dashboardCreated(const QString &taskId, const QString &dashboardId);
     // A short message for the status bar, such as why an image was not pasted.
     void message(const QString &text);
+    // "Add Items from Link…" in a task's menus. The main window opens the
+    // quick add dialog for the task. See docs/ui.md#quick-add.
+    void addItemsFromLinkRequested(const QString &taskId);
 
 private:
     // Adds "Paste Image…" for the task, enabled while the clipboard holds an image.

@@ -1,5 +1,6 @@
 #include "core/FileWriter.h"
 
+#include <QCoreApplication>
 #include <QCryptographicHash>
 #include <QDir>
 #include <QFile>
@@ -29,7 +30,8 @@ QString writeFile(const QString &path, const QByteArray &content)
 {
     const QString folder = QFileInfo(path).absolutePath();
     if (!QDir().mkpath(folder))
-        return QStringLiteral("Could not create the folder %1").arg(QDir::toNativeSeparators(folder));
+        return QCoreApplication::translate("FileWriter", "Could not create the folder %1")
+            .arg(QDir::toNativeSeparators(folder));
 
     QSaveFile file(path);
     if (!file.open(QIODevice::WriteOnly))

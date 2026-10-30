@@ -12,11 +12,13 @@ namespace mirante {
 
 class Attention;
 class DeviceSettings;
+class GitStatusReader;
 class ItemTypeRegistry;
 class Model;
 class ProfileManager;
 class ServerClients;
 class StatusCache;
+class Store;
 class ViewPool;
 
 // What placements need. MainWindow owns the objects. See the M4 plan, part 5.
@@ -32,6 +34,11 @@ struct PlacementServices
     StatusCache *status = nullptr;
     Attention *attention = nullptr;
     ServerClients *servers = nullptr;
+    // Runs git status for ItemContext::gitStatus(). Null: it never answers,
+    // as in most tests. See decision 0080.
+    GitStatusReader *git = nullptr;
+    // The data folder, for ItemContext::filePath(). Null: no files.
+    const Store *store = nullptr;
     // Opens the settings screen of a module's server in a profile, for the
     // fix button of "Token not set" and the like. Null leaves it out.
     std::function<void(const QString &profileId, const QString &moduleId)> openServerSettings;

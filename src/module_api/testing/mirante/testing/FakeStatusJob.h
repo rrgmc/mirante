@@ -6,6 +6,7 @@
 #include <QJsonObject>
 #include <QMap>
 #include <QObject>
+#include <QStringList>
 
 #include <optional>
 
@@ -27,6 +28,19 @@ public:
     QJsonObject moduleSettings(const QString &screenId) const override { return screens.value(screenId); }
     ApiClient &server() override { return client; }
     QObject *owner() override { return &m_owner; }
+
+    // Local folder paths by folder id, the main folder under the empty id,
+    // and branches by path. gitHead() records each path it was asked for.
+    QMap<QString, QString> folderPaths;
+    QMap<QString, QString> heads;
+    QStringList headsRead;
+
+    QString folderPath(const QString &folderId) const override { return folderPaths.value(folderId); }
+    QString gitHead(const QString &path) override
+    {
+        headsRead.append(path);
+        return heads.value(path);
+    }
 
     void finish(const ItemStatus &status) override
     {

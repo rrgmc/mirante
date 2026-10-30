@@ -9,6 +9,9 @@
 
 namespace mirante {
 
+class QuickAddHandler;
+class RelatedItemFinder;
+
 // What a module registers its parts with. See docs/modules.md#what-a-module-registers.
 //
 // Each module defines one function, which the generated enabled_modules.cpp calls:
@@ -59,6 +62,21 @@ public:
     // ItemContext::projectSetting(). Fields of the types Secret, Folder and
     // Image are refused. See docs/data-model.md#project.
     virtual void addProjectSetting(const Field &field) = 0;
+
+    // Takes ownership of a handler that reads text pasted into quick add.
+    // Include <mirante/QuickAdd.h> to implement it. See
+    // docs/modules.md#quick-add.
+    virtual void addQuickAddHandler(std::unique_ptr<QuickAddHandler> handler) = 0;
+
+    // Takes ownership of a finder that offers items related to a new task.
+    virtual void addRelatedItemFinder(std::unique_ptr<RelatedItemFinder> finder) = 0;
+
+    // A field kept on this device, never synced, such as the command that
+    // opens an editor. The settings window edits it, and items read it with
+    // ItemContext::deviceSetting(). Fields of the types Text, Integer, Bool
+    // and Choice only; others are refused, as is a repeated key. See
+    // decision 0079.
+    virtual void addDeviceSetting(const Field &field) = 0;
 };
 
 } // namespace mirante

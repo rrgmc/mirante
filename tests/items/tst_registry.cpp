@@ -187,6 +187,7 @@ private slots:
         QVERIFY(unknown != nullptr);
         QCOMPARE(unknown->id(), QStringLiteral("timetrack.entry.list"));
         QCOMPARE(unknown->moduleId(), QStringLiteral("timetrack"));
+        QVERIFY(!unknown->moduleInBuild());
         QVERIFY(unknown->name().contains(QStringLiteral("timetrack.entry.list")));
         QVERIFY(!unknown->icon().isNull());
         QVERIFY(!unknown->icon().pixmap(16, 16).isNull());
@@ -195,6 +196,11 @@ private slots:
         QCOMPARE(&registry.type(QStringLiteral("timetrack.entry.list")), &type);
         QVERIFY(!registry.contains(QStringLiteral("timetrack.entry.list")));
         QVERIFY(registry.types().size() == 3);
+
+        // A type the module no longer has: the module is in the build.
+        const auto *removed = dynamic_cast<const mirante::UnknownItemType *>(&registry.type(QStringLiteral("alpha.removed")));
+        QVERIFY(removed != nullptr);
+        QVERIFY(removed->moduleInBuild());
     }
 
     void unknownModuleIdWithoutDot()

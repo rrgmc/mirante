@@ -2,7 +2,7 @@
 
 The milestones are in order. Each one ends in a working state and a commit. A detailed code plan for a milestone is written just before it starts, not earlier.
 
-Each milestone has acceptance criteria. Development and checking happen on Windows. From M2 onwards, every milestone must also build and pass its tests on macOS and Linux, checked by the CI build added in M2.
+Each milestone has acceptance criteria. Development and checking happen on Windows. From M2 onwards, every milestone must also build and pass its tests on Linux, checked by the CI build added in M2, and on macOS, which the user builds by hand from time to time during development. See [decision 0077](decisions/0077-no-macos-in-ci-during-development.md).
 
 ## M0: Design documents
 
@@ -82,26 +82,29 @@ See [the M5 plan](plans/m5-servers-and-status.md).
 
 See [the M6 plan](plans/m6-native-item-types.md) and [the changes after trying it](plans/m6-feedback.md).
 
-- [ ] GitLab MR (summary), MR List, CI Pipeline, CI Pipeline List, Issue (summary) and Issue List.
-- [ ] Jira Issue (summary) and Jira List.
-- [ ] CI actions: retry a pipeline or a job, cancel, play a manual job, trigger a pipeline. Other changes use the web page. See [decision 0070](decisions/0070-read-mostly-native-views.md).
+- [x] GitLab MR (summary), MR List, CI Pipeline, CI Pipeline List, Issue (summary) and Issue List.
+- [x] Jira Issue (summary) and Jira List.
+- [x] CI actions: retry a pipeline or a job, cancel, play a manual job, trigger a pipeline. Other changes use the web page. See [decision 0070](decisions/0070-read-mostly-native-views.md).
 - [x] Pasting a URL into the item dialog picks the right type and fills its fields. See [decision 0049](decisions/0049-items-from-a-pasted-link.md).
-- [ ] Tests cover URL recognition and the attention rules.
+- [x] Tests cover URL recognition and the attention rules.
 
-## M7: Quick add, Claude local, folders and notes
+## M7: Quick add, folders and notes
 
-- [ ] Quick add from a Jira key or merge request URL, through the modules' quick add handlers and related-item finders, including the project match and related merge requests.
-- [ ] Claude session (local) starts `claude --resume` in a terminal, on all three platforms.
-- [ ] The Folder / terminal item shows the branch and status, and opens a terminal, editor and file manager.
-- [ ] The CI Pipeline item can follow the current branch of the main folder.
-- [ ] Notes item with Markdown editing and preview.
-- [ ] Image item: the image scaled to fit, the memo under it, a click opens the link, and pasting replaces the image.
+See [the M7 plan](plans/m7-quick-add-and-local-items.md) and [the changes after trying it](plans/m7-feedback.md).
+
+- [x] Quick add from a Jira key or merge request URL, through the modules' quick add handlers and related-item finders, including the project match and related merge requests.
+- [x] Claude session (local) starts `claude --resume` in a terminal, on all three platforms. Dropped by [decision 0084](decisions/0084-no-local-claude-sessions.md).
+- [x] The Folder / terminal item shows the branch and status, and opens a terminal, editor and file manager.
+- [x] The CI Pipeline item can follow the current branch of the main folder.
+- [x] Notes item with Markdown editing and preview.
+- [x] Image item: the image scaled to fit, the memo under it, a click opens the link, and pasting replaces the image.
 
 ## M8: Tray, notifications and keyboard
 
-- [ ] The tray icon with the attention count, and hiding to the tray on close. The fallback works where no tray exists.
+- [x] Hiding to the tray on close. The fallback works where no tray exists. ([decision 0075](decisions/0075-hide-to-tray-and-show-hide-hotkey.md))
+- [ ] The attention count on the tray icon.
 - [ ] Desktop notification when a linked pipeline fails. Clicking it opens the task.
-- [ ] The global hotkey works on Windows, macOS and X11, and reports clearly on Wayland.
+- [x] The global hotkey shows or hides the app on Windows, macOS and X11, and reports clearly on Wayland.
 - [ ] All shortcuts in [ui](ui.md#keyboard) work, including inside focused web pages.
 
 ## M9: Built-in panels
@@ -112,8 +115,9 @@ See [the M6 plan](plans/m6-native-item-types.md) and [the changes after trying i
 
 ## M10: Packaging
 
+- [ ] CI builds and tests on macOS again.
 - [ ] CI builds the Windows package and the macOS app bundle.
-- [ ] Windows package with `windeployqt`, macOS app bundle with `macdeployqt`.
+- [ ] Windows package with `windeployqt`, macOS app bundle with `macdeployqt`. Both include Qt's `qtbase` translations, which the app loads from `QLibraryInfo::TranslationsPath`, and the WebP image plugin.
 - [ ] A short install and first-run guide in the root `README.md`.
 
 ## Future: Custom builds

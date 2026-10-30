@@ -1,5 +1,8 @@
 // The image module: an image with an optional link and memo. See README.md.
+#include "ImageView.h"
+
 #include <mirante/Fields.h>
+#include <mirante/ItemContext.h>
 #include <mirante/ItemType.h>
 #include <mirante/Module.h>
 
@@ -12,11 +15,11 @@ namespace mirante::modules::image {
 
 namespace {
 
-// A type with an id, a name, an icon and its configuration fields. The view arrives later.
-class StubItemType : public ItemType
+// The Image type.
+class ImageItemType : public ItemType
 {
 public:
-    StubItemType(const QString &id, const QString &name)
+    ImageItemType(const QString &id, const QString &name)
         : m_id(id)
         , m_name(name)
         , m_icon(QStringLiteral(":/modules/image/icons/image.svg"))
@@ -29,8 +32,10 @@ public:
     QString shortName() const override { return QCoreApplication::translate("image", "Image"); }
     QString description() const override
     {
-        return QCoreApplication::translate("image", "An image, such as a screenshot, scaled to fit the cell, with an optional memo "
-                                              "under it. A click opens its link, if it has one.");
+        return QCoreApplication::translate(
+            "image",
+            "An image, such as a screenshot, scaled to fit the cell, with an optional memo "
+            "under it. A click opens its link, if it has one.");
     }
     Rendering rendering() const override { return Rendering::Native; }
 
@@ -58,6 +63,11 @@ public:
     // A pasted image fills the file field. See docs/decisions/0021-image-items-as-files.md.
     QString pastedImageField() const override { return QStringLiteral("file"); }
 
+    QWidget *createView(ItemContext &context, QWidget *parent) const override
+    {
+        return createImageView(context, parent);
+    }
+
 private:
     QString m_id;
     QString m_name;
@@ -68,10 +78,10 @@ private:
 
 void registerModule(ModuleRegistrar &registrar)
 {
-    registrar.setModuleName(QStringLiteral("Image"));
+    registrar.setModuleName(QCoreApplication::translate("image", "Image"));
     registrar.setModuleDescription(QCoreApplication::translate(
         "image", "Images, such as screenshots or diagrams, with an optional link and memo."));
-    registrar.addItemType(std::make_unique<StubItemType>(
+    registrar.addItemType(std::make_unique<ImageItemType>(
         QStringLiteral("image"), QCoreApplication::translate("image", "Image")));
 }
 

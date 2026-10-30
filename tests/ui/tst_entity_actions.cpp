@@ -694,7 +694,7 @@ void TestEntityActions::menus()
     QMenu task;
     actions->fillMenu(&task, SidebarModel::Kind::Task, fixLoginTimeout, fixLoginTimeout);
     QCOMPARE(texts(task), (QStringList{QStringLiteral("New item…"), QStringLiteral("Paste URL…"), QStringLiteral("Paste Image…"),
-                                       QStringLiteral("New dashboard…"),
+                                       QStringLiteral("Add Items from Link…"), QStringLiteral("New dashboard…"),
                                        QStringLiteral("Edit task…"), QStringLiteral("Priority"),
                                        QStringLiteral("State"), QStringLiteral("Delete task…")}));
     QCOMPARE(checkedIn(task, QStringLiteral("Priority")), QStringLiteral("Urgent"));
@@ -707,7 +707,16 @@ void TestEntityActions::menus()
 
     QMenu itemList;
     actions->fillMenu(&itemList, SidebarModel::Kind::ItemList, QString(), fixLoginTimeout);
-    QCOMPARE(texts(itemList), (QStringList{QStringLiteral("New item…"), QStringLiteral("Paste URL…"), QStringLiteral("Paste Image…")}));
+    QCOMPARE(texts(itemList), (QStringList{QStringLiteral("New item…"), QStringLiteral("Paste URL…"),
+                                           QStringLiteral("Paste Image…"), QStringLiteral("Add Items from Link…")}));
+
+    // "Add Items from Link…" asks the window for the quick add dialog of the task.
+    QSignalSpy addFromLink(actions.get(), &EntityActions::addItemsFromLinkRequested);
+    actionNamed(task, QStringLiteral("Add Items from Link…"))->trigger();
+    actionNamed(itemList, QStringLiteral("Add Items from Link…"))->trigger();
+    QCOMPARE(addFromLink.count(), 2);
+    QCOMPARE(addFromLink.at(0).at(0).toString(), fixLoginTimeout);
+    QCOMPARE(addFromLink.at(1).at(0).toString(), fixLoginTimeout);
 
     QMenu dashboardList;
     actions->fillMenu(&dashboardList, SidebarModel::Kind::DashboardList, QString(), fixLoginTimeout);

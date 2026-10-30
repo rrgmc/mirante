@@ -87,7 +87,7 @@ Jira priority is shown in the summary but never used for sorting. See [decision 
 ## Claude
 
 - **Remote Control and cloud sessions** open as claude.ai pages in a [web view](web-views.md). There is no public API to list them or read their state, so the app shows no status for them.
-- **Local Claude Code sessions** start in a terminal with `claude --resume <id>`, in the folder's local path. See [terminal launch](#terminal-launch).
+- **Local Claude Code sessions** have no item. M7 had one that ran `claude --resume <id>` in a terminal; [decision 0084](decisions/0084-no-local-claude-sessions.md) removed it.
 - The app does not use the undocumented endpoints behind the claude.ai web interface, and it does not read Claude Code's stored login credentials. See [decision 0008](decisions/0008-claude-sessions.md).
 
 If Anthropic publishes an API for sessions later, a new decision record will cover adding it.
@@ -108,7 +108,7 @@ The `StatusCache` owns all API data. It keeps one status per item, in memory onl
 - **One job per item.** A fetch for an item already being fetched is skipped. A fetch that does not end in 90 seconds is dropped with an error. A fetch started before the item's configuration changed is dropped too, and its answer ignored.
 - **Errors keep data.** A fetch that fails keeps the last data, summary, attention and update time, and sets only the state and the message. Cells then show the data's age. An error is fetched again after the interval, like any status.
 - **Removal.** Removing an item empties its entry and removes its [seen attention keys](sync.md#device-settings). Opening another workspace empties every entry.
-- **When the app is hidden in the tray:** polling continues for pipelines and attention only, at the same interval.
+- **When the app is hidden in the tray:** polling continues for the same items, at the same interval. Cells stay in their placements while the window is hidden.
 - **Consumers:**
   - native summaries and lists;
   - [attention badges](ui.md#attention) and the tray count;
@@ -140,15 +140,36 @@ Each server client keeps the `ETag` and body of the 500 URLs it used last, and s
 
 ## Terminal launch
 
-`TerminalLauncher` starts a command in a new terminal window, in a given folder. It is used by local Claude sessions and by the folder item.
+`Launcher` in `src/platform/` starts a program in a new terminal window, in a given folder, and starts programs such as an editor on their own. It is used by the folder item, and stays in `ItemContext` for other modules that need it. Modules pass a program and a list of arguments, never one command string, as [decision 0082](decisions/0082-commands-as-argument-lists.md) says. `Launcher` quotes them for each layer they pass through.
 
-| Platform | Default |
+| Platform | Default, in the order tried |
 |---|---|
-| Windows | `wt.exe -d <dir> <command>`. If Windows Terminal is missing: `cmd.exe /c start "" /d <dir> cmd /k <command>`. |
-| macOS | `osascript` tells Terminal.app to run `cd <dir> && <command>`. |
-| Linux | The first one found of: `x-terminal-emulator`, `gnome-terminal --working-directory=<dir> --`, `konsole --workdir <dir> -e`, `xterm -e`. |
+| Windows | `wt.exe -d <dir> <program> <arguments>`. If Windows Terminal is missing: `cmd.exe /c start "" /d <dir> cmd /k <program> <arguments>`. |
+| macOS | `osascript` tells Terminal.app to `do script "cd <dir> && <program> <arguments>"`. |
+| Linux | The first one found of: `x-terminal-emulator -e`, `gnome-terminal --working-directory=<dir> --`, `konsole --workdir <dir> -e`, `xterm -e`. `x-terminal-emulator` and `xterm` have no working folder option, so they are started in the folder. |
 
-On every platform a device setting can replace the default with a template, such as `alacritty --working-directory {dir} -e {command}`. Arguments are passed as a list, not through a shell, except where the platform requires a shell, as with `osascript`.
+With no program, as for the folder item's **Terminal** action, the terminal opens alone in the folder.
+
+**Quoting:**
+
+- **Windows Terminal** reads `;` as the start of a new tab, so each `;` in the folder and the arguments is passed as `\;`.
+- **`cmd.exe`** has its own rules. Each argument is first quoted for the program, as the Microsoft C runtime reads it, then each character that `cmd` treats as special (`( ) % ! ^ " < > & |`) gets a `^` before it, and so do the separators space, `;` and `,`. A quote escaped this way does not start a quoted region, so without this `cmd` would split a path such as `...\Microsoft VS Code\bin\code.cmd` at its spaces. The fallback terminal passes through two `cmd.exe`, the one that runs `start` and the one that `start` opens, so the command is escaped twice.
+- **macOS:** each word is quoted for the shell in single quotes, unless it holds only safe characters. The whole line is then escaped for the AppleScript string, with `\\` for `\` and `\"` for `"`.
+- On Windows, `launchTerminal()` finds the program on the `PATH` first, and passes its full path, because the terminal does not try `.cmd` files. A program installed with npm, for example, is a `.cmd` file.
+
+**Programs on their own,** such as the editor, are found on the `PATH` unless they have a path, and started detached in the folder. On Windows the `PATH` lookup tries the suffixes in `PATHEXT`, so `code` finds `code.cmd`. A `.cmd` or `.bat` file runs as `cmd.exe /c <file> <arguments>`, quoted and escaped for `cmd` as above, without a console window of its own.
+
+**Terminal command:** a device setting replaces the default on every platform with a template. It is set in the [settings window](ui.md#settings) and kept in the [device settings](sync.md#device-settings), so each device has its own. An example is `alacritty --working-directory {dir} -e {command}`.
+
+- The template is split into arguments as a shell would: spaces separate them, and double quotes keep spaces in one. A backslash is an ordinary character, so Windows paths need no escaping.
+- `{dir}` is replaced by the folder inside any argument.
+- An argument that is exactly `{command}` becomes the program and its arguments, each as a separate argument. With no program, it becomes nothing.
+- The terminal is also started in the folder, for a template without `{dir}`.
+- An empty template means the default.
+
+A template that needs one string, such as `sh -c`, must put `{command}` where a list of arguments fits.
+
+When no terminal is found, the user sees "No terminal was found.", or "The terminal <program> was not found." for a template. A program that is not found gives "<program> was not found."
 
 ## Later: custom certificate authorities
 

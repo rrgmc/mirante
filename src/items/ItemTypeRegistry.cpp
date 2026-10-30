@@ -3,6 +3,8 @@
 #include "items/ItemTypeIds.h"
 #include "items/UnknownItemType.h"
 
+#include <mirante/QuickAdd.h>
+
 #include <QtGlobal>
 
 #include <algorithm>
@@ -46,6 +48,9 @@ struct ItemTypeRegistry::Private
         std::unique_ptr<Settings> settings;
         std::unique_ptr<ServerType> server;
         std::vector<Field> projectSettings;
+        std::vector<std::unique_ptr<QuickAddHandler>> handlers;
+        std::vector<std::unique_ptr<RelatedItemFinder>> finders;
+        std::vector<Field> deviceSettings;
     };
 
     SettingsReader reader;
@@ -58,6 +63,7 @@ struct ItemTypeRegistry::Private
     void add(const QString &moduleId, std::unique_ptr<ItemType> type);
     void addScreen(const QString &moduleId, std::unique_ptr<SettingsScreen> screen);
     void addProjectSetting(const QString &moduleId, const Field &field);
+    void addDeviceSetting(const QString &moduleId, const Field &field);
 };
 
 void ItemTypeRegistry::Private::add(const QString &moduleId, std::unique_ptr<ItemType> type)
@@ -122,6 +128,31 @@ void ItemTypeRegistry::Private::addProjectSetting(const QString &moduleId, const
     module.projectSettings.push_back(field);
 }
 
+void ItemTypeRegistry::Private::addDeviceSetting(const QString &moduleId, const Field &field)
+{
+    // As for project settings, a field the settings window cannot show is
+    // left out with a warning. See decision 0079.
+    QString problem;
+    if (field.key.isEmpty())
+        problem = QStringLiteral("has no key");
+    else if (field.type != Field::Type::Text && field.type != Field::Type::Integer
+             && field.type != Field::Type::Bool && field.type != Field::Type::Choice)
+        problem = QStringLiteral("has a type that device settings do not take");
+    Module &module = modules[moduleId];
+    if (problem.isEmpty()) {
+        for (const Field &existing : module.deviceSettings) {
+            if (existing.key == field.key)
+                problem = QStringLiteral("was added twice");
+        }
+    }
+    if (!problem.isEmpty()) {
+        qWarning("Module %s: the device setting \"%s\" %s, so it is left out", qUtf8Printable(moduleId),
+                 qUtf8Printable(field.key), qUtf8Printable(problem));
+        return;
+    }
+    module.deviceSettings.push_back(field);
+}
+
 ItemTypeRegistry::ItemTypeRegistry()
     : d(std::make_unique<Private>())
 {
@@ -181,6 +212,22 @@ void ItemTypeRegistry::registerModule(const QString &moduleId, RegisterFunction 
             m_registry.addProjectSetting(m_moduleId, field);
         }
 
+        void addQuickAddHandler(std::unique_ptr<QuickAddHandler> handler) override
+        {
+            if (!handler)
+                qFatal("Module %s added a null quick add handler", qUtf8Printable(m_moduleId));
+            m_registry.modules[m_moduleId].handlers.push_back(std::move(handler));
+        }
+
+        void addRelatedItemFinder(std::unique_ptr<RelatedItemFinder> finder) override
+        {
+            if (!finder)
+                qFatal("Module %s added a null related-item finder", qUtf8Printable(m_moduleId));
+            m_registry.modules[m_moduleId].finders.push_back(std::move(finder));
+        }
+
+        void addDeviceSetting(const Field &field) override { m_registry.addDeviceSetting(m_moduleId, field); }
+
     private:
         Private &m_registry;
         QString m_moduleId;
@@ -198,9 +245,11 @@ const ItemType &ItemTypeRegistry::type(const QString &id) const
     const auto found = d->byId.find(id);
     if (found != d->byId.end())
         return *found->second;
+    // Modules register at start, before any item is looked up, so whether the
+    // module is in the build is known when the type is made.
     auto &slot = d->unknown[id];
     if (!slot)
-        slot = std::make_unique<UnknownItemType>(id);
+        slot = std::make_unique<UnknownItemType>(id, d->modules.count(id.section(QLatin1Char('.'), 0, 0)) != 0);
     return *slot;
 }
 
@@ -318,6 +367,42 @@ QStringList ItemTypeRegistry::projectSettingModules() const
     QStringList ids;
     for (const auto &entry : d->modules) {
         if (!entry.second.projectSettings.empty())
+            ids << entry.first;
+    }
+    return ids;
+}
+
+std::vector<ItemTypeRegistry::ModuleHandler> ItemTypeRegistry::quickAddHandlers() const
+{
+    std::vector<ModuleHandler> all;
+    for (const auto &entry : d->modules) {
+        for (const auto &handler : entry.second.handlers)
+            all.push_back({entry.first, handler.get()});
+    }
+    return all;
+}
+
+std::vector<ItemTypeRegistry::ModuleFinder> ItemTypeRegistry::relatedItemFinders() const
+{
+    std::vector<ModuleFinder> all;
+    for (const auto &entry : d->modules) {
+        for (const auto &finder : entry.second.finders)
+            all.push_back({entry.first, finder.get()});
+    }
+    return all;
+}
+
+std::vector<Field> ItemTypeRegistry::deviceSettings(const QString &moduleId) const
+{
+    const auto found = d->modules.find(moduleId);
+    return found == d->modules.end() ? std::vector<Field>() : found->second.deviceSettings;
+}
+
+QStringList ItemTypeRegistry::deviceSettingModules() const
+{
+    QStringList ids;
+    for (const auto &entry : d->modules) {
+        if (!entry.second.deviceSettings.empty())
             ids << entry.first;
     }
     return ids;

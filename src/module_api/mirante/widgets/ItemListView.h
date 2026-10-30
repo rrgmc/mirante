@@ -77,6 +77,10 @@ public:
     // filter.<column>.
     void addFilter(int column, const QString &label);
 
+    // A line above the table that says what the list shows, such as "Assigned
+    // to me · acme/backend". Empty hides it.
+    void setDescription(const QString &text);
+
     // The "Web" link in a thin row above the table. An empty url hides it.
     void setWebLink(const QUrl &url);
     QUrl webLink() const;

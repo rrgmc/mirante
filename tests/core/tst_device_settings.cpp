@@ -1,12 +1,15 @@
 // Tests DeviceSettings on a QSettings in a temporary INI file: the keys M2
 // used, the recent list, folder paths, the open tabs of each workspace, the
 // windows of detached dashboards, the hidden-view limit, the poll interval,
-// the seen attention keys and Focus's attention order.
+// the seen attention keys, Focus's attention order, the terminal command and
+// module device settings.
 #include "core/DeviceSettings.h"
 
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
+#include <QJsonArray>
+#include <QJsonObject>
 #include <QSettings>
 #include <QTemporaryDir>
 #include <QTest>
@@ -519,6 +522,122 @@ private slots:
         QVERIFY(device.focusAttentionFirst());
         device.setFocusAttentionFirst(false);
         QVERIFY(!device.focusAttentionFirst());
+    }
+
+    // A hotkey is set unless the user cleared it, which is kept as empty.
+    void globalHotkey()
+    {
+        {
+            DeviceSettings device(settings.get());
+            QVERIFY(device.globalHotkey().endsWith(QStringLiteral("+Shift+D")));
+            device.setGlobalHotkey(QStringLiteral("Ctrl+Alt+K"));
+        }
+        reopen();
+        DeviceSettings device(settings.get());
+        QCOMPARE(device.globalHotkey(), QStringLiteral("Ctrl+Alt+K"));
+        device.setGlobalHotkey(QString());
+        QVERIFY(device.globalHotkey().isEmpty());
+    }
+
+    void closeToTray()
+    {
+        {
+            DeviceSettings device(settings.get());
+            QVERIFY(device.closeToTray());
+            device.setCloseToTray(false);
+        }
+        reopen();
+        DeviceSettings device(settings.get());
+        QVERIFY(!device.closeToTray());
+    }
+    // Empty means the platform's terminal, and is not kept.
+    void terminalCommand()
+    {
+        {
+            DeviceSettings device(settings.get());
+            QVERIFY(device.terminalCommand().isEmpty());
+            device.setTerminalCommand(QStringLiteral("wezterm start --cwd {dir} -- {command}"));
+        }
+        reopen();
+        DeviceSettings device(settings.get());
+        QCOMPARE(device.terminalCommand(), QStringLiteral("wezterm start --cwd {dir} -- {command}"));
+        device.setTerminalCommand(QStringLiteral("  "));
+        QVERIFY(device.terminalCommand().isEmpty());
+        QVERIFY(!settings->contains(QStringLiteral("terminal/command")));
+    }
+
+    // "system" is the default and is not kept; an unknown value reads as it.
+    void language()
+    {
+        {
+            DeviceSettings device(settings.get());
+            QCOMPARE(device.language(), QStringLiteral("system"));
+            device.setLanguage(QStringLiteral("pt_BR"));
+        }
+        reopen();
+        {
+            DeviceSettings device(settings.get());
+            QCOMPARE(device.language(), QStringLiteral("pt_BR"));
+            device.setLanguage(QStringLiteral("en"));
+            QCOMPARE(device.language(), QStringLiteral("en"));
+            device.setLanguage(QStringLiteral("system"));
+            QCOMPARE(device.language(), QStringLiteral("system"));
+            QVERIFY(!settings->contains(QStringLiteral("language")));
+        }
+        settings->setValue(QStringLiteral("language"), QStringLiteral("fr"));
+        DeviceSettings device(settings.get());
+        QCOMPARE(device.language(), QStringLiteral("system"));
+    }
+
+    void moduleSettingsKeepTheirType_data()
+    {
+        QTest::addColumn<QJsonValue>("value");
+        QTest::newRow("text") << QJsonValue(QStringLiteral("code"));
+        QTest::newRow("text that looks like a number") << QJsonValue(QStringLiteral("42"));
+        QTest::newRow("text that looks like a boolean") << QJsonValue(QStringLiteral("true"));
+        QTest::newRow("text with quotes and commas") << QJsonValue(QStringLiteral("say \"hi\", then go"));
+        QTest::newRow("empty text") << QJsonValue(QString());
+        QTest::newRow("integer") << QJsonValue(42);
+        QTest::newRow("boolean") << QJsonValue(false);
+        QTest::newRow("array") << QJsonValue(QJsonArray{1, QStringLiteral("a")});
+        QTest::newRow("object") << QJsonValue(QJsonObject{{QStringLiteral("k"), true}});
+    }
+
+    // Values read back as they were stored, also from an INI file, which
+    // keeps every value as text.
+    void moduleSettingsKeepTheirType()
+    {
+        QFETCH(QJsonValue, value);
+        {
+            DeviceSettings device(settings.get());
+            QVERIFY(device.moduleSetting(QStringLiteral("folder"), QStringLiteral("editor")).isUndefined());
+            device.setModuleSetting(QStringLiteral("folder"), QStringLiteral("editor"), value);
+        }
+        reopen();
+        QVERIFY(settings->contains(QStringLiteral("modules/folder/editor")));
+        const DeviceSettings device(settings.get());
+        QCOMPARE(device.moduleSetting(QStringLiteral("folder"), QStringLiteral("editor")), value);
+        QVERIFY(device.moduleSetting(QStringLiteral("claude"), QStringLiteral("editor")).isUndefined());
+    }
+
+    void moduleSettingRemovedByNullOrUndefined()
+    {
+        DeviceSettings device(settings.get());
+        device.setModuleSetting(QStringLiteral("claude"), QStringLiteral("program"), QStringLiteral("claude"));
+        device.setModuleSetting(QStringLiteral("claude"), QStringLiteral("program"), QJsonValue(QJsonValue::Null));
+        QVERIFY(!settings->contains(QStringLiteral("modules/claude/program")));
+        device.setModuleSetting(QStringLiteral("claude"), QStringLiteral("program"), 3);
+        device.setModuleSetting(QStringLiteral("claude"), QStringLiteral("program"), QJsonValue());
+        QVERIFY(device.moduleSetting(QStringLiteral("claude"), QStringLiteral("program")).isUndefined());
+    }
+
+    // A value typed into the file by hand without JSON quotes reads as text.
+    void moduleSettingNotJson()
+    {
+        settings->setValue(QStringLiteral("modules/folder/editor"), QStringLiteral("code --new-window"));
+        const DeviceSettings device(settings.get());
+        QCOMPARE(device.moduleSetting(QStringLiteral("folder"), QStringLiteral("editor")),
+                 QJsonValue(QStringLiteral("code --new-window")));
     }
 };
 

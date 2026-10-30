@@ -1,11 +1,21 @@
 #include "ui/SettingsDialog.h"
 
 #include "core/DeviceSettings.h"
+#include "items/ItemTypeRegistry.h"
+#include "ui/FieldForm.h"
 
 #include <QCheckBox>
+#include <QComboBox>
 #include <QDialogButtonBox>
 #include <QFormLayout>
+#include <QGroupBox>
+#include <QHBoxLayout>
+#include <QJsonObject>
+#include <QKeySequenceEdit>
 #include <QLabel>
+#include <QLineEdit>
+#include <QPushButton>
+#include <QSignalBlocker>
 #include <QSpinBox>
 #include <QVBoxLayout>
 
@@ -16,6 +26,9 @@ struct SettingsDialog::Private
     DeviceSettings *settings = nullptr;
     QVBoxLayout *sections = nullptr;
     QCheckBox *sidebarHoverTint = nullptr;
+    QLabel *hotkeyError = nullptr;
+    QCheckBox *closeToTray = nullptr;
+    bool modulesAdded = false;
 };
 
 SettingsDialog::SettingsDialog(DeviceSettings &settings, QWidget *parent)
@@ -40,6 +53,29 @@ SettingsDialog::SettingsDialog(DeviceSettings &settings, QWidget *parent)
     layout->addLayout(d->sections);
     layout->addStretch(1);
     layout->addWidget(buttons);
+
+    // General. The language applies at the next start; see
+    // docs/decisions/0086-english-and-brazilian-portuguese.md. The languages
+    // are named in their own language.
+    QFormLayout *general = addSection(tr("General"));
+    auto *language = new QComboBox(this);
+    language->setObjectName(QStringLiteral("language"));
+    language->addItem(tr("System"), QStringLiteral("system"));
+    language->addItem(QStringLiteral("English"), QStringLiteral("en"));
+    language->addItem(QStringLiteral("Português (Brasil)"), QStringLiteral("pt_BR"));
+    language->setToolTip(tr("System uses Brazilian Portuguese when the system's language is Portuguese, "
+                            "and English otherwise."));
+    language->setCurrentIndex(qMax(0, language->findData(settings.language())));
+    connect(language, &QComboBox::currentIndexChanged, this, [this, language] {
+        d->settings->setLanguage(language->currentData().toString());
+        emit changed();
+    });
+    auto *languageNote = new QLabel(tr("Applies at the next start."), this);
+    languageNote->setObjectName(QStringLiteral("languageNote"));
+    auto *languageRow = new QHBoxLayout;
+    languageRow->addWidget(language);
+    languageRow->addWidget(languageNote, 1);
+    general->addRow(tr("Language"), languageRow);
 
     // Sidebar.
     QFormLayout *sidebar = addSection(tr("Sidebar"));
@@ -70,12 +106,114 @@ SettingsDialog::SettingsDialog(DeviceSettings &settings, QWidget *parent)
     });
     status->addRow(tr("Check servers every"), pollInterval);
 
+    // Window.
+    QFormLayout *window = addSection(tr("Window"));
+    auto *hotkey = new QKeySequenceEdit(this);
+    hotkey->setObjectName(QStringLiteral("globalHotkey"));
+    hotkey->setMaximumSequenceLength(1);
+    hotkey->setToolTip(tr("Shows or hides Mirante from any application."));
+    hotkey->setKeySequence(QKeySequence::fromString(settings.globalHotkey(), QKeySequence::PortableText));
+    connect(hotkey, &QKeySequenceEdit::keySequenceChanged, this, [this](const QKeySequence &sequence) {
+        d->settings->setGlobalHotkey(sequence.toString(QKeySequence::PortableText));
+        emit changed();
+    });
+    auto *clear = new QPushButton(tr("Clear"), this);
+    clear->setObjectName(QStringLiteral("clearGlobalHotkey"));
+    connect(clear, &QPushButton::clicked, hotkey, &QKeySequenceEdit::clear);
+    auto *hotkeyRow = new QHBoxLayout;
+    hotkeyRow->addWidget(hotkey, 1);
+    hotkeyRow->addWidget(clear);
+    window->addRow(tr("Global hotkey"), hotkeyRow);
+    d->hotkeyError = new QLabel(this);
+    d->hotkeyError->setObjectName(QStringLiteral("globalHotkeyError"));
+    d->hotkeyError->setWordWrap(true);
+    d->hotkeyError->hide();
+    window->addRow(d->hotkeyError);
+    d->closeToTray = new QCheckBox(tr("Closing the window keeps Mirante running in the tray"), this);
+    d->closeToTray->setObjectName(QStringLiteral("closeToTray"));
+    d->closeToTray->setChecked(settings.closeToTray());
+    connect(d->closeToTray, &QCheckBox::toggled, this, [this](bool on) {
+        d->settings->setCloseToTray(on);
+        emit changed();
+    });
+    window->addRow(d->closeToTray);
+
+    // Terminal. See docs/integrations.md#terminal-launch.
+    QFormLayout *terminal = addSection(tr("Terminal"));
+    auto *terminalCommand = new QLineEdit(settings.terminalCommand(), this);
+    terminalCommand->setObjectName(QStringLiteral("terminalCommand"));
+    terminalCommand->setPlaceholderText(tr("The system's terminal, or such as: wezterm start --cwd {dir} -- {command}"));
+    terminalCommand->setToolTip(
+        tr("The command that opens a terminal. {dir} is the folder to start in. {command} is the program to run, "
+           "with its arguments. Empty uses the system's terminal."));
+    connect(terminalCommand, &QLineEdit::textChanged, this, [this](const QString &text) {
+        d->settings->setTerminalCommand(text);
+        emit changed();
+    });
+    terminal->addRow(tr("Terminal command"), terminalCommand);
+
     resize(480, sizeHint().height());
 }
 
 SettingsDialog::~SettingsDialog() = default;
 
 QCheckBox *SettingsDialog::sidebarHoverTint() const { return d->sidebarHoverTint; }
+
+void SettingsDialog::setHotkeyError(const QString &error)
+{
+    d->hotkeyError->setText(error);
+    d->hotkeyError->setVisible(!error.isEmpty());
+}
+
+void SettingsDialog::setTrayAvailable(bool available)
+{
+    const QSignalBlocker blocker(d->closeToTray);
+    d->closeToTray->setChecked(available && d->settings->closeToTray());
+    d->closeToTray->setEnabled(available);
+}
+
+// Each module's fields show the stored value, else the field's default. Only
+// a value the user changes is stored, so an untouched default follows the
+// module's. Empty text removes the value, so the default applies again.
+void SettingsDialog::setModules(const ItemTypeRegistry &types)
+{
+    const QStringList moduleIds = types.deviceSettingModules();
+    if (d->modulesAdded || moduleIds.isEmpty())
+        return;
+    d->modulesAdded = true;
+    QFormLayout *modules = addSection(tr("Modules"));
+    for (const QString &moduleId : moduleIds) {
+        const std::vector<Field> fields = types.deviceSettings(moduleId);
+        QJsonObject shown;
+        for (const Field &field : fields) {
+            const QJsonValue stored = d->settings->moduleSetting(moduleId, field.key);
+            const QJsonValue value = stored.isUndefined() ? field.defaultValue : stored;
+            if (!value.isUndefined() && !value.isNull())
+                shown.insert(field.key, value);
+        }
+        auto *box = new QGroupBox(types.moduleName(moduleId), this);
+        box->setObjectName(QStringLiteral("deviceSettings.") + moduleId);
+        auto *form = new FieldForm(fields, EditorContext(), box);
+        form->setObjectName(QStringLiteral("deviceSettingsForm.") + moduleId);
+        form->setConfig(shown);
+        auto *boxLayout = new QVBoxLayout(box);
+        boxLayout->addWidget(form);
+        modules->addRow(box);
+        connect(form, &FieldForm::changed, this, [this, form, moduleId, fields, shown]() mutable {
+            const QJsonObject values = form->config();
+            for (const Field &field : fields) {
+                const QJsonValue value = values.value(field.key);
+                if (value == shown.value(field.key))
+                    continue;
+                shown.insert(field.key, value);
+                const bool empty = value.isUndefined() || (value.isString() && value.toString().trimmed().isEmpty());
+                d->settings->setModuleSetting(moduleId, field.key, empty ? QJsonValue() : value);
+            }
+            emit changed();
+        });
+    }
+    resize(width(), sizeHint().height());
+}
 
 QFormLayout *SettingsDialog::addSection(const QString &title)
 {

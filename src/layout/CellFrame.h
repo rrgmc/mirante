@@ -5,9 +5,13 @@
 
 #include <QColor>
 #include <QFrame>
+#include <QImage>
 
+#include <functional>
 #include <memory>
 #include <optional>
+
+class QMimeData;
 
 namespace mirante {
 
@@ -78,6 +82,16 @@ public:
     // on for items of types with status.
     void setRefreshVisible(bool visible);
 
+    // Takes images dropped from other apps, for the cell of an item whose
+    // type takes pasted images. read gives the image a drag carries, or a
+    // null image to refuse the drag. dropped gets the image once the drop
+    // is over, so the drag's source is not kept waiting while a dialog is
+    // open. The drag is copied, never moved, and the cell shows its focus
+    // border while the image is over it. Without this, the default, the cell
+    // takes no drops of its own. See docs/decisions/0085-drop-images-from-other-apps.md.
+    using ImageReader = std::function<QImage(const QMimeData *data)>;
+    void setImageDrop(ImageReader read, std::function<void(const QImage &image)> dropped);
+
 signals:
     void menuRequested(const QPoint &globalPos);
     void dragStarted();     // the header was dragged in edit mode
@@ -86,6 +100,12 @@ signals:
     void refreshRequested();
     // The problem pill was clicked, such as "Token not set".
     void fixRequested();
+
+protected:
+    void dragEnterEvent(QDragEnterEvent *event) override;
+    void dragMoveEvent(QDragMoveEvent *event) override;
+    void dragLeaveEvent(QDragLeaveEvent *event) override;
+    void dropEvent(QDropEvent *event) override;
 
 private:
     struct Private;

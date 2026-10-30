@@ -48,6 +48,7 @@
 
 #include <QApplication>
 #include <QCheckBox>
+#include <QScopeGuard>
 #include <QDir>
 #include <QDirIterator>
 #include <QEnterEvent>
@@ -1932,6 +1933,84 @@ private slots:
         QCOMPARE(f.bar()->count(), 1);
         QVERIFY(f.bar()->tabData(0).toBool());
         QCOMPARE(detachedWindows().size(), 1);
+    }
+
+    // With a tray, closing hides the window and the windows beside it. Bringing
+    // it back shows them again, still detached.
+    void closeHidesToTray()
+    {
+        Fixture f;
+        f.window->setTrayPresent(true);
+        const auto noTray = qScopeGuard([&f] { f.window->setTrayPresent(false); });
+        f.window->show();
+        emit f.bar()->detachRequested(0);
+        QPointer<DetachedWindow> detached = detachedWindows().value(0);
+        QVERIFY(detached);
+        QVERIFY(detached->isVisible());
+
+        f.window->close();
+        QVERIFY(!f.window->isVisible());
+        QVERIFY(!detached->isVisible());
+        QCOMPARE(detachedWindows().size(), 1);
+        QVERIFY(f.settings.windowSize().isValid());
+
+        f.window->showAndRaise();
+        QVERIFY(f.window->isVisible());
+        QVERIFY(detached->isVisible());
+    }
+
+    // With the setting off, closing with a tray does not hide the window.
+    void closeToTrayOff()
+    {
+        Fixture f;
+        f.settings.setCloseToTray(false);
+        f.window->setTrayPresent(true);
+        const auto noTray = qScopeGuard([&f] { f.window->setTrayPresent(false); });
+        f.window->show();
+        f.window->hideToTray();    // the hotkey still hides it
+        QVERIFY(!f.window->isVisible());
+        f.window->showAndRaise();
+        f.window->close();         // asks the application to quit, later
+        QVERIFY(f.window->isVisible());
+    }
+
+    // Quitting closes for real: the detached windows are saved as detached and
+    // put back, also when the window was hidden, and a second close saves nothing.
+    void quitClosesForReal()
+    {
+        Fixture f;
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid() && copyFixtures(dir.path()));
+        f.window->openWorkspace(dir.path());
+        f.window->setTrayPresent(true);
+        const auto noTray = qScopeGuard([&f] { f.window->setTrayPresent(false); });
+        f.window->show();
+        emit f.bar()->detachRequested(0);
+        QCOMPARE(detachedWindows().size(), 1);
+        f.window->hideToTray();
+        QVERIFY(!f.window->isVisible());
+
+        f.window->prepareToQuit();
+        QCOMPARE(detachedWindows().size(), 0);
+        QCOMPARE(f.settings.openTabs(dir.path()).detached.size(), 1);
+
+        f.window->close();
+        QCOMPARE(f.settings.openTabs(dir.path()).detached.size(), 1);
+    }
+
+    // Without a tray, hiding only minimizes the window, and the app keeps
+    // quitting with its last window.
+    void noTrayMinimizes()
+    {
+        Fixture f;
+        QVERIFY(QApplication::quitOnLastWindowClosed());
+        f.window->show();
+        f.window->hideToTray();
+        QVERIFY(f.window->isMinimized());
+        f.window->showAndRaise();
+        QVERIFY(!f.window->isMinimized());
+        f.window->close();
+        QVERIFY(!f.window->isVisible());
     }
 
     // Closing the window, or "Put Back", returns the page to the end of the

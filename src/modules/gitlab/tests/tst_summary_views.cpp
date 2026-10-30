@@ -54,7 +54,7 @@ const QString kScopeMessage = QStringLiteral("The token cannot do this. It needs
 
 QJsonDocument readJson(const QString &name)
 {
-    QFile file(QFINDTESTDATA(QStringLiteral("data/") + name));
+    QFile file(QFINDTESTDATA(QStringLiteral("tests/data/") + name));
     if (!file.open(QIODevice::ReadOnly))
         qFatal("Cannot read %s", qPrintable(name));
     return QJsonDocument::fromJson(file.readAll());
@@ -522,7 +522,7 @@ private slots:
         FakeContext context;
         context.source.status = groupStatus();
         const QString olderJobs = QStringLiteral("GET ") + kProject + QStringLiteral("/pipelines/8990/jobs?per_page=100");
-        QVERIFY(context.client.setJsonFile(olderJobs, QFINDTESTDATA("data/pipeline_jobs_sibling.json")));
+        QVERIFY(context.client.setJsonFile(olderJobs, QFINDTESTDATA("tests/data/pipeline_jobs_sibling.json")));
         View view(createPipelineView(context, nullptr));
         view->show();
 
@@ -569,7 +569,7 @@ private slots:
         FakeContext context;
         context.source.status = status;
         const QString key = QStringLiteral("GET ") + kProject + QStringLiteral("/pipelines/9000/jobs?per_page=100");
-        QVERIFY(context.client.setJsonFile(key, QFINDTESTDATA("data/pipeline_jobs_sibling.json")));
+        QVERIFY(context.client.setJsonFile(key, QFINDTESTDATA("tests/data/pipeline_jobs_sibling.json")));
         View view(createPipelineView(context, nullptr));
         view->show();
 
@@ -585,7 +585,7 @@ private slots:
         context.source.status = groupStatus();
         QVERIFY(context.client.setJsonFile(QStringLiteral("GET ") + kProject
                                                + QStringLiteral("/pipelines/8990/jobs?per_page=100"),
-                                           QFINDTESTDATA("data/pipeline_jobs_sibling.json")));
+                                           QFINDTESTDATA("tests/data/pipeline_jobs_sibling.json")));
         View view(createPipelineView(context, nullptr));
         view->show();
 
@@ -1267,10 +1267,10 @@ private slots:
         QCOMPARE(shownText(loading), QStringLiteral("No token"));
 
         context.source.status = {};
-        context.source.status.message = QStringLiteral("Follows the main folder from M7");
+        context.source.status.message = QStringLiteral("The main folder is not on a branch.");
         View pipeline(createPipelineView(context, nullptr));
         pipeline->show();
-        QCOMPARE(shownText(pipeline), QStringLiteral("Follows the main folder from M7"));
+        QCOMPARE(shownText(pipeline), QStringLiteral("The main folder is not on a branch."));
         QVERIFY(!showsAction(pipeline, QStringLiteral("trigger-pipeline")));
 
         context.source.status = {};
@@ -1310,6 +1310,26 @@ private slots:
         context.source.change(empty);
         QVERIFY(shownText(view).contains(QStringLiteral("Add the retry button")));
         QVERIFY(!shownText(view).contains(QStringLiteral("Network error")));
+    }
+
+    // A message without an error, such as a main folder that left its branch,
+    // replaces what is drawn, and new data replaces the message.
+    void messageWithoutAnErrorReplacesOldData()
+    {
+        FakeContext context;
+        context.source.status = pipelineWithStatus(QStringLiteral("failed"));
+        View view(createPipelineView(context, nullptr));
+        view->show();
+        QVERIFY(shownText(view).contains(QStringLiteral("feature/retry-button")));
+
+        ItemStatus detached;
+        detached.message = QStringLiteral("The main folder is not on a branch.");
+        context.source.change(detached);
+        QCOMPARE(shownText(view), QStringLiteral("The main folder is not on a branch."));
+
+        context.source.change(pipelineWithStatus(QStringLiteral("failed")));
+        QVERIFY(!shownText(view).contains(QStringLiteral("The main folder is not on a branch.")));
+        QVERIFY(shownText(view).contains(QStringLiteral("feature/retry-button")));
     }
 
 private:

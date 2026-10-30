@@ -23,6 +23,27 @@ mirante_finish_modules(mirante)
 # A copy of the app with its Qt files, in <build>/bin.
 mirante_add_bin_folder(mirante)
 
+# The translations, compiled into the app's resources under :/i18n. lupdate
+# reads every source file of the app and of all modules, also those left out
+# of this build, so the translation files stay complete in every preset. Test
+# sources are not read. The files keep no source locations, so a change of
+# code moves no lines in them. update_translations runs lupdate. See
+# translations/README.md and decision 0086.
+file(GLOB_RECURSE translation_sources CONFIGURE_DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/*.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/*.mm")
+list(FILTER translation_sources EXCLUDE REGEX "/tests/|/module_api/testing/")
+list(REMOVE_ITEM translation_sources "${CMAKE_CURRENT_SOURCE_DIR}/main.cpp")
+qt_add_translations(mirante
+    SOURCE_TARGETS mirante
+    SOURCES ${translation_sources}
+    # lupdate follows the includes to find the class of each tr().
+    INCLUDE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/module_api"
+    TS_FILE_DIR "${PROJECT_SOURCE_DIR}/translations"
+    RESOURCE_PREFIX /i18n
+    LUPDATE_OPTIONS -locations none -no-obsolete)
+
 # The fixture data folder, loaded unless the app is started with --data.
 file(GLOB_RECURSE fixture_files CONFIGURE_DEPENDS
     "${PROJECT_SOURCE_DIR}/resources/fixtures/*.json"

@@ -3,6 +3,8 @@
 #include <QCryptographicHash>
 #include <QDir>
 #include <QFileInfo>
+#include <QJsonArray>
+#include <QJsonDocument>
 #include <QSettings>
 
 #include <algorithm>
@@ -22,6 +24,10 @@ const QString sidebarHoverTintKey = QStringLiteral("sidebar/hoverTint");
 const QString hiddenViewLimitKey = QStringLiteral("webViews/hiddenLimit");
 const QString pollIntervalKey = QStringLiteral("status/pollInterval");
 const QString focusAttentionFirstKey = QStringLiteral("focus/attentionFirst");
+const QString globalHotkeyKey = QStringLiteral("window/globalHotkey");
+const QString closeToTrayKey = QStringLiteral("window/closeToTray");
+const QString terminalCommandKey = QStringLiteral("terminal/command");
+const QString languageKey = QStringLiteral("language");
 
 constexpr int defaultHiddenViewLimit = 8;
 
@@ -34,6 +40,12 @@ constexpr int maxRecent = 10;
 QString folderKey(const QString &folderId)
 {
     return QStringLiteral("folders/") + folderId;
+}
+
+// A module's device setting. Module ids and field keys are plain names.
+QString moduleSettingKey(const QString &moduleId, const QString &key)
+{
+    return QStringLiteral("modules/") + moduleId + QLatin1Char('/') + key;
 }
 
 QString detachedKey(const QString &dashboardId)
@@ -388,6 +400,90 @@ bool DeviceSettings::focusAttentionFirst() const
 void DeviceSettings::setFocusAttentionFirst(bool on)
 {
     d->settings->setValue(focusAttentionFirstKey, on);
+}
+
+QString DeviceSettings::globalHotkey() const
+{
+#if defined(Q_OS_MACOS)
+    // Qt's Meta is the Control key on macOS. macOS 15 refuses hotkeys that use
+    // only Option and Shift.
+    const QString standard = QStringLiteral("Meta+Shift+D");
+#else
+    const QString standard = QStringLiteral("Alt+Shift+D");
+#endif
+    return d->settings->value(globalHotkeyKey, standard).toString();
+}
+
+void DeviceSettings::setGlobalHotkey(const QString &sequence)
+{
+    d->settings->setValue(globalHotkeyKey, sequence);
+}
+
+bool DeviceSettings::closeToTray() const
+{
+    return d->settings->value(closeToTrayKey, true).toBool();
+}
+
+void DeviceSettings::setCloseToTray(bool on)
+{
+    d->settings->setValue(closeToTrayKey, on);
+}
+
+QString DeviceSettings::terminalCommand() const
+{
+    return d->settings->value(terminalCommandKey).toString();
+}
+
+void DeviceSettings::setTerminalCommand(const QString &command)
+{
+    if (command.trimmed().isEmpty())
+        d->settings->remove(terminalCommandKey);
+    else
+        d->settings->setValue(terminalCommandKey, command);
+}
+
+QString DeviceSettings::language() const
+{
+    const QString language = d->settings->value(languageKey).toString();
+    if (language == QLatin1String("en") || language == QLatin1String("pt_BR"))
+        return language;
+    return QStringLiteral("system");
+}
+
+void DeviceSettings::setLanguage(const QString &language)
+{
+    if (language == QLatin1String("en") || language == QLatin1String("pt_BR"))
+        d->settings->setValue(languageKey, language);
+    else
+        d->settings->remove(languageKey);
+}
+
+// The value is kept as JSON text, such as "code" with its quotes, or true, so
+// it reads back with its type: an INI file would otherwise give every value
+// back as a string. Text that is not JSON, as typed into the file by hand,
+// reads as a string.
+QJsonValue DeviceSettings::moduleSetting(const QString &moduleId, const QString &key) const
+{
+    const QVariant stored = d->settings->value(moduleSettingKey(moduleId, key));
+    if (!stored.isValid())
+        return QJsonValue(QJsonValue::Undefined);
+    const QByteArray text = '[' + stored.toString().toUtf8() + ']';
+    QJsonParseError error;
+    const QJsonDocument document = QJsonDocument::fromJson(text, &error);
+    if (error.error != QJsonParseError::NoError || !document.isArray() || document.array().size() != 1)
+        return stored.toString();
+    return document.array().first();
+}
+
+void DeviceSettings::setModuleSetting(const QString &moduleId, const QString &key, const QJsonValue &value)
+{
+    const QString settingKey = moduleSettingKey(moduleId, key);
+    if (value.isUndefined() || value.isNull()) {
+        d->settings->remove(settingKey);
+        return;
+    }
+    const QByteArray array = QJsonDocument(QJsonArray{value}).toJson(QJsonDocument::Compact);
+    d->settings->setValue(settingKey, QString::fromUtf8(array.mid(1, array.size() - 2)));
 }
 
 } // namespace mirante

@@ -1,7 +1,10 @@
-# Builds and tests Mirante on Windows, macOS and Linux, with all modules and
-# with none, and checks that modules include only the module API.
+# Builds and tests Mirante on Windows and Linux, with all modules and with
+# none, and checks that modules include only the module API and that every
+# text is translated.
 # Qt comes from tools/setup-qt, as in local builds, into a cached folder
 # outside the checkout. See docs/plans/m2-app-skeleton.md, part 1.
+# macOS is off during development, and its steps stay for when it returns. Add
+# macos-14 to the matrix to turn it on. See decision 0077.
 
 name: CI
 
@@ -19,7 +22,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-2022, macos-14, ubuntu-24.04]
+        os: [windows-2022, ubuntu-24.04]
     steps:
       - uses: actions/checkout@v4
 
@@ -30,7 +33,7 @@ jobs:
         with:
           path: ${{ runner.temp }}/qt
           # Change the last part when setup-qt installs other archives.
-          key: qt-${{ runner.os }}-${{ env.QT_VERSION }}-qtbase-qtsvg-qtdeclarative-icu-webengine
+          key: qt-${{ runner.os }}-${{ env.QT_VERSION }}-qtbase-qtsvg-qtdeclarative-qttools-qttranslations-icu-webengine-imageformats
 
       - name: Install Linux packages
         if: runner.os == 'Linux'
@@ -80,7 +83,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ runner.temp }}/qt
-          key: qt-${{ runner.os }}-${{ env.QT_VERSION }}-qtbase-qtsvg-qtdeclarative-icu-webengine
+          key: qt-${{ runner.os }}-${{ env.QT_VERSION }}-qtbase-qtsvg-qtdeclarative-qttools-qttranslations-icu-webengine-imageformats
 
       - name: Install Linux packages
         run: |
@@ -102,6 +105,15 @@ jobs:
           cmake --preset ci-no-modules -DCMAKE_PREFIX_PATH="$QT_DIR"
           cmake --build --preset ci-no-modules
           ctest --preset ci-no-modules
+
+      # lupdate reads every module's sources, also in a build without them.
+      # The committed translation files must be up to date and complete.
+      - name: Check translations
+        run: |
+          cmake --build --preset ci-no-modules --target update_translations
+          python3 tools/translation-glossary.py
+          python3 tools/check-translations.py
+          git diff --exit-code translations/
 
   module-includes:
     runs-on: ubuntu-24.04

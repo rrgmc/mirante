@@ -3,18 +3,29 @@
 #   tools/build.ps1                  the dev preset
 #   tools/build.ps1 -Preset release  another preset
 #   tools/build.ps1 -NoTest          build only
+#   tools/build.ps1 -Target <name>   build one target only, without tests,
+#                                    such as update_translations
 #
 # Downloads Qt with tools/setup-qt.ps1 if it is missing, and enters the
 # Visual Studio 2022 developer environment if the shell is not in one.
 
 param(
     [string]$Preset = 'dev',
-    [switch]$NoTest
+    [switch]$NoTest,
+    [string]$Target
 )
 
 $ErrorActionPreference = 'Stop'
 
 $Repo = Split-Path -Parent $PSScriptRoot
+
+# Windows locks a running program's file, so the build would fail near its end.
+# Closing the window can leave Mirante running, hidden in the tray.
+$BuildDir = Join-Path $Repo "build\$Preset\"
+$running = Get-Process mirante -ErrorAction SilentlyContinue | Where-Object { $_.Path -and $_.Path.StartsWith($BuildDir, [StringComparison]::OrdinalIgnoreCase) }
+if ($running) {
+    throw "Mirante is still running from $($running[0].Path) (process $($running.Id -join ', ')), so the build cannot replace it. Quit it with File > Quit, or from its tray icon, then build again."
+}
 
 $QtDir = & (Join-Path $PSScriptRoot 'setup-qt.ps1') | Select-Object -Last 1
 
@@ -41,6 +52,10 @@ function Invoke-Tool {
 Push-Location $Repo
 try {
     Invoke-Tool cmake --preset $Preset "-DCMAKE_PREFIX_PATH=$QtDir"
+    if ($Target) {
+        Invoke-Tool cmake --build --preset $Preset --target $Target
+        return
+    }
     Invoke-Tool cmake --build --preset $Preset
     if (-not $NoTest) {
         # The tests load the Qt DLLs from Qt's bin folder.
