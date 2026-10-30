@@ -624,8 +624,11 @@ struct Placement::Private
         } else {
             // Only keys the view writes itself changed: it stays, and is told.
             if (found->config != madeConfig) {
-                madeConfig = found->config;
-                context.notifyConfigChanged(madeConfig);
+                // A copy, since a receiver may change the model, and with it
+                // madeConfig, while it is called.
+                const QJsonObject config = found->config;
+                madeConfig = config;
+                context.notifyConfigChanged(config);
                 found = item();
                 if (!found)
                     return;
