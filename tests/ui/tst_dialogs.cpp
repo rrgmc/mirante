@@ -374,7 +374,7 @@ void TestDialogs::itemProfile()
     auto *combo = dialog.findChild<QComboBox *>(QStringLiteral("profile"));
     QVERIFY(combo);
     QCOMPARE(combo->count(), 3);
-    QCOMPARE(combo->itemText(0), QStringLiteral("The group's profile (Work)"));
+    QCOMPARE(combo->itemText(0), QStringLiteral("Work (from the group)"));
     QCOMPARE(combo->itemText(1), QStringLiteral("Default"));
     QCOMPARE(dialog.value(), item);
     QCOMPARE(dialog.effectiveProfile(), QStringLiteral("work"));
