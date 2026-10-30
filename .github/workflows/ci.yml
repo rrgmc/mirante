@@ -1,15 +1,17 @@
-# Builds and tests Mirante on Windows and Linux, with all modules and with
-# none, and checks that modules include only the module API and that every
-# text is translated.
+# Builds and tests Mirante on Windows, macOS and Linux, with all modules and
+# with none, and checks that modules include only the module API and that every
+# text is translated. Each build also makes its package and keeps it for a
+# week. The packages are not signed; releases come from release.yml.
 # Qt comes from tools/setup-qt, as in local builds, into a cached folder
-# outside the checkout. See docs/plans/m2-app-skeleton.md, part 1.
-# macOS is off during development, and its steps stay for when it returns. Add
-# macos-14 to the matrix to turn it on. See decision 0077.
+# outside the checkout. See docs/plans/m2-app-skeleton.md, part 1, and
+# docs/plans/m10-packaging.md.
 
 name: CI
 
 on:
+  # Tags start release.yml, which builds and tests on its own.
   push:
+    branches: ['**']
   pull_request:
 
 env:
@@ -22,7 +24,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-2022, ubuntu-24.04]
+        os: [windows-2022, macos-14, ubuntu-24.04]
     steps:
       - uses: actions/checkout@v4
 
@@ -43,20 +45,26 @@ jobs:
             ninja-build pkg-config libsecret-1-dev libx11-dev libxkbcommon-dev \
             libxkbcommon-x11-0 libgl1-mesa-dev libegl1 libfontconfig1 libdbus-1-3 \
             libnss3 libnspr4 libxcomposite1 libxdamage1 libxrandr2 libxtst6 \
-            libxkbfile1 libxshmfence1 libgbm1 libdrm2 libasound2t64 libxcb-cursor0
+            libxkbfile1 libxshmfence1 libgbm1 libdrm2 libasound2t64 libxcb-cursor0             dpkg-dev
 
       - name: Install macOS packages
         if: runner.os == 'macOS'
         run: brew install ninja
 
-      # build.ps1 gets Qt, enters the Visual Studio 2022 developer shell, and
-      # configures, builds and tests the preset.
-      - name: Build and test (Windows)
+      - name: Install NSIS (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: if (-not (Get-Command makensis -ErrorAction SilentlyContinue)) { choco install nsis -y --no-progress }
+
+      # build.ps1 gets Qt, enters the Visual Studio 2022 developer shell,
+      # configures, builds and tests the preset, then installs, checks and
+      # packages it.
+      - name: Build, test and package (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
         env:
           MIRANTE_QT_ROOT: ${{ runner.temp }}/qt
-        run: ./tools/build.ps1 -Preset ci
+        run: ./tools/build.ps1 -Preset ci -Package
 
       - name: Build and test (macOS, Linux)
         if: runner.os != 'Windows'
@@ -71,6 +79,23 @@ jobs:
           cmake --preset ci -DCMAKE_PREFIX_PATH="$QT_DIR"
           cmake --build --preset ci
           ctest --preset ci
+
+      - name: Package (macOS, Linux)
+        if: runner.os != 'Windows'
+        run: |
+          cmake --install build/ci --component Mirante --prefix "$PWD/build/ci/install"
+          python3 tools/check-package.py build/ci/install
+          cd build/ci && cpack
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mirante-${{ runner.os }}
+          path: |
+            build/ci/mirante-*-win64.exe
+            build/ci/mirante-*-macos.dmg
+            build/ci/mirante_*.deb
+          if-no-files-found: error
+          retention-days: 7
 
   no-modules:
     runs-on: ubuntu-24.04

@@ -6,8 +6,16 @@ if(POLICY CMP0141)
     cmake_policy(SET CMP0141 NEW)
 endif()
 
+# The release workflow passes the tag's version, for example
+# -DMIRANTE_VERSION=1.2.0. Raise the default after each release. See
+# docs/decisions/0098-packages-from-cmake-install.md.
+set(MIRANTE_VERSION "0.1.0" CACHE STRING "Mirante's version, as X.Y.Z")
+if(NOT MIRANTE_VERSION MATCHES "^[0-9]+\.[0-9]+\.[0-9]+$")
+    message(FATAL_ERROR "MIRANTE_VERSION is \"${MIRANTE_VERSION}\", not X.Y.Z")
+endif()
+
 project(mirante
-    VERSION 0.1
+    VERSION ${MIRANTE_VERSION}
     DESCRIPTION "A personal all-work desktop dashboard"
     HOMEPAGE_URL "https://github.com/rrgmc/mirante"
     LANGUAGES CXX)
@@ -70,6 +78,7 @@ include(MiranteTargets)
 include(Dependencies)
 include(MiranteModule)
 include(MiranteDeploy)
+include(MiranteInstall)
 
 enable_testing()
 

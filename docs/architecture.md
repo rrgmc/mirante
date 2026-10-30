@@ -186,7 +186,8 @@ A worker thread is added only if a measured problem needs one.
 - **Debug builds** link Qt WebEngine's debug libraries, which stop some real sites, such as claude.ai, on Chromium's internal checks. Check web pages with a release build. See [debug builds](web-views.md#debug-builds).
 - **Modules:** each module has an option `MIRANTE_MODULE_<ID>`, on by default. `MIRANTE_MODULES` sets the exact list. See [building](modules.md#building).
 - **Linux packages:** libsecret development files for qtkeychain, and X11 development files for QHotkey.
-- **Deployment:** `windeployqt` on Windows, an app bundle with `macdeployqt` on macOS. Linux builds are not packaged in the first version. Every build runs this step after linking the app, into `<build folder>/bin`. See `cmake/MiranteDeploy.cmake`.
+- **Deployment:** `windeployqt` on Windows, an app bundle with `macdeployqt` on macOS. Every build runs this step after linking the app, into `<build folder>/bin`, so the build starts on its own. See `cmake/MiranteDeploy.cmake`.
+- **Packages:** `cmake --install --component Mirante` makes a self-contained app with Qt's deploy script, and `cpack` makes an NSIS setup on Windows, a disk image on macOS and a `.deb` package on Linux. The version comes from `MIRANTE_VERSION`. See `cmake/MiranteInstall.cmake`, [releasing](releasing.md) and decisions [0098](decisions/0098-packages-from-cmake-install.md), [0099](decisions/0099-linux-package-in-opt.md) and [0101](decisions/0101-macos-release-signing.md).
 
 ## Tests
 

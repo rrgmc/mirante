@@ -5,6 +5,10 @@
 #   tools/build.ps1 -NoTest          build only
 #   tools/build.ps1 -Target <name>   build one target only, without tests,
 #                                    such as update_translations
+#   tools/build.ps1 -Version 1.2.0   build that version, as the release does
+#   tools/build.ps1 -Package         after the tests, install into
+#                                    build/<preset>/install, check the install
+#                                    and make the setup with CPack
 #
 # Downloads Qt with tools/setup-qt.ps1 if it is missing, and enters the
 # Visual Studio 2022 developer environment if the shell is not in one.
@@ -12,7 +16,9 @@
 param(
     [string]$Preset = 'dev',
     [switch]$NoTest,
-    [string]$Target
+    [string]$Target,
+    [string]$Version,
+    [switch]$Package
 )
 
 $ErrorActionPreference = 'Stop'
@@ -51,7 +57,9 @@ function Invoke-Tool {
 
 Push-Location $Repo
 try {
-    Invoke-Tool cmake --preset $Preset "-DCMAKE_PREFIX_PATH=$QtDir"
+    $configure = @('--preset', $Preset, "-DCMAKE_PREFIX_PATH=$QtDir")
+    if ($Version) { $configure += "-DMIRANTE_VERSION=$Version" }
+    Invoke-Tool cmake @configure
     if ($Target) {
         Invoke-Tool cmake --build --preset $Preset --target $Target
         return
@@ -61,6 +69,14 @@ try {
         # The tests load the Qt DLLs from Qt's bin folder.
         $env:PATH = "$(Join-Path $QtDir 'bin');$env:PATH"
         Invoke-Tool ctest --preset $Preset
+    }
+    if ($Package) {
+        $installDir = Join-Path $BuildDir 'install'
+        if (Test-Path $installDir) { Remove-Item -Recurse -Force $installDir }
+        Invoke-Tool cmake --install $BuildDir --component Mirante --prefix $installDir
+        Invoke-Tool python (Join-Path $PSScriptRoot 'check-package.py') $installDir
+        Push-Location $BuildDir
+        try { Invoke-Tool cpack } finally { Pop-Location }
     }
 }
 finally {

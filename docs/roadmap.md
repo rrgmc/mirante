@@ -121,6 +121,8 @@ See [the M9 plan](plans/m9-built-in-panels.md). Checked by hand with [the M9 che
 
 ## M10: Packaging
 
+See [the M10 plan](plans/m10-packaging.md). Checked by hand with [the M10 checklist](plans/m10-checks.md).
+
 - [ ] CI builds and tests on macOS again.
 - [ ] CI builds the Windows package and the macOS app bundle.
 - [ ] Pushing a version tag `vX.Y.Z` publishes a GitHub release. A release workflow builds and tests the tag on Windows, macOS and Linux, and attaches a Windows setup, a macOS disk image and an Ubuntu `.deb` package to the release. The app version comes from the tag. The workflow can also run by hand for an existing tag. This follows favdir's `release.yml`.

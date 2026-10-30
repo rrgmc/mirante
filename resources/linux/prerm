@@ -1,0 +1,10 @@
+#!/bin/sh
+# Unloads Mirante's AppArmor profile before the package's files are removed.
+set -e
+
+if [ "$1" = "remove" ] && command -v apparmor_parser >/dev/null 2>&1 \
+        && [ -d /sys/kernel/security/apparmor ] && [ -f /etc/apparmor.d/mirante ]; then
+    apparmor_parser --remove /etc/apparmor.d/mirante || true
+fi
+
+exit 0

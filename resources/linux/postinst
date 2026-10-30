@@ -1,0 +1,15 @@
+#!/bin/sh
+# Loads Mirante's AppArmor profile, so Qt WebEngine's sandbox can start. See
+# docs/decisions/0099-linux-package-in-opt.md.
+set -e
+
+if [ "$1" = "configure" ] && command -v apparmor_parser >/dev/null 2>&1 \
+        && [ -d /sys/kernel/security/apparmor ]; then
+    apparmor_parser --replace --write-cache --skip-read-cache /etc/apparmor.d/mirante || true
+fi
+
+if command -v update-desktop-database >/dev/null 2>&1; then
+    update-desktop-database -q /usr/share/applications || true
+fi
+
+exit 0
