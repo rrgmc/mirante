@@ -15,6 +15,7 @@
      Dashboard: Painel
      Task dashboard: Painel da tarefa
      Root dashboard: Painel raiz
+     Built-in panel: Quadro interno (never "painel", which is a dashboard)
      Layout tree: Árvore de layout
      Layout: Layout
      Split: Divisão
@@ -376,6 +377,45 @@
     <message>
         <source>Claude session</source>
         <translation>Sessão do Claude</translation>
+    </message>
+</context>
+<context>
+    <name>dash</name>
+    <message>
+        <source>Built-in panel</source>
+        <translation>Quadro interno</translation>
+    </message>
+    <message>
+        <source>Panel</source>
+        <translation>Quadro</translation>
+    </message>
+    <message>
+        <source>A page of the app that shows the status of the task&apos;s items, or the active tasks of its group.</source>
+        <translation>Uma página do app que mostra o status dos itens da tarefa, ou as tarefas ativas do seu grupo.</translation>
+    </message>
+    <message>
+        <source>Task summary</source>
+        <translation>Resumo da tarefa</translation>
+    </message>
+    <message>
+        <source>Group overview</source>
+        <translation>Visão geral do grupo</translation>
+    </message>
+    <message>
+        <source>Choose the panel in the item&apos;s settings.</source>
+        <translation>Escolha o quadro nas configurações do item.</translation>
+    </message>
+    <message>
+        <source>Built-in panels are not available here.</source>
+        <translation>Quadros internos não estão disponíveis aqui.</translation>
+    </message>
+    <message>
+        <source>Built in</source>
+        <translation>Interno</translation>
+    </message>
+    <message>
+        <source>Panels that are part of Mirante itself, shown in the app&apos;s own pages.</source>
+        <translation>Quadros que fazem parte do próprio Mirante, mostrados em páginas do app.</translation>
     </message>
 </context>
 <context>

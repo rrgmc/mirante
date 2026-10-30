@@ -14,6 +14,7 @@
 #include "platform/Launcher.h"
 #include "web/PageKeys.h"
 #include "web/ProfileManager.h"
+#include "web/DashView.h"
 #include "web/WebPanel.h"
 
 #include <mirante/ItemType.h>
@@ -187,6 +188,15 @@ QWidget *ItemContextImpl::createPage(const QUrl &url, QWidget *parent, QWidget *
     });
     toolbar = panel->toolbar();
     return panel;
+}
+
+QWidget *ItemContextImpl::createDashPanel(const QString &panel, QWidget *parent)
+{
+    if (!m_services.profiles)
+        return createMessageView(QCoreApplication::translate("ItemContext", "Web pages are not available here."),
+                                 parent);
+    const QUrl url(QStringLiteral("dash://panels/%1/index.html").arg(panel));
+    return new DashView(m_services.profiles->appProfile(), url, nullptr, parent);
 }
 
 QWebEngineProfile *ItemContextImpl::profile()

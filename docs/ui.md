@@ -139,13 +139,13 @@ A module can have settings screens for values that belong to the whole module, s
 Help > Modules… opens the Modules window. It shows what this build of the app can do: every [module](modules.md) built into it, and the [item types](item-types.md) each one adds. It is read-only. See [decision 0056](decisions/0056-modules-window.md).
 
 - **Opening it.** The window is not modal, like the [settings window](#settings). Choosing Modules… again brings it to the front. Close closes it.
-- **The list.** On the left, the modules by name, such as GitLab and Jira, in bold. Under each, its item types by name, with their icons. A module's or type's description is also its tooltip.
+- **The list.** On the left, the built-in module "Built in" first, then the other modules by name, such as GitLab and Jira, all in bold. Under each, its item types by name, with their icons. A module's or type's description is also its tooltip.
 - **The details.** On the right, a pane describes the selected row. The first module is selected when the window opens.
   - For a module: its name and description, then its version, author, homepage and UUID, each on its own line and only when the module gave it, then its settings screens, such as "Settings: General Configuration", and where each profile edits them, in Profiles > <profile> > Modules > <module>. A module without screens says "No settings." Then each of its item types, with its icon, name and description.
   - For an item type: its icon, name and description, and the module it belongs to.
 - **Descriptions.** Each module and each item type gives its own, in one or two plain sentences. See [what a module registers](modules.md#what-a-module-registers) and [the type registry](item-types.md#the-type-registry).
 - **Homepage.** A module's homepage is a link. Clicking it opens the page in the system's browser. See [decision 0089](decisions/0089-module-identity.md).
-- **Built-in types.** The core registers no item type of its own yet, so the window lists modules only. Built-in panels will be listed under "Built in" once the core registers them.
+- **Built-in types.** The core registers its own module, "Built in", with the [built-in panels](item-types.md#built-in-panels). It is part of every build. See [decision 0094](decisions/0094-built-in-panels-as-a-core-item-type.md).
 
 ## Settings
 

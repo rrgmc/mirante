@@ -35,6 +35,12 @@ public:
     // screen has an invalid or repeated id or an empty name.
     void registerModule(const QString &moduleId, RegisterFunction fn);
 
+    // Registers a module of the core, such as "dash" for the built-in panels,
+    // as registerModule() does. It is part of every build. See decision 0094.
+    void registerBuiltInModule(const QString &moduleId, RegisterFunction fn);
+    // True for a module registered with registerBuiltInModule().
+    bool isBuiltIn(const QString &moduleId) const;
+
     // The registered type, or an UnknownItemType made for that id. Never null.
     const ItemType &type(const QString &id) const;
 
@@ -46,7 +52,8 @@ public:
 
     // Whether items of the type use their profile: its views are web views,
     // or its module has settings screens. The item
-    // dialog offers a profile for such types. False for an unknown type.
+    // dialog offers a profile for such types. False for an unknown type, and
+    // for a built-in type, whose pages use the app profile.
     bool usesProfile(const QString &typeId) const;
 
     // Module settings. See decisions 0044 and 0050 in docs/decisions/.

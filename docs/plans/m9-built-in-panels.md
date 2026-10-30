@@ -74,7 +74,8 @@ Smaller choices made here:
 - `DashPage` and `DashView`.
 - `ItemContextImpl::createDashPanel()`: a `DashView` with the channel and a `DashBridge`, loading `dash://panels/<panel>/index.html`. An unknown panel value shows a message instead.
 - `ModulesDialog`: the "Built in" section.
-- Tests: the registry refuses a second built-in module with the same id; `isBuiltIn()`; the type's fields; `DashPage` refuses an `https:` navigation and a new window, with a page that tries both (release only).
+- `ItemDialog` offers no profile and no page keys for a built-in type.
+- Tests: `isBuiltIn()`; the type's field; the messages for an unknown panel, for a context that is not the core's, and without a profile manager, in `tst_dash_panel`. In `tst_dash_scheme`: `DashPage` accepts only `dash:` addresses and makes no windows, called directly; and a script in a loaded panel cannot leave `dash:` (release only).
 
 ## Part 3: the bridge
 

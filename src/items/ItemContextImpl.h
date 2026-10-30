@@ -38,6 +38,11 @@ public:
     // set to the page's toolbar, which the page owns, or to null for a message.
     QWidget *createPage(const QUrl &url, QWidget *parent, QWidget *&toolbar);
 
+    // A built-in panel of the item's task, such as "task-summary", in the
+    // app profile, or a message where there is no profile manager. See
+    // docs/web-views.md#built-in-panels.
+    QWidget *createDashPanel(const QString &panel, QWidget *parent);
+
     QString itemName() const override;
     QJsonObject config() const override;
     QJsonValue projectSetting(const QString &key) const override;
