@@ -504,16 +504,17 @@ void EntityActions::editItem(const QString &taskId, const QString &itemId)
     d->offerProfiles(dialog, taskId);
     if (!d->exec(dialog))
         return;
-    const Task *task = d->model.task(taskId);
-    if (!task)
+    d->model.setItem(taskId, dialog.value());
+}
+
+void EntityActions::setItemWatched(const QString &taskId, const QString &itemId, bool watch)
+{
+    const Item *item = d->model.item(taskId, itemId);
+    if (!item || item->watch == watch)
         return;
-    Task changed = *task;
-    const Item value = dialog.value();
-    for (Item &entry : changed.items) {
-        if (entry.id == itemId)
-            entry = value;
-    }
-    d->model.setTask(changed);
+    Item changed = *item;
+    changed.watch = watch;
+    d->model.setItem(taskId, changed);
 }
 
 void EntityActions::renameDashboard(const QString &taskId, const QString &dashboardId)
@@ -830,6 +831,19 @@ void EntityActions::addPasteImage(QMenu *menu, const QString &taskId)
     paste->setEnabled(!d->clipboardImage().isNull());
 }
 
+void EntityActions::addWatch(QMenu *menu, const QString &taskId, const QString &itemId)
+{
+    const Item *item = d->model.item(taskId, itemId);
+    if (!item || !d->types.contains(item->type) || !d->types.type(item->type).hasStatus())
+        return;
+    const bool watched = item->watch;
+    QAction *watch = menu->addAction(tr("Watch"), this,
+                                     [this, taskId, itemId, watched] { setItemWatched(taskId, itemId, !watched); });
+    watch->setCheckable(true);
+    watch->setChecked(watched);
+    watch->setToolTip(tr("Count on the tray icon, and notify"));
+}
+
 void EntityActions::fillMenu(QMenu *menu, SidebarModel::Kind kind, const QString &id, const QString &taskId)
 {
     if (!menu)
@@ -904,6 +918,7 @@ void EntityActions::fillMenu(QMenu *menu, SidebarModel::Kind kind, const QString
         if (!model.item(taskId, id))
             return;
         menu->addAction(tr("Edit item…"), this, [this, taskId, id] { editItem(taskId, id); });
+        addWatch(menu, taskId, id);
         menu->addSeparator();
         menu->addAction(tr("Delete item…"), this, [this, taskId, id] { removeItem(taskId, id); });
         break;

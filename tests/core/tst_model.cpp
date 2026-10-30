@@ -101,6 +101,7 @@ private slots:
     void refExists_data();
     void refExists();
     void setTaskDashboardLayout();
+    void setItem();
     void taskDashboardItemsMustBelongToTask();
     void setRootDashboardLayout();
     void setLayoutDispatches();
@@ -219,6 +220,26 @@ void TestModel::setTaskDashboardLayout()
     QVERIFY(layout->ref);
     QCOMPARE(layout->ref->item, QStringLiteral("i1"));
     QVERIFY(!layout->removed);
+}
+
+// setItem() replaces the item in its task, and ignores an item the task does
+// not hold.
+void TestModel::setItem()
+{
+    Model model;
+    fill(model);
+    QSignalSpy spy(&model, &Model::taskChanged);
+
+    Item item = *model.item(QStringLiteral("t1"), QStringLiteral("i1"));
+    item.watch = true;
+    model.setItem(QStringLiteral("t1"), item);
+    QCOMPARE(spy.count(), 1);
+    QVERIFY(model.item(QStringLiteral("t1"), QStringLiteral("i1"))->watch);
+
+    model.setItem(QStringLiteral("t2"), item);
+    model.setItem(QStringLiteral("t9"), item);
+    QCOMPARE(spy.count(), 1);
+    QCOMPARE(model.task(QStringLiteral("t2"))->items.size(), std::size_t(1));
 }
 
 void TestModel::taskDashboardItemsMustBelongToTask()

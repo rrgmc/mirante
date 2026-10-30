@@ -115,6 +115,8 @@ The sidebar's Trash list and its commands are in [ui](ui.md#trash).
 | `name` | Display name, shown in cell headers and tabs |
 | `config` | Object with the fields of the item type |
 | `profile` | Optional. The id of a [profile](#profile) that replaces the group's for this item. Offered only for types that use a profile: types whose views are web views, or whose module has settings screens. Items from before decision 0050 name it `webProfile`, which is still read. |
+| `watch` | Optional, written only when true. The item is [watched](ui.md#watched-items): it counts on the tray icon and may send desktop notifications. See [decision 0087](decisions/0087-watched-items.md). |
+| `pageKeys` | Optional, written only when not empty. Key sequences, such as `"Ctrl+K"`, that the item's web page keeps instead of the app. See [decision 0088](decisions/0088-keys-a-page-keeps.md). |
 
 A task can hold any number of items of the same type, for example three Jira issues.
 

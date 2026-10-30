@@ -18,8 +18,8 @@ class ServerClients;
 
 // Polls the modules' servers for the status of items, and keeps it in
 // memory. An item is due when it is in a visible cell, in a task opened in
-// the last 30 minutes, or in an active Urgent or High task, and its status is
-// older than the poll interval. See the M5 plan, part 4, and
+// the last 30 minutes, or in an active Urgent or High task, or watched in an
+// active task, and its status is older than the poll interval. See the M5 plan, part 4, and
 // docs/integrations.md#polling-and-caching. Implemented in StatusCache.cpp.
 class StatusCache : public QObject
 {

@@ -349,6 +349,20 @@ void Model::setProject(const Project &project)
     emit projectChanged(project.id);
 }
 
+void Model::setItem(const QString &taskId, const Item &item)
+{
+    const Task *stored = task(taskId);
+    if (!stored)
+        return;
+    Task changed = *stored;
+    const auto found = std::find_if(changed.items.begin(), changed.items.end(),
+                                    [&item](const Item &entry) { return entry.id == item.id; });
+    if (found == changed.items.end())
+        return;
+    *found = item;
+    setTask(changed);
+}
+
 void Model::setTask(const Task &task)
 {
     if (task.id.isEmpty())

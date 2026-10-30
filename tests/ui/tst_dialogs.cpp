@@ -88,13 +88,15 @@ public:
     QJsonObject given;
 };
 
-// A type edited by a form: a required path and a URL with a default.
+// A type edited by a form: a required path and a URL with a default. It
+// reports status, so it can be watched.
 class FormType : public ItemType
 {
 public:
     QString id() const override { return formType; }
     QString name() const override { return QStringLiteral("Form type"); }
     QIcon icon() const override { return {}; }
+    bool hasStatus() const override { return true; }
 
     std::vector<Field> fields() const override
     {
@@ -216,6 +218,7 @@ private slots:
     void itemOfMissingModule();
     void itemProfile();
     void itemFieldsOfTheProfile();
+    void itemWatch();
     void profilesDialog();
     void profilesDialogDoubleClickRenames();
     void dashboard();
@@ -354,6 +357,39 @@ void TestDialogs::groupProfile()
     QCOMPARE(missingCombo->currentText(), QStringLiteral("Unknown profile, uses the default"));
     QCOMPARE(missingCombo->currentData().toString(), QStringLiteral("gone"));
     QCOMPARE(missing.value(), original);
+}
+
+// The watch row shows for a type that reports status. A type without status
+// keeps what the item had.
+void TestDialogs::itemWatch()
+{
+    Item item;
+    item.id = QStringLiteral("i8");
+    item.type = formType;
+    item.name = QStringLiteral("Form");
+    item.config = QJsonObject{{QStringLiteral("path"), QStringLiteral("a")}};
+    ItemDialog dialog(item, false, types, {});
+    QVERIFY(dialog.showsWatch());
+    QVERIFY(!dialog.value().watch);
+    dialog.setWatch(true);
+    QVERIFY(dialog.value().watch);
+
+    Item web;
+    web.id = QStringLiteral("i9");
+    web.type = webType;
+    web.name = QStringLiteral("Page");
+    web.watch = true;
+    ItemDialog webDialog(web, false, types, {});
+    QVERIFY(!webDialog.showsWatch());
+    QVERIFY(webDialog.value().watch);
+
+    Item fresh;
+    fresh.id = QStringLiteral("i10");
+    ItemDialog creating(fresh, true, types, {});
+    creating.setType(webType);
+    QVERIFY(!creating.showsWatch());
+    creating.setType(formType);
+    QVERIFY(creating.showsWatch());
 }
 
 void TestDialogs::itemProfile()

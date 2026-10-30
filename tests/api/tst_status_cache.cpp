@@ -135,6 +135,23 @@ private slots:
         QCOMPARE(fetched, QStringList({QStringLiteral("i4"), QStringLiteral("i7")}));
     }
 
+    // A watched item of an active task is due at any priority. One of an
+    // archived task, of a task in the trash, or of a type without status is
+    // not. See decision 0087.
+    void watchedItemsAreDue()
+    {
+        for (const auto &[taskId, itemId] : {std::pair{"t1", "i1"}, std::pair{"t1", "i2"},
+                                             std::pair{"t4", "i6"}, std::pair{"t6", "i8"}}) {
+            Item item = *f->model.item(QLatin1String(taskId), QLatin1String(itemId));
+            item.watch = true;
+            f->model.setItem(QLatin1String(taskId), item);
+        }
+        f->cache->poll();
+        QStringList fetched = takeFetched();
+        fetched.sort();
+        QCOMPARE(fetched, QStringList({QStringLiteral("i1"), QStringLiteral("i4"), QStringLiteral("i7")}));
+    }
+
     void visibleItemsAreDue()
     {
         f->cache->poll();

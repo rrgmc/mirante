@@ -359,7 +359,8 @@ void LayoutEditor::Private::addViewCommands(QMenu &menu, Commands &commands, Lay
 }
 
 // The commands that change the item, not the layout, so they are offered on
-// locked dashboards and item pages too: the item dialog, and, for an item
+// locked dashboards and item pages too: the item dialog, "Watch" for an item
+// whose type reports status (decision 0087), and, for an item
 // whose type has an address field and whose cell shows a web page, a command
 // that saves the page's current address in that field.
 void LayoutEditor::Private::addItemCommands(QMenu &menu, Commands &commands, const QWidget *cell,
@@ -370,8 +371,23 @@ void LayoutEditor::Private::addItemCommands(QMenu &menu, Commands &commands, con
     if (const auto edit = services->editItem)
         addCommand(&menu, commands, LayoutEditor::tr("Edit Item…"), [edit, taskId, itemId] { edit(taskId, itemId); });
 
-    // The first address field of the item's type.
     const Item *item = model.item(taskId, itemId);
+    if (item && services->types && services->types->contains(item->type)
+        && services->types->type(item->type).hasStatus()) {
+        const bool watched = item->watch;
+        QAction *watch = addCommand(&menu, commands, LayoutEditor::tr("Watch"), [this, taskId, itemId, watched] {
+            if (const Item *current = model.item(taskId, itemId)) {
+                Item changed = *current;
+                changed.watch = !watched;
+                model.setItem(taskId, changed);
+            }
+        });
+        watch->setCheckable(true);
+        watch->setChecked(watched);
+        watch->setToolTip(LayoutEditor::tr("Count on the tray icon, and notify"));
+    }
+
+    // The first address field of the item's type.
     QString key;
     if (item && services->types) {
         for (const Field &field : services->types->type(item->type).fields()) {

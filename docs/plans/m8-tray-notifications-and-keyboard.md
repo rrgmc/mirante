@@ -53,7 +53,7 @@ Smaller choices made here:
 - `Entities`: `watch` and `pageKeys` in `Item::fromJson()` and `toJson()`. Absent fields read as false and empty, and are not written, so unchanged items stay byte for byte the same.
 - `ItemDialog`: under the profile, a check box "Watch: count on the tray icon and notify". It is shown for types whose `hasStatus()` is true.
 - Context menus of an item in the sidebar and in a cell header: a checkable "Watch". It writes through the Store, like a rename.
-- `StatusCache`: an item is also due when it is watched and its task is active and not in the trash. It reads this from `Model`, and looks again on `taskChanged`, which also covers changes to its items, and `modelReset`.
+- `StatusCache`: an item is also due when it is watched and its task is active and not in the trash. It reads this from `Model` at each poll, so a change applies within 15 seconds.
 - Tests: JSON round trip with and without the fields; a watched item in a Normal, hidden task is polled; one in a Done task is not.
 
 ## Part 2: the tray count

@@ -25,6 +25,7 @@
      Priority: Urgent, High, Normal, Low: Prioridade: Urgente, Alta, Normal, Baixa
      Task state: active, done, archived: Ativa, concluída, arquivada
      Attention: Atenção
+     Watch, watched item: Acompanhar, item acompanhado
      Server: Servidor
      Token: Token
      Profile, default profile: Perfil, perfil padrão
@@ -1843,6 +1844,14 @@
         <source>Delete permanently…</source>
         <translation>Excluir permanentemente…</translation>
     </message>
+    <message>
+        <source>Watch</source>
+        <translation>Acompanhar</translation>
+    </message>
+    <message>
+        <source>Count on the tray icon, and notify</source>
+        <translation>Contar no ícone da bandeja e notificar</translation>
+    </message>
 </context>
 <context>
     <name>mirante::FieldForm</name>
@@ -2110,6 +2119,18 @@
         <source>Enter a name.</source>
         <translation>Informe um nome.</translation>
     </message>
+    <message>
+        <source>Count on the tray icon, and notify</source>
+        <translation>Contar no ícone da bandeja e notificar</translation>
+    </message>
+    <message>
+        <source>A watched item that needs attention counts on the tray icon, and a failed pipeline sends a desktop notification. The sidebar shows every item&apos;s attention either way.</source>
+        <translation>Um item acompanhado que precisa de atenção conta no ícone da bandeja, e um pipeline com falha envia uma notificação na área de trabalho. A barra lateral mostra a atenção de todos os itens de qualquer forma.</translation>
+    </message>
+    <message>
+        <source>Watch:</source>
+        <translation>Acompanhar:</translation>
+    </message>
 </context>
 <context>
     <name>mirante::LayoutEditor</name>
@@ -2216,6 +2237,14 @@
     <message>
         <source>New tab</source>
         <translation>Nova aba</translation>
+    </message>
+    <message>
+        <source>Watch</source>
+        <translation>Acompanhar</translation>
+    </message>
+    <message>
+        <source>Count on the tray icon, and notify</source>
+        <translation>Contar no ícone da bandeja e notificar</translation>
     </message>
 </context>
 <context>

@@ -100,7 +100,8 @@ The `StatusCache` owns all API data. It keeps one status per item, in memory onl
 - **What it polls:** the items of types that report status, if they are
   - in visible cells, counted per placement;
   - in tasks opened in a tab or a slot in the last 30 minutes;
-  - in active Urgent and High tasks, so that Focus and the tray stay current.
+  - in active Urgent and High tasks, so that Focus stays current;
+  - [watched](ui.md#watched-items) in active tasks, so that the tray and notifications stay current.
 
   Items in the trash, items of a module that is not in the build, and items of types without status are never fetched.
 - **Interval:** a [device setting](sync.md#device-settings), 2 minutes by default, from 30 seconds to one hour. A timer checks every 15 seconds and fetches each due item whose last fetch is older than the interval, so a new visible item does not wait for a whole interval.
