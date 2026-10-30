@@ -5,9 +5,9 @@ This plan implements [milestone M6](../roadmap.md#m6-native-item-types). After M
 ## Decisions
 
 - [Decision 0066](../decisions/0066-fixed-native-layouts-with-sections.md), accepted: fixed layouts, with sections that can be hidden per item.
-- [Decision 0067](../decisions/0067-lists-report-status.md), proposed: lists report status with their rows and no attention. The view fills the merge request list's pipeline and approvals columns for the first 25 rows.
-- [Decision 0068](../decisions/0068-views-read-what-the-user-asked-for.md), proposed: an item's own data comes from the status cache, and a view asks the server directly only for what a user's action or a visible list needs.
-- [Decision 0069](../decisions/0069-open-page-in-the-placement.md), proposed: "Open page" is shown by the placement, through `ItemContext::showPage()`.
+- [Decision 0067](../decisions/0067-lists-report-status.md), accepted: lists report status with their rows and no attention. The view fills the merge request list's pipeline and approvals columns for the first 25 rows.
+- [Decision 0068](../decisions/0068-views-read-what-the-user-asked-for.md), accepted: an item's own data comes from the status cache, and a view asks the server directly only for what a user's action or a visible list needs.
+- [Decision 0069](../decisions/0069-open-page-in-the-placement.md), accepted: "Open page" is shown by the placement, through `ItemContext::showPage()`.
 
 Smaller choices made here:
 

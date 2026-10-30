@@ -1,6 +1,6 @@
 # 0069. "Open page" is shown by the placement
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-10-30
 
 ## Context
