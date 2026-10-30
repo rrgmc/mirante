@@ -168,7 +168,7 @@ struct EntityActions::Private
     // Runs the project dialog and applies its value and folder paths.
     bool runProjectDialog(const Project &project)
     {
-        ProjectDialog dialog(project, model, settings, dialogParent);
+        ProjectDialog dialog(project, model, settings, types, dialogParent);
         if (!exec(dialog))
             return false;
         const QMap<QString, QString> paths = dialog.folderPaths();
