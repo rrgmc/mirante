@@ -9,7 +9,7 @@ The GitLab, Jira and Claude code lives in the `gitlab`, `jira` and `claude` [mod
 - **API:** REST v4 at `<baseUrl>/api/v4`. It works with gitlab.com and self-hosted GitLab.
 - **Server:** `gitlab.general.baseUrl` of the item's profile, `https://gitlab.com` by default. The token is entered on the same screen and kept in the keychain.
 - **Authentication:** a personal access token in the `PRIVATE-TOKEN` header.
-- **Token scope:** `api`, because the light actions write data. A token with only `read_api` works too, but then the actions fail with a clear message.
+- **Token scope:** `api`, because the CI actions write data. A token with only `read_api` works too, but then those actions fail with a clear message.
 - **Caching:** requests send `If-None-Match` with the last ETag. A `304 Not Modified` answer costs almost nothing and keeps cached data.
 - **Paging:** lists follow the `Link` header, up to a limit per item (100 rows by default).
 - **Rate limits:** on `429 Too Many Requests` the client waits for the time given in `Retry-After` before trying again.
@@ -25,11 +25,8 @@ Main endpoints:
 | One pipeline | `GET /projects/:id/pipelines/:pid` |
 | Jobs | `GET /projects/:id/pipelines/:pid/jobs` |
 | Retry or cancel | `POST /projects/:id/pipelines/:pid/retry`, `.../cancel`, `POST /projects/:id/jobs/:jid/retry` |
-| Approve | `POST /projects/:id/merge_requests/:iid/approve` |
-| Comment | `POST /projects/:id/merge_requests/:iid/notes`, `POST /projects/:id/issues/:iid/notes` |
 | Issues | `GET /projects/:id/issues/:iid`, `GET /issues`, `GET /projects/:id/issues`, `GET /groups/:id/issues` |
 | Latest issue notes | `GET /projects/:id/issues/:iid/notes?sort=desc&order_by=created_at` |
-| Close or reopen an issue | `PUT /projects/:id/issues/:iid` with `{"state_event": "close"}` or `{"state_event": "reopen"}` |
 | Current user | `GET /user`, to resolve "me" in presets and attention |
 
 Project and group paths such as `acme/backend` are URL-encoded and used as `:id`, as in `acme%2Fbackend`. The branch in `ref` is URL-encoded too. `GitLabClient` in the module has one method per endpoint; see the [module's README](../src/modules/gitlab/README.md#the-client).
@@ -131,7 +128,7 @@ Modules poll through the cache, never around it. A view asks the server directly
 
 - A missing token shows "Token not set on this device" with a button to enter it. Nothing is sent.
 - A `401` on any request, or a `403` on a `GET`, marks the profile's server as failing. The main window's warning bar shows a line for it, and the server's requests return without being sent until its token or its settings screen changes.
-- A `403` on a `POST` or a `PUT` is a missing permission for that one action, such as a `read_api` token approving a merge request. Only that action fails; the server keeps working.
+- A `403` on a `POST` or a `PUT` is a missing permission for that one action, such as a `read_api` token retrying a pipeline. Only that action fails; the server keeps working.
 - A `429` waits for `Retry-After` seconds, or 30 without one, and sends again, at most three times. The server's other requests wait too.
 - A request that gets no answer in 30 seconds fails as a network error.
 - Network errors keep the last data and show its age, such as "Updated 12 min ago".

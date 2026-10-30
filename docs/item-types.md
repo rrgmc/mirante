@@ -64,15 +64,12 @@ Two flags tell the core what the view cannot do. Both default to what an ordinar
 
 ## Light actions
 
-Native summaries offer a few actions that save opening the web page:
+Native views are read-mostly, as in [decision 0070](decisions/0070-read-mostly-native-views.md). The only actions are for CI, because running CI is repeatable and changes no one's review or issue:
 
 - retry a pipeline or a single job;
-- cancel a pipeline;
-- approve a merge request;
-- move a Jira issue to another status;
-- add a comment to a merge request, GitLab issue or Jira issue.
+- cancel a pipeline, after a confirmation.
 
-Anything else uses the "Open page" button. It opens the matching page type in the same cell, or in the external browser if the user holds `Shift`.
+Anything else, such as approving or commenting, uses the "Open page" button. It opens the matching page type in the same cell, or in the external browser if the user holds `Shift`.
 
 ## GitLab
 
@@ -99,9 +96,7 @@ The summaries have fixed layouts, as in [decision 0066](decisions/0066-fixed-nat
   - People (`showPeople`): the author, assignees and reviewers.
   - Labels (`showLabels`).
 - **Actions:**
-  - "Approve", while the merge request is open and you have not approved it;
   - "Retry pipeline", when the head pipeline failed or was canceled;
-  - "Comment";
   - "Open page" and "Web".
 - **Status:** a summary such as "Open · 2 of 3 approvals · pipeline failed". The item is closed when the merge request is merged or closed.
 - **Attention,** only while the merge request is open. "You" is the owner of the profile's token.
@@ -179,7 +174,7 @@ The summaries have fixed layouts, as in [decision 0066](decisions/0066-fixed-nat
 - **The list presets are:** `assignedToMe` ("Assigned to me"), `createdByMe` ("Created by me") and `allOpen` ("All open"). Custom filters work the same way as for merge requests.
 - **The list shows** a sortable table with the columns Ref, such as `backend#7`, Title, Assignees, Labels and Updated, sorted on Updated, newest first. A narrow cell hides columns in this order: Labels, Assignees, Updated, Ref. It makes no further requests. The row click, the row menu, the Web link and the messages follow the merge request list, with the issue summary as the preview, a GitLab Issue (summary) added to the task with a name such as `group/project#7`, the address ending in `/issues`, and the line "No issues".
 - **The page's address** is `<baseUrl>/<project>/-/issues/<iid>`. Its messages are those of the merge request page.
-- **The summary's actions:** "Comment"; "Close" while the issue is open, or "Reopen" when it is closed; "Open page" and "Web".
+- **The summary's actions:** "Open page" and "Web".
 - **Status:** the summary and the page report a summary such as "Open · assigned to Ana", and are closed when the issue is closed. They report no attention. The list reports as the merge request list does, with a summary such as "12 issues" or "100+ issues". See [decision 0067](decisions/0067-lists-report-status.md).
 
 ## Jira
