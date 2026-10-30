@@ -125,24 +125,29 @@ The summaries have fixed layouts, as in [decision 0066](decisions/0066-fixed-nat
   - `project`, the project path, empty for the `gitlab.project` setting; `group`, the group path;
   - `preset`: `createdByMe` ("Created by me"), `reviewRequested` ("Review requested from me"), `assignedToMe` ("Assigned to me") or `allOpen` ("All open");
   - `filter`: optional custom filter parameters, passed to the GitLab merge requests API, such as `labels=bug&target_branch=main`;
+  - `limit`: how many rows it fetches, 100 by default;
+  - `pageSize`: how many rows show at a time, 50 by default, with Previous and Next under the table. Sorting covers all fetched rows;
   - `showPipeline` and `showApprovals`: they show those two columns, and are on by default.
+
+  An item without `limit` or `pageSize`, or with a value below 1, uses the default.
 - **Shows:** a sortable table, sorted on Updated, newest first. Its columns are:
   - Ref, such as `backend!42`, with the last part of the project path;
   - Title, which takes the free width and never hides;
   - Author;
   - Pipeline, a pill with the head pipeline's status;
   - Approvals, such as `1/2`, or just the count when none are required;
-  - Updated, short and local, sorted by the date.
+  - Updated, compact, such as `10-30 14:32`, or `2025-10-30` for another year, sorted by the date;
+  - the links of the row, which never hide.
 - **A narrow cell** hides columns in this order: Author, Approvals, Updated, Pipeline, Ref.
-- **Pipeline and Approvals** are filled by the view, for the first 25 rows in the table's current order. It asks while it is visible, after each new status and each time it shows. The other rows show a dash, and so does a row whose request failed. A cell keeps its last answer until the new one comes. A hidden column asks for nothing. See [decision 0067](decisions/0067-lists-report-status.md).
-- **Row click:** shows the merge request summary, with its actions, in a preview below the table, under a splitter. The preview reads again when the list's status changes. If its row has gone, it stays until you close it or select another row.
-- **Row menu:**
-  - "Add to task as item" adds a GitLab MR (summary) to the item's task, with a name such as `group/project!42`;
-  - "Open page" shows the merge request's page in the same cell, or in the external browser if you hold `Shift`;
-  - "Copy link".
+- **Pipeline and Approvals** are filled by the view, for the first 25 rows of the current page. It asks while it is visible, after each new status, each time it shows, and when a new page, sort or filter brings other rows. What is on the way for a row that leaves is dropped. The other rows show a dash, and so does a row whose request failed. A cell keeps its last answer until the new one comes. A hidden column asks for nothing. See decisions [0067](decisions/0067-lists-report-status.md) and [0071](decisions/0071-lists-link-out-without-a-preview.md).
+- **Links of a row:**
+  - "Web" opens the merge request's page in the external browser;
+  - "Open" shows the page in the same cell, or in the external browser if you hold `Shift`;
+  - "Add" adds a GitLab MR (summary) to the item's task, with a name such as `group/project!42`.
+- **Row menu:** "Web", "Open page", "Add to task as item" and "Copy link".
 - **The Web link** is a "Web" button above the table. It opens the list's page on the site, in the external browser, and it hides when the scope is not complete: `<baseUrl>/<project>/-/merge_requests`, `<baseUrl>/groups/<group>/-/merge_requests` or `<baseUrl>/dashboard/merge_requests`.
 - **Messages:** with no data it says "Loading…" or the status's message. With old data and an error it keeps the rows, because the cell header shows the problem. An empty list shows the table with no rows and the line "No merge requests".
-- **Status:** a summary with the count, such as "12 merge requests", or "100+ merge requests" when the list reaches its limit of 100 rows. It reports no attention, and is neither closed nor open, so it never counts towards a task being done. A scope without its project or group reports no status, with a message such as "Set the group in the item's settings." See [decision 0067](decisions/0067-lists-report-status.md).
+- **Status:** a summary with the count, such as "12 merge requests", or "100+ merge requests" when the list reaches its `limit`. It reports no attention, and is neither closed nor open, so it never counts towards a task being done. A scope without its project or group reports no status, with a message such as "Set the group in the item's settings." See [decision 0067](decisions/0067-lists-report-status.md).
 
 ### GitLab CI Pipeline
 
@@ -182,9 +187,9 @@ The summaries have fixed layouts, as in [decision 0066](decisions/0066-fixed-nat
   - Details (`showDetails`): the assignees, milestone and due date.
   - Labels (`showLabels`).
   - Comments (`showComments`): the latest five, newest first, with their author and date, as plain text. It says "No comments" when there are none, and "The comments could not be read." when the request failed.
-- **Configuration:** the summary and the page have `project` and `iid`, the issue number. The list has `scope`, `project`, `group`, `preset` and `filter`, as for merge requests.
+- **Configuration:** the summary and the page have `project` and `iid`, the issue number. The list has `scope`, `project`, `group`, `preset`, `filter`, `limit` and `pageSize`, as for merge requests.
 - **The list presets are:** `assignedToMe` ("Assigned to me"), `createdByMe` ("Created by me") and `allOpen` ("All open"). Custom filters work the same way as for merge requests.
-- **The list shows** a sortable table with the columns Ref, such as `backend#7`, Title, Assignees, Labels and Updated, sorted on Updated, newest first. A narrow cell hides columns in this order: Labels, Assignees, Updated, Ref. It makes no further requests. The row click, the row menu, the Web link and the messages follow the merge request list, with the issue summary as the preview, a GitLab Issue (summary) added to the task with a name such as `group/project#7`, the address ending in `/issues`, and the line "No issues".
+- **The list shows** a sortable table with the columns Ref, such as `backend#7`, Title, Assignees, Labels, Updated and the links, sorted on Updated, newest first. A narrow cell hides columns in this order: Labels, Assignees, Updated, Ref. It makes no further requests. The pages, the links, the row menu, the Web link and the messages follow the merge request list, with a GitLab Issue (summary) added to the task with a name such as `group/project#7`, the address ending in `/issues`, and the line "No issues".
 - **The page's address** is `<baseUrl>/<project>/-/issues/<iid>`. Its messages are those of the merge request page.
 - **The summary's actions:** "Open page" and "Web".
 - **Status:** the summary and the page report a summary such as "Open · assigned to Ana", and are closed when the issue is closed. They report no attention. The list reports as the merge request list does, with a summary such as "12 issues" or "100+ issues". See [decision 0067](decisions/0067-lists-report-status.md).
