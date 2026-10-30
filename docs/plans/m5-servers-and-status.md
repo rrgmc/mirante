@@ -471,3 +471,4 @@ The first check by hand after T9 is a real token against gitlab.com and the user
 
 - **A Test button on the settings screens.** It would ask for the current user with the typed token before OK, and say whether the token works and whose it is. It needs the dialog to send a request through a token that is not stored yet.
 - **Status in tooltips of sidebar items.** The Items row of a task could show each item's summary line, such as "Open · pipeline failed", without opening the task.
+- **Revisit the GitLab and Jira project settings.** GitLab's project path is only a fallback for items with no project of their own, and Jira's project key is not used yet. The user kept both for now. M6 decides whether they earn their place, for example as the default project of quick add and of list presets, or are removed.
