@@ -305,8 +305,8 @@ void ProfilesDialog::deleteSelected()
     if (!current || d->model->profiles().size() < 2)
         return;
     const auto [groups, items] = d->users(id);
-    QString question = tr("Delete the profile \"%1\"? Its module settings are deleted, and its logins and "
-                          "site data on this device.")
+    QString question = tr("Delete the profile \"%1\"? Its module settings are deleted, and its logins, "
+                          "site data and tokens on this device.")
                            .arg(current->name);
     if (groups > 0 || items > 0) {
         const QString users = groups > 0 && items > 0

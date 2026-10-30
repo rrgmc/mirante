@@ -119,7 +119,7 @@ Modules fetch through the cache, never around it. All requests are asynchronous 
 ## Errors
 
 - A missing token shows "Token not set on this device" with a button to enter it. Nothing is sent.
-- A `401` on any request, or a `403` on a `GET`, marks the profile's server as failing. The main window shows a banner, and the server's requests return without being sent until its token or its settings screen changes.
+- A `401` on any request, or a `403` on a `GET`, marks the profile's server as failing. The main window's warning bar shows a line for it, and the server's requests return without being sent until its token or its settings screen changes.
 - A `403` on a `POST` is a missing permission for that one action, such as a `read_api` token approving a merge request. Only that action fails; the server keeps working.
 - A `429` waits for `Retry-After` seconds, or 30 without one, and sends again, at most three times. The server's other requests wait too.
 - A request that gets no answer in 30 seconds fails as a network error.
