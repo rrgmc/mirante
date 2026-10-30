@@ -1,7 +1,14 @@
 // Tests LayoutView on hand-made trees with a fake CellFactory: building, the
 // cell pool on updates, size and tab reports, detaching, single view, and the
 // CellFrame placeholders, body, header widget and maximise button, remaking
-// cells that cannot move, and the placements of DashboardCellFactory.
+// cells that cannot move, and the placements of DashboardCellFactory with
+// their status.
+#include "api/Attention.h"
+#include "api/SecretBackend.h"
+#include "api/SecretStore.h"
+#include "api/ServerClient.h"
+#include "api/StatusCache.h"
+#include "core/DeviceSettings.h"
 #include "core/Model.h"
 #include "items/ItemTypeRegistry.h"
 #include "items/Placement.h"
@@ -14,6 +21,7 @@
 #include "layout/SingleViewTracker.h"
 
 #include <mirante/ItemType.h>
+#include <mirante/Status.h>
 
 #include <QApplication>
 #include <QKeySequence>
@@ -21,10 +29,12 @@
 #include <QMouseEvent>
 #include <QPointer>
 #include <QPushButton>
+#include <QSettings>
 #include <QSignalSpy>
 #include <QSplitter>
 #include <QTabBar>
 #include <QTabWidget>
+#include <QTemporaryDir>
 #include <QTest>
 #include <QToolButton>
 
@@ -155,7 +165,32 @@ public:
     }
 };
 
-void registerViewType(ModuleRegistrar &registrar) { registrar.addItemType(std::make_unique<ViewType>()); }
+// How many fetches view.status made.
+int statusFetches = 0;
+
+// A type with status, whose every fetch finds no token.
+class StatusType : public ItemType
+{
+public:
+    QString id() const override { return QStringLiteral("view.status"); }
+    QString name() const override { return QStringLiteral("Status type"); }
+    QIcon icon() const override { return QIcon(); }
+    bool hasStatus() const override { return true; }
+    void fetchStatus(StatusJob &job) const override
+    {
+        ++statusFetches;
+        ItemStatus status;
+        status.state = ItemStatus::State::NoToken;
+        status.message = QStringLiteral("No token is set.");
+        job.finish(status);
+    }
+};
+
+void registerViewType(ModuleRegistrar &registrar)
+{
+    registrar.addItemType(std::make_unique<ViewType>());
+    registrar.addItemType(std::make_unique<StatusType>());
+}
 
 QToolButton *toolButton(const QWidget *frame, const QString &toolTipStart)
 {
@@ -193,6 +228,7 @@ private slots:
     void frameHeaderWidget();
     void maximiseButton();
     void factoryMakesPlacements();
+    void factoryConnectsStatus();
 };
 
 void TestLayoutView::buildsWidgets()
@@ -849,6 +885,88 @@ void TestLayoutView::factoryMakesPlacements()
     QVERIFY(maximise->isVisible());
     maximise->click();
     QCOMPARE(toggled, frame);
+}
+
+// The frame shows the placement's status, and its refresh and fix buttons
+// reach the placement.
+void TestLayoutView::factoryConnectsStatus()
+{
+    ItemTypeRegistry types;
+    types.registerModule(QStringLiteral("view"), &registerViewType);
+    Model model;
+    Group group;
+    group.id = QStringLiteral("g1");
+    Project project;
+    project.id = QStringLiteral("p1");
+    project.groupId = QStringLiteral("g1");
+    Task task;
+    task.id = QStringLiteral("t1");
+    task.projectId = QStringLiteral("p1");
+    for (const QString &id : {QStringLiteral("i1"), QStringLiteral("s1")}) {
+        Item item;
+        item.id = id;
+        item.type = id == QStringLiteral("s1") ? QStringLiteral("view.status") : QStringLiteral("view.type");
+        item.name = id;
+        task.items.push_back(item);
+    }
+    model.reset({group}, {project}, {task}, {});
+    model.setWorkspaceId(QStringLiteral("ws"));
+
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    QSettings settingsFile(dir.filePath(QStringLiteral("settings.ini")), QSettings::IniFormat);
+    DeviceSettings device(&settingsFile);
+    SecretStore secrets(makeMemoryBackend());
+    ServerClients servers(model, types, secrets);
+    StatusCache cache(model, types, servers, device);
+    Attention attention(model, cache, device);
+    statusFetches = 0;
+
+    QStringList opened;
+    PlacementServices placements;
+    placements.model = &model;
+    placements.types = &types;
+    placements.settings = &device;
+    placements.status = &cache;
+    placements.attention = &attention;
+    placements.servers = &servers;
+    placements.openServerSettings = [&opened](const QString &profileId, const QString &moduleId) {
+        opened << profileId + QLatin1Char('/') + moduleId;
+    };
+    LayoutServices services;
+    services.model = &model;
+    services.types = &types;
+    services.placements = &placements;
+    DashboardCellFactory factory(services, DashboardRef{QStringLiteral("t1"), QStringLiteral("d1")});
+
+    // A type without status has no refresh button.
+    std::unique_ptr<QWidget> plainWidget(factory.createCell(itemRef(QStringLiteral("i1")), false, nullptr));
+    auto *plain = qobject_cast<CellFrame *>(plainWidget.get());
+    QVERIFY(plain);
+    QVERIFY(!plain->findChild<QToolButton *>(QStringLiteral("refreshButton"))->isVisibleTo(plain));
+
+    std::unique_ptr<QWidget> cellWidget(factory.createCell(itemRef(QStringLiteral("s1")), false, nullptr));
+    auto *frame = qobject_cast<CellFrame *>(cellWidget.get());
+    QVERIFY(frame);
+    auto *refresh = frame->findChild<QToolButton *>(QStringLiteral("refreshButton"));
+    QVERIFY(refresh->isVisibleTo(frame));
+
+    // Shown, the item is fetched, and its problem reaches the header.
+    frame->resize(300, 200);
+    frame->show();
+    QCOMPARE(statusFetches, 1);
+    QCOMPARE(frame->status().kind, CellStatus::Kind::Problem);
+    QCOMPARE(frame->status().text, QStringLiteral("Token not set"));
+    QVERIFY(frame->status().canFix);
+    QCOMPARE(frame->status(), qobject_cast<Placement *>(frame->body())->cellStatus());
+
+    refresh->click();
+    QCOMPARE(statusFetches, 2);
+
+    auto *fix = frame->findChild<QToolButton *>(QStringLiteral("problemButton"));
+    QVERIFY(fix->isVisible());
+    fix->click();
+    QCOMPARE(opened, QStringList{QStringLiteral("default/view")});
 }
 
 QTEST_MAIN(TestLayoutView)
