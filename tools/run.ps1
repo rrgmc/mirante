@@ -7,6 +7,8 @@
 #   tools/run.ps1 -WebData <folder>     keep the web logins in <folder>, so a
 #                                       test run can run beside the user's own
 #                                       Mirante, which holds its own folder
+#   tools/run.ps1 -NoKeychain           keep tokens in memory only, so a test
+#                                       run never touches this device's keychain
 #   tools/run.ps1 -Log                  keep the log for Help > Show Log, also
 #                                       in a release build
 #   tools/run.ps1 -Build                build the preset first, without tests
@@ -20,6 +22,7 @@ param(
     [string]$Data,
     [string]$Settings,
     [string]$WebData,
+    [switch]$NoKeychain,
     [switch]$Log,
     [switch]$Build
 )
@@ -50,6 +53,7 @@ if ($Data) { $AppArgs += '--data', "`"$((Resolve-Path $Data).Path)`"" }
 if ($Settings) { $AppArgs += '--settings', "`"$($ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Settings))`"" }
 # The web data folder is made if it is missing, so its path is not resolved.
 if ($WebData) { $AppArgs += '--web-data', "`"$($ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($WebData))`"" }
+if ($NoKeychain) { $AppArgs += '--no-keychain' }
 if ($Log) { $AppArgs += '--log' }
 $Start = @{ FilePath = $Exe }
 if ($AppArgs) { $Start.ArgumentList = $AppArgs }
