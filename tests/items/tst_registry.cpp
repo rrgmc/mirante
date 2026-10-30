@@ -219,6 +219,39 @@ private slots:
         QVERIFY(!registry.moduleSettings(QStringLiteral("none")));
     }
 
+    // A module's description is kept as given, and is empty without one. A
+    // type's description defaults to empty.
+    void descriptions()
+    {
+        mirante::ItemTypeRegistry registry;
+        registry.registerModule(QStringLiteral("beta"), &registerBeta);
+        registry.registerModule(QStringLiteral("alpha"), [](mirante::ModuleRegistrar &registrar) {
+            registrar.setModuleDescription(QStringLiteral("Tools for alpha work."));
+            registerAlpha(registrar);
+        });
+
+        QCOMPARE(registry.moduleDescription(QStringLiteral("alpha")), QStringLiteral("Tools for alpha work."));
+        QVERIFY(registry.moduleDescription(QStringLiteral("beta")).isEmpty());
+        QVERIFY(registry.moduleDescription(QStringLiteral("none")).isEmpty());
+        QVERIFY(registry.type(QStringLiteral("beta.one")).description().isEmpty());
+    }
+
+    // A module's types, sorted by name; none for an unknown module.
+    void moduleTypes()
+    {
+        mirante::ItemTypeRegistry registry;
+        registry.registerModule(QStringLiteral("alpha"), &registerAlpha);
+        registry.registerModule(QStringLiteral("beta"), &registerBeta);
+
+        QStringList ids;
+        for (const mirante::ItemType *type : registry.moduleTypes(QStringLiteral("alpha")))
+            ids << type->id();
+        QCOMPARE(ids, (QStringList{QStringLiteral("alpha"), QStringLiteral("alpha.mid.part"),
+                                   QStringLiteral("alpha.zeta")}));
+        QCOMPARE(registry.moduleTypes(QStringLiteral("beta")).size(), std::size_t(1));
+        QVERIFY(registry.moduleTypes(QStringLiteral("none")).empty());
+    }
+
     // A module's ModuleSettings reads through the reader, which may be set
     // after registering, and asks for the module's own id only, in the
     // profile it is given.

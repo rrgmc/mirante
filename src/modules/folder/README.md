@@ -4,9 +4,11 @@ One of the project's folders, with its Git state and shortcuts to a terminal and
 
 ## Item types
 
-| Id | Name | Rendering |
-|---|---|---|
-| `folder` | Folder / terminal | native |
+| Id | Name | Rendering | Description |
+|---|---|---|---|
+| `folder` | Folder / terminal | native | One of the project's folders: its local path, Git branch and status, with shortcuts to a terminal, an editor and the file manager. |
+
+The module calls itself "Folder" and describes itself as: "A project's folder as an item, with its Git state and shortcuts to a terminal and an editor." Help > Modules shows the names and descriptions. See [decision 0056](../../../docs/decisions/0056-modules-window.md).
 
 Since M3 the type declares its configuration fields, so items can be created and edited. Its view arrives in a later milestone. Until then the cell shows the core's placeholder.
 

@@ -25,6 +25,10 @@ public:
     QString name() const override { return m_name; }
     QIcon icon() const override { return m_icon; }
     QString shortName() const override { return QCoreApplication::translate("notes", "Notes"); }
+    QString description() const override
+    {
+        return QCoreApplication::translate("notes", "A Markdown note with a preview. Its text is kept in the task's file.");
+    }
     Rendering rendering() const override { return Rendering::Native; }
 
 private:
@@ -37,6 +41,9 @@ private:
 
 void registerModule(ModuleRegistrar &registrar)
 {
+    registrar.setModuleName(QStringLiteral("Notes"));
+    registrar.setModuleDescription(QCoreApplication::translate(
+        "notes", "Markdown notes, kept in the task's file, so they sync with the workspace."));
     registrar.addItemType(std::make_unique<StubItemType>(
         QStringLiteral("notes"), QCoreApplication::translate("notes", "Notes")));
 }

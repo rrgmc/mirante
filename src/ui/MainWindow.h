@@ -86,6 +86,10 @@ public:
     // application menu on macOS, Tools > Settings… elsewhere. Its changes
     // apply at once. See docs/ui.md#settings.
     void showSettings();
+    // Opens the Modules window, or brings it to the front: Help > Modules….
+    // It lists the modules of this build and their item types. See
+    // docs/ui.md#modules-window.
+    void showModules();
 
     // Navigation, used by the sidebar, the switcher and the shortcuts.
     // Without a dashboard id, these use the task's default dashboard.

@@ -4,9 +4,11 @@ Shows any web page as an item. See [item types](../../../docs/item-types.md#web-
 
 ## Item types
 
-| Id | Name | Rendering |
-|---|---|---|
-| `web.page` | Web page | web |
+| Id | Name | Rendering | Description |
+|---|---|---|---|
+| `web.page` | Web page | web | The web page at an address, signed in with the item's profile. |
+
+The module calls itself "Web" and describes itself as: "Any web page as an item." Help > Modules shows the names and descriptions. See [decision 0056](../../../docs/decisions/0056-modules-window.md).
 
 Since M3 the type declares its configuration fields, so items can be created and edited. Since M4 it shows the page in a web view, through `ItemContext::createWebView`. `WebUrls.cpp` reads the address. If `url` is empty or is not an `http` or `https` address, the cell says "Set the address in the item's settings." instead.
 

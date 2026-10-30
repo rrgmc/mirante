@@ -60,6 +60,7 @@ Each file records one design decision: what was decided, what else was considere
 | [0053](0053-no-focus-entry-in-the-sidebar.md) | The sidebar has no Focus entry | Accepted |
 | [0054](0054-module-settings-replace-connections.md) | Module settings replace connections | Accepted |
 | [0055](0055-move-workspace.md) | Moving a workspace to another folder | Accepted |
+| [0056](0056-modules-window.md) | A Modules window lists the modules and their item types | Accepted |
 | [0057](0057-any-profile-can-be-the-default.md) | Any profile can be the default | Accepted |
 
 ## Template

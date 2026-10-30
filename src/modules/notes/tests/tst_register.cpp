@@ -108,6 +108,19 @@ private slots:
             QVERIFY2(type->rendering() == mirante::Rendering::Native, qPrintable(type->id()));
         }
     }
+
+    // The module has a name and a description, and so has every type, for
+    // Help > Modules. See docs/decisions/0056-modules-window.md.
+    void namesAndDescriptions()
+    {
+        mirante::ItemTypeRegistry registry;
+        registry.registerModule(QStringLiteral("notes"), &mirante::modules::notes::registerModule);
+
+        QCOMPARE(registry.moduleName(QStringLiteral("notes")), QStringLiteral("Notes"));
+        QVERIFY(!registry.moduleDescription(QStringLiteral("notes")).isEmpty());
+        for (const mirante::ItemType *type : registry.types())
+            QVERIFY2(!type->description().isEmpty(), qPrintable(type->id()));
+    }
 };
 
 QTEST_MAIN(TestRegister)

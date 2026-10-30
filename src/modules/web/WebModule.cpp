@@ -31,6 +31,10 @@ public:
     QString name() const override { return m_name; }
     QIcon icon() const override { return m_icon; }
     QString shortName() const override { return QCoreApplication::translate("web", "Web"); }
+    QString description() const override
+    {
+        return QCoreApplication::translate("web", "The web page at an address, signed in with the item's profile.");
+    }
 
     std::vector<Field> fields() const override
     {
@@ -71,6 +75,9 @@ private:
 
 void registerModule(ModuleRegistrar &registrar)
 {
+    registrar.setModuleName(QStringLiteral("Web"));
+    registrar.setModuleDescription(QCoreApplication::translate(
+        "web", "Any web page as an item."));
     registrar.addItemType(std::make_unique<PageItemType>(
         QStringLiteral("web.page"), QCoreApplication::translate("web", "Web page")));
 }

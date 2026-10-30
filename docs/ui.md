@@ -123,6 +123,18 @@ A module can have settings screens for values that belong to the whole module, s
 - **Tokens.** A token field, such as GitLab's and Jira's **Token**, shows its text hidden and always starts empty. What is typed there is never stored in the workspace; it goes to this device's keychain, under `<profile id>/<module id>/<field key>`. Storing it comes in M5: until then it is dropped, and the log says so without the value. See [decision 0054](decisions/0054-module-settings-replace-connections.md).
 - **Using the values.** A module offers its settings where they help. For example, the project path field of every GitLab item is an editable list of the paths configured in the item's profile. Any other path can still be typed.
 
+## Modules window
+
+Help > Modules… opens the Modules window. It shows what this build of the app can do: every [module](modules.md) built into it, and the [item types](item-types.md) each one adds. It is read-only. See [decision 0056](decisions/0056-modules-window.md).
+
+- **Opening it.** The window is not modal, like the [settings window](#settings). Choosing Modules… again brings it to the front. Close closes it.
+- **The list.** On the left, the modules by name, such as GitLab and Jira, in bold. Under each, its item types by name, with their icons. A module's or type's description is also its tooltip.
+- **The details.** On the right, a pane describes the selected row. The first module is selected when the window opens.
+  - For a module: its name and description, then its settings screens, such as "Settings: General Configuration", and where each profile edits them, in Profiles > <profile> > Modules > <module>. A module without screens says "No settings." Then each of its item types, with its icon, name and description.
+  - For an item type: its icon, name and description, and the module it belongs to.
+- **Descriptions.** Each module and each item type gives its own, in one or two plain sentences. See [what a module registers](modules.md#what-a-module-registers) and [the type registry](item-types.md#the-type-registry).
+- **Built-in types.** The core registers no item type of its own yet, so the window lists modules only. Built-in panels will be listed under "Built in" once the core registers them.
+
 ## Settings
 
 The settings window holds settings of this device. They are kept in the [device settings](sync.md#device-settings), not in the workspace, so they are not synced. Module settings, which belong to the workspace, are in the [Profiles menu](#profiles-menu).
@@ -167,7 +179,7 @@ The menu bar has File, View, Profiles, Tools and Help. On macOS there is no Tool
 - **View:** Sidebar (show or hide), Expand All Tasks, Collapse All Tasks, Full Screen (`F11`, `Ctrl+Cmd+F` on macOS; leaving it brings back the maximized or normal window, and a window closed in full screen opens as it was before; in full screen the menu bar hides and shows while the mouse is at the top edge or a menu is open, and every shortcut keeps working, while macOS shows its own menu bar), Go To… (`Ctrl+K`, the [quick switcher](#keyboard)), All Dashboards…, and New Dashboard.
 - **Profiles:** Manage Profiles…, then a submenu for each profile with its Modules submenu. See [Profiles menu](#profiles-menu).
 - **Tools:** Settings…, which opens the [settings window](#settings). Windows and Linux only.
-- **Help:** About Mirante, with the version, the author and the project's address, and About Qt. Debug builds, and release builds started with `--log`, also have Show Log (`Ctrl+Shift+L`), a window that lists the app's Qt log messages as they arrive, including the JavaScript console of web pages, with a level and a text filter. Chromium's own messages go to the console only.
+- **Help:** Modules…, which opens the [Modules window](#modules-window), then About Mirante, with the version, the author and the project's address, and About Qt. Debug builds, and release builds started with `--log`, also have Show Log (`Ctrl+Shift+L`), a window that lists the app's Qt log messages as they arrive, including the JavaScript console of web pages, with a level and a text filter. Chromium's own messages go to the console only.
 
 ## Opening tasks
 
