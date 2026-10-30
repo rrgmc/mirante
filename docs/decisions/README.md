@@ -70,10 +70,14 @@ Each file records one design decision: what was decided, what else was considere
 | [0063](0063-tokens-follow-a-new-workspace-id.md) | Tokens follow a workspace id that another device changed | Accepted |
 | [0064](0064-keychain-entries-start-with-mirante.md) | Keychain entries start with "mirante/" | Accepted |
 | [0065](0065-current-tab-in-the-highlight-colour.md) | The current tab is filled with the highlight colour | Accepted |
-| [0066](0066-fixed-native-layouts-with-sections.md) | Native views have fixed layouts, with sections that can be hidden | Accepted |
+| [0066](0066-fixed-native-layouts-with-sections.md) | Native views have fixed layouts, with sections that can be hidden | Accepted; the list preview by 0071 |
 | [0067](0067-lists-report-status.md) | Lists report a status, without attention | Accepted |
-| [0068](0068-views-read-what-the-user-asked-for.md) | Views ask the server directly only for what the user asked for | Accepted |
+| [0068](0068-views-read-what-the-user-asked-for.md) | Views ask the server directly only for what the user asked for | Accepted; the list preview by 0071 |
 | [0069](0069-open-page-in-the-placement.md) | "Open page" is shown by the placement | Accepted |
+| [0070](0070-read-mostly-native-views.md) | Native views are read-mostly | Accepted |
+| [0071](0071-lists-link-out-without-a-preview.md) | Lists link out from each row, without a preview | Accepted |
+| [0072](0072-pipelines-started-together.md) | A pipeline item shows the pipelines started together | Accepted |
+| [0073](0073-jira-extra-fields.md) | Jira's extra fields are named in the profile's settings | Accepted |
 
 ## Template
 

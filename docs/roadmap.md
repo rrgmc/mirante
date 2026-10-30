@@ -80,11 +80,11 @@ See [the M5 plan](plans/m5-servers-and-status.md).
 
 ## M6: Native item types
 
-See [the M6 plan](plans/m6-native-item-types.md).
+See [the M6 plan](plans/m6-native-item-types.md) and [the changes after trying it](plans/m6-feedback.md).
 
-- [ ] GitLab MR (summary), MR List, CI Pipeline, Issue (summary) and Issue List.
+- [ ] GitLab MR (summary), MR List, CI Pipeline, CI Pipeline List, Issue (summary) and Issue List.
 - [ ] Jira Issue (summary) and Jira List.
-- [ ] Light actions: approve, retry, cancel, change Jira status, comment.
+- [ ] CI actions: retry a pipeline or a job, cancel, play a manual job, trigger a pipeline. Other changes use the web page. See [decision 0070](decisions/0070-read-mostly-native-views.md).
 - [x] Pasting a URL into the item dialog picks the right type and fills its fields. See [decision 0049](decisions/0049-items-from-a-pasted-link.md).
 - [ ] Tests cover URL recognition and the attention rules.
 
