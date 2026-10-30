@@ -315,7 +315,17 @@ A pasted image becomes an item of a task. It is never added straight to a dashbo
 - `Ctrl+V` replaces the image of the Image item in the focused cell, or in the item preview when it is current. It adds nothing. Anywhere else on a dashboard, the status bar says "To add an image, use Paste Image… in a task's Items menu."
 - The "Paste" button of an image field in the item dialog fills that field.
 
-Each of these opens the paste dialog first. What the paste then does is described under [image](item-types.md#image). See [decision 0045](decisions/0045-preview-and-crop-pasted-images.md).
+An image can also be dropped from another app, such as an image file from the file manager or an image from a web page in a browser. See [decision 0085](decisions/0085-drop-images-from-other-apps.md).
+
+- A drop on a task row, or on its Items row, in the sidebar does what **Paste Image…** does there. The row under the image is tinted while it is dragged.
+- A drop on a cell that shows an Image item does what `Ctrl+V` does in that cell: it replaces the image, on a locked dashboard too. The cell shows its focus border while the image is over it.
+- A drop on an image field in the item dialog does what its "Paste" button does.
+- The drop takes the first file whose suffix is `png`, `jpg`, `jpeg`, `gif`, `bmp` or `webp` and that can be read, else the image the drag carries. WebP files are read only where Qt has a WebP plugin.
+- Anywhere else, and for a drag without such an image, such as a text file, the pointer shows that the drop is refused. The Trash list refuses every drop.
+- A drop is always a copy: the file stays where it was. The dialog opens once the drop is over, so the app the image came from does not wait for it.
+- The sidebar's own drags, and the drags of the layout editor, work as before, also over an Image cell.
+
+Each of these, drops included, opens the paste dialog first. What the paste then does is described under [image](item-types.md#image). See [decision 0045](decisions/0045-preview-and-crop-pasted-images.md).
 
 - The dialog, "Paste Image", shows the image scaled to fit. A small image keeps its own size. Under it, a line gives the image's size in pixels, such as "1920 × 1080 pixels".
 - **Cropping.** Dragging on the image draws a crop rectangle. The image outside it is dimmed. The line under the image then gives both sizes, such as "Crop: 800 × 600 of 1920 × 1080 pixels".
