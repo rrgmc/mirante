@@ -1,6 +1,6 @@
 # 0068. Views ask the server directly only for what the user asked for
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-10-30
 
 ## Context
