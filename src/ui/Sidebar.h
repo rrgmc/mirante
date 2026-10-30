@@ -66,6 +66,10 @@ public:
     // Whether the Trash list is the current one.
     bool showsTrash() const;
 
+    // Gives the tree the keyboard focus, selecting its first row if none is
+    // selected, so the arrow keys move through it at once.
+    void focusTree();
+
 signals:
     // A double click, or Enter, opens an item or a task dashboard. On every
     // other row, tasks included, it expands or collapses the row. A single

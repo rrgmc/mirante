@@ -699,6 +699,35 @@ private slots:
         QVERIFY(!show->isVisibleTo(f.window.get()));
     }
 
+    // The View menu's keys: Ctrl+B shows or hides the sidebar, and
+    // Ctrl+Shift+E shows it and focuses its tree on a row. Ctrl+D lists the
+    // dashboards, Ctrl+Shift+D makes one, and Ctrl+P manages the profiles.
+    void viewShortcuts()
+    {
+        Fixture f;
+        const auto action = [&f](const char *name) {
+            return f.window->findChild<QAction *>(QString::fromLatin1(name));
+        };
+        QCOMPARE(action("showSidebar")->shortcut(), QKeySequence(Qt::CTRL | Qt::Key_B));
+        QCOMPARE(action("focusSidebar")->shortcut(), QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_E));
+        QCOMPARE(action("allDashboards")->shortcut(), QKeySequence(Qt::CTRL | Qt::Key_D));
+        QCOMPARE(action("newDashboard")->shortcut(), QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_D));
+        QCOMPARE(action("manageProfiles")->shortcut(), QKeySequence(Qt::CTRL | Qt::Key_P));
+
+        auto *sidebar = f.window->findChild<Sidebar *>();
+        action("showSidebar")->trigger();
+        QVERIFY(!sidebar->isVisibleTo(f.window.get()));
+        action("showSidebar")->trigger();
+        QVERIFY(sidebar->isVisibleTo(f.window.get()));
+
+        action("showSidebar")->trigger();
+        action("focusSidebar")->trigger();
+        QVERIFY(sidebar->isVisibleTo(f.window.get()));
+        auto *tree = sidebar->findChild<QTreeView *>();
+        QCOMPARE(f.window->focusWidget(), tree);
+        QVERIFY(tree->currentIndex().isValid());
+    }
+
     // A middle click closes a tab. Its root dashboard is kept.
     // A workspace is a data folder. Opening one loads it and remembers it on
     // this device, first in the recent list. A missing folder is reported and

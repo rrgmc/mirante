@@ -34,7 +34,14 @@ ModuleSettingsDialog::ModuleSettingsDialog(const QString &profileName, const QSt
     if (!d->editor)
         d->editor = new FieldForm(screen.fields(), EditorContext(), this);
     d->editor->setObjectName(QStringLiteral("editor"));
-    d->editor->setConfig(values);
+    // A field without a stored value shows its default as real text, such as
+    // GitLab's https://gitlab.com, since that is the value the module uses.
+    QJsonObject shown = values;
+    for (const Field &field : screen.fields()) {
+        if (!shown.contains(field.key) && !field.defaultValue.isNull() && !field.defaultValue.isUndefined())
+            shown.insert(field.key, field.defaultValue);
+    }
+    d->editor->setConfig(shown);
 
     d->message = new QLabel(this);
     d->message->setObjectName(QStringLiteral("message"));
