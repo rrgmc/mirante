@@ -60,27 +60,24 @@ Jira Cloud and Data Center differ. The server is `jira.general.baseUrl` of the i
 
 On Jira Cloud without an email, every request fails before it is sent, and the item shows "Set the email for Jira Cloud in the profile's Jira settings."
 
-To avoid parsing either text format, every issue request adds `expand=renderedFields`. Jira then also returns the description and comments as HTML, which the summary shows in a `QTextBrowser`. A comment is written as plain text: the module turns it into an ADF document on Cloud, with a paragraph for each block between blank lines, and sends it as it is on Data Center.
+To avoid parsing either text format, every issue request adds `expand=renderedFields`. Jira then also returns the description and comments as HTML, which the summary shows in a `QTextBrowser`.
 
 Main endpoints, below the API root:
 
 | Purpose | Endpoint |
 |---|---|
 | Issue | `GET /issue/:key?expand=renderedFields`, with `fields` to limit the answer, and `names` added to `expand` where the sprint is needed |
-| Search | `GET /search/jql` on Cloud, `GET /search` on Data Center, with the JQL query, up to 100 rows |
-| Transitions | `GET /issue/:key/transitions`, `POST /issue/:key/transitions` |
-| Comment | `POST /issue/:key/comment` |
+| Search | `GET /search/jql` on Cloud, `GET /search` on Data Center, with the JQL query, up to the item's `limit` rows, 100 by default |
+| Fields | `GET /field`, the id and name of each field, where a list has extra fields |
 | Current user | `GET /myself` |
 
 What each item type asks for its status:
 
 - **An issue page:** the issue, with only `summary`, `status`, `assignee`, `priority`, `issuetype` and `updated`.
-- **An issue summary:** the issue, with all fields and `expand=renderedFields,names`. The sprint is the field whose entry in `names` is "Sprint", because its id differs per site.
-- **A list:** one search, with `summary`, `status`, `assignee` and `updated`, up to 100 rows. A project preset without a project key, or an empty query, sends nothing. See [decision 0067](decisions/0067-lists-report-status.md).
+- **An issue summary:** the issue, with all fields and `expand=renderedFields,names`. The sprint is the field whose entry in `names` is "Sprint", because its id differs per site. Then a search for its children, with `summary` and `status`: `parent = "<key>"` on Cloud, and `"Epic Link" = "<key>" OR parent = "<key>"` on Data Center. Cloud's search gives no total, so the children are counted by fetching them, up to 500. If only this search fails, as on a site without the `Epic Link` field, the status stands without the children.
+- **A list:** one search, with `summary`, `status`, `assignee` and `updated`, up to the item's `limit` rows. With extra fields, `GET /field` comes first, since a search's `fields` takes only ids and they differ per site. The search then also asks for those fields and for `expand=names`. If `GET /field` fails, the search goes ahead without them. A project preset without a project key, or an empty query, sends nothing. See [decision 0067](decisions/0067-lists-report-status.md).
 
 See [item types](item-types.md#jira-issue-summary).
-
-A summary or a preview asks for the transitions when the Change status menu opens. A preview also reads its issue with the summary's request. See [decision 0068](decisions/0068-views-read-what-the-user-asked-for.md).
 
 Development information, meaning linked branches and merge requests, comes from a separate, less stable API. M6 does not ask for it, so it does not appear.
 
