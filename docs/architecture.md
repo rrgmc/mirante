@@ -90,6 +90,7 @@ Native views are ordinary widgets. Lists use `QTableView` with a model fed from 
 
 | Class | Responsibility |
 |---|---|
+| `SingleInstance` | Keeps one process per [web data folder](README.md#glossary). It holds a `QLockFile` on `.lock` in the folder, and listens on a local socket named after it. A later start sends its `--data` folder there and exits; the holder emits `activationRequested`. See [decision 0058](decisions/0058-one-instance-per-web-data-folder.md). |
 | `ProfileManager` | Creates and owns the `QWebEngineProfile`s that keep web logins: one for each profile id, and the app profile. It deletes a profile's logins, and the folders of the profiles from before decision 0042. Which profile an item uses is decided by `profiles::effective` in the core. See [profiles](web-views.md#profiles) and [decision 0042](decisions/0042-user-managed-web-profiles.md). |
 | `WebPanel` | `QWebEngineView` with a toolbar, popup handling and permission handling |
 | `WebPage` | The page of a web panel or login dialog: new windows and permissions |
@@ -115,6 +116,7 @@ Native views are ordinary widgets. Lists use `QTableView` with a model fed from 
 | `TerminalLauncher` | Opens a terminal running a command, in a folder. See [terminal launch](integrations.md#terminal-launch). |
 | `GlobalHotkey` | Wraps QHotkey. Reports when the platform cannot register a hotkey. |
 | `Tray` | `QSystemTrayIcon` with the attention count. It falls back when no tray exists. |
+| `Foreground` | `allowForegroundFor(pid)`: on Windows, lets another process bring its window to the front. A later start calls it for the running instance before it hands over. |
 | `GitHead` | Reads the current branch from a folder's `.git/HEAD`, including worktrees |
 
 Code that differs per platform lives only here, behind these classes.
@@ -149,10 +151,11 @@ Code that differs per platform lives only here, behind these classes.
 
 ## Ownership and lifetime
 
+- Before any service, `main.cpp` reads the command line and makes a `SingleInstance` for the web data folder. If another process holds its lock, `main.cpp` hands `--data` over to it and exits, so no settings, model or profiles are made. The `SingleInstance` lives until the end of `main`, so the lock is released only after the `ProfileManager` is gone. After the window is shown, `main.cpp` connects `activationRequested` to the window: it opens the given workspace, if any, and brings the window to the front. See [decision 0058](decisions/0058-one-instance-per-web-data-folder.md).
 - `main.cpp` creates the long-lived services in this order: `DeviceSettings`, the registries (filled by `registerEnabledModules()`), `Model`, `Store`, `SecretStore`, `StatusCache`, `ProfileManager`, `ViewPool`, `MainWindow`. It destroys them in reverse order. `SecretStore` and `StatusCache` come in later milestones. Before the `QApplication` it sets `Qt::AA_ShareOpenGLContexts`, which Qt WebEngine needs. `DeviceSettings` is created after the application and organisation names are set, because they choose where `QSettings` keeps its values. The `Store` flushes its pending writes when the application is about to quit.
 - Each `Placement` owns its view widget and its `ItemContextImpl`. The context outlives the view: the placement deletes its views before its context. A view that is replaced is deleted later, not at once, because the change may come from the view's own code, for example through `updateConfig`.
 - A web view's toolbar is owned by its `WebPanel`, even while the cell header shows it. The `CellFrame` only shows it, and lets it go when the placement reports a new header widget.
-- `ProfileManager` owns the profiles and is destroyed after all web views. Its root folder is `QStandardPaths::AppLocalDataLocation` + `/profiles`. `MainWindow` passes it and the `ViewPool` to placements through `PlacementServices`, which `MainWindow` owns. Without a `ProfileManager`, as in most tests, item cells keep their placeholders.
+- `ProfileManager` owns the profiles and is destroyed after all web views. Its root folder is the web data folder: `QStandardPaths::AppLocalDataLocation` + `/profiles`, or the folder given with `--web-data`. `MainWindow` passes it and the `ViewPool` to placements through `PlacementServices`, which `MainWindow` owns. Without a `ProfileManager`, as in most tests, item cells keep their placeholders.
 - The `ViewPool` reads its limit from `DeviceSettings::hiddenViewLimit()` once, at start. Placements remove themselves from the pool when they go, so the pool outlives the window.
 - Deleting a profile in `ProfilesDialog` makes `EntityActions` call `ProfileManager::removeProfile` after the model drops the profile, in a queued call. Placements that used it make new views at once, but delete the old ones a moment later, and a profile must outlive its pages. `main.cpp` calls `ProfileManager::removeOldProfiles` at start.
 
