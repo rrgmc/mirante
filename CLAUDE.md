@@ -24,6 +24,7 @@ Several sessions may work on this repository at the same time, so each piece of 
 
 ## Building
 
+- `task` lists the common commands, such as `task test` and `task check`. See `Taskfile.yml`.
 - Qt 6.8 LTS with the WebEngine, WebChannel and Network modules.
 - Windows uses MSVC 2022 64-bit. Qt WebEngine does not support MinGW.
 - Development and verification happen on Windows. Changes must still build on macOS and Linux, so keep platform-specific code in `src/platform/`.
