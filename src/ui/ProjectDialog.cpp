@@ -193,10 +193,11 @@ struct ProjectDialog::Private
 };
 
 ProjectDialog::ProjectDialog(const Project &project, const Model &model, const DeviceSettings &settings,
-                             QWidget *parent)
+                             const ItemTypeRegistry &types, QWidget *parent)
     : QDialog(parent)
     , d(std::make_unique<Private>())
 {
+    Q_UNUSED(types)
     d->q = this;
     d->project = project;
     for (const Folder &folder : project.folders)

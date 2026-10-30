@@ -632,7 +632,7 @@ void TestDialogs::project()
 {
     const Project original = *model.project(backendProject);
     const DeviceSettings device(settings.get());
-    ProjectDialog dialog(original, model, device);
+    ProjectDialog dialog(original, model, device, types);
     QCOMPARE(dialog.value(), original);
 
     // Groups in manual order.
@@ -662,7 +662,7 @@ void TestDialogs::projectFolders()
 {
     DeviceSettings device(settings.get());
     device.setFolderPath(backendFolder, QStringLiteral("C:/src/backend"));
-    ProjectDialog dialog(*model.project(backendProject), model, device);
+    ProjectDialog dialog(*model.project(backendProject), model, device, types);
 
     // Paths come from the settings, and are not written back.
     QMap<QString, QString> paths = dialog.folderPaths();
@@ -699,7 +699,7 @@ void TestDialogs::projectFolders()
 void TestDialogs::projectMainFolder()
 {
     const DeviceSettings device(settings.get());
-    ProjectDialog dialog(*model.project(backendProject), model, device);
+    ProjectDialog dialog(*model.project(backendProject), model, device, types);
 
     Folder a;
     a.id = QStringLiteral("a");
@@ -746,7 +746,7 @@ void TestDialogs::projectNewFolder()
     Project project;
     project.id = QStringLiteral("new");
     project.groupId = workGroup;
-    ProjectDialog dialog(project, model, device);
+    ProjectDialog dialog(project, model, device, types);
     dialog.setName(QStringLiteral("new project"));
 
     auto *add = dialog.findChild<QPushButton *>(QStringLiteral("addFolder"));
