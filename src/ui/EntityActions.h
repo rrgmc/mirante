@@ -49,23 +49,13 @@ public:
     // this device too. Null, the default, leaves them alone. The manager must
     // outlive this object.
     void setProfileManager(ProfileManager *manager);
-    // Keeps a secret typed into a settings screen, such as a token, on this
-    // device, under the keychain key secretKey(). The default only logs that
-    // secrets are stored from M5, without the value. See decision 0054.
-    void setSaveSecret(std::function<void(const QString &key, const QString &secret)> save);
-    // The tokens of this device. Typed tokens are written there, a token's
-    // Remove button removes it, and deleting a profile removes its tokens.
-    // Settings screens show whether each token is set. Null, the default,
-    // keeps the behaviour of setSaveSecret(). It must outlive this object.
-    // See the M5 plan, part 8. Task T9 replaces setSaveSecret() with it.
+    // The tokens of this device, kept under secretKey() of SecretStore.h.
+    // Tokens typed into a settings screen are written there, a token's Remove
+    // button removes it, and deleting a profile removes its tokens. Settings
+    // screens show whether each token is set. Null, the default, drops typed
+    // tokens. It must outlive this object. See the M5 plan, part 8, and
+    // decision 0054.
     void setSecretStore(SecretStore *store);
-    // The keychain key of a secret: "<workspace id>/<profile id>/<module
-    // id>/<field key>", such as "5a3e…/default/gitlab/token", so each
-    // workspace keeps its own, as it keeps its own logins (decision 0059).
-    // Without a workspace id, the first part is left out. Stored under the
-    // service "mirante".
-    static QString secretKey(const QString &workspaceId, const QString &profileId, const QString &moduleId,
-                             const QString &fieldKey);
     // Runs the profiles dialog. The default calls exec(); tests work the
     // dialog and return instead. The confirmation set with setConfirm() is
     // used.
@@ -76,7 +66,7 @@ public:
 
     // Opens the dialog of a module's settings screen in one profile, from
     // Profiles > <profile> > Modules, and stores the values in the model.
-    // Secrets typed into it go to setSaveSecret(). Nothing happens for an
+    // Tokens typed into it go to setSecretStore(). Nothing happens for an
     // unknown screen or profile. See docs/ui.md#modules.
     void editModuleSettings(const QString &profileId, const QString &moduleId, const QString &screenId);
 
