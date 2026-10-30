@@ -2,6 +2,7 @@
 // only the app profile loads it. The pages come from tests/web/dash/, served
 // as dash://panels/test/. See the M9 plan, part 1.
 #include "web/DashSchemeHandler.h"
+#include "web/DashView.h"
 #include "web/ProfileManager.h"
 
 #include <QApplication>
@@ -37,6 +38,15 @@ QVariant evaluate(QWebEnginePage &page, const QString &script)
         return {};
     return result;
 }
+
+// DashPage with its rules callable from the test.
+class RulesPage : public DashPage
+{
+public:
+    using DashPage::DashPage;
+    using DashPage::acceptNavigationRequest;
+    using DashPage::createWindow;
+};
 
 } // namespace
 
@@ -123,6 +133,41 @@ private slots:
         QCOMPARE(evaluate(*page, QStringLiteral("window.dashTestLoaded === true")).toBool(), true);
         QCOMPARE(evaluate(*page, QStringLiteral("typeof QWebChannel")).toString(), QStringLiteral("function"));
         page.reset();
+    }
+
+    // A panel's page goes only to dash: addresses and makes no windows.
+    void panelPageRules()
+    {
+        QTemporaryDir root;
+        ProfileManager profiles(root.path());
+        RulesPage page(profiles.appProfile());
+        const auto link = QWebEnginePage::NavigationTypeLinkClicked;
+        QVERIFY(page.acceptNavigationRequest(testPage, link, true));
+        QVERIFY(!page.acceptNavigationRequest(QUrl(QStringLiteral("https://example.com/")), link, true));
+        QVERIFY(!page.acceptNavigationRequest(QUrl(QStringLiteral("file:///C:/")), link, false));
+        QVERIFY(!page.acceptNavigationRequest(QUrl(QStringLiteral("qrc:/panels/test/index.html")), link, true));
+        QVERIFY(!page.createWindow(QWebEnginePage::WebBrowserTab));
+        QVERIFY(!page.createWindow(QWebEnginePage::WebDialog));
+    }
+
+    // A script in a panel cannot leave dash:.
+    void panelPageStaysOnDash()
+    {
+        if (QLibraryInfo::isDebugBuild())
+            QSKIP("The debug WebEngine stops on its own checks here; run this test in a release build.");
+        QTemporaryDir root;
+        ProfileManager profiles(root.path());
+        auto view = std::make_unique<DashView>(profiles.appProfile(), testPage, nullptr);
+        QWebEnginePage &page = *view->page();
+        QSignalSpy loaded(&page, &QWebEnginePage::loadFinished);
+        QVERIFY(loaded.wait(kTimeout));
+        QCOMPARE(loaded.first().first().toBool(), true);
+
+        evaluate(page,QStringLiteral("location.href = 'https://example.com/'; true"));
+        QTest::qWait(500);
+        QCOMPARE(page.url(), testPage);
+        QCOMPARE(evaluate(page, QStringLiteral("window.dashTestLoaded === true")).toBool(), true);
+        view.reset();
     }
 
     // A profile of the list has no handler, so the page does not load.

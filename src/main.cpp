@@ -10,6 +10,7 @@
 #include "core/LogBuffer.h"
 #include "core/Model.h"
 #include "core/Store.h"
+#include "items/DashPanel.h"
 #include "items/EnabledModules.h"
 #include "items/ItemTypeRegistry.h"
 #include "items/ViewPool.h"
@@ -154,6 +155,8 @@ int main(int argc, char *argv[])
     // destroyed in reverse. Services that do not exist yet are left out. The
     // device settings are made above, before the language.
     mirante::ItemTypeRegistry types;
+    // The core's own types first: the built-in panels.
+    mirante::dash::registerModule(types);
     mirante::registerEnabledModules(types);
 
     mirante::Model model;

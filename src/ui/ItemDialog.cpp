@@ -195,8 +195,10 @@ struct ItemDialog::Private
     {
         form->setRowVisible(profile, types->usesProfile(item.type));
         form->setRowVisible(watch, types->contains(item.type) && types->type(item.type).hasStatus());
-        form->setRowVisible(pageKeys,
-                            types->contains(item.type) && types->type(item.type).rendering() == Rendering::Web);
+        // A built-in panel takes no keys of its own.
+        form->setRowVisible(pageKeys, types->contains(item.type)
+                                          && types->type(item.type).rendering() == Rendering::Web
+                                          && !types->isBuiltIn(item.type.section(QLatin1Char('.'), 0, 0)));
     }
 
     // The keys the item's web page keeps instead of the app's shortcuts:

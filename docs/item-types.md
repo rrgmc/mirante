@@ -345,6 +345,10 @@ The editor command is a device setting of the `folder` module, default `code`. I
 
 `dash.panel`, web, served from `dash://`. Part of the core, not a module. See [web views](web-views.md#built-in-panels).
 
-- **Configuration:** which panel. Two exist:
-  - **Task summary:** the cached status of every item in the task that reports one, on one page.
-  - **Group overview:** active tasks of the group, with their priorities and attention badges.
+- **Configuration:** `panel`, which panel, required. Two exist:
+  - **Task summary** (`task-summary`): the cached status of every item in the task that reports one, on one page.
+  - **Group overview** (`group-overview`): active tasks of the group of the panel's task, with their priorities and attention badges.
+- **Module:** the core's own module `dash`, "Built in". It is part of every build. See [decision 0094](decisions/0094-built-in-panels-as-a-core-item-type.md).
+- **Profile:** none to choose. Panels load in the app profile, so the item dialog offers neither a profile nor keys for the page.
+
+An unknown `panel` value shows "Choose the panel in the item's settings." instead of a page.

@@ -169,9 +169,12 @@ ModulesDialog::ModulesDialog(const ItemTypeRegistry &types, QWidget *parent)
             QDesktopServices::openUrl(url);
     });
 
-    // Modules by name, as the user sees them.
+    // The built-in module first, then the others by name, as the user sees
+    // them.
     QStringList moduleIds = types.moduleIds();
     std::stable_sort(moduleIds.begin(), moduleIds.end(), [&types](const QString &a, const QString &b) {
+        if (types.isBuiltIn(a) != types.isBuiltIn(b))
+            return types.isBuiltIn(a);
         return types.moduleName(a).compare(types.moduleName(b), Qt::CaseInsensitive) < 0;
     });
     for (const QString &moduleId : moduleIds) {

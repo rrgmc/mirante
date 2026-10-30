@@ -38,6 +38,7 @@ The [glossary](../docs/README.md#glossary) terms always take the same Portuguese
 | Dashboard | Painel |
 | Task dashboard | Painel da tarefa |
 | Root dashboard | Painel raiz |
+| Built-in panel | Quadro interno (never "painel", which is a dashboard) |
 | Layout tree | Árvore de layout |
 | Layout | Layout |
 | Split | Divisão |

@@ -56,6 +56,7 @@ struct ItemTypeRegistry::Private
         std::vector<std::unique_ptr<QuickAddHandler>> handlers;
         std::vector<std::unique_ptr<RelatedItemFinder>> finders;
         std::vector<Field> deviceSettings;
+        bool builtIn = false;
     };
 
     SettingsReader reader;
@@ -279,6 +280,20 @@ void ItemTypeRegistry::registerModule(const QString &moduleId, RegisterFunction 
     fn(registrar);
 }
 
+void ItemTypeRegistry::registerBuiltInModule(const QString &moduleId, RegisterFunction fn)
+{
+    if (d->modules.count(moduleId) != 0)
+        qFatal("The built-in module %s is registered twice", qUtf8Printable(moduleId));
+    registerModule(moduleId, fn);
+    d->modules[moduleId].builtIn = true;
+}
+
+bool ItemTypeRegistry::isBuiltIn(const QString &moduleId) const
+{
+    const auto found = d->modules.find(moduleId);
+    return found != d->modules.end() && found->second.builtIn;
+}
+
 const ItemType &ItemTypeRegistry::type(const QString &id) const
 {
     const auto found = d->byId.find(id);
@@ -314,7 +329,7 @@ std::vector<const ItemType *> ItemTypeRegistry::types() const
 
 bool ItemTypeRegistry::usesProfile(const QString &typeId) const
 {
-    if (!contains(typeId))
+    if (!contains(typeId) || isBuiltIn(typeId.section(QLatin1Char('.'), 0, 0)))
         return false;
     const ItemType &itemType = type(typeId);
     return itemType.rendering() == Rendering::Web || !settingsScreens(typeId.section(QLatin1Char('.'), 0, 0)).empty();
