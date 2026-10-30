@@ -76,7 +76,7 @@ QString ModulesDialog::Private::moduleHtml(const QString &moduleId) const
     if (!description.isEmpty())
         html += QStringLiteral("<p>%1</p>").arg(description.toHtmlEscaped());
 
-    // The module's identity, one line for each part it gave. See decision 0087.
+    // The module's identity, one line for each part it gave. See decision 0089.
     QStringList identity;
     const auto line = [&identity](const QString &label, const QString &value) {
         identity << QStringLiteral("<b>%1</b> %2").arg(label, value);

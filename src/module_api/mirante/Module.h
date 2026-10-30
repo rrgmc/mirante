@@ -44,7 +44,7 @@ public:
     virtual void setModuleDescription(const QString &description) = 0;
 
     // The module's identity and origin, which Help > Modules shows. See
-    // decision 0087.
+    // decision 0089.
     //
     // A UUID that names the module across builds and renames. It never
     // changes, and no two modules share one. A null UUID, or one another

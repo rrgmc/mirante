@@ -10,7 +10,7 @@ One of the project's folders, with its Git state and shortcuts to a terminal and
 
 The module calls itself "Folder" and describes itself as: "A project's folder as an item, with its Git state and shortcuts to a terminal and an editor." Help > Modules shows the names and descriptions. See [decision 0056](../../../docs/decisions/0056-modules-window.md).
 
-Its UUID is `f28b2ac0-3992-4a4c-8e77-40b891218bbc`. It is at version 0.1.0, by Rangel Reale. Help > Modules also shows these, and the module's homepage. See [decision 0087](../../../docs/decisions/0087-module-identity.md).
+Its UUID is `f28b2ac0-3992-4a4c-8e77-40b891218bbc`. It is at version 0.1.0, by Rangel Reale. Help > Modules also shows these, and the module's homepage. See [decision 0089](../../../docs/decisions/0089-module-identity.md).
 
 Since M3 the type declares its configuration fields, so items can be created and edited. Since M7 it has a native view; see [View](#view).
 

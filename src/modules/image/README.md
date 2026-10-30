@@ -10,7 +10,7 @@ An image, such as a screenshot or a diagram, with an optional link and an option
 
 The module calls itself "Image" and describes itself as: "Images, such as screenshots or diagrams, with an optional link and memo." Help > Modules shows the names and descriptions. See [decision 0056](../../../docs/decisions/0056-modules-window.md).
 
-Its UUID is `49e356c7-e0f4-4f5b-904e-6711fea8bb92`. It is at version 0.1.0, by Rangel Reale. Help > Modules also shows these, and the module's homepage. See [decision 0087](../../../docs/decisions/0087-module-identity.md).
+Its UUID is `49e356c7-e0f4-4f5b-904e-6711fea8bb92`. It is at version 0.1.0, by Rangel Reale. Help > Modules also shows these, and the module's homepage. See [decision 0089](../../../docs/decisions/0089-module-identity.md).
 
 The image is a file in the data folder's `files/` folder. The item's configuration holds its file name, the link and the memo.
 

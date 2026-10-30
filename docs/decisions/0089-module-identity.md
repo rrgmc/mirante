@@ -1,4 +1,4 @@
-# 0087. Modules give a UUID, a version, an author and a homepage
+# 0089. Modules give a UUID, a version, an author and a homepage
 
 - Status: Accepted
 - Date: 2026-10-30

@@ -253,7 +253,7 @@ private slots:
     }
 
     // A module's UUID, version, author and homepage are kept as given, and
-    // are null or empty without them. See decision 0087.
+    // are null or empty without them. See decision 0089.
     void identity()
     {
         const QUuid uuid(QStringLiteral("6f1c1d8e-3c2a-4f5e-9b7d-2a4e8c0f1b3d"));

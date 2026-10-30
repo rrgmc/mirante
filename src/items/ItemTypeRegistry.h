@@ -65,7 +65,7 @@ public:
     // The description the module gave itself, else empty.
     QString moduleDescription(const QString &moduleId) const;
     // The UUID, version, author and homepage the module gave itself, each
-    // null or empty without one. See decision 0087.
+    // null or empty without one. See decision 0089.
     QUuid moduleUuid(const QString &moduleId) const;
     QString moduleVersion(const QString &moduleId) const;
     QString moduleAuthor(const QString &moduleId) const;
