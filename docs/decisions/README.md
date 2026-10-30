@@ -91,6 +91,8 @@ Each file records one design decision: what was decided, what else was considere
 | [0084](0084-no-local-claude-sessions.md) | No Claude session (local) item | Accepted |
 | [0085](0085-drop-images-from-other-apps.md) | Images can be dropped from other apps | Accepted |
 | [0086](0086-english-and-brazilian-portuguese.md) | The app speaks English and Brazilian Portuguese | Accepted |
+| [0087](0087-watched-items.md) | Only watched items reach the tray and send notifications | Accepted |
+| [0088](0088-keys-a-page-keeps.md) | App shortcuts work in web pages, and an item can give keys to its page | Accepted |
 
 ## Template
 
