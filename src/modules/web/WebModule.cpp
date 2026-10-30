@@ -75,7 +75,7 @@ private:
 
 void registerModule(ModuleRegistrar &registrar)
 {
-    registrar.setModuleName(QStringLiteral("Web"));
+    registrar.setModuleName(QCoreApplication::translate("web", "Web"));
     registrar.setModuleDescription(QCoreApplication::translate(
         "web", "Any web page as an item."));
     registrar.addItemType(std::make_unique<PageItemType>(

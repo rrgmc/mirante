@@ -32,11 +32,6 @@ const QString kText = QStringLiteral("text");
 // How long the text waits after the last change before it is saved.
 constexpr int kSaveDelayMs = 800;
 
-QString trNotes(const char *text)
-{
-    return QCoreApplication::translate("notes", text);
-}
-
 // The editor. It tells the view when it loses the keyboard's focus.
 class Editor : public QPlainTextEdit
 {
@@ -73,7 +68,8 @@ public:
         setOpenExternalLinks(false);
         connect(this, &QTextBrowser::anchorClicked, this, [](const QUrl &link) {
             const QString scheme = link.scheme();
-            if (scheme == QLatin1String("http") || scheme == QLatin1String("https") || scheme == QLatin1String("mailto"))
+            if (scheme == QLatin1String("http") || scheme == QLatin1String("https")
+                || scheme == QLatin1String("mailto"))
                 QDesktopServices::openUrl(link);
         });
     }
@@ -107,8 +103,8 @@ public:
         auto *bar = new QHBoxLayout;
         bar->setContentsMargins(4, 2, 4, 2);
         bar->setSpacing(2);
-        m_editButton = makeModeButton(trNotes("Edit"));
-        m_previewButton = makeModeButton(trNotes("Preview"));
+        m_editButton = makeModeButton(QCoreApplication::translate("notes", "Edit"));
+        m_previewButton = makeModeButton(QCoreApplication::translate("notes", "Preview"));
         auto *modes = new QButtonGroup(this);
         modes->setExclusive(true);
         modes->addButton(m_editButton);
@@ -173,7 +169,7 @@ private:
         button->setText(text);
         button->setCheckable(true);
         button->setAutoRaise(true);
-        button->setToolTip(trNotes("Switch between Edit and Preview (%1)")
+        button->setToolTip(QCoreApplication::translate("notes", "Switch between Edit and Preview (%1)")
                                .arg(QKeySequence(Qt::CTRL | Qt::Key_E).toString(QKeySequence::NativeText)));
         return button;
     }

@@ -272,7 +272,7 @@ void ServerClient::enqueue(Method method, const QString &path, const QUrlQuery &
     const QUrl base = m_type->baseUrl(request->values);
     const QString problem = m_type->problem(request->values);
     if (!base.isValid() || base.isEmpty()) {
-        answerLater(request, errorReply(ApiReply::Error::NoServer, tr("No server set")));
+        answerLater(request, errorReply(ApiReply::Error::NoServer, ServerClients::tr("No server set")));
         return;
     }
     if (!problem.isEmpty()) {
@@ -280,7 +280,7 @@ void ServerClient::enqueue(Method method, const QString &path, const QUrlQuery &
         return;
     }
     if (m_failing) {
-        answerLater(request, errorReply(ApiReply::Error::Paused, tr("Token refused")));
+        answerLater(request, errorReply(ApiReply::Error::Paused, ServerClients::tr("Token refused")));
         return;
     }
 
@@ -323,7 +323,7 @@ void ServerClient::pump()
         while (!m_queue.empty()) {
             auto request = m_queue.front();
             m_queue.pop_front();
-            answerLater(request, errorReply(ApiReply::Error::Paused, tr("Token refused")));
+            answerLater(request, errorReply(ApiReply::Error::Paused, ServerClients::tr("Token refused")));
         }
         return;
     }
@@ -335,7 +335,8 @@ void ServerClient::pump()
         while (!m_queue.empty()) {
             auto request = m_queue.front();
             m_queue.pop_front();
-            answerLater(request, errorReply(ApiReply::Error::NoToken, tr("Token not set on this device")));
+            answerLater(request,
+                        errorReply(ApiReply::Error::NoToken, ServerClients::tr("Token not set on this device")));
         }
         return;
     }
@@ -387,7 +388,7 @@ void ServerClient::finished(QNetworkReply *reply, const RequestPtr &request)
     if (result.httpStatus == 0) {
         result.error = ApiReply::Error::Network;
         result.message = reply->error() == QNetworkReply::OperationCanceledError
-                             ? tr("The server did not answer in time")
+                             ? ServerClients::tr("The server did not answer in time")
                              : reply->errorString();
         answer(request, result);
         pump();
@@ -402,7 +403,7 @@ void ServerClient::finished(QNetworkReply *reply, const RequestPtr &request)
             return;
         }
         result.error = ApiReply::Error::Http;
-        result.message = tr("Too many requests (429)");
+        result.message = ServerClients::tr("Too many requests (429)");
         answer(request, result);
         pump();
         return;
@@ -417,7 +418,7 @@ void ServerClient::finished(QNetworkReply *reply, const RequestPtr &request)
         }
     } else if (result.httpStatus == 401 || (result.httpStatus == 403 && isGet)) {
         result.error = ApiReply::Error::Refused;
-        result.message = tr("Token refused (%1)").arg(result.httpStatus);
+        result.message = ServerClients::tr("Token refused (%1)").arg(result.httpStatus);
         m_failingValues = request->values;
         setFailing(true);
         answer(request, result);
@@ -425,14 +426,14 @@ void ServerClient::finished(QNetworkReply *reply, const RequestPtr &request)
         return;
     } else if (result.httpStatus == 403) {
         result.error = ApiReply::Error::Forbidden;
-        result.message = tr("Not allowed (403)");
+        result.message = ServerClients::tr("Not allowed (403)");
     } else if (result.httpStatus == 404) {
         result.error = ApiReply::Error::NotFound;
-        result.message = tr("Not found (404)");
+        result.message = ServerClients::tr("Not found (404)");
     } else if (result.httpStatus >= 400) {
         result.error = ApiReply::Error::Http;
         const QString reason = reply->attribute(QNetworkRequest::HttpReasonPhraseAttribute).toString();
-        result.message = reason.isEmpty() ? tr("Server error (%1)").arg(result.httpStatus)
+        result.message = reason.isEmpty() ? ServerClients::tr("Server error (%1)").arg(result.httpStatus)
                                           : QStringLiteral("%1 (%2)").arg(reason).arg(result.httpStatus);
     } else if (isGet) {
         const QByteArray etag = headerValue(result.headers, "ETag");

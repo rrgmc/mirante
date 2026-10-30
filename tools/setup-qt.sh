@@ -13,9 +13,9 @@ set -eu
 QT_VERSION=6.8.3
 
 case "$(uname -s)" in
-    Darwin) QT_HOST=mac; QT_ARCH=clang_64; QT_ARCH_DIR=macos; QT_EXTRA_ARCHIVES= ;;
+    Darwin) QT_HOST=mac; QT_ARCH=clang_64; QT_ARCH_DIR=macos; QT_EXTRA_ARCHIVES=; PLUGIN_SUFFIX=dylib ;;
     # Qt for Linux ships its own ICU, which its libraries and tools need.
-    Linux)  QT_HOST=linux; QT_ARCH=linux_gcc_64; QT_ARCH_DIR=gcc_64; QT_EXTRA_ARCHIVES=icu ;;
+    Linux)  QT_HOST=linux; QT_ARCH=linux_gcc_64; QT_ARCH_DIR=gcc_64; QT_EXTRA_ARCHIVES=icu; PLUGIN_SUFFIX=so ;;
     *) echo "Unsupported system: $(uname -s). On Windows, use tools/setup-qt.ps1." >&2; exit 1 ;;
 esac
 
@@ -25,15 +25,21 @@ QT_DIR=$QT_ROOT/$QT_VERSION/$QT_ARCH_DIR
 
 # qtsvg provides the plugin that loads the SVG icons of item types.
 # Qt WebEngine shows web items; it needs qtdeclarative, qtwebchannel and
-# qtpositioning. The check looks for WebEngine, so an older Qt without it
-# is completed.
-if [ ! -d "$QT_DIR/lib/cmake/Qt6WebEngineWidgets" ]; then
+# qtpositioning. qttools has lupdate and lrelease for the translations, and
+# qttranslations has Qt's own texts in other languages. qtimageformats has the
+# WebP plugin for dropped images. Each part has a file that shows it is there,
+# so an older Qt without one of them is completed.
+missing=
+for marker in lib/cmake/Qt6WebEngineWidgets bin/lupdate translations/qtbase_pt_BR.qm         "plugins/imageformats/libqwebp.$PLUGIN_SUFFIX"; do
+    [ -e "$QT_DIR/$marker" ] || missing=yes
+done
+if [ -n "$missing" ]; then
     if ! command -v uvx >/dev/null 2>&1; then
         echo "uv is required to download Qt. Install it from https://docs.astral.sh/uv/ and run this script again." >&2
         exit 1
     fi
     echo "Installing Qt $QT_VERSION into $QT_ROOT" >&2
-    uvx --from aqtinstall aqt install-qt "$QT_HOST" desktop "$QT_VERSION" "$QT_ARCH" -O "$QT_ROOT" --archives qtbase qtsvg qtdeclarative $QT_EXTRA_ARCHIVES -m qtwebengine qtwebchannel qtpositioning >&2
+    uvx --from aqtinstall aqt install-qt "$QT_HOST" desktop "$QT_VERSION" "$QT_ARCH" -O "$QT_ROOT" --archives qtbase qtsvg qtdeclarative qttools qttranslations $QT_EXTRA_ARCHIVES -m qtwebengine qtwebchannel qtpositioning qtimageformats >&2
 fi
 
 echo "$QT_DIR"

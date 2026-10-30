@@ -29,8 +29,10 @@ endif()
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
-find_package(Qt6 6.8 REQUIRED COMPONENTS Core Gui Widgets Network WebChannel WebEngineWidgets Test)
-qt_standard_project_setup()
+find_package(Qt6 6.8 REQUIRED COMPONENTS Core Gui Widgets Network WebChannel WebEngineWidgets Test LinguistTools)
+# The source texts are English. Brazilian Portuguese is the one translation.
+# See docs/decisions/0086-english-and-brazilian-portuguese.md.
+qt_standard_project_setup(I18N_SOURCE_LANGUAGE en I18N_TRANSLATED_LANGUAGES pt_BR)
 
 # Qt 6.8's FindWrapOpenGL links the AGL framework, which Xcode 26 no longer
 # ships. Nothing here uses AGL, so drop it.

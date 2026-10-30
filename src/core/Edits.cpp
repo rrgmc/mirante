@@ -2,6 +2,7 @@
 
 #include "core/Sorting.h"
 
+#include <QCoreApplication>
 #include <QJsonArray>
 #include <QJsonObject>
 #include <QJsonValue>
@@ -111,7 +112,7 @@ Task newTask(const QString &projectId, const QString &title)
 {
     Dashboard dashboard;
     dashboard.id = newId();
-    dashboard.name = QStringLiteral("Main");
+    dashboard.name = QCoreApplication::translate("Edits", "Main");
     dashboard.layout = layout::emptyLayout();
 
     Task task;

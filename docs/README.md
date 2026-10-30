@@ -19,6 +19,10 @@ Mirante is a personal desktop dashboard for all of one person's work, built with
 | [Plans](plans/) | Detailed code plans, one per milestone, written just before it starts |
 | [Decisions](decisions/README.md) | Records of design decisions and their reasons |
 
+## Translations
+
+The app speaks English and Brazilian Portuguese. Every text the user sees is written in English in the source and translated in `translations/mirante_pt_BR.ts` in the same change; `task check` fails on a text without a translation. The documents, the log and ids stay in English. See [translations/README.md](../translations/README.md) for how to add a text, the Portuguese word for each glossary term, and [decision 0086](decisions/0086-english-and-brazilian-portuguese.md).
+
 ## Glossary
 
 **Group.** The top level, such as "Personal" or "Work". A group holds projects and chooses a default [profile](data-model.md#profile). It has a colour, which tints the title bars of its task dashboards.

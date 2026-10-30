@@ -6,7 +6,7 @@ The design is in [docs/README.md](docs/README.md).
 
 ## Building
 
-Mirante is in early development. You need CMake 3.21 or newer, Ninja, and [uv](https://docs.astral.sh/uv/), which the setup scripts use to download Qt 6.8.
+Mirante is in early development. You need CMake 3.21 or newer, Ninja, Python 3, and [uv](https://docs.astral.sh/uv/), which the setup scripts use to download Qt 6.8. Besides Qt itself, they download Qt WebEngine, `qttools` for `lupdate` and `lrelease`, Qt's translations, and `qtimageformats` for WebP images. A Qt downloaded before these were added is completed on the next build.
 
 With [Task](https://taskfile.dev) installed, the common commands are the same on every platform:
 
@@ -14,7 +14,8 @@ With [Task](https://taskfile.dev) installed, the common commands are the same on
 task                         # lists the tasks
 task build                   # builds the dev preset
 task test PRESET=release     # builds and tests another preset
-task check                   # the include check, then tests with all modules and with none
+task check                   # the include and translation checks, then tests with all modules and with none
+task translations            # updates translations/ after a text changed; see translations/README.md
 task run -- -Data <folder>   # starts the build, on Windows
 ```
 

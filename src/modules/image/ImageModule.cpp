@@ -32,8 +32,10 @@ public:
     QString shortName() const override { return QCoreApplication::translate("image", "Image"); }
     QString description() const override
     {
-        return QCoreApplication::translate("image", "An image, such as a screenshot, scaled to fit the cell, with an optional memo "
-                                              "under it. A click opens its link, if it has one.");
+        return QCoreApplication::translate(
+            "image",
+            "An image, such as a screenshot, scaled to fit the cell, with an optional memo "
+            "under it. A click opens its link, if it has one.");
     }
     Rendering rendering() const override { return Rendering::Native; }
 
@@ -76,7 +78,7 @@ private:
 
 void registerModule(ModuleRegistrar &registrar)
 {
-    registrar.setModuleName(QStringLiteral("Image"));
+    registrar.setModuleName(QCoreApplication::translate("image", "Image"));
     registrar.setModuleDescription(QCoreApplication::translate(
         "image", "Images, such as screenshots or diagrams, with an optional link and memo."));
     registrar.addItemType(std::make_unique<ImageItemType>(

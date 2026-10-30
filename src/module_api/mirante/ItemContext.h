@@ -2,6 +2,7 @@
 
 #include <mirante/GitState.h>
 
+#include <QCoreApplication>
 #include <QJsonObject>
 #include <QJsonValue>
 #include <QString>
@@ -160,7 +161,7 @@ public:
         Q_UNUSED(dir)
         Q_UNUSED(program)
         Q_UNUSED(arguments)
-        return QStringLiteral("Programs cannot be started here.");
+        return QCoreApplication::translate("ItemContext", "Programs cannot be started here.");
     }
 
     // Starts program with arguments, detached, in dir, such as an editor.
@@ -170,7 +171,7 @@ public:
         Q_UNUSED(dir)
         Q_UNUSED(program)
         Q_UNUSED(arguments)
-        return QStringLiteral("Programs cannot be started here.");
+        return QCoreApplication::translate("ItemContext", "Programs cannot be started here.");
     }
 
     // Shows a folder in Explorer, Finder or the desktop's file manager.

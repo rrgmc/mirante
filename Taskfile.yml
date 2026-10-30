@@ -52,10 +52,34 @@ tasks:
       - cmd: python3 tools/check-module-includes.py
         platforms: [linux, darwin]
 
+  translations:
+    desc: Bring translations/ up to date with the sources (lupdate), with PRESET=dev's build folder
+    cmds:
+      - cmd: '{{.POWERSHELL}} tools/build.ps1 -Preset {{.PRESET}} -Target update_translations'
+        platforms: [windows]
+      - cmd: |
+          cmake --preset {{.PRESET}} -DCMAKE_PREFIX_PATH="$(tools/setup-qt.sh)"
+          cmake --build --preset {{.PRESET}} --target update_translations
+        platforms: [linux, darwin]
+      - cmd: python tools/translation-glossary.py
+        platforms: [windows]
+      - cmd: python3 tools/translation-glossary.py
+        platforms: [linux, darwin]
+
+  check-translations:
+    desc: Update the translations, and fail if a text has no Portuguese translation
+    cmds:
+      - task: translations
+      - cmd: python tools/check-translations.py
+        platforms: [windows]
+      - cmd: python3 tools/check-translations.py
+        platforms: [linux, darwin]
+
   check:
-    desc: Run what a change must pass, all modules and none, and the include check
+    desc: Run what a change must pass, all modules and none, the include check and the translations
     cmds:
       - task: check-includes
+      - task: check-translations
       - task: test
         vars: { PRESET: dev }
       - task: test

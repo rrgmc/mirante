@@ -18,11 +18,6 @@ namespace mirante::modules::image {
 
 namespace {
 
-QString trImage(const char *text)
-{
-    return QCoreApplication::translate("image", text);
-}
-
 // The link a click opens: a web address, else nothing.
 QUrl webLink(const QString &text)
 {
@@ -113,7 +108,7 @@ QWidget *createImageView(ItemContext &context, QWidget *parent)
     const QString fileName = config.value(QStringLiteral("file")).toString();
     const QString path = fileName.isEmpty() ? QString() : context.filePath(fileName);
     if (path.isEmpty()) {
-        const QString text = trImage("The image file is missing.");
+        const QString text = QCoreApplication::translate("image", "The image file is missing.");
         if (QWidget *message = context.createMessageView(text, parent))
             return message;
         return messageLabel(text, parent);
@@ -123,7 +118,7 @@ QWidget *createImageView(ItemContext &context, QWidget *parent)
     reader.setAutoTransform(true);
     const QImage image = reader.read();
     if (image.isNull()) {
-        const QString text = trImage("The image file cannot be read.");
+        const QString text = QCoreApplication::translate("image", "The image file cannot be read.");
         if (QWidget *message = context.createMessageView(text, parent))
             return message;
         return messageLabel(text, parent);

@@ -6,7 +6,7 @@ This document describes the source folders, the main classes and how they work t
 
 ```
 src/
-  main.cpp       registers dash:// before QApplication, registers the enabled modules, wires the folders together
+  main.cpp       registers dash:// before QApplication, installs the language, registers the enabled modules, wires the folders together
   core/          data model, layout trees, loading and saving, device settings
   layout/        the widgets that show and edit layout trees
   items/         item type interface and registry, module interface, placements
@@ -156,6 +156,7 @@ Code that differs per platform lives only here, behind these classes.
 ## Ownership and lifetime
 
 - Before any service, `main.cpp` reads the command line and makes a `SingleInstance` for the web data folder. If another process holds its lock, `main.cpp` hands `--data` over to it and exits, so no settings, model or profiles are made. The `SingleInstance` lives until the end of `main`, so the lock is released only after the `ProfileManager` is gone. After the window is shown, `main.cpp` connects `activationRequested` to the window: it opens the given workspace, if any, and brings the window to the front. See [decision 0058](decisions/0058-one-instance-per-web-data-folder.md).
+- Right after the command line, `main.cpp` makes the `DeviceSettings`, from `--settings` if given, and installs the language before any text is made: `language::choose()` turns the `language` setting and the system's languages into `en` or `pt_BR`, `QLocale::setDefault()` makes dates and numbers follow it, and two `QTranslator`s load Mirante's translation from `:/i18n/mirante_<language>.qm` and, for Portuguese, Qt's `qtbase` translation from `QLibraryInfo::TranslationsPath`. English loads Mirante's file too, for its plural forms. Tests install no translator and use the English locale. See [decision 0086](decisions/0086-english-and-brazilian-portuguese.md).
 - `main.cpp` creates the long-lived services in this order: `DeviceSettings`, the registries (filled by `registerEnabledModules()`), `Model`, `Store`, `SecretStore`, `ServerClients`, `StatusCache`, `Attention`, `ProfileManager`, `ViewPool`, `MainWindow`. It destroys them in reverse order. Before the `QApplication` it sets `Qt::AA_ShareOpenGLContexts`, which Qt WebEngine needs. `DeviceSettings` is created after the application and organisation names are set, because they choose where `QSettings` keeps its values. The `Store` flushes its pending writes when the application is about to quit.
 - Each `Placement` owns its view widget and its `ItemContextImpl`. The context outlives the view: the placement deletes its views before its context. A view that is replaced is deleted later, not at once, because the change may come from the view's own code, for example through `updateConfig`.
 - A web view's toolbar is owned by its `WebPanel`, even while the cell header shows it. The `CellFrame` only shows it, and lets it go when the placement reports a new header widget.
@@ -176,7 +177,8 @@ A worker thread is added only if a measured problem needs one.
 ## Build
 
 - CMake 3.21 or newer.
-- `find_package(Qt6 6.8 REQUIRED COMPONENTS Widgets WebEngineWidgets WebChannel Network)`. `Qt6::Test` is used for tests.
+- `find_package(Qt6 6.8 REQUIRED COMPONENTS Widgets WebEngineWidgets WebChannel Network LinguistTools)`. `Qt6::Test` is used for tests.
+- **Translations:** `qt_add_translations()` in `src/CMakeLists.txt` compiles `translations/mirante_pt_BR.ts` and the English plural forms, `mirante_en.ts`, into the app's resources under `:/i18n`. `lupdate` reads every source file under `src/`, modules included, also in a build without them, so the files stay complete. The `update_translations` target, which `task translations` runs, updates them. See [translations/README.md](../translations/README.md).
 - qtkeychain and QHotkey come through `FetchContent`, built for Qt 6.
 - **Compilers:** MSVC 2022 64-bit on Windows, because Qt WebEngine does not support MinGW. Clang on macOS. GCC on Linux.
 - **Debug builds** link Qt WebEngine's debug libraries, which stop some real sites, such as claude.ai, on Chromium's internal checks. Check web pages with a release build. See [debug builds](web-views.md#debug-builds).
