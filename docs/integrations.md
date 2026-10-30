@@ -65,15 +65,23 @@ Main endpoints, below the API root:
 
 | Purpose | Endpoint |
 |---|---|
-| Issue | `GET /issue/:key?expand=renderedFields`, with `fields` to limit the answer |
+| Issue | `GET /issue/:key?expand=renderedFields`, with `fields` to limit the answer, and `names` added to `expand` where the sprint is needed |
 | Search | `GET /search/jql` on Cloud, `GET /search` on Data Center, with the JQL query, up to 100 rows |
 | Transitions | `GET /issue/:key/transitions`, `POST /issue/:key/transitions` |
 | Comment | `POST /issue/:key/comment` |
 | Current user | `GET /myself` |
 
-The status of an issue item asks for the issue with only `summary`, `status`, `assignee`, `priority`, `issuetype` and `updated`. See [item types](item-types.md#jira-issue-summary).
+What each item type asks for its status:
 
-Development information, meaning linked branches and merge requests, comes from a separate, less stable API. It is shown when available and left out quietly when not.
+- **An issue page:** the issue, with only `summary`, `status`, `assignee`, `priority`, `issuetype` and `updated`.
+- **An issue summary:** the issue, with all fields and `expand=renderedFields,names`. The sprint is the field whose entry in `names` is "Sprint", because its id differs per site.
+- **A list:** one search, with `summary`, `status`, `assignee` and `updated`, up to 100 rows. A project preset without a project key, or an empty query, sends nothing. See [decision 0067](decisions/0067-lists-report-status.md).
+
+See [item types](item-types.md#jira-issue-summary).
+
+A summary or a preview asks for the transitions when the Change status menu opens. A preview also reads its issue with the summary's request. See [decision 0068](decisions/0068-views-read-what-the-user-asked-for.md).
+
+Development information, meaning linked branches and merge requests, comes from a separate, less stable API. M6 does not ask for it, so it does not appear.
 
 Jira priority is shown in the summary but never used for sorting. See [decision 0009](decisions/0009-priority-and-attention.md).
 
