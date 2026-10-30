@@ -1,4 +1,10 @@
 #include "Version.h"
+#include "api/ApiServices.h"
+#include "api/Attention.h"
+#include "api/SecretBackend.h"
+#include "api/SecretStore.h"
+#include "api/ServerClient.h"
+#include "api/StatusCache.h"
 #include "core/DeviceSettings.h"
 #include "core/LogBuffer.h"
 #include "core/Model.h"
@@ -62,6 +68,10 @@ int main(int argc, char *argv[])
     const QCommandLineOption logOption(QStringLiteral("log"),
                                        QStringLiteral("Keep the log messages for Help > Show Log. Always on in debug builds."));
     parser.addOption(logOption);
+    const QCommandLineOption noKeychainOption(
+        QStringLiteral("no-keychain"),
+        QStringLiteral("Keep tokens in memory only, lost at exit, instead of the keychain, for test runs."));
+    parser.addOption(noKeychainOption);
     parser.process(app);
 #ifdef NDEBUG
     // Without the buffer, Help has no Show Log and Qt's own handler is back.
@@ -118,6 +128,14 @@ int main(int argc, char *argv[])
         return model.moduleSettings(profileId, moduleId, screenId);
     });
     mirante::Store store(model);
+    // Tokens, the modules' servers and the status of items. See the M5 plan,
+    // part 9. Test runs pass --no-keychain, so they never touch the keychain.
+    mirante::SecretStore secrets(parser.isSet(noKeychainOption) ? mirante::makeMemoryBackend()
+                                                                 : mirante::makeKeychainBackend());
+    mirante::ServerClients servers(model, types, secrets);
+    mirante::StatusCache status(model, types, servers, settings);
+    mirante::Attention attention(model, status, settings);
+    status.setPolling(true);
     // The profiles' web logins outlive the window, and with it every page that uses
     // them. The pool's limit is read once, at start.
     mirante::ProfileManager profiles(webDataFolder);
@@ -127,6 +145,12 @@ int main(int argc, char *argv[])
     mirante::ViewPool pool;
     pool.setLimit(settings.hiddenViewLimit());
     mirante::MainWindow window(model, types, store, settings, &profiles, &pool);
+    mirante::ApiServices api;
+    api.secrets = &secrets;
+    api.servers = &servers;
+    api.status = &status;
+    api.attention = &attention;
+    window.setApiServices(api);
 
     // Pending writes reach the disk before the app quits.
     QObject::connect(&app, &QCoreApplication::aboutToQuit, &store, &mirante::Store::flush);

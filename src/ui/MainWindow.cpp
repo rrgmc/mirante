@@ -1,6 +1,10 @@
 #include "ui/MainWindow.h"
 
 #include "Version.h"
+#include "api/Attention.h"
+#include "api/SecretStore.h"
+#include "api/ServerClient.h"
+#include "api/StatusCache.h"
 #include "core/DeviceSettings.h"
 #include "core/GroupColours.h"
 #include "core/LayoutTree.h"
@@ -41,6 +45,8 @@
 #include "ui/SlotTabBar.h"
 #include "web/ProfileManager.h"
 
+#include <mirante/ApiClient.h>
+
 #include <QAbstractSpinBox>
 #include <QAction>
 #include <QApplication>
@@ -67,6 +73,7 @@
 #include <QModelIndex>
 #include <QPlainTextEdit>
 #include <QPointer>
+#include <QPushButton>
 #include <QScreen>
 #include <QShortcut>
 #include <QSignalBlocker>
@@ -158,6 +165,8 @@ struct MainWindow::Private
     std::unique_ptr<ImagePaste> imagePaste;
     ImagePasteDialog::Exec exec = ImagePasteDialog::defaultExec();     // see setExec()
     std::vector<LoadProblem> ownProblems;   // set with setLoadProblems(), such as a missing folder
+    ApiServices api;                        // set with setApiServices(); members may be null
+    QStringList keychainErrors;             // SecretStore::failed messages, for the warning bar
 
     LayoutEditor *editor = nullptr;
     LockState *locks = nullptr;
@@ -170,6 +179,7 @@ struct MainWindow::Private
     QPointer<DashboardPage> shownPage;      // the page syncCurrent() last showed
     QFrame *warningBar = nullptr;
     QLabel *warningText = nullptr;
+    QWidget *serverLines = nullptr;         // in the warning bar: one line per failing server
     RootTabBar *tabBar = nullptr;
     SlotTabBar *slotBar = nullptr;
     QToolButton *showSidebarButton = nullptr;
@@ -478,6 +488,9 @@ struct MainWindow::Private
             tabBar->setCurrentIndex(index);
             changingTabs = false;
         }
+        // The items of a task opened in a slot are polled for a while.
+        if (api.status && page && !page->isFocus() && !page->ref.isRoot())
+            api.status->noteTaskOpened(page->ref.taskId);
         syncSelection();
         syncCurrent();
     }
@@ -834,6 +847,11 @@ struct MainWindow::Private
             return focus;
         auto *view = new FocusView(*model);
         QObject::connect(view, &FocusView::taskOpened, q, [this](const QString &taskId) { q->openTaskPreview(taskId); });
+        // The badges, and the "Needs attention first" toggle kept on this device.
+        view->setAttention(api.attention);
+        view->setAttentionFirst(settings->focusAttentionFirst());
+        QObject::connect(view, &FocusView::attentionFirstChanged, q,
+                         [this](bool on) { settings->setFocusAttentionFirst(on); });
         view->setMenuFiller([this](QMenu *menu, const QString &taskId) {
             actions->fillMenu(menu, SidebarModel::Kind::Task, taskId, taskId);
         });
@@ -927,13 +945,60 @@ struct MainWindow::Private
             for (const LoadProblem &problem : problems)
                 lines << MainWindow::tr("%1: %2").arg(problem.file, problem.message);
         }
-        if (lines.isEmpty()) {
-            warningText->clear();
+        for (const QString &message : keychainErrors)
+            lines << MainWindow::tr("Could not use the keychain: %1").arg(message);
+        const bool servers = updateServerLines();
+        warningText->setText(lines.join(QLatin1Char('\n')));
+        warningText->setVisible(!lines.isEmpty());
+        if (lines.isEmpty() && !servers) {
             warningBar->hide();
             return;
         }
-        warningText->setText(lines.join(QLatin1Char('\n')));
         warningBar->show();
+    }
+
+    // Fills the warning bar's lines for failing servers, such as "GitLab in
+    // the profile Work refused the token.", each with a button that opens the
+    // server's settings screen. Returns whether there is any.
+    bool updateServerLines()
+    {
+        const QList<QPair<QString, QString>> failing =
+            api.servers ? api.servers->failingServers() : QList<QPair<QString, QString>>();
+        // The lines are made again each time; there are few. The old ones go
+        // later, since this can run inside the click of their own button.
+        for (QWidget *old : serverLines->findChildren<QWidget *>(QString(), Qt::FindDirectChildrenOnly)) {
+            old->setParent(nullptr);
+            old->deleteLater();
+        }
+        for (const auto &[profileId, moduleId] : failing) {
+            auto *line = new QWidget(serverLines);
+            line->setObjectName(QStringLiteral("failingServer"));
+            auto *text = new QLabel(MainWindow::tr("%1 in the profile %2 refused the token.")
+                                        .arg(types->moduleName(moduleId), profiles::nameOf(*model, profileId)),
+                                    line);
+            text->setWordWrap(true);
+            auto *button = new QPushButton(MainWindow::tr("Set Token…"), line);
+            button->setObjectName(QStringLiteral("setToken"));
+            QObject::connect(button, &QPushButton::clicked, q,
+                             [this, profileId = profileId, moduleId = moduleId] {
+                                 openServerSettings(profileId, moduleId);
+                             });
+            auto *layout = new QHBoxLayout(line);
+            layout->setContentsMargins(0, 0, 0, 0);
+            layout->addWidget(text, 1);
+            layout->addWidget(button);
+            serverLines->layout()->addWidget(line);
+        }
+        serverLines->setVisible(!failing.isEmpty());
+        return !failing.isEmpty();
+    }
+
+    // Opens the settings screen of a module's server in a profile, such as
+    // GitLab's General Configuration, where its token is typed.
+    void openServerSettings(const QString &profileId, const QString &moduleId)
+    {
+        if (const ServerType *server = types->serverType(moduleId))
+            actions->editModuleSettings(profileId, moduleId, server->screenId());
     }
 
     // Opens a folder, or the sample data, through the Store, keeping the open
@@ -945,29 +1010,40 @@ struct MainWindow::Private
         saveOpenTabs();
         closeDetachedWindows();
         ownProblems.clear();
+        keychainErrors.clear();
+        // Status and servers belong to the workspace: its id is part of every
+        // token key.
+        if (api.status)
+            api.status->clear();
+        if (api.servers)
+            api.servers->clear();
         store->open(dir);
-        // Each workspace keeps its own web logins, under its id, before the
-        // tabs make pages that use them. A workspace that just got its id is
-        // from before decision 0059, and takes the logins kept for all. One
-        // whose id another device changed takes the logins of its old id
-        // (decision 0062).
+        // Each workspace keeps its own web logins and tokens, under its id,
+        // before the tabs make pages that use them. A workspace that just got
+        // its id is from before decision 0059, and takes the logins kept for
+        // all; no tokens were kept before it. One whose id another device
+        // changed takes the logins and tokens of its old id (decisions 0062
+        // and 0063).
+        const QString id = model->workspaceId();
+        const QString known = (id.isEmpty() || store->assignedWorkspaceId()) ? QString() : settings->workspaceId(dir);
+        const bool changedElsewhere = !known.isEmpty() && known != id;
+        if (changedElsewhere)
+            qInfo().noquote() << "The workspace's id changed from" << known << "to" << id << "on another device";
         if (profiles) {
-            const QString id = model->workspaceId();
             profiles->setWorkspace(id.isEmpty() ? QDir(dir).absolutePath() : id);
             if (store->assignedWorkspaceId()) {
                 if (const int moved = profiles->adoptRootProfiles())
                     qInfo().noquote() << "Moved the web logins of" << moved << "profiles into this workspace";
-            } else if (!id.isEmpty()) {
-                const QString known = settings->workspaceId(dir);
-                if (!known.isEmpty() && known != id) {
-                    const int moved = profiles->adoptProfilesOf(known);
-                    qInfo().noquote() << "The workspace's id changed from" << known << "to" << id << "on another device;"
-                                      << "moved the web logins of" << moved << "profiles";
-                }
+            } else if (changedElsewhere) {
+                const int moved = profiles->adoptProfilesOf(known);
+                qInfo().noquote() << "Moved the web logins of" << moved << "profiles to the new id";
             }
-            if (!id.isEmpty())
-                settings->setWorkspaceId(dir, id);
         }
+        // Requests that need a token being moved wait until its move is done.
+        if (api.secrets && changedElsewhere)
+            api.secrets->moveAll(known, id, tokenKeys(*model, *types));
+        if ((profiles || api.secrets) && !id.isEmpty())
+            settings->setWorkspaceId(dir, id);
         restoreOpenTabs();
         updateWarnings();
     }
@@ -1461,6 +1537,10 @@ struct MainWindow::Private
     {
         sidebarHoverTint = settings->sidebarHoverTint();
         sidebar->setHoverHighlight(sidebarHoverTint ? services.hover->hoveredId() : QString());
+        // The status cache reads the poll interval when it polls. Polling now
+        // makes a shorter interval take effect at once.
+        if (api.status)
+            api.status->poll();
     }
 
     // Opens the log window, or brings it to the front. It has no parent, so it
@@ -1521,6 +1601,11 @@ struct MainWindow::Private
         warningText = new QLabel(warningBar);
         warningText->setWordWrap(true);
         warningText->setTextInteractionFlags(Qt::TextSelectableByMouse);
+        serverLines = new QWidget(warningBar);
+        serverLines->setObjectName(QStringLiteral("failingServers"));
+        auto *serverLayout = new QVBoxLayout(serverLines);
+        serverLayout->setContentsMargins(0, 0, 0, 0);
+        serverLines->hide();
 
         auto *close = new QToolButton(warningBar);
         close->setText(QStringLiteral("✕"));
@@ -1530,7 +1615,10 @@ struct MainWindow::Private
 
         auto *layout = new QHBoxLayout(warningBar);
         layout->setContentsMargins(8, 4, 4, 4);
-        layout->addWidget(warningText, 1);
+        auto *lines = new QVBoxLayout;
+        lines->addWidget(warningText);
+        lines->addWidget(serverLines);
+        layout->addLayout(lines, 1);
         layout->addWidget(close, 0, Qt::AlignTop);
         warningBar->hide();
         return warningBar;
@@ -2226,12 +2314,34 @@ QWidget *MainWindow::contentArea() const { return d->stack; }
 
 Shortcuts *MainWindow::shortcuts() const { return d->shortcuts; }
 
-
-// A stub of T0. Task T9 of the M5 plan implements it.
-
 void MainWindow::setApiServices(const ApiServices &services)
 {
-    Q_UNUSED(services)
+    d->api = services;
+    d->actions->setSecretStore(services.secrets);
+    // Placements made from now on show status. Without profiles, cells keep
+    // their placeholders and show none.
+    d->placements.status = services.status;
+    d->placements.attention = services.attention;
+    d->placements.servers = services.servers;
+    d->placements.openServerSettings = [this](const QString &profileId, const QString &moduleId) {
+        d->openServerSettings(profileId, moduleId);
+    };
+    d->sidebar->model()->setAttention(services.attention);
+    if (d->focus)
+        d->focus->focus->setAttention(services.attention);
+    if (services.servers) {
+        connect(services.servers, &ServerClients::failingChanged, this, [this] { d->updateWarnings(); });
+        // A renamed profile renames its lines.
+        connect(d->model, &Model::profilesChanged, this, [this] { d->updateWarnings(); });
+    }
+    if (services.secrets) {
+        connect(services.secrets, &SecretStore::failed, this, [this](const QString &, const QString &message) {
+            if (!d->keychainErrors.contains(message)) {
+                d->keychainErrors << message;
+                d->updateWarnings();
+            }
+        });
+    }
 }
 
 } // namespace mirante

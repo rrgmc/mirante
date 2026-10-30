@@ -1,7 +1,14 @@
 // Tests MainWindow on the fixtures: the root tabs, the preview and Focus slots,
 // new root dashboards, closing and reopening tabs, the warning bar, focusing an
-// item, views following the model, detached windows, and the web views of
-// item cells.
+// item, views following the model, detached windows, the web views of item
+// cells, and the api services: failing servers and keychain errors in the
+// warning bar, tokens following a new workspace id, and status polling.
+#include "api/ApiServices.h"
+#include "api/Attention.h"
+#include "api/SecretBackend.h"
+#include "api/SecretStore.h"
+#include "api/ServerClient.h"
+#include "api/StatusCache.h"
 #include "core/DeviceSettings.h"
 #include "core/GroupColours.h"
 #include "core/Model.h"
@@ -16,6 +23,7 @@
 #include "ui/DashboardPage.h"
 #include "ui/DetachedWindow.h"
 #include "ui/EntityActions.h"
+#include "ui/FieldForm.h"
 #include "ui/FocusView.h"
 #include "ui/ImagePaste.h"
 #include "ui/ImagePasteDialog.h"
@@ -32,8 +40,11 @@
 #include "web/ProfileManager.h"
 #include "web/WebPanel.h"
 
+#include <mirante/ApiClient.h>
 #include <mirante/ItemContext.h>
 #include <mirante/ItemType.h>
+#include <mirante/ModuleSettings.h>
+#include <mirante/Status.h>
 
 #include <QApplication>
 #include <QCheckBox>
@@ -47,8 +58,12 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QLabel>
+#include <QLineEdit>
 #include <QMenu>
 #include <QMenuBar>
+#include <QNetworkAccessManager>
+#include <QNetworkReply>
+#include <QNetworkRequest>
 #include <QPainter>
 #include <QPointer>
 #include <QPushButton>
@@ -270,11 +285,174 @@ struct WarningLog
     ~WarningLog() { qInstallMessageHandler(previous); }
 };
 
+// A module with a server, as gitlab and jira have: a screen with a base URL
+// and a token, and an item type whose status has one attention reason.
+class SrvServerType : public ServerType
+{
+public:
+    QString screenId() const override { return QStringLiteral("general"); }
+    QString tokenKey() const override { return QStringLiteral("token"); }
+    QUrl baseUrl(const QJsonObject &values) const override
+    {
+        return QUrl(values.value(QStringLiteral("baseUrl")).toString());
+    }
+    void authorize(QNetworkRequest &request, const QString &token, const QJsonObject &) const override
+    {
+        request.setRawHeader("X-Token", token.toUtf8());
+    }
+};
+
+class SrvScreen : public SettingsScreen
+{
+public:
+    QString id() const override { return QStringLiteral("general"); }
+    QString name() const override { return QStringLiteral("General Configuration"); }
+    std::vector<Field> fields() const override
+    {
+        Field base;
+        base.key = QStringLiteral("baseUrl");
+        base.label = QStringLiteral("Base URL");
+        base.type = Field::Type::Url;
+        Field token;
+        token.key = QStringLiteral("token");
+        token.label = QStringLiteral("Token");
+        token.type = Field::Type::Secret;
+        return {base, token};
+    }
+};
+
+class SrvThing : public ItemType
+{
+public:
+    QString id() const override { return QStringLiteral("srv.thing"); }
+    QString name() const override { return QStringLiteral("Thing"); }
+    QIcon icon() const override { return {}; }
+    bool hasStatus() const override { return true; }
+    void fetchStatus(StatusJob &job) const override
+    {
+        ++fetches;
+        ItemStatus status;
+        status.state = ItemStatus::State::Ok;
+        AttentionReason reason;
+        reason.key = QStringLiteral("failed");
+        reason.text = QStringLiteral("Pipeline failed");
+        status.attention << reason;
+        job.finish(status);
+    }
+    static inline int fetches = 0;
+};
+
+void registerSrv(ModuleRegistrar &registrar)
+{
+    registrar.setModuleName(QStringLiteral("Srv"));
+    registrar.setServerType(std::make_unique<SrvServerType>());
+    registrar.addSettingsScreen(std::make_unique<SrvScreen>());
+    registrar.addItemType(std::make_unique<SrvThing>());
+}
+
+// A reply that ends at once with an HTTP status and no body.
+class StatusReply : public QNetworkReply
+{
+public:
+    StatusReply(QNetworkAccessManager::Operation op, const QNetworkRequest &request, int status, QObject *parent)
+        : QNetworkReply(parent)
+    {
+        setOperation(op);
+        setRequest(request);
+        setUrl(request.url());
+        open(QIODevice::ReadOnly | QIODevice::Unbuffered);
+        QTimer::singleShot(0, this, [this, status] {
+            setAttribute(QNetworkRequest::HttpStatusCodeAttribute, status);
+            if (status >= 400)
+                setError(QNetworkReply::AuthenticationRequiredError, QStringLiteral("HTTP %1").arg(status));
+            setFinished(true);
+            emit finished();
+        });
+    }
+    void abort() override {}
+    qint64 bytesAvailable() const override { return 0; }
+
+protected:
+    qint64 readData(char *, qint64) override { return 0; }
+};
+
+// Answers every request with 401, as a server that refuses the token. No
+// test uses the network.
+class RefusingNetwork : public QNetworkAccessManager
+{
+public:
+    int requests = 0;
+
+protected:
+    QNetworkReply *createRequest(Operation op, const QNetworkRequest &request, QIODevice *) override
+    {
+        ++requests;
+        return new StatusReply(op, request, 401, this);
+    }
+};
+
+// A keychain that refuses every call, as a locked one does.
+class LockedBackend : public SecretBackend
+{
+public:
+    void read(const QString &, std::function<void(std::optional<QString>, const QString &)> done) override
+    {
+        QTimer::singleShot(0, [done] { done(std::nullopt, QStringLiteral("The keychain is locked")); });
+    }
+    void write(const QString &, const QString &, std::function<void(const QString &)> done) override
+    {
+        QTimer::singleShot(0, [done] { done(QStringLiteral("The keychain is locked")); });
+    }
+    void remove(const QString &, std::function<void(const QString &)> done) override
+    {
+        QTimer::singleShot(0, [done] { done(QStringLiteral("The keychain is locked")); });
+    }
+};
+
+// The api services over a fixture's window, with the srv module, tokens in
+// memory and a network that refuses every token.
+struct Api
+{
+    SecretStore secrets;
+    RefusingNetwork network;
+    ServerClients servers;
+    StatusCache status;
+    Attention attention;
+
+    Api(Fixture &f, std::unique_ptr<SecretBackend> backend = makeMemoryBackend());
+};
+
+const QString kSampleWorkspaceId = QStringLiteral("5a3e9c1d-7b2f-5e48-a6d0-3c8f1b2e4d97");
+
+QString srvTokenKey(const QString &workspaceId)
+{
+    return secretKey(workspaceId, QStringLiteral("default"), QStringLiteral("srv"), QStringLiteral("token"));
+}
+
 // The tab title of the Overview task's default dashboard: "Task / Dashboard".
 QString overviewTitle(const Fixture &f)
 {
     const Task *task = f.model.task(kOverviewTask);
     return QStringLiteral("%1 / %2").arg(task->title, f.model.taskDashboard(kOverviewTask, task->defaultDashboardId)->name);
+}
+
+Api::Api(Fixture &f, std::unique_ptr<SecretBackend> backend)
+    : secrets(std::move(backend))
+    , servers(f.model, f.types, secrets, &network)
+    , status(f.model, f.types, servers, f.settings)
+    , attention(f.model, status, f.settings)
+{
+    f.types.registerModule(QStringLiteral("srv"), &registerSrv);
+    Model *model = &f.model;
+    f.types.setSettingsReader([model](const QString &profileId, const QString &moduleId, const QString &screenId) {
+        return model->moduleSettings(profileId, moduleId, screenId);
+    });
+    ApiServices services;
+    services.secrets = &secrets;
+    services.servers = &servers;
+    services.status = &status;
+    services.attention = &attention;
+    f.window->setApiServices(services);
 }
 
 } // namespace
@@ -1901,6 +2079,174 @@ private slots:
         }
         for (const QString &message : std::as_const(WarningLog::messages))
             QVERIFY2(!message.contains(QStringLiteral("profile"), Qt::CaseInsensitive), qPrintable(message));
+    }
+
+    // A server that refuses its token gets a line in the warning bar, with a
+    // button that opens its settings screen in its profile. A new token
+    // there takes the line away.
+    void failingServerLine()
+    {
+        Fixture f;
+        Api api(f);
+        f.model.setModuleSettings(QStringLiteral("default"), QStringLiteral("srv"), QStringLiteral("general"),
+                                  {{QStringLiteral("baseUrl"), QStringLiteral("https://srv.example")}});
+        api.secrets.write(srvTokenKey(kSampleWorkspaceId), QStringLiteral("wrong"));
+        QVERIFY(f.warningBar()->isHidden());
+
+        ApiClient *client = api.servers.client(QStringLiteral("default"), QStringLiteral("srv"));
+        QVERIFY(client);
+        bool answered = false;
+        client->get(QStringLiteral("api/user"), {}, {}, f.window.get(), [&answered](const ApiReply &) {
+            answered = true;
+        });
+        QTRY_VERIFY(answered);
+        QVERIFY(api.servers.failing(QStringLiteral("default"), QStringLiteral("srv")));
+        QTRY_COMPARE(f.window->findChildren<QWidget *>(QStringLiteral("failingServer")).size(), 1);
+        QVERIFY(!f.warningBar()->isHidden());
+        QWidget *line = f.window->findChild<QWidget *>(QStringLiteral("failingServer"));
+        QCOMPARE(line->findChild<QLabel *>()->text(), QStringLiteral("Srv in the profile Default refused the token."));
+
+        // "Set Token…" opens the server's screen in that profile.
+        QString title;
+        f.window->entityActions()->setExec([&title](QDialog &dialog) {
+            title = dialog.windowTitle();
+            auto *form = dialog.findChild<FieldForm *>(QStringLiteral("editor"));
+            auto *token = form ? qobject_cast<QLineEdit *>(form->editorFor(QStringLiteral("token"))) : nullptr;
+            if (!token)
+                return false;
+            // The token is set, and the screen says so without showing it.
+            const QString set = QStringLiteral("Set on this device. Type to replace it.");
+            if (!QTest::qWaitFor([token, &set] { return token->placeholderText() == set; }))
+                return false;
+            token->setText(QStringLiteral("right"));
+            return true;
+        });
+        line->findChild<QPushButton *>(QStringLiteral("setToken"))->click();
+        QCOMPARE(title, QStringLiteral("Default: Srv General Configuration"));
+        QCOMPARE(api.secrets.cached(srvTokenKey(kSampleWorkspaceId)), std::optional<QString>(QStringLiteral("right")));
+        QTRY_VERIFY(f.window->findChildren<QWidget *>(QStringLiteral("failingServer")).isEmpty());
+        QVERIFY(!api.servers.failing(QStringLiteral("default"), QStringLiteral("srv")));
+        QVERIFY(f.warningBar()->isHidden());
+
+        // PlacementServices::openServerSettings does the same; another
+        // workspace drops the failing clients.
+        client = api.servers.client(QStringLiteral("default"), QStringLiteral("srv"));
+        client->get(QStringLiteral("api/user"), {}, {}, nullptr, {});
+        QTRY_COMPARE(f.window->findChildren<QWidget *>(QStringLiteral("failingServer")).size(), 1);
+        f.window->openSampleData();
+        QVERIFY(api.servers.failingServers().isEmpty());
+        QTRY_VERIFY(f.window->findChildren<QWidget *>(QStringLiteral("failingServer")).isEmpty());
+    }
+
+    // A keychain error shows in the warning bar, once per message.
+    void keychainFailure()
+    {
+        Fixture f;
+        Api api(f, std::make_unique<LockedBackend>());
+        QVERIFY(f.warningBar()->isHidden());
+        bool answered = false;
+        api.secrets.read(srvTokenKey(kSampleWorkspaceId), nullptr, [&answered](std::optional<QString>) {
+            answered = true;
+        });
+        QTRY_VERIFY(answered);
+        QVERIFY(!f.warningBar()->isHidden());
+        QCOMPARE(f.warningText(), QStringLiteral("Could not use the keychain: The keychain is locked"));
+        api.secrets.write(srvTokenKey(kSampleWorkspaceId), QStringLiteral("token"));
+        QTest::qWait(20);
+        QCOMPARE(f.warningText(), QStringLiteral("Could not use the keychain: The keychain is locked"));
+    }
+
+    // When another device changed the workspace id, the tokens move to the
+    // new id with the logins (decision 0063). The first open only records
+    // the id.
+    void tokensFollowNewWorkspaceId()
+    {
+        QTemporaryDir dir;
+        QVERIFY(copyFixtures(dir.path()));
+        const QString folder = QDir(dir.path()).absolutePath();
+        Fixture f;
+        Api api(f);
+        f.window->openWorkspace(folder);
+        QCOMPARE(f.model.workspaceId(), kSampleWorkspaceId);
+        QCOMPARE(f.settings.workspaceId(folder), kSampleWorkspaceId);
+        api.secrets.write(srvTokenKey(kSampleWorkspaceId), QStringLiteral("t0ken"));
+        f.dataStore.flush();
+
+        // Another device gives the workspace a new id.
+        const QString newId = QStringLiteral("0b6f2a3c-1d4e-4f5a-8b9c-0d1e2f3a4b5c");
+        QFile file(QDir(folder).filePath(QStringLiteral("workspace.mirante")));
+        QVERIFY(file.open(QIODevice::ReadOnly));
+        QJsonObject workspace = QJsonDocument::fromJson(file.readAll()).object();
+        file.close();
+        workspace.insert(QStringLiteral("id"), newId);
+        QVERIFY(file.open(QIODevice::WriteOnly | QIODevice::Truncate));
+        file.write(QJsonDocument(workspace).toJson());
+        file.close();
+
+        f.window->reloadWorkspace();
+        QCOMPARE(f.model.workspaceId(), newId);
+        QCOMPARE(f.settings.workspaceId(folder), newId);
+        // A read waits for the move.
+        std::optional<QString> moved;
+        bool answered = false;
+        api.secrets.read(srvTokenKey(newId), nullptr, [&](std::optional<QString> value) {
+            moved = value;
+            answered = true;
+        });
+        QTRY_VERIFY(answered);
+        QCOMPARE(moved, std::optional<QString>(QStringLiteral("t0ken")));
+        QTRY_COMPARE(api.secrets.state(srvTokenKey(kSampleWorkspaceId)), SecretStore::State::NotSet);
+    }
+
+    // Opening a task in the preview makes its items due, so a poll fetches
+    // them. Their attention reaches the sidebar.
+    void openedTaskIsPolled()
+    {
+        Fixture f;
+        Api api(f);
+        QCOMPARE(f.model.task(kOverviewTask)->priority, Priority::Normal);
+        Item item;
+        item.id = QStringLiteral("srv-item");
+        item.type = QStringLiteral("srv.thing");
+        item.name = QStringLiteral("Thing");
+        Task task = *f.model.task(kOverviewTask);
+        task.items.push_back(item);
+        f.model.setTask(task);
+
+        SrvThing::fetches = 0;
+        api.status.poll();
+        QTest::qWait(20);
+        QCOMPARE(SrvThing::fetches, 0);
+
+        f.window->openTaskPreview(kOverviewTask);
+        api.status.poll();
+        QTRY_COMPARE(SrvThing::fetches, 1);
+        QCOMPARE(api.status.status(item.id).state, ItemStatus::State::Ok);
+        auto *sidebar = f.window->findChild<Sidebar *>();
+        QTRY_COMPARE(sidebar->model()->indexOf(kOverviewTask).data(SidebarModel::AttentionRole).toInt(), 1);
+    }
+
+    // Focus's "Needs attention first" is kept on this device, and its badges
+    // come from the window's Attention.
+    void focusAttentionFirstIsKept()
+    {
+        {
+            Fixture f;
+            Api api(f);
+            QVERIFY(!f.settings.focusAttentionFirst());
+            f.window->openFocus();
+            auto *toggle = f.window->findChild<QCheckBox *>(QStringLiteral("attentionFirst"));
+            QVERIFY(toggle);
+            QVERIFY(!toggle->isChecked());
+            toggle->click();
+            QVERIFY(f.settings.focusAttentionFirst());
+        }
+        Fixture f;
+        f.settings.setFocusAttentionFirst(true);
+        f.window->openFocus();
+        auto *view = f.window->findChild<FocusView *>();
+        QVERIFY(view);
+        QVERIFY(view->attentionFirst());
     }
 
 private:
