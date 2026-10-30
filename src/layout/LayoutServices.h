@@ -1,9 +1,11 @@
 #pragma once
 
+#include <QImage>
 #include <QString>
 
 #include <functional>
 
+class QMimeData;
 class QWidget;
 
 namespace mirante {
@@ -46,6 +48,14 @@ struct LayoutServices
     // Opens the item dialog. The cell menu offers it while the dashboard is
     // being edited.
     std::function<void(const QString &taskId, const QString &itemId)> editItem;
+
+    // Images dropped from other apps onto the cell of an item whose type
+    // takes pasted images. readImageDrop gives the image a drag carries, or a
+    // null image. dropImage replaces the item's image with it, after the
+    // paste dialog, as Ctrl+V does. Both are needed for cells to take drops.
+    // See docs/decisions/0085-drop-images-from-other-apps.md.
+    std::function<QImage(const QMimeData *data)> readImageDrop;
+    std::function<void(const QString &taskId, const QString &itemId, const QImage &image)> dropImage;
 };
 
 } // namespace mirante

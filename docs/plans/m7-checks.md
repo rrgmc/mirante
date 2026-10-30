@@ -63,6 +63,15 @@ Tick each box, or note what is wrong next to it.
 - [ ] An Image item shows the image scaled to fit, with its proportions kept, in a wide and a narrow cell. The memo shows under it.
 - [ ] With a link, the pointer is a hand over the image and a click opens the link.
 - [ ] `Ctrl+V` with an image on the clipboard, in the focused Image cell, replaces the image.
+- [ ] A PNG or JPEG file dragged from the file manager onto a task row in the sidebar tints that row. Dropping it opens the paste dialog, and Paste adds an Image item to the task. The file is still in the file manager afterwards, also when dragged within the same drive.
+- [ ] An image dragged from a web page in the browser onto a task's Items row does the same.
+- [ ] Dragging an image over a project or group row, a dashboard gap, or a cell that is not an Image shows the forbidden pointer, and dropping it there does nothing.
+- [ ] An image file dropped on an Image cell, in a locked root dashboard, opens the paste dialog, and Paste replaces the image. The cell shows its focus border while the image is over it.
+- [ ] An image file dropped on the image field of the item dialog opens the paste dialog, and Paste fills the field.
+- [ ] A text file dragged onto a task row is refused.
+- [ ] While the paste dialog of a drop is open, the file manager the file came from still responds.
+- [ ] In the sample data, a drop on a task row or an Image cell shows "The image could not be saved." and no dialog.
+- [ ] With a dashboard being edited, dragging an item from the sidebar onto an Image cell still shows the drop zones and places the item.
 
 ## Builds
 

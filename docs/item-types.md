@@ -324,6 +324,7 @@ M7 added `claude.session.local`, a Claude Code session resumed in a terminal. [D
   - `Ctrl+V` replaces the image of the Image item in the focused cell, or of the item shown alone in a tab. This is an item edit, so it works on a locked dashboard, and in a root dashboard cell that shows the item. The old file is deleted when no item refers to it any more ([decision 0030](decisions/0030-deleting-image-files.md)). On any other cell, or without a focused cell, nothing changes, no dialog opens, and the status bar says "To add an image, use Paste Image… in a task's Items menu."
   - The new item is of the first type, by name, whose `pastedImageField` is set. In a build without such a type, such as one without the `image` module, nothing is pasted and the status bar says "This build cannot show images."
   - If the image cannot be saved, for example in the read-only sample data, nothing changes and the status bar says "The image could not be saved." For the read-only sample data this shows before any dialog opens.
+- **Drop:** an image file or image dropped from another app goes where the same image would go by pasting: on a task or its Items row in the sidebar, a new item as Paste Image… adds; on an Image item's cell, the item's image is replaced as `Ctrl+V` does; on the item dialog's image field, as its "Paste" button. The paste dialog opens first, and the rules above apply. `ImagePaste::imageFromMime()` reads the drop. See [ui](ui.md#pasting-images) and [decision 0085](decisions/0085-drop-images-from-other-apps.md).
 
 ### Folder / terminal
 

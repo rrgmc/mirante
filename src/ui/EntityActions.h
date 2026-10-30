@@ -93,6 +93,10 @@ public:
     // data, emits message() instead of opening the dialog. Returns the new
     // item's id, or an empty string. See docs/decisions/0051-paste-images-from-the-items-menu.md.
     QString pasteImage(const QString &taskId);
+    // pasteImage() with a given image, such as one dropped from another app
+    // on a task or its Items row in the sidebar. See
+    // docs/decisions/0085-drop-images-from-other-apps.md.
+    QString addImage(const QString &taskId, const QImage &image);
     // Reads the clipboard's image for pasteImage() and its menu entry. The
     // default reads the system clipboard; tests set their own.
     void setClipboardImage(std::function<QImage()> clipboardImage);

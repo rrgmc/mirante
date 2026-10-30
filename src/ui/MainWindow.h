@@ -128,6 +128,10 @@ public:
     // other cell the status bar points to "Paste Image…" in a task's Items
     // menu. See docs/decisions/0051-paste-images-from-the-items-menu.md.
     void pasteImage(const QImage &image);
+    // An image dropped from another app on the cell of an image item:
+    // replaces the item's image after the paste dialog, as Ctrl+V does, on a
+    // locked dashboard too. See docs/decisions/0085-drop-images-from-other-apps.md.
+    void dropImageOnItem(const QString &taskId, const QString &itemId, const QImage &image);
     // Runs the dialog of pasteImage() and says whether it was accepted.
     // The default calls exec(); tests work the dialog and return instead.
     void setExec(std::function<bool(QDialog &dialog)> exec);

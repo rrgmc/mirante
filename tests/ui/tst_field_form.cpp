@@ -1,6 +1,6 @@
 // Tests FieldForm: one editor per field type, reading back an unchanged
-// configuration, keeping keys it does not show, edits, problems, images, and
-// the state of Secret fields.
+// configuration, keeping keys it does not show, edits, problems, images,
+// pasted or dropped from another app, and the state of Secret fields.
 #include "ui/FieldForm.h"
 #include "ui/ImagePasteDialog.h"
 
@@ -8,10 +8,15 @@
 #include <QCheckBox>
 #include <QClipboard>
 #include <QComboBox>
+#include <QDragEnterEvent>
+#include <QDragLeaveEvent>
+#include <QDragMoveEvent>
+#include <QDropEvent>
 #include <QImage>
 #include <QJsonArray>
 #include <QLabel>
 #include <QLineEdit>
+#include <QMimeData>
 #include <QPlainTextEdit>
 #include <QPushButton>
 #include <QSignalSpy>
@@ -61,6 +66,29 @@ EditorContext context(QStringList *saved = nullptr)
         return name;
     };
     return c;
+}
+
+// Sends a drag over target and drops it there, as a drag from another app
+// does. Returns the action of an accepted drop, or IgnoreAction for a drag
+// refused at any step.
+Qt::DropAction dragAndDrop(QWidget *target, const QMimeData *mime)
+{
+    const Qt::DropActions actions = Qt::CopyAction | Qt::MoveAction;
+    const QPoint pos = target->rect().center();
+    QDragEnterEvent enter(pos, actions, mime, Qt::LeftButton, Qt::NoModifier);
+    QApplication::sendEvent(target, &enter);
+    if (!enter.isAccepted())
+        return Qt::IgnoreAction;
+    QDragMoveEvent move(pos, actions, mime, Qt::LeftButton, Qt::NoModifier);
+    QApplication::sendEvent(target, &move);
+    if (!move.isAccepted()) {
+        QDragLeaveEvent leave;
+        QApplication::sendEvent(target, &leave);
+        return Qt::IgnoreAction;
+    }
+    QDropEvent drop(QPointF(pos), actions, mime, Qt::LeftButton, Qt::NoModifier);
+    QApplication::sendEvent(target, &drop);
+    return drop.isAccepted() ? drop.dropAction() : Qt::IgnoreAction;
 }
 
 QJsonObject fullConfig()
@@ -253,12 +281,63 @@ private slots:
         QCOMPARE(form.config(), expected);
     }
 
+    // An image dropped from another app on an image field does what Paste
+    // does: the paste dialog, then the cropped image is saved. The drop is a
+    // copy. A drag without an image is refused.
+    void dropImage()
+    {
+        QStringList saved;
+        EditorContext c = context(&saved);
+        QSize savedSize;
+        c.saveImage = [&saved, &savedSize](const QImage &image) {
+            savedSize = image.size();
+            saved << QStringLiteral("dropped.png");
+            return QStringLiteral("dropped.png");
+        };
+        FieldForm form(allFields(), c);
+        form.setConfig(fullConfig());
+        QWidget *editor = form.editorFor(QStringLiteral("file"));
+        QVERIFY(editor->acceptDrops());
+
+        QMimeData text;
+        text.setText(QStringLiteral("not an image"));
+        QCOMPARE(dragAndDrop(editor, &text), Qt::IgnoreAction);
+
+        QImage image(40, 30, QImage::Format_ARGB32);
+        image.fill(Qt::red);
+        QMimeData mime;
+        mime.setImageData(image);
+        QStringList dialogs;
+        form.setExec([&dialogs](QDialog &d) {
+            dialogs << QString::fromLatin1(d.metaObject()->className());
+            auto *dialog = qobject_cast<ImagePasteDialog *>(&d);
+            if (dialog)
+                dialog->setCrop(QRect(5, 5, 10, 20));
+            return dialog != nullptr;
+        });
+        // A drop on the field's button reaches the field.
+        QCOMPARE(dragAndDrop(editor->findChild<QPushButton *>(QStringLiteral("pasteImage")), &mime), Qt::CopyAction);
+        // The dialog opens once the drop is over.
+        QVERIFY(dialogs.isEmpty());
+        QTRY_COMPARE(dialogs, QStringList{QStringLiteral("mirante::ImagePasteDialog")});
+        QCOMPARE(saved, QStringList{QStringLiteral("dropped.png")});
+        QCOMPARE(savedSize, QSize(10, 20));
+        QCOMPARE(form.config().value(QStringLiteral("file")).toString(), QStringLiteral("dropped.png"));
+    }
+
+    // Without saveImage, the buttons are disabled and the field takes no drops.
     void imageButtonsNeedSaveImage()
     {
         FieldForm form(allFields(), EditorContext{});
         QWidget *editor = form.editorFor(QStringLiteral("file"));
         QVERIFY(!editor->findChild<QPushButton *>(QStringLiteral("pasteImage"))->isEnabled());
         QVERIFY(!editor->findChild<QPushButton *>(QStringLiteral("chooseImageFile"))->isEnabled());
+        QVERIFY(!editor->acceptDrops());
+        QImage image(4, 3, QImage::Format_ARGB32);
+        image.fill(Qt::red);
+        QMimeData mime;
+        mime.setImageData(image);
+        QCOMPARE(dragAndDrop(editor, &mime), Qt::IgnoreAction);
     }
 
     void requiredChoiceHasNoEmptyEntry()

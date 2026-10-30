@@ -442,7 +442,11 @@ QString EntityActions::newDashboard(const QString &taskId)
 
 QString EntityActions::pasteImage(const QString &taskId)
 {
-    const QImage image = d->clipboardImage();
+    return addImage(taskId, d->clipboardImage());
+}
+
+QString EntityActions::addImage(const QString &taskId, const QImage &image)
+{
     if (image.isNull())
         return {};
     // A paste that cannot happen says why before any dialog opens.

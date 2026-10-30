@@ -66,7 +66,7 @@ All changes go through `Model` methods. Views never change entities directly. `S
 |---|---|
 | `LayoutView` | Builds widgets from a tree: `QSplitter` for splits, `QTabWidget` for tabs, `CellFrame` for cells. It updates the widgets in place when the tree changes, without rebuilding everything. After the whole view moves to another window, `remakeUnsafeCells()` makes again the cells whose type is not `reparentSafe`. |
 | `CellFrame` | Cell header and body. The header holds the type pill, the item name, a widget of the view such as a web toolbar, the menu button and the maximise button. The body is a placeholder until `DashboardCellFactory` gives it a `Placement`. |
-| `DashboardCellFactory` | Makes the cells of real dashboards. An item cell gets a `Placement` as its body when `LayoutServices::placements` is set, and a maximise button when `LayoutServices::toggleMaximised` is set. |
+| `DashboardCellFactory` | Makes the cells of real dashboards. An item cell gets a `Placement` as its body when `LayoutServices::placements` is set, and a maximise button when `LayoutServices::toggleMaximised` is set. The cell of an item whose type has a `pastedImageField` takes images dropped from other apps when `LayoutServices::readImageDrop` and `dropImage` are set. |
 | `DropOverlay` | Shows the five drop zones while dragging, and returns where the drop lands |
 | `LayoutEditor` | Turns context menu commands and drops into tree edits, then normalises |
 | `Presets` | Builds the starting trees listed in [ui](ui.md#layout-presets) |
