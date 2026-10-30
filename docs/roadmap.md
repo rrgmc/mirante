@@ -90,6 +90,8 @@ See [the M6 plan](plans/m6-native-item-types.md) and [the changes after trying i
 
 ## M7: Quick add, Claude local, folders and notes
 
+See [the M7 plan](plans/m7-quick-add-and-local-items.md).
+
 - [ ] Quick add from a Jira key or merge request URL, through the modules' quick add handlers and related-item finders, including the project match and related merge requests.
 - [ ] Claude session (local) starts `claude --resume` in a terminal, on all three platforms.
 - [ ] The Folder / terminal item shows the branch and status, and opens a terminal, editor and file manager.
