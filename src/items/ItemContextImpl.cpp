@@ -3,6 +3,7 @@
 #include "api/ServerClient.h"
 #include "api/StatusCache.h"
 #include "core/DeviceSettings.h"
+#include "core/Edits.h"
 #include "core/Model.h"
 #include "core/Profiles.h"
 #include "items/ItemTypeRegistry.h"
@@ -93,14 +94,23 @@ QString ItemContextImpl::folderPath(const QString &folderId) const
 
 QWidget *ItemContextImpl::createWebView(const QUrl &url, QWidget *parent)
 {
+    QWidget *toolbar = nullptr;
+    QWidget *page = createPage(url, parent, toolbar);
+    if (toolbar && onHeaderWidget)
+        onHeaderWidget(toolbar);
+    return page;
+}
+
+QWidget *ItemContextImpl::createPage(const QUrl &url, QWidget *parent, QWidget *&toolbar)
+{
+    toolbar = nullptr;
     QWebEngineProfile *webProfile = profile();
     // Tests without a profile manager, or an item without a group, get a
     // message instead of a page.
     if (!webProfile)
         return createMessageView(tr("Web pages are not available here."), parent);
     auto *panel = new WebPanel(webProfile, url, parent);
-    if (onHeaderWidget)
-        onHeaderWidget(panel->toolbar());
+    toolbar = panel->toolbar();
     return panel;
 }
 
@@ -142,15 +152,25 @@ void ItemContextImpl::updateConfig(const QJsonObject &config)
 
 void ItemContextImpl::showPage(const QUrl &url)
 {
-    Q_UNUSED(url)
+    if (onShowPage)
+        onShowPage(url);
 }
 
 QString ItemContextImpl::addItemToTask(const QString &typeId, const QString &name, const QJsonObject &config)
 {
-    Q_UNUSED(typeId)
-    Q_UNUSED(name)
-    Q_UNUSED(config)
-    return {};
+    if (!m_services.model || !m_services.types || !m_services.types->contains(typeId))
+        return {};
+    const Task *task = m_services.model->task(m_taskId);
+    if (!task)
+        return {};
+    // The profile stays empty, so the item follows the group.
+    Item item;
+    item.id = edits::newId();
+    item.type = typeId;
+    item.name = name;
+    item.config = config;
+    m_services.model->setTask(edits::addItem(*task, item));
+    return item.id;
 }
 
 ApiClient *ItemContextImpl::server()

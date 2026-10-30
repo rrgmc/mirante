@@ -1,7 +1,8 @@
 // Tests Placement and its ItemContext with test item types: when the view is
 // made, unloading by the ViewPool, making the view again after a change, the
-// header widget, what the context reads from the model, and the item's status
-// in the cell header. No test uses the network or the keychain.
+// header widget, what the context reads from the model, the page of showPage(),
+// adding an item to the task, and the item's status in the cell header. No test
+// uses the network or the keychain.
 #include "api/Attention.h"
 #include "api/SecretBackend.h"
 #include "api/SecretStore.h"
@@ -23,6 +24,7 @@
 #include <mirante/Module.h>
 #include <mirante/Status.h>
 
+#include <QAbstractButton>
 #include <QApplication>
 #include <QDir>
 #include <QElapsedTimer>
@@ -48,6 +50,9 @@ namespace {
 
 // How many views each test type made. Reset before each test.
 int viewsMade = 0;
+// The context of the view made last, for a test to act as the view. Reset
+// before each test.
+ItemContext *lastContext = nullptr;
 
 // A view that shows the item's "text" setting, so a test can tell an old view
 // from a new one.
@@ -86,6 +91,7 @@ public:
         if (m_id == QStringLiteral("test.none"))
             return nullptr;
         ++viewsMade;
+        lastContext = &context;
         if (m_id == QStringLiteral("test.page"))
             return context.createWebView(QUrl(context.config().value(QStringLiteral("url")).toString()), parent);
         return new FakeView(context.config().value(QStringLiteral("text")).toString(), parent);
@@ -302,6 +308,24 @@ QString viewText(const Placement &placement)
     return label ? label->text() : QString();
 }
 
+QWidget *pageOf(const Placement &placement)
+{
+    return placement.findChild<QWidget *>(QStringLiteral("itemPage"));
+}
+
+const QUrl pageUrl(QStringLiteral("data:text/plain,page"));
+
+// Clicks "Back to summary" in the placement's header widget.
+bool clickBack(const Placement &placement)
+{
+    QWidget *header = placement.headerWidget();
+    auto *back = header ? header->findChild<QAbstractButton *>(QStringLiteral("backToSummary")) : nullptr;
+    if (!back || back->text() != QStringLiteral("Back to summary"))
+        return false;
+    back->click();
+    return true;
+}
+
 bool showsText(const QWidget *widget, const QString &text)
 {
     for (const QLabel *label : widget->findChildren<QLabel *>()) {
@@ -386,6 +410,7 @@ private slots:
     void init()
     {
         viewsMade = 0;
+        lastContext = nullptr;
         nextStatus.clear();
         statusFromServer = false;
         statusFetches = 0;
@@ -784,6 +809,306 @@ private slots:
         // Chromium closes some profile files a moment after the profile goes.
         const QString path = root.path();
         QVERIFY(QTest::qWaitFor([&] { return QDir(path).removeRecursively(); }, 15000));
+    }
+
+    // Without a profile manager the page is a message, with the same way back.
+    void pageShowsInPlaceOfTheView()
+    {
+        auto placement = make(QStringLiteral("n1"));
+        placement->show();
+        QPointer<QWidget> view = placement->view();
+        QSignalSpy header(placement.get(), &Placement::headerWidgetChanged);
+
+        lastContext->showPage(pageUrl);
+        QWidget *page = pageOf(*placement);
+        QVERIFY(page);
+        QVERIFY(page->isVisible());
+        QCOMPARE(placement->view(), view.data());
+        QVERIFY(!view->isVisibleTo(placement.get()));
+        QCOMPARE(viewsMade, 1);
+        QCOMPARE(header.count(), 1);
+        QCOMPARE(header.at(0).at(0).value<QWidget *>(), placement->headerWidget());
+        QVERIFY(placement->headerWidget()->findChild<QAbstractButton *>(QStringLiteral("backToSummary")));
+
+        // It is in the pool, though the view is not.
+        placement->hide();
+        QCOMPARE(pool->hiddenCount(), 1);
+    }
+
+    void backReturnsTheSameView()
+    {
+        auto placement = make(QStringLiteral("n1"));
+        placement->show();
+        QPointer<QWidget> view = placement->view();
+        lastContext->showPage(pageUrl);
+        QPointer<QWidget> page = pageOf(*placement);
+        QPointer<QWidget> pageHeader = placement->headerWidget();
+        QSignalSpy header(placement.get(), &Placement::headerWidgetChanged);
+
+        QVERIFY(clickBack(*placement));
+        QCOMPARE(placement->view(), view.data());
+        QVERIFY(view->isVisible());
+        QCOMPARE(viewsMade, 1);
+        QVERIFY(!placement->headerWidget());
+        QCOMPARE(header.count(), 1);
+        QVERIFY(!header.at(0).at(0).value<QWidget *>());
+        QTRY_VERIFY(page.isNull() && pageHeader.isNull());
+
+        // It left the pool with the page.
+        placement->hide();
+        QCOMPARE(pool->hiddenCount(), 0);
+    }
+
+    void unloadReturnsTheView()
+    {
+        pool->setLimit(0);
+        auto placement = make(QStringLiteral("n1"));
+        placement->show();
+        QPointer<QWidget> view = placement->view();
+        lastContext->showPage(pageUrl);
+        QPointer<QWidget> page = pageOf(*placement);
+        QVERIFY(placement->headerWidget());
+
+        placement->hide();
+        QCOMPARE(placement->view(), view.data());
+        QVERIFY(!placement->headerWidget());
+        QVERIFY(!placement->findChild<QWidget *>(QStringLiteral("reloadPlaceholder")));
+        QCOMPARE(pool->hiddenCount(), 0);
+        QTRY_VERIFY(page.isNull());
+
+        placement->show();
+        QVERIFY(view->isVisible());
+        QCOMPARE(viewsMade, 1);
+    }
+
+    void configChangeDropsThePage()
+    {
+        auto placement = make(QStringLiteral("n1"));
+        placement->show();
+        QPointer<QWidget> old = placement->view();
+        lastContext->showPage(pageUrl);
+        QPointer<QWidget> page = pageOf(*placement);
+
+        // A change of name alone keeps it.
+        changeItem(*model, QStringLiteral("n1"), [](Item &item) { item.name = QStringLiteral("New name"); });
+        QCOMPARE(pageOf(*placement), page.data());
+
+        changeItem(*model, QStringLiteral("n1"), [](Item &item) { item.config[QStringLiteral("text")] = QStringLiteral("two"); });
+        QVERIFY(!placement->headerWidget());
+        QCOMPARE(viewText(*placement), QStringLiteral("two"));
+        QVERIFY(placement->view() != old.data());
+        QVERIFY(placement->view()->isVisible());
+        QCOMPARE(viewsMade, 2);
+        QTRY_VERIFY(page.isNull());
+        placement->hide();
+        QCOMPARE(pool->hiddenCount(), 0);
+    }
+
+    void furtherPageReplacesThePage()
+    {
+        auto placement = make(QStringLiteral("n1"));
+        placement->show();
+        QPointer<QWidget> view = placement->view();
+        lastContext->showPage(pageUrl);
+        QPointer<QWidget> first = pageOf(*placement);
+        QPointer<QWidget> firstHeader = placement->headerWidget();
+
+        lastContext->showPage(QUrl(QStringLiteral("data:text/plain,other")));
+        QVERIFY(placement->headerWidget() && placement->headerWidget() != firstHeader.data());
+        QTRY_VERIFY(first.isNull() && firstHeader.isNull());
+        QVERIFY(pageOf(*placement));
+        QVERIFY(!view->isVisibleTo(placement.get()));
+
+        // One way back is enough.
+        QVERIFY(clickBack(*placement));
+        QVERIFY(view->isVisible());
+        QVERIFY(!placement->headerWidget());
+    }
+
+    // The placement's one pool entry follows what is loaded: the page, then
+    // the web view again.
+    void pageOverAWebView()
+    {
+        auto placement = make(QStringLiteral("w1"));
+        placement->show();
+        QPointer<QWidget> view = placement->view();
+        lastContext->showPage(pageUrl);
+        placement->hide();
+        QCOMPARE(pool->hiddenCount(), 1);
+
+        // The page goes first, and the view after it if the limit still asks.
+        pool->setLimit(0);
+        QVERIFY(!placement->view());
+        QVERIFY(placement->findChild<QWidget *>(QStringLiteral("reloadPlaceholder")));
+        QCOMPARE(pool->hiddenCount(), 0);
+        QTRY_VERIFY(view.isNull());
+
+        // Back leaves the web view in the pool.
+        pool->setLimit(8);
+        placement->show();
+        QCOMPARE(viewsMade, 2);
+        lastContext->showPage(pageUrl);
+        QVERIFY(clickBack(*placement));
+        placement->hide();
+        QCOMPARE(pool->hiddenCount(), 1);
+        QVERIFY(placement->view());
+    }
+
+    void removedItemDropsThePage()
+    {
+        auto placement = make(QStringLiteral("n1"));
+        placement->show();
+        lastContext->showPage(pageUrl);
+        QPointer<QWidget> page = pageOf(*placement);
+        model->removeTask(QStringLiteral("t1"));
+        QVERIFY(!placement->view());
+        QVERIFY(!placement->headerWidget());
+        QVERIFY(showsText(placement.get(), QStringLiteral("Removed")));
+        QTRY_VERIFY(page.isNull());
+    }
+
+    void destroyedPlacementDropsThePage()
+    {
+        auto placement = make(QStringLiteral("n1"));
+        placement->show();
+        lastContext->showPage(pageUrl);
+        QPointer<QWidget> page = pageOf(*placement);
+        QPointer<QWidget> pageHeader = placement->headerWidget();
+        placement->hide();
+        QCOMPARE(pool->hiddenCount(), 1);
+        placement.reset();
+        QCOMPARE(pool->hiddenCount(), 0);
+        QVERIFY(page.isNull() && pageHeader.isNull());
+    }
+
+    // A placement with no view has nothing to come back to.
+    void pageNeedsAView()
+    {
+        auto placement = make(QStringLiteral("n1"));
+        placement->show();
+        ItemContext *context = lastContext;
+        model->removeTask(QStringLiteral("t1"));
+        context->showPage(pageUrl);
+        QVERIFY(!pageOf(*placement));
+        QVERIFY(!placement->headerWidget());
+    }
+
+    // A real page of a data: URL, in a profile of a temporary folder: its
+    // toolbar comes after the way back, and it goes with its profile though
+    // the view uses none.
+    void realPageFollowsItsProfile()
+    {
+        QTemporaryDir root;
+        QVERIFY(root.isValid());
+        root.setAutoRemove(false);
+        auto profiles = std::make_unique<ProfileManager>(root.path());
+        services.profiles = profiles.get();
+        {
+            // A web view's own toolbar comes back with the view.
+            auto web = make(QStringLiteral("p1"));
+            web->show();
+            QWidget *webToolbar = web->headerWidget();
+            QVERIFY(webToolbar);
+            lastContext->showPage(pageUrl);
+            QVERIFY(web->headerWidget() != webToolbar);
+            QVERIFY(clickBack(*web));
+            QCOMPARE(web->headerWidget(), webToolbar);
+            web.reset();
+            viewsMade = 0;
+
+            auto placement = make(QStringLiteral("n1"));
+            placement->show();
+            QPointer<QWidget> view = placement->view();
+
+            lastContext->showPage(pageUrl);
+            auto *panel = qobject_cast<WebPanel *>(pageOf(*placement));
+            QVERIFY(panel);
+            QCOMPARE(panel->view()->page()->profile(), profiles->profile(kDefaultProfile));
+            QCOMPARE(panel->toolbar()->parentWidget(), placement->headerWidget());
+            QVERIFY(clickBack(*placement));
+            QVERIFY(view->isVisible());
+            QTRY_VERIFY(!pageOf(*placement));
+
+            // A change of the item's profile. The view stays, and a change
+            // of the list that leaves the item's profile as it is keeps the page.
+            lastContext->showPage(pageUrl);
+            QPointer<QWidget> page = pageOf(*placement);
+            Profile work;
+            work.id = QStringLiteral("work");
+            work.name = QStringLiteral("Work");
+            Profile standard = *model->profile(kDefaultProfile);
+            model->setProfiles({standard, work});
+            QCOMPARE(pageOf(*placement), page.data());
+            Group group = *model->group(QStringLiteral("g1"));
+            group.profile = QStringLiteral("work");
+            model->setGroup(group);
+            QCOMPARE(placement->view(), view.data());
+            QVERIFY(view->isVisible());
+            QVERIFY(!placement->headerWidget());
+            QTRY_VERIFY(page.isNull());
+
+            // Clearing its profile.
+            lastContext->showPage(pageUrl);
+            page = pageOf(*placement);
+            QSignalSpy cleared(profiles.get(), &ProfileManager::profileCleared);
+            profiles->clearProfile(QStringLiteral("work"));
+            QCOMPARE(placement->view(), view.data());
+            QVERIFY(view->isVisible());
+            QVERIFY(!placement->headerWidget());
+            QTRY_VERIFY(page.isNull());
+            QTRY_COMPARE_WITH_TIMEOUT(cleared.count(), 1, 15000);
+            QCOMPARE(placement->view(), view.data());
+            QCOMPARE(viewsMade, 1);
+
+            // The page goes with the placement, before its profile.
+            lastContext->showPage(pageUrl);
+        }
+        services.profiles = nullptr;
+        profiles.reset();
+        // Chromium closes some profile files a moment after the profile goes.
+        const QString path = root.path();
+        QVERIFY(QTest::qWaitFor([&] { return QDir(path).removeRecursively(); }, 15000));
+    }
+
+    void addItemToTaskAddsAnItem()
+    {
+        auto placement = make(QStringLiteral("n1"));
+        placement->show();
+        QPointer<QWidget> view = placement->view();
+        const auto dashboards = model->task(QStringLiteral("t1"))->dashboards.size();
+        const auto items = model->task(QStringLiteral("t1"))->items.size();
+        const QJsonObject config{{QStringLiteral("text"), QStringLiteral("added")}};
+
+        const QString id = lastContext->addItemToTask(QStringLiteral("test.web"), QStringLiteral("Added"), config);
+        QVERIFY(!id.isEmpty());
+        QCOMPARE(model->task(QStringLiteral("t1"))->items.size(), items + 1);
+        const Item *added = model->item(QStringLiteral("t1"), id);
+        QVERIFY(added);
+        QCOMPARE(added->type, QStringLiteral("test.web"));
+        QCOMPARE(added->name, QStringLiteral("Added"));
+        QCOMPARE(added->config, config);
+        QVERIFY(added->profile.isEmpty());
+        QCOMPARE(model->task(QStringLiteral("t1"))->dashboards.size(), dashboards);
+
+        // Each item has its own id, and the calling view stays.
+        QVERIFY(lastContext->addItemToTask(QStringLiteral("test.web"), QStringLiteral("Added"), config) != id);
+        QCOMPARE(placement->view(), view.data());
+        QCOMPARE(viewsMade, 1);
+    }
+
+    void addItemToTaskNeedsTaskAndType()
+    {
+        const auto items = model->task(QStringLiteral("t1"))->items.size();
+        ItemContextImpl context(services, QStringLiteral("t1"), QStringLiteral("n1"));
+        QVERIFY(context.addItemToTask(QStringLiteral("nothing.here"), QStringLiteral("A"), {}).isEmpty());
+        QCOMPARE(model->task(QStringLiteral("t1"))->items.size(), items);
+
+        ItemContextImpl noTask(services, QStringLiteral("missing"), QStringLiteral("n1"));
+        QVERIFY(noTask.addItemToTask(QStringLiteral("test.web"), QStringLiteral("A"), {}).isEmpty());
+
+        PlacementServices noModel;
+        ItemContextImpl empty(noModel, QStringLiteral("t1"), QStringLiteral("n1"));
+        QVERIFY(empty.addItemToTask(QStringLiteral("test.web"), QStringLiteral("A"), {}).isEmpty());
     }
 
     void noStatusWithoutCacheOrForOtherTypes()
