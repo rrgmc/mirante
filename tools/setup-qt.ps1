@@ -24,9 +24,18 @@ $QtDir = Join-Path $QtRoot "$QtVersion\$QtArchDir"
 
 # qtsvg provides the plugin that loads the SVG icons of item types.
 # Qt WebEngine shows web items; it needs qtdeclarative, qtwebchannel and
-# qtpositioning. The check looks for WebEngine, so an older Qt without it
-# is completed.
-if (-not (Test-Path (Join-Path $QtDir 'lib\cmake\Qt6WebEngineWidgets'))) {
+# qtpositioning. qttools has lupdate and lrelease for the translations, and
+# qttranslations has Qt's own texts in other languages. qtimageformats has the
+# WebP plugin for dropped images. Each part has a file that shows it is there,
+# so an older Qt without one of them is completed.
+$Markers = @(
+    'lib\cmake\Qt6WebEngineWidgets',
+    'bin\lupdate.exe',
+    'translations\qtbase_pt_BR.qm',
+    'plugins\imageformats\qwebp.dll'
+)
+$Missing = @($Markers | Where-Object { -not (Test-Path (Join-Path $QtDir $_)) })
+if ($Missing) {
     if (-not (Get-Command uvx -ErrorAction SilentlyContinue)) {
         throw 'uv is required to download Qt. Install it from https://docs.astral.sh/uv/ and run this script again.'
     }
@@ -34,7 +43,7 @@ if (-not (Test-Path (Join-Path $QtDir 'lib\cmake\Qt6WebEngineWidgets'))) {
     # uvx and aqt print progress on stderr, which Windows PowerShell turns into
     # errors. Pass it on as text and check the exit code instead.
     $ErrorActionPreference = 'Continue'
-    & uvx --from aqtinstall aqt install-qt windows desktop $QtVersion $QtArch -O $QtRoot --archives qtbase qtsvg qtdeclarative -m qtwebengine qtwebchannel qtpositioning 2>&1 |
+    & uvx --from aqtinstall aqt install-qt windows desktop $QtVersion $QtArch -O $QtRoot --archives qtbase qtsvg qtdeclarative qttools qttranslations -m qtwebengine qtwebchannel qtpositioning qtimageformats 2>&1 |
         ForEach-Object { "$_" } | Out-Host
     $ErrorActionPreference = 'Stop'
     if ($LASTEXITCODE -ne 0) { throw "aqtinstall failed with exit code $LASTEXITCODE" }
