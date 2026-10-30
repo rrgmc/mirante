@@ -8,7 +8,17 @@ The design is in [docs/README.md](docs/README.md).
 
 Mirante is in early development. You need CMake 3.21 or newer, Ninja, and [uv](https://docs.astral.sh/uv/), which the setup scripts use to download Qt 6.8.
 
-On Windows, with Visual Studio 2022 and its C++ tools installed:
+With [Task](https://taskfile.dev) installed, the common commands are the same on every platform:
+
+```sh
+task                         # lists the tasks
+task build                   # builds the dev preset
+task test PRESET=release     # builds and tests another preset
+task check                   # the include check, then tests with all modules and with none
+task run -- -Data <folder>   # starts the build, on Windows
+```
+
+Without it, on Windows, with Visual Studio 2022 and its C++ tools installed:
 
 ```powershell
 tools/build.ps1                  # downloads Qt if needed, builds and tests the dev preset
