@@ -6,8 +6,10 @@
 #include <QCursor>
 #include <QEvent>
 #include <QFormLayout>
+#include <QIcon>
 #include <QPainter>
 #include <QPainterPath>
+#include <QPixmap>
 #include <QStyleOption>
 #include <QPushButton>
 #include <QTabBar>
@@ -31,6 +33,41 @@ QColor fill(const QPalette &palette, int alpha)
 
 constexpr int hoverAlpha = 18;
 constexpr int strongAlpha = 36;
+
+// The current tab is filled like the sidebar's selected row: the active
+// highlight, with the highlighted text on it. The active group keeps the
+// colour while the window is in the background, as the sidebar does.
+QColor selectedTabFill(const QPalette &palette)
+{
+    return palette.color(QPalette::Active, QPalette::Highlight);
+}
+
+QColor selectedTabText(const QPalette &palette)
+{
+    return palette.color(QPalette::Active, QPalette::HighlightedText);
+}
+
+// The fills drawn on the current tab, such as its close button's hover, use
+// its text colour instead of the window text.
+QColor fillOn(const QPalette &palette, bool onSelectedTab, int alpha)
+{
+    if (!onSelectedTab)
+        return fill(palette, alpha);
+    QColor color = selectedTabText(palette);
+    color.setAlpha(alpha * 2);
+    return color;
+}
+
+// The icon's shape in one colour.
+QIcon tinted(const QIcon &icon, const QSize &size, qreal dpr, const QColor &colour)
+{
+    QPixmap pixmap = icon.pixmap(size, dpr);
+    QPainter painter(&pixmap);
+    painter.setCompositionMode(QPainter::CompositionMode_SourceIn);
+    painter.fillRect(QRect(QPoint(), pixmap.size()), colour);
+    painter.end();
+    return QIcon(pixmap);
+}
 
 void fillRounded(QPainter *painter, const QRectF &rect, const QColor &color)
 {
@@ -115,7 +152,7 @@ void AppStyle::drawControl(ControlElement element, const QStyleOption *option, Q
         const QRectF rect = QRectF(tab->rect).adjusted(1.5, 2.5, -1.5, -2.5);
         const bool enabled = tab->state & State_Enabled;
         if (tab->state & State_Selected)
-            fillRounded(painter, rect, fill(tab->palette, strongAlpha));
+            fillRounded(painter, rect, selectedTabFill(tab->palette));
         else if (enabled && (tab->state & State_MouseOver))
             fillRounded(painter, rect, fill(tab->palette, hoverAlpha));
         return;
@@ -125,6 +162,23 @@ void AppStyle::drawControl(ControlElement element, const QStyleOption *option, Q
         // accent fill, except in document mode.
         QStyleOptionTab label = *tab;
         label.documentMode = true;
+        // The current tab's text and icon in the highlighted text colour, for
+        // its fill. The app's tab icons are single-colour line drawings.
+        if (tab->state & State_Selected) {
+            const QColor text = selectedTabText(tab->palette);
+            for (const auto group : {QPalette::Active, QPalette::Inactive, QPalette::Disabled}) {
+                for (const auto role : {QPalette::WindowText, QPalette::ButtonText, QPalette::Text})
+                    label.palette.setColor(group, role, text);
+            }
+            if (!tab->icon.isNull()) {
+                QSize size = tab->iconSize;
+                if (!size.isValid()) {
+                    const int extent = pixelMetric(PM_TabBarIconSize, tab, widget);
+                    size = QSize(extent, extent);
+                }
+                label.icon = tinted(tab->icon, size, painter->device()->devicePixelRatioF(), text);
+            }
+        }
         QProxyStyle::drawControl(element, &label, painter, widget);
         return;
     }
@@ -163,10 +217,11 @@ void AppStyle::drawPrimitive(PrimitiveElement element, const QStyleOption *optio
         if (!shown)
             return;
         if (option->state & State_MouseOver)
-            fillRounded(painter, option->rect, fill(option->palette, (option->state & State_Sunken) ? strongAlpha * 2 : strongAlpha));
+            fillRounded(painter, option->rect,
+                        fillOn(option->palette, selected, (option->state & State_Sunken) ? strongAlpha * 2 : strongAlpha));
         painter->save();
         painter->setRenderHint(QPainter::Antialiasing);
-        QColor line = option->palette.color(QPalette::WindowText);
+        QColor line = selected ? selectedTabText(option->palette) : option->palette.color(QPalette::WindowText);
         line.setAlpha(170);
         painter->setPen(QPen(line, 1.3, Qt::SolidLine, Qt::RoundCap));
         const QRectF cross = QRectF(0, 0, 7, 7).translated(QRectF(option->rect).center() - QPointF(3.5, 3.5));

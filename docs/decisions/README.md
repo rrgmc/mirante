@@ -45,7 +45,7 @@ Each file records one design decision: what was decided, what else was considere
 | [0038](0038-read-connections-in-m4.md) | Connections are read in M4, without tokens | Accepted; connections superseded by 0054 |
 | [0039](0039-profiles-deleted-only-by-local-delete.md) | A group's web profile is deleted only when the group is deleted on this device | Accepted; for web profiles by 0042 |
 | [0040](0040-profiles-per-group-and-module.md) | One web login profile per group and module | Superseded by 0042 |
-| [0041](0041-own-look-for-tabs-and-tool-buttons.md) | Mirante draws its own tabs and tool buttons | Accepted |
+| [0041](0041-own-look-for-tabs-and-tool-buttons.md) | Mirante draws its own tabs and tool buttons | Accepted; the current tab's colour by 0065 |
 | [0042](0042-user-managed-web-profiles.md) | Web profiles are a list the user manages | Accepted; in part superseded by 0050 and 0057 |
 | [0043](0043-pick-the-item-type-first.md) | A new item starts by picking its type in an icon grid | Accepted |
 | [0044](0044-module-settings-in-the-workspace.md) | Modules have settings screens, stored in the workspace | Accepted; in part superseded by 0050 |
@@ -69,6 +69,7 @@ Each file records one design decision: what was decided, what else was considere
 | [0062](0062-logins-follow-a-new-workspace-id.md) | Logins follow a workspace id that another device changed | Accepted; tokens by 0063 |
 | [0063](0063-tokens-follow-a-new-workspace-id.md) | Tokens follow a workspace id that another device changed | Accepted |
 | [0064](0064-keychain-entries-start-with-mirante.md) | Keychain entries start with "mirante/" | Accepted |
+| [0065](0065-current-tab-in-the-highlight-colour.md) | The current tab is filled with the highlight colour | Accepted |
 
 ## Template
 

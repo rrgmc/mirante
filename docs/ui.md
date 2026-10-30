@@ -180,7 +180,7 @@ Only one Mirante runs with each [web data folder](README.md#glossary), because t
 Standard controls, such as buttons, menus, lists and dialogs, keep the platform's own look. Mirante draws a few controls itself, in the same way on every platform, so the app looks calm on macOS as well as on Windows and Linux. See [decision 0041](decisions/0041-own-look-for-tabs-and-tool-buttons.md).
 
 - **Tool buttons** outside a toolbar, such as the sidebar buttons, the cell header buttons and the web toolbar, are flat. A light rounded fill shows when the mouse is over one, and a stronger one while it is pressed or on.
-- **Tabs**, in the root tab bar, in the Focus and preview slots, in tab groups and at the foot of the sidebar, are rounded fills. The current tab has a light grey fill and keeps the normal text colour. The tab under the mouse has a lighter fill.
+- **Tabs**, in the root tab bar, in the Focus and preview slots, in tab groups and at the foot of the sidebar, are rounded fills. The current tab is filled with the highlight colour, the same colour as the sidebar's selected row, so it is easy to find. Its text, icon and close button take the highlighted text colour, which is readable on the highlight in light and dark palettes. When a tab of the other bar in the tab row is current, the bar shows no current tab. The tab under the mouse has a light grey fill. See [decision 0065](decisions/0065-current-tab-in-the-highlight-colour.md).
 - **Close buttons on tabs** are on the right. They show on the current tab and on the tab under the mouse only.
 - **Cell borders** are a thin, light line with rounded corners.
 - **The warning bar** has a tinted background and no frame.
