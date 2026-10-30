@@ -17,6 +17,8 @@ Use a test workspace with at least one group, a project and a task. You need:
 
 Tick each box, or note what is wrong next to it.
 
+**Result, 2026-10-30:** the user checked what mattered to them and accepted M5. The boxes left empty were not run. Two problems found here were fixed: keychain entries now start with `mirante/` ([decision 0064](../decisions/0064-keychain-entries-start-with-mirante.md)), and a pasted token is trimmed, since a line break at its end made GitLab refuse it.
+
 ## Tokens and the keychain
 
 - [X] Profiles > the profile > Modules > GitLab: set the server to `https://gitlab.com` and type the token. After OK, open the screen again. The token field is empty, its placeholder says "Set on this device. Type to replace it.", and it has a Remove button.
@@ -29,7 +31,7 @@ Tick each box, or note what is wrong next to it.
 
 ## Project settings
 
-- [ ] The project dialog has a GitLab section with "GitLab project path" and a Jira section with "Jira project key", after the folders. Values typed there are kept after OK, and emptying one removes it from the project's file.
+- [X] The project dialog has a GitLab section with "GitLab project path" and a Jira section with "Jira project key", after the folders. Values typed there are kept after OK, and emptying one removes it from the project's file.
 
 ## Status in cells
 
