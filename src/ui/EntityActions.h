@@ -138,6 +138,8 @@ public:
     void moveGroup(const QString &id, int index);
     void moveProject(const QString &id, int index);
     void moveTask(const QString &id, int index);
+    void moveItem(const QString &taskId, const QString &itemId, int index);
+    void moveDashboard(const QString &taskId, const QString &dashboardId, int index);
 
     // Adds the commands for a sidebar row to menu: new, edit, rename, set
     // priority, set state, delete, and on dashboards "Set as default". A task

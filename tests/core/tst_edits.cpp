@@ -123,6 +123,8 @@ private slots:
     void removeDefaultDashboard();
     void removeLastDashboardRefused();
     void setDefaultDashboard();
+    void moveItem();
+    void moveDashboard();
     void moveProjectAmongAll();
     void moveProjectKeepsPriority();
     void moveProjectClampsIndex();
@@ -236,6 +238,50 @@ void TestEdits::setDefaultDashboard()
              QStringLiteral("d2"));
     QCOMPARE(edits::setDefaultDashboard(sampleTask(), QStringLiteral("nope")).defaultDashboardId,
              QStringLiteral("d1"));
+}
+
+namespace {
+
+// Item ids in list order, unsorted.
+QStringList itemOrder(const Task &task)
+{
+    QStringList result;
+    for (const Item &item : task.items)
+        result.append(item.id);
+    return result;
+}
+
+} // namespace
+
+void TestEdits::moveItem()
+{
+    Task task = edits::addItem(sampleTask(), makeItem(QStringLiteral("i3")));
+    QCOMPARE(itemOrder(edits::moveItem(task, QStringLiteral("i3"), 0)),
+             QStringList({QStringLiteral("i3"), QStringLiteral("i1"), QStringLiteral("i2")}));
+    QCOMPARE(itemOrder(edits::moveItem(task, QStringLiteral("i1"), 1)),
+             QStringList({QStringLiteral("i2"), QStringLiteral("i1"), QStringLiteral("i3")}));
+    // The index counts the other items and is clamped.
+    QCOMPARE(itemOrder(edits::moveItem(task, QStringLiteral("i1"), 99)),
+             QStringList({QStringLiteral("i2"), QStringLiteral("i3"), QStringLiteral("i1")}));
+    QCOMPARE(itemOrder(edits::moveItem(task, QStringLiteral("i2"), -5)),
+             QStringList({QStringLiteral("i2"), QStringLiteral("i1"), QStringLiteral("i3")}));
+    // Only the list changes; an unknown id or the same place changes nothing.
+    const Task moved = edits::moveItem(task, QStringLiteral("i3"), 0);
+    QCOMPARE(moved.dashboards, task.dashboards);
+    QCOMPARE(edits::moveItem(task, QStringLiteral("nope"), 0), task);
+    QCOMPARE(edits::moveItem(task, QStringLiteral("i2"), 1), task);
+}
+
+void TestEdits::moveDashboard()
+{
+    const Task task = edits::moveDashboard(sampleTask(), QStringLiteral("d2"), 0);
+    QCOMPARE(task.dashboards.size(), std::size_t(2));
+    QCOMPARE(task.dashboards[0].id, QStringLiteral("d2"));
+    QCOMPARE(task.dashboards[1].id, QStringLiteral("d1"));
+    // The default stays the same dashboard.
+    QCOMPARE(task.defaultDashboardId, QStringLiteral("d1"));
+    QCOMPARE(task.items, sampleTask().items);
+    QCOMPARE(edits::moveDashboard(sampleTask(), QStringLiteral("nope"), 0), sampleTask());
 }
 
 void TestEdits::moveProjectAmongAll()

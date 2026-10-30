@@ -663,6 +663,19 @@ void TestEntityActions::moves()
     QCOMPARE(model.project(frontendProject)->priority, projectPriority);
     QCOMPARE(model.project(frontendProject)->order, 0);
     QCOMPARE(model.project(backendProject)->order, 1);
+
+    // Items and dashboards move within their task's lists.
+    const std::vector<Item> items = model.task(fixLoginTimeout)->items;
+    actions->moveItem(fixLoginTimeout, items.back().id, 0);
+    QCOMPARE(model.task(fixLoginTimeout)->items.front().id, items.back().id);
+    QCOMPARE(model.task(fixLoginTimeout)->items.size(), items.size());
+    QCOMPARE(model.task(fixLoginTimeout)->items[1].id, items.front().id);
+
+    const std::vector<Dashboard> dashboards = model.task(fixLoginTimeout)->dashboards;
+    const QString defaultDashboard = model.task(fixLoginTimeout)->defaultDashboardId;
+    actions->moveDashboard(fixLoginTimeout, dashboards.front().id, 1);
+    QCOMPARE(model.task(fixLoginTimeout)->dashboards.back().id, dashboards.front().id);
+    QCOMPARE(model.task(fixLoginTimeout)->defaultDashboardId, defaultDashboard);
 }
 
 void TestEntityActions::menus()

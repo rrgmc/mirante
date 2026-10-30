@@ -1110,7 +1110,7 @@ struct MainWindow::Private
             sidebar->reveal(id);
     }
 
-    void onMoveRequested(SidebarModel::Kind kind, const QString &id, int index)
+    void onMoveRequested(SidebarModel::Kind kind, const QString &id, int index, const QString &taskId)
     {
         switch (kind) {
         case SidebarModel::Kind::Group:
@@ -1121,6 +1121,12 @@ struct MainWindow::Private
             break;
         case SidebarModel::Kind::Task:
             actions->moveTask(id, index);
+            break;
+        case SidebarModel::Kind::Item:
+            actions->moveItem(taskId, id, index);
+            break;
+        case SidebarModel::Kind::Dashboard:
+            actions->moveDashboard(taskId, id, index);
             break;
         default:
             break;
@@ -1841,7 +1847,9 @@ MainWindow::MainWindow(Model &model, const ItemTypeRegistry &types, Store &store
         });
     connect(d->sidebar, &Sidebar::emptyTrashRequested, d->actions, &EntityActions::emptyTrash);
     connect(d->sidebar->model(), &SidebarModel::moveRequested, this,
-            [this](SidebarModel::Kind kind, const QString &id, int index) { d->onMoveRequested(kind, id, index); });
+            [this](SidebarModel::Kind kind, const QString &id, int index, const QString &taskId) {
+                d->onMoveRequested(kind, id, index, taskId);
+            });
     d->sidebar->addHeaderWidget(d->buildNewButton());
     connect(&model, &Model::workspaceNameChanged, this, [this] { d->updateTitle(); });
     connect(d->showSidebarButton, &QToolButton::clicked, this, [this] { d->showSidebar(true); });
