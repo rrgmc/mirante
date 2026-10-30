@@ -37,6 +37,7 @@ Rules:
 - **Location.** Profile data lives in the app's local data folder, under `profiles/<workspace id>/p-<profile id>`, with the HTTP cache in its `cache` subfolder. Each workspace keeps its own logins: two workspaces with a profile of the same id do not share them. The workspace id is kept in `workspace.mirante`, so moving or renaming the workspace keeps its logins. The app profile is in `profiles/app`. Profile data is never synced, so the user logs in once per profile on each device. See [decision 0059](decisions/0059-logins-per-workspace.md).
 - **One process per web data folder.** Qt WebEngine, unlike Chrome, does not stop two processes from using one profile folder, and two would damage each other's cookie and site databases. Mirante therefore locks its web data folder, the `profiles` folder that holds every workspace's logins, at start, with `.lock` in it, before the `ProfileManager` is made. A later start hands its `--data` over to the running instance and exits. `--web-data <folder>` gives a test run its own folder. See [decision 0058](decisions/0058-one-instance-per-web-data-folder.md).
 - **Logins from before 0059.** They were kept in `profiles/p-<profile id>`, for all workspaces. The first workspace from before decision 0059 that is opened on the device takes them, so the user stays logged in there.
+- **The first folder stays.** Qt 6.8 makes a named profile in a folder of its own first, under its default data path (`%APPDATA%\Mirante\Mirante\QtWebEngine\<storage name>` on Windows), and only then lets `ProfileManager` move it to its real folder. Chromium keeps using that first path for some storage. On Windows, if the folder is gone, Chromium fails a check that stops the whole app as soon as a page needs it, such as the Atlassian login page. So the empty first folders are never removed. macOS has no such check.
 - **Logins from before 0042.** The folders of the earlier profiles, `g-<groupId>-<moduleId>` and `shared-<moduleId>`, are deleted at start. The user logs in again once per profile.
 
 Profiles isolate storage only. All pages run in the same Chromium processes, so this is account separation, not a security sandbox.
@@ -67,7 +68,34 @@ A heavy page such as claude.ai uses a few hundred MB.
 - **Downloads.** Downloads go to the system download folder, after asking.
 - **Toolbar.** Each web cell header has back, reload, the current address, and open in external browser. Back is disabled when there is no history. The address is cut in the middle to fit. A click on it shows the whole address, selected, so it can be copied.
 - **Load failure.** When a page fails to load, a message with the error and a Reload button takes the place of the page. Chromium's own error page is turned off. A server's error page, such as a 404 page, is shown as it is: only network errors, which Chromium gives negative codes, show the message. Every failed load is logged with its error domain and code.
-- **A page that stops.** If a page's process ends, for example because it crashed, the page is replaced by "The page stopped" and a Reload button, and the end is logged. Debug builds use Qt WebEngine's debug libraries, whose extra internal checks end some pages, such as the claude.ai login page, that the release libraries show. Check web pages with a release build.
+- **A page that stops.** If a page's process ends, for example because it crashed, the page is replaced by "The page stopped" and a Reload button, and the end is logged. In a debug build this happens to some sites that work in a release build; see [debug builds](#debug-builds).
+
+## Debug builds
+
+A debug build links Qt WebEngine's debug libraries, such as `Qt6WebEngineCored.dll` on Windows. They run Chromium's internal checks, which the release libraries leave out. When a check fails, Chromium stops the process it runs in on purpose. Windows reports this as an app crash with the exception code `0x80000003`, a breakpoint, in the WebEngine library.
+
+**A page that stops.** Some real sites fail a check in Blink's style code, about CSS animations, in a page's render process. On Windows, with Qt 6.8.3, this happened on 2026-10-29 to the claude.ai pages and to the Atlassian login page, `id.atlassian.com`. Only that page's process ends: the cell shows "The page … stopped" with a Reload button, and the rest of the app keeps running. Reload fails the same way. The same pages load and sign in with a release build. This is not a Mirante bug, and nothing in Mirante can avoid it.
+
+**The whole app stops.** A failed check in Chromium's main process ends the app. That is worth investigating, because the cause can be in Mirante: the release libraries skip the check, but the same mistake may fail later in a way that is harder to see. An example is the first folder of a profile; see the rules under [profiles](#profiles).
+
+**Finding the failed check.** Chromium writes the reason to standard error just before it stops, in a line with `FATAL` and `Check failed`, followed by a stack trace. Mirante is a window app, so on Windows that output goes nowhere unless it is captured. Start the app with standard error sent to a file, for example in PowerShell:
+
+```powershell
+$qt = & tools/setup-qt.ps1 | Select-Object -Last 1
+$env:PATH = "$qt\bin;$env:PATH"
+Start-Process build\dev\mirante.exe -RedirectStandardError err.txt `
+    -ArgumentList '--settings', 'test.ini', '--web-data', 'test-web-data'
+```
+
+The separate settings file and web data folder keep the test run apart from a Mirante that is already running; without `--web-data`, the new start would hand over to it and exit.
+
+Then look for `FATAL` in `err.txt`. Windows' own record, in the Application event log under "Application Error" and "Windows Error Reporting", only names the library and the exception code.
+
+**Rules:**
+
+- Check web pages, logins in particular, with a release build: `tools/run.ps1 -Preset release -Build`.
+- When a page stops only in a debug build, try a release build before looking further.
+- When the whole app stops, read the `FATAL` line before changing anything.
 
 ## Known risk: logins in embedded browsers
 
@@ -83,10 +111,10 @@ Results on Windows 11, Qt WebEngine 6.8.3, release build:
 | Site | How | Result |
 |---|---|---|
 | claude.ai | Google sign-in, with a passkey on a phone through the Windows passkey dialog and its QR code | Works, and the login and the open chat survive a restart (2026-10-29) |
-| gitlab.com | | Not checked yet |
-| Jira Cloud | | Not checked yet |
+| gitlab.com | | Works (2026-10-29) |
+| Jira Cloud | Atlassian login page, `id.atlassian.com` | Works (2026-10-29) |
 
-The debug build cannot be used for these checks: Qt WebEngine's debug libraries stop the claude.ai login page on an internal check. See [page behaviour](#page-behaviour).
+The debug build cannot be used for these checks: Qt WebEngine's debug libraries stop the claude.ai pages and the Atlassian login page on an internal check. See [debug builds](#debug-builds).
 
 ## Built-in panels
 
