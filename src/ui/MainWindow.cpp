@@ -2746,6 +2746,8 @@ void MainWindow::setApiServices(const ApiServices &services)
     d->placements.status = services.status;
     d->placements.attention = services.attention;
     d->placements.servers = services.servers;
+    d->placements.openItem = [this](const QString &taskId, const QString &itemId) { openItem(taskId, itemId); };
+    d->placements.openTask = [this](const QString &taskId) { openTaskPreview(taskId); };
     d->placements.openServerSettings = [this](const QString &profileId, const QString &moduleId) {
         d->openServerSettings(profileId, moduleId);
     };

@@ -85,6 +85,7 @@ The same `LayoutView` shows task dashboards and root dashboards. A task cell ins
 | `Placement` | One shown instance of an item, and the body of its cell. It makes the view with the type's `createView` when it is first shown, and owns it. It makes the view again when the item's type, configuration or profile changes, or the module settings of that profile, and drops it when the item goes. A web view is added to the `ViewPool`, and the placement tells the pool when it is shown or hidden. It reports the view's header widget, such as a web toolbar, with `headerWidgetChanged`. It also shows the page of `ItemContext::showPage()` in place of the view, with a "Back to summary" button in the header widget, as in [decision 0069](decisions/0069-open-page-in-the-placement.md). |
 | `QuickAddRun` | The work of quick add without widgets: runs the modules' handlers and finders asynchronously, matches a proposal to a project, and creates the task with its items and dashboard, or adds the items to an existing task without changing its dashboards. For a task, it leaves out items the task already has. |
 | `ItemContextImpl` | The `ItemContext` of one placement. It reads the item, its project and its module settings from the `Model` on each call, folders from `DeviceSettings`, and web logins from the `ProfileManager`. `createWebView` makes a `WebPanel` and reports its toolbar to the placement. Without a `ProfileManager`, as in tests, it returns a message instead of a page. Git state comes from `GitHead` and `GitStatusReader`, and programs start through `Launcher`. |
+| `DashBridge` | The `QWebChannel` object `dash` of one built-in panel: its task and group, ready to show, and the links that open them. It is in this library, not in `web`, because it reads the status cache and attention from `api`. See [built-in panels](web-views.md#built-in-panels). |
 | `dash::registerModule` | Registers the core's module `dash`, "Built in", with the item type `dash.panel`, in `DashPanel.cpp`. Its views come from `ItemContextImpl::createDashPanel()`, which modules cannot reach. See [decision 0094](decisions/0094-built-in-panels-as-a-core-item-type.md). |
 | `ViewPool` | Applies the [memory policy](web-views.md#memory-policy) to web views. When more hidden views are loaded than the limit, it asks the placements hidden longest to unload. |
 
@@ -103,7 +104,6 @@ Native views are ordinary widgets. Lists use `QTableView` with a model fed from 
 | `AddressField` | The elided, selectable address in the web toolbar |
 | `DashSchemeHandler` | Serves `dash://` from resources with the security headers. Only the app profile installs it. |
 | `DashPage`, `DashView` | The page and view of a built-in panel: only `dash:` addresses, no new windows, no permissions, and the bridge on a `QWebChannel` as `dash` |
-| `DashBridge` | The `QWebChannel` object `dash` used by built-in panels |
 
 ## api
 

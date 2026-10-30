@@ -2,6 +2,7 @@
 
 #include "items/CellStatus.h"
 
+#include <QDateTime>
 #include <QString>
 #include <QWidget>
 
@@ -42,7 +43,15 @@ struct PlacementServices
     // Opens the settings screen of a module's server in a profile, for the
     // fix button of "Token not set" and the like. Null leaves it out.
     std::function<void(const QString &profileId, const QString &moduleId)> openServerSettings;
+    // Open an item alone, or a task's default dashboard, in the preview, for
+    // the built-in panels. Null leaves the panels' links without effect.
+    std::function<void(const QString &taskId, const QString &itemId)> openItem;
+    std::function<void(const QString &taskId)> openTask;
 };
+
+// The age of status data fetched at time, such as "12 min ago", as cell
+// headers show it.
+QString statusAge(const QDateTime &time);
 
 // The body of an item's cell: the item's view, made when the placement is
 // first shown. It holds the item's ItemContext. A web view is added to the

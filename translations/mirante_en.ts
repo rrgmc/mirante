@@ -2,6 +2,16 @@
 <!DOCTYPE TS>
 <TS version="2.1" language="en" sourcelanguage="en">
 <context>
+    <name>mirante::DashBridge</name>
+    <message numerus="yes">
+        <source>%n item(s) need attention</source>
+        <translation>
+            <numerusform>%n item needs attention</numerusform>
+            <numerusform>%n items need attention</numerusform>
+        </translation>
+    </message>
+</context>
+<context>
     <name>mirante::MainWindow</name>
     <message numerus="yes">
         <source>not opened: a newer version of Mirante wrote %n of its files, such as %1. Update Mirante to open it.</source>
