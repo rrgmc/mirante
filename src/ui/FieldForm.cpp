@@ -48,6 +48,9 @@ struct FieldForm::Private
         QLabel *thumbnail = nullptr;    // Image
         QLabel *imageName = nullptr;    // Image
         QString image;                  // Image: the file name in files/
+        QPushButton *removeSecret = nullptr;    // Secret: shown while the token is set
+        SecretState secretState = SecretState::Unknown;     // Secret
+        bool secretRemoved = false;     // Secret: Remove was pressed
         // Set when the user changed the value since setConfig(). config()
         // writes only such rows, so an untouched value is returned unchanged,
         // even one the editor cannot show.
@@ -64,7 +67,24 @@ struct FieldForm::Private
     static QJsonValue value(const Row &row);
     void fillCombo(Row &row, const QJsonValue &value) const;
     void show(Row &row, const QJsonValue &value);
+    // Shows a Secret field's state in its placeholder and Remove button.
+    static void showSecretState(Row &row);
 };
+
+void FieldForm::Private::showSecretState(Row &row)
+{
+    // The token itself is never shown, only whether this device has one.
+    QString placeholder = row.field.placeholder;
+    if (row.secretRemoved)
+        placeholder = FieldForm::tr("Removed when you press OK. Type to set a new one.");
+    else if (row.secretState == SecretState::Set)
+        placeholder = FieldForm::tr("Set on this device. Type to replace it.");
+    else if (row.secretState == SecretState::NotSet)
+        placeholder = FieldForm::tr("Not set on this device.");
+    row.line->setPlaceholderText(placeholder);
+    row.removeSecret->setVisible(row.secretState == SecretState::Set);
+    row.removeSecret->setEnabled(!row.secretRemoved);
+}
 
 QJsonValue FieldForm::Private::value(const Row &row)
 {
@@ -214,6 +234,8 @@ FieldForm::FieldForm(std::vector<Field> fields, EditorContext context, QWidget *
             d->rows[i].edited = true;
             emit changed();
         };
+        // What the form shows in the row, when it is more than the editor.
+        QWidget *field = nullptr;
 
         switch (row.field.type) {
         case Field::Type::Text:
@@ -233,13 +255,31 @@ FieldForm::FieldForm(std::vector<Field> fields, EditorContext context, QWidget *
             row.line->setPlaceholderText(row.field.placeholder);
             connect(row.line, &QLineEdit::textChanged, this, edited);
             break;
-        case Field::Type::Secret:
-            row.line = new QLineEdit(this);
+        case Field::Type::Secret: {
+            // The line, and a Remove button for a token set on this device.
+            auto *box = new QWidget(this);
+            auto *layout = new QHBoxLayout(box);
+            layout->setContentsMargins(0, 0, 0, 0);
+            row.line = new QLineEdit(box);
             row.line->setEchoMode(QLineEdit::Password);
-            row.line->setPlaceholderText(row.field.placeholder);
             connect(row.line, &QLineEdit::textChanged, this, edited);
+            row.removeSecret = new QPushButton(tr("Remove"), box);
+            row.removeSecret->setObjectName(QStringLiteral("removeSecret_") + row.field.key);
+            row.removeSecret->setToolTip(tr("Remove the token from this device when you press OK."));
+            connect(row.removeSecret, &QPushButton::clicked, this, [this, i] {
+                Private::Row &target = d->rows[i];
+                target.secretRemoved = true;
+                target.line->clear();
+                Private::showSecretState(target);
+                emit changed();
+            });
+            layout->addWidget(row.line, 1);
+            layout->addWidget(row.removeSecret);
+            Private::showSecretState(row);
             row.editor = row.line;
+            field = box;
             break;
+        }
         case Field::Type::TextList:
             row.text = new QPlainTextEdit(this);
             row.text->setPlaceholderText(row.field.placeholder);
@@ -342,7 +382,7 @@ FieldForm::FieldForm(std::vector<Field> fields, EditorContext context, QWidget *
             break;
         }
         }
-        form->addRow(row.field.label, row.editor);
+        form->addRow(row.field.label, field ? field : row.editor);
     }
 
     setConfig({});
@@ -359,6 +399,10 @@ void FieldForm::setConfig(const QJsonObject &config)
     for (Private::Row &row : d->rows) {
         row.edited = false;
         d->show(row, config.value(row.field.key));
+        if (row.field.type == Field::Type::Secret) {
+            row.secretRemoved = false;
+            Private::showSecretState(row);
+        }
     }
     d->loading = false;
 }
@@ -414,18 +458,25 @@ QWidget *FieldForm::editorFor(const QString &key) const
     return nullptr;
 }
 
-
-// Stubs of T0. Task T9 of the M5 plan implements them.
-
 void FieldForm::setSecretState(const QString &key, SecretState state)
 {
-    Q_UNUSED(key)
-    Q_UNUSED(state)
+    for (Private::Row &row : d->rows) {
+        if (row.field.key == key && row.field.type == Field::Type::Secret) {
+            row.secretState = state;
+            Private::showSecretState(row);
+        }
+    }
 }
 
 QStringList FieldForm::removedSecrets() const
 {
-    return {};
+    // A token typed after Remove replaces the old one instead; see secrets().
+    QStringList keys;
+    for (const Private::Row &row : d->rows) {
+        if (row.field.type == Field::Type::Secret && row.secretRemoved && row.line->text().isEmpty())
+            keys << row.field.key;
+    }
+    return keys;
 }
 
 } // namespace mirante

@@ -3,6 +3,8 @@
 // has screens, the menu built again when profiles change, and the dialog each
 // entry opens for its profile, which stores its values in the model and its
 // secrets apart. See docs/ui.md#profiles-menu and docs/ui.md#modules.
+#include "api/SecretBackend.h"
+#include "api/SecretStore.h"
 #include "core/DeviceSettings.h"
 #include "core/Model.h"
 #include "core/Profiles.h"
@@ -383,9 +385,13 @@ private slots:
         f.model.setModuleSettings(kDefaultProfile, QStringLiteral("tools"), QStringLiteral("general"),
                                   {{QStringLiteral("name"), QStringLiteral("Old")},
                                    {QStringLiteral("token"), QStringLiteral("leaked")}});
+        SecretStore secrets(makeMemoryBackend());
         QMap<QString, QString> saved;
-        f.window->entityActions()->setSaveSecret(
-            [&saved](const QString &key, const QString &secret) { saved.insert(key, secret); });
+        QObject::connect(&secrets, &SecretStore::changed, &secrets, [&saved, &secrets](const QString &key) {
+            if (const std::optional<QString> value = secrets.cached(key))
+                saved.insert(key, *value);
+        });
+        f.window->entityActions()->setSecretStore(&secrets);
         QString shown;
         f.window->entityActions()->setExec([&shown](QDialog &dialog) {
             auto *form = dialog.findChild<FieldForm *>(QStringLiteral("editor"));
@@ -407,13 +413,7 @@ private slots:
         // A token found in the values is dropped when they are saved.
         QVERIFY(!stored.contains(QStringLiteral("token")));
         QCOMPARE(stored.value(QStringLiteral("name")).toString(), QStringLiteral("New"));
-        QCOMPARE(EntityActions::secretKey(QString(), QStringLiteral("p"), QStringLiteral("gitlab"),
-                                          QStringLiteral("token")),
-                 QStringLiteral("p/gitlab/token"));
         // Each workspace keeps its own tokens.
-        QCOMPARE(EntityActions::secretKey(QStringLiteral("w1"), QStringLiteral("p"), QStringLiteral("gitlab"),
-                                          QStringLiteral("token")),
-                 QStringLiteral("w1/p/gitlab/token"));
         f.model.setWorkspaceId(QStringLiteral("w1"));
         saved.clear();
         f.window->entityActions()->editModuleSettings(kDefaultProfile, QStringLiteral("tools"),

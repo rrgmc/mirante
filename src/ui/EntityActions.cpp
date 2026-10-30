@@ -1,5 +1,6 @@
 #include "ui/EntityActions.h"
 
+#include "api/SecretStore.h"
 #include "core/DeviceSettings.h"
 #include "core/Edits.h"
 #include "core/GroupColours.h"
@@ -10,6 +11,7 @@
 #include "items/UrlMatches.h"
 #include "layout/Presets.h"
 #include "ui/DashboardDialog.h"
+#include "ui/FieldForm.h"
 #include "ui/GroupDialog.h"
 #include "ui/ImagePaste.h"
 #include "ui/ImagePasteDialog.h"
@@ -109,7 +111,7 @@ struct EntityActions::Private
     ProfileManager *profiles = nullptr;
     std::function<void(ProfilesDialog &)> editProfiles;
     std::function<QImage()> clipboardImage;
-    std::function<void(const QString &key, const QString &secret)> saveSecret;
+    SecretStore *secrets = nullptr;
     ImagePaste imagePaste{model, store, types};
 
     bool shiftHeld() const { return modifiers && (modifiers() & Qt::ShiftModifier); }
@@ -188,11 +190,6 @@ EntityActions::EntityActions(Model &model, Store &store, const ItemTypeRegistry 
         return QMessageBox::question(d->dialogParent, tr("Delete"), question) == QMessageBox::Yes;
     };
     d->modifiers = [] { return QGuiApplication::queryKeyboardModifiers(); };
-    d->saveSecret = [](const QString &key, const QString &) {
-        // Tokens are stored with qtkeychain from M5. Until then the value is
-        // dropped; it is never written to the workspace or the log.
-        qInfo("A secret for %s was entered; storing secrets comes in M5, so it was not kept.", qUtf8Printable(key));
-    };
     d->clipboardImage = [] {
         const QClipboard *clipboard = QGuiApplication::clipboard();
         return clipboard ? clipboard->image() : QImage();
@@ -217,17 +214,7 @@ void EntityActions::setClipboardImage(std::function<QImage()> clipboardImage)
 
 void EntityActions::setProfileManager(ProfileManager *manager) { d->profiles = manager; }
 
-void EntityActions::setSaveSecret(std::function<void(const QString &key, const QString &secret)> save)
-{
-    d->saveSecret = std::move(save);
-}
-
-QString EntityActions::secretKey(const QString &workspaceId, const QString &profileId, const QString &moduleId,
-                                 const QString &fieldKey)
-{
-    const QString key = profileId + QLatin1Char('/') + moduleId + QLatin1Char('/') + fieldKey;
-    return workspaceId.isEmpty() ? key : workspaceId + QLatin1Char('/') + key;
-}
+void EntityActions::setSecretStore(SecretStore *store) { d->secrets = store; }
 
 void EntityActions::setEditProfiles(std::function<void(ProfilesDialog &)> edit)
 {
@@ -246,6 +233,20 @@ void EntityActions::editProfiles()
         // after those pages, or Qt warns.
         if (ProfileManager *profiles = d->profiles)
             QTimer::singleShot(0, profiles, [profiles, id] { profiles->removeProfile(id); });
+        // Its tokens on this device go at once. The profile is already gone
+        // from the model, so its keys are built here.
+        if (SecretStore *secrets = d->secrets) {
+            QStringList keys;
+            for (const QString &moduleId : d->types.moduleIds()) {
+                for (const SettingsScreen *screen : d->types.settingsScreens(moduleId)) {
+                    for (const Field &field : screen->fields()) {
+                        if (field.type == Field::Type::Secret)
+                            keys << secretKey(d->model.workspaceId(), id, moduleId, field.key);
+                    }
+                }
+            }
+            secrets->removeAll(keys);
+        }
     });
     connect(&dialog, &ProfilesDialog::profileClearRequested, this, [this](const QString &id) {
         if (ProfileManager *profiles = d->profiles)
@@ -264,13 +265,49 @@ void EntityActions::editModuleSettings(const QString &profileId, const QString &
         return;
     ModuleSettingsDialog dialog(profiles::nameOf(d->model, profileId), d->types.moduleName(moduleId), *screen,
                                 d->model.moduleSettings(profileId, moduleId, screenId), d->dialogParent);
+    const QString workspaceId = d->model.workspaceId();
+    auto *form = qobject_cast<FieldForm *>(dialog.editor());
+    // The form says whether each token is set on this device, loading it
+    // from the keychain if this session has not yet.
+    if (form && d->secrets) {
+        SecretStore *secrets = d->secrets;
+        const auto stateOf = [secrets](const QString &key) {
+            switch (secrets->state(key)) {
+            case SecretStore::State::Set:
+                return FieldForm::SecretState::Set;
+            case SecretStore::State::NotSet:
+                return FieldForm::SecretState::NotSet;
+            case SecretStore::State::Unknown:
+                break;
+            }
+            return FieldForm::SecretState::Unknown;
+        };
+        for (const Field &field : screen->fields()) {
+            if (field.type != Field::Type::Secret)
+                continue;
+            const QString key = secretKey(workspaceId, profileId, moduleId, field.key);
+            form->setSecretState(field.key, stateOf(key));
+            if (secrets->state(key) == SecretStore::State::Unknown) {
+                secrets->read(key, form, [form, stateOf, key, fieldKey = field.key](const std::optional<QString> &) {
+                    form->setSecretState(fieldKey, stateOf(key));
+                });
+            }
+        }
+    }
     if (!d->exec(dialog))
         return;
     d->model.setModuleSettings(profileId, moduleId, screenId, dialog.values());
-    // Secrets, such as tokens, stay on this device, in the keychain.
-    const QJsonObject secrets = dialog.secrets();
-    for (auto it = secrets.begin(); it != secrets.end(); ++it)
-        d->saveSecret(secretKey(d->model.workspaceId(), profileId, moduleId, it.key()), it.value().toString());
+    // Tokens stay on this device, in the keychain. Without a secret store,
+    // as in some tests, they are dropped.
+    if (SecretStore *secrets = d->secrets) {
+        if (form) {
+            for (const QString &fieldKey : form->removedSecrets())
+                secrets->remove(secretKey(workspaceId, profileId, moduleId, fieldKey));
+        }
+        const QJsonObject typed = dialog.secrets();
+        for (auto it = typed.begin(); it != typed.end(); ++it)
+            secrets->write(secretKey(workspaceId, profileId, moduleId, it.key()), it.value().toString());
+    }
 }
 
 // Creating.
@@ -878,14 +915,6 @@ void EntityActions::fillTrashMenu(QMenu *menu, SidebarModel::Kind kind, const QS
         menu->addSeparator();
         menu->addAction(tr("Delete permanently…"), this, [this, id] { removeTask(id); });
     }
-}
-
-
-// A stub of T0. Task T9 of the M5 plan implements it.
-
-void EntityActions::setSecretStore(SecretStore *store)
-{
-    Q_UNUSED(store)
 }
 
 } // namespace mirante

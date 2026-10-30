@@ -1,5 +1,6 @@
 // Tests FieldForm: one editor per field type, reading back an unchanged
-// configuration, keeping keys it does not show, edits, problems and images.
+// configuration, keeping keys it does not show, edits, problems, images, and
+// the state of Secret fields.
 #include "ui/FieldForm.h"
 #include "ui/ImagePasteDialog.h"
 
@@ -332,6 +333,71 @@ private slots:
         form.setConfig({{QStringLiteral("project"), QStringLiteral("solo/repo")}});
         QCOMPARE(combo->currentText(), QStringLiteral("solo/repo"));
         QCOMPARE(form.config().value(QStringLiteral("project")).toString(), QStringLiteral("solo/repo"));
+    }
+
+    // A Secret field says whether its token is set on this device, in its
+    // placeholder, and never shows the token. A set token has a Remove button.
+    void secretState()
+    {
+        Field token = field(QStringLiteral("token"), QStringLiteral("Token"), Field::Type::Secret);
+        token.placeholder = QStringLiteral("glpat-…");
+        FieldForm form({token}, context());
+        auto *line = qobject_cast<QLineEdit *>(form.editorFor(QStringLiteral("token")));
+        auto *remove = form.findChild<QPushButton *>(QStringLiteral("removeSecret_token"));
+        QVERIFY(line);
+        QVERIFY(remove);
+        QCOMPARE(line->echoMode(), QLineEdit::Password);
+
+        // Unknown: the field's own placeholder, and no Remove.
+        QCOMPARE(line->placeholderText(), QStringLiteral("glpat-…"));
+        QVERIFY(remove->isHidden());
+
+        form.setSecretState(QStringLiteral("token"), FieldForm::SecretState::NotSet);
+        QCOMPARE(line->placeholderText(), QStringLiteral("Not set on this device."));
+        QVERIFY(remove->isHidden());
+
+        form.setSecretState(QStringLiteral("token"), FieldForm::SecretState::Set);
+        QCOMPARE(line->placeholderText(), QStringLiteral("Set on this device. Type to replace it."));
+        QVERIFY(!remove->isHidden());
+        QVERIFY(line->text().isEmpty());
+
+        // Typing nothing keeps the token: no secret, nothing removed.
+        QCOMPARE(form.secrets(), QJsonObject());
+        QCOMPARE(form.removedSecrets(), QStringList());
+        QVERIFY(!form.config().contains(QStringLiteral("token")));
+
+        // An unknown key changes nothing.
+        form.setSecretState(QStringLiteral("other"), FieldForm::SecretState::NotSet);
+        QCOMPARE(line->placeholderText(), QStringLiteral("Set on this device. Type to replace it."));
+    }
+
+    // Remove marks a set token for removal on OK. Typing a token after it
+    // replaces the token instead, and setConfig() starts over.
+    void removeSecret()
+    {
+        FieldForm form({field(QStringLiteral("token"), QStringLiteral("Token"), Field::Type::Secret)}, context());
+        auto *line = qobject_cast<QLineEdit *>(form.editorFor(QStringLiteral("token")));
+        auto *remove = form.findChild<QPushButton *>(QStringLiteral("removeSecret_token"));
+        QVERIFY(line);
+        QVERIFY(remove);
+        form.setSecretState(QStringLiteral("token"), FieldForm::SecretState::Set);
+
+        QSignalSpy changed(&form, &FieldForm::changed);
+        remove->click();
+        QCOMPARE(changed.count(), 1);
+        QCOMPARE(form.removedSecrets(), QStringList{QStringLiteral("token")});
+        QVERIFY(!remove->isEnabled());
+        QCOMPARE(line->placeholderText(), QStringLiteral("Removed when you press OK. Type to set a new one."));
+        QCOMPARE(form.secrets(), QJsonObject());
+
+        line->setText(QStringLiteral("new"));
+        QCOMPARE(form.removedSecrets(), QStringList());
+        QCOMPARE(form.secrets(), (QJsonObject{{QStringLiteral("token"), QStringLiteral("new")}}));
+
+        form.setConfig({});
+        QCOMPARE(form.removedSecrets(), QStringList());
+        QVERIFY(remove->isEnabled());
+        QCOMPARE(line->placeholderText(), QStringLiteral("Set on this device. Type to replace it."));
     }
 };
 
