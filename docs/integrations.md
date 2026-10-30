@@ -153,7 +153,7 @@ With no program, as for the folder item's **Terminal** action, the terminal open
 **Quoting:**
 
 - **Windows Terminal** reads `;` as the start of a new tab, so each `;` in the folder and the arguments is passed as `\;`.
-- **`cmd.exe`** has its own rules. Each argument is first quoted for the program, as the Microsoft C runtime reads it, then each character that `cmd` treats as special (`( ) % ! ^ " < > & |`) gets a `^` before it. The fallback terminal passes through two `cmd.exe`, the one that runs `start` and the one that `start` opens, so the command is escaped twice.
+- **`cmd.exe`** has its own rules. Each argument is first quoted for the program, as the Microsoft C runtime reads it, then each character that `cmd` treats as special (`( ) % ! ^ " < > & |`) gets a `^` before it, and so do the separators space, `;` and `,`. A quote escaped this way does not start a quoted region, so without this `cmd` would split a path such as `...\Microsoft VS Code\bin\code.cmd` at its spaces. The fallback terminal passes through two `cmd.exe`, the one that runs `start` and the one that `start` opens, so the command is escaped twice.
 - **macOS:** each word is quoted for the shell in single quotes, unless it holds only safe characters. The whole line is then escaped for the AppleScript string, with `\\` for `\` and `\"` for `"`.
 - On Windows, `launchTerminal()` finds the program on the `PATH` first, and passes its full path, because the terminal does not try `.cmd` files. `claude` installed with npm is `claude.cmd`.
 

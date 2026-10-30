@@ -56,10 +56,13 @@ QString windowsQuote(const QString &argument)
 
 // Text escaped for one pass of cmd.exe: a caret before each character that
 // cmd reads as special, quotes included, so cmd sees no quoted region and
-// removes exactly one level of carets.
+// removes exactly one level of carets. Since an escaped quote does not start
+// a quoted region, the separators space, ";" and "," are escaped too, or cmd
+// would split a path such as "...\Microsoft VS Code\bin\code.cmd" at its
+// spaces.
 QString cmdEscape(const QString &text)
 {
-    static const QString special = QStringLiteral("()%!^\"<>&|");
+    static const QString special = QStringLiteral("()%!^\"<>&|;, ");
     QString escaped;
     escaped.reserve(text.size() * 2);
     for (const QChar c : text) {
@@ -283,7 +286,11 @@ Command programCommand(Platform platform, const QString &dir, const QString &res
                        const QStringList &arguments)
 {
     if (platform == Platform::Windows && isBatchFile(resolvedProgram)) {
-        Command command{kCmd, {QStringLiteral("/c"), cmdArgument(QDir::toNativeSeparators(resolvedProgram))}, dir};
+        // Not QDir::toNativeSeparators(), which converts only when the app
+        // runs on Windows, so the tests on other platforms would differ.
+        QString path = resolvedProgram;
+        path.replace(QLatin1Char('/'), QLatin1Char('\\'));
+        Command command{kCmd, {QStringLiteral("/c"), cmdArgument(path)}, dir};
         for (const QString &argument : arguments)
             command.arguments << cmdArgument(argument);
         return command;
