@@ -165,6 +165,7 @@ int main(int argc, char *argv[])
     else
         window.openSampleData();
     window.show();
+    window.startTrayAndHotkey();
 
     // A later start handed over: open its workspace, if it gave one, and come
     // to the front.
@@ -179,14 +180,7 @@ int main(int argc, char *argv[])
                              && QDir(dataFolder).absolutePath() != QDir(window.workspace()).absolutePath();
                          if (other && !modal)
                              window.openWorkspace(dataFolder);
-                         window.setWindowState(window.windowState() & ~Qt::WindowMinimized);
-                         window.show();
-                         window.raise();
-                         window.activateWindow();
-                         if (modal) {
-                             modal->raise();
-                             modal->activateWindow();
-                         }
+                         window.showAndRaise();
                      });
 
     return app.exec();

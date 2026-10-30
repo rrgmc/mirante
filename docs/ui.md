@@ -157,6 +157,9 @@ The settings window holds settings of this device. They are kept in the [device 
   - "Highlight the sidebar row of the cell under the mouse", on by default. It turns the hover tint of the [sidebar tree](#sidebar-tree) on or off. Turned off, any tint goes at once.
 - **Status:**
   - "Check servers every", a number of minutes from 1 to 60, 2 by default. It sets how often the app asks the servers for the status of the items it watches. See [polling and caching](integrations.md#polling-and-caching).
+- **Window:**
+  - "Global hotkey", the [keys](#keyboard) that show or hide Mirante from any application. "Clear" turns it off. Below it, a message says if the keys could not be registered.
+  - "Closing the window keeps Mirante running in the tray", on by default. See [tray and notifications](#tray-and-notifications). Without a tray it is off and disabled.
 
 ## Window
 
@@ -173,7 +176,7 @@ Otherwise, as after a monitor was unplugged or a resolution shrank, the window o
 
 ### Starting Mirante again
 
-Only one Mirante runs with each [web data folder](README.md#glossary), because two would damage each other's logins. Starting Mirante while it runs brings the running window to the front, restored if it was minimized, and the new start exits. A workspace given with `--data` opens in the running window, unless it is the one already open, or a dialog is open there: then the window only comes to the front, with the dialog. If the running Mirante does not answer within five seconds, the new start says that Mirante is already running with this web data folder. Test runs that must run beside the user's own Mirante use `--web-data <folder>` for their own logins. See [decision 0058](decisions/0058-one-instance-per-web-data-folder.md).
+Only one Mirante runs with each [web data folder](README.md#glossary), because two would damage each other's logins. Starting Mirante while it runs brings the running window to the front, restored if it was minimized or hidden in the tray, and the new start exits. A workspace given with `--data` opens in the running window, unless it is the one already open, or a dialog is open there: then the window only comes to the front, with the dialog. If the running Mirante does not answer within five seconds, the new start says that Mirante is already running with this web data folder. Test runs that must run beside the user's own Mirante use `--web-data <folder>` for their own logins. See [decision 0058](decisions/0058-one-instance-per-web-data-folder.md).
 
 ## Look
 
@@ -412,17 +415,21 @@ The project is chosen by matching the merge request's GitLab project or the issu
 | `F2` | Lock or unlock the current dashboard, as its lock button does. In a detached window, that window's dashboard. Nothing on Focus or an item shown alone. See [editing layouts](#editing-layouts). |
 | `Ctrl+W` | Close the preview or the current tab. Focus cannot be closed. |
 | `Ctrl+V` | With an image on the clipboard: replace the image of the Image item in the focused cell or the current item preview, after the [paste dialog](#pasting-images). It never adds an item to a dashboard; a new image item comes from "Paste Image…" in a task's Items menu. See [image](item-types.md#image). A text field keeps its own paste. |
-| Global hotkey (configurable) | Bring Mirante to the front |
+| Global hotkey (`Alt+Shift+M`, on macOS `Control+Option+M`; set in the [settings window](#settings)) | From any application: hide Mirante if it is in front, else bring it to the front. An open modal dialog only comes to the front. |
 
 On macOS, `Cmd` replaces `Ctrl`.
 
 A web page with keyboard focus receives keys first. App shortcuts are registered at window level so that they still work. Shortcuts the page needs, such as `Ctrl+K` inside a web app, can be released per item.
 
-The global hotkey uses the QHotkey library. It works on Windows, macOS and X11, but not on Wayland, where the user binds a desktop shortcut instead.
+The global hotkey uses the QHotkey library. It works on Windows, macOS and X11, but not on Wayland, where the user binds a desktop shortcut instead. If it cannot be registered, as on Wayland or when another application holds the keys, the status bar and the settings window say so.
 
 ## Tray and notifications
 
-- Closing the main window hides it to the system tray. Polling and notifications continue. "Quit" in the tray menu exits.
-- The tray icon shows the number of tasks that need attention.
-- If the platform has no system tray, for example GNOME without an extension, closing the window quits the app.
+- Closing the main window hides it to the system tray, the menu bar on macOS. Polling and notifications continue. A device setting turns this off, and closing then quits. See [decision 0075](decisions/0075-hide-to-tray-and-show-hide-hotkey.md).
+- Hiding also hides the other open windows, such as detached dashboards and the settings window. They come back with the main window, and detached dashboards stay detached. The window's place and the open tabs are saved each time it hides.
+- On macOS Mirante leaves the Dock while it is hidden.
+- Clicking the tray icon brings Mirante to the front. On macOS, a click opens the menu instead.
+- The tray menu has "Show Mirante", "Settings…" and "Quit". File > Quit also exits. Under an open modal dialog, "Quit" brings the dialog to the front instead.
+- The tray icon shows the number of tasks that need attention. This is not built yet; see the [roadmap](roadmap.md#m8-tray-notifications-and-keyboard).
+- If the platform has no system tray, for example GNOME without an extension, closing the window quits the app, and the global hotkey minimizes the window instead of hiding it. At start, Mirante looks for a tray for one minute, because at sign-in the taskbar may not be there yet.
 - A desktop notification appears only when a pipeline linked to a task fails. Clicking it opens the task.

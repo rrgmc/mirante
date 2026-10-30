@@ -95,7 +95,7 @@ Settings that only make sense on one device are stored with `QSettings`, outside
 - the status poll interval, from 30 seconds to one hour, two minutes if not set ([polling](integrations.md#polling-and-caching)), and the hidden-view limit;
 - the attention reasons seen on each item, by workspace id and item id: the keys of the reasons that clear when seen ([decision 0061](decisions/0061-attention-from-status-of-any-rendering.md)). They are not synced, so each device shows an event until it is seen there. Removing an item removes its record;
 - whether Focus lists the tasks that need attention first;
-- the global hotkey;
+- the global hotkey, and whether closing the window hides it to the tray;
 - the device name, shown on local Claude session items.
 
 Moving a workspace with File > Move Workspace… updates the settings that name its folder: the last workspace, the recent list, its open tabs, its remembered id, and project folder paths inside it. See [decision 0055](decisions/0055-move-workspace.md).

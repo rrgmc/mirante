@@ -3,10 +3,10 @@
 #include <QString>
 
 // Code that differs between Windows, macOS and Linux lives in this folder.
-// In M2 it only links qtkeychain and QHotkey. TerminalLauncher, GlobalHotkey,
-// Tray and GitHead arrive with their milestones. AttachedDialogs.h keeps
-// dialogs above their window on macOS. Foreground.h lets a later start bring
-// the running instance to the front on Windows.
+// TerminalLauncher and GitHead arrive with their milestones. AttachedDialogs.h
+// keeps dialogs above their window on macOS. Foreground.h lets a later start
+// bring the running instance to the front on Windows, and tells whether the app
+// is in front. GlobalHotkey.h and Tray.h let the window hide and come back.
 
 namespace mirante::platform {
 

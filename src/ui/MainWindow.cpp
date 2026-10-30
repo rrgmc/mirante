@@ -26,7 +26,10 @@
 #include "layout/LockState.h"
 #include "layout/SingleViewTracker.h"
 #include "layout/TaskCell.h"
+#include "platform/Foreground.h"
+#include "platform/GlobalHotkey.h"
 #include "platform/Platform.h"
+#include "platform/Tray.h"
 #include "ui/ConflictBar.h"
 #include "ui/DashboardDialog.h"
 #include "ui/DashboardPage.h"
@@ -88,6 +91,8 @@
 #include <QToolButton>
 #include <QUrl>
 #include <QUuid>
+
+#include <utility>
 #include <QVBoxLayout>
 #include <QtWebEngineCore/qtwebenginecoreglobal.h>
 
@@ -200,6 +205,17 @@ struct MainWindow::Private
     // Whether the sidebar tints the row of the hovered cell, from the device
     // settings. See applyDeviceSettings().
     bool sidebarHoverTint = true;
+
+    // Hiding to the tray. See docs/ui.md#tray-and-notifications.
+    platform::Tray *tray = nullptr;
+    int trayAttempts = 0;
+    bool trayPresent = false;
+    bool quitting = false;
+    bool savedForQuit = false;
+    platform::GlobalHotkey *hotkey = nullptr;
+    QString hotkeyError;
+    // The other windows hidden with this one, shown again with it.
+    QList<QPointer<QWidget>> hiddenWithWindow;
 
     // The pages of the root tab bar's tabs, in tab order. They are root
     // dashboards only: task dashboards and items open in the preview slot,
@@ -1493,7 +1509,13 @@ struct MainWindow::Private
         QAction *quit = file->addAction(MainWindow::tr("&Quit"));
         quit->setShortcut(QKeySequence::Quit);
         quit->setMenuRole(QAction::QuitRole);
-        QObject::connect(quit, &QAction::triggered, q, &QWidget::close);
+        // With a tray, closing only hides the window.
+        QObject::connect(quit, &QAction::triggered, q, [this] {
+            if (trayPresent)
+                QApplication::quit();
+            else
+                q->close();
+        });
 
         QMenu *view = bar->addMenu(MainWindow::tr("&View"));
         showSidebarAction = view->addAction(MainWindow::tr("&Sidebar"));
@@ -1586,6 +1608,68 @@ struct MainWindow::Private
         // makes a shorter interval take effect at once.
         if (api.status)
             api.status->poll();
+        registerHotkey();
+    }
+
+    // Registers the global hotkey from the device settings, if it has started,
+    // and shows any problem in the status bar and the settings window.
+    void registerHotkey()
+    {
+        if (!hotkey)
+            return;
+        hotkeyError.clear();
+        hotkey->setShortcut(QKeySequence::fromString(settings->globalHotkey(), QKeySequence::PortableText),
+                            &hotkeyError);
+        if (!hotkeyError.isEmpty())
+            q->statusBar()->showMessage(hotkeyError, 15000);
+        if (settingsDialog)
+            settingsDialog->setHotkeyError(hotkeyError);
+    }
+
+    // Makes the tray icon and its menu. At sign-in Mirante can start before the
+    // taskbar, so a missing tray is tried again for a minute.
+    void createTray()
+    {
+        if (!platform::Tray::isAvailable()) {
+            if (++trayAttempts < 30)
+                QTimer::singleShot(2000, q, [this] { createTray(); });
+            return;
+        }
+        auto *menu = new QMenu(q);
+        menu->addAction(MainWindow::tr("Show Mirante"), q, &MainWindow::showAndRaise);
+        menu->addAction(MainWindow::tr("Settings…"), q, [this] {
+            q->showAndRaise();
+            if (!QApplication::activeModalWidget())
+                q->showSettings();
+        });
+        menu->addSeparator();
+        // Under a modal dialog, which may hold unsaved input, the dialog comes
+        // to the front instead.
+        menu->addAction(MainWindow::tr("Quit"), q, [this] {
+            if (QApplication::activeModalWidget())
+                q->showAndRaise();
+            else
+                QApplication::quit();
+        });
+        tray = new platform::Tray(QApplication::windowIcon(), QStringLiteral(MIRANTE_APP_NAME), menu, q);
+        QObject::connect(tray, &platform::Tray::triggered, q, &MainWindow::toggleVisible);
+        QObject::connect(tray, &platform::Tray::reopened, q, [this] {
+            if (!q->isVisible())
+                q->showAndRaise();
+        });
+        q->setTrayPresent(true);
+    }
+
+    // Saves the window's place and size, whether it is maximized, the sidebar
+    // width and the open tabs. A full screen window is saved as the window it
+    // came from.
+    void saveWindowState()
+    {
+        settings->setWindowSize(q->normalGeometry().size());
+        settings->setWindowGeometry(q->normalGeometry());
+        settings->setWindowMaximized(q->isFullScreen() ? maximizedBeforeFullScreen : q->isMaximized());
+        settings->setSidebarSplitterState(splitter->saveState());
+        saveOpenTabs();
     }
 
     // Opens the log window, or brings it to the front. It has no parent, so it
@@ -2007,16 +2091,107 @@ MainWindow::~MainWindow()
 
 void MainWindow::closeEvent(QCloseEvent *event)
 {
-    // The place and size of the normal, not maximized, window are kept. A
-    // full screen window is saved as the window it came from.
-    d->settings->setWindowSize(normalGeometry().size());
-    d->settings->setWindowGeometry(normalGeometry());
-    d->settings->setWindowMaximized(isFullScreen() ? d->maximizedBeforeFullScreen : isMaximized());
-    d->settings->setSidebarSplitterState(d->splitter->saveState());
-    d->saveOpenTabs();
+    // Qt closes every window again on quit, by which time all is saved.
+    if (d->savedForQuit) {
+        QMainWindow::closeEvent(event);
+        return;
+    }
+    if (d->trayPresent && !d->quitting) {
+        event->ignore();
+        if (d->settings->closeToTray())
+            hideToTray();
+        else
+            QMetaObject::invokeMethod(qApp, &QApplication::quit, Qt::QueuedConnection);
+        return;
+    }
+    d->saveWindowState();
     // After the open tabs are saved, so the windows open again next time.
     d->putBackAll();
+    d->savedForQuit = d->quitting;
     QMainWindow::closeEvent(event);
+}
+
+bool MainWindow::eventFilter(QObject *watched, QEvent *event)
+{
+    if (watched == qApp && event->type() == QEvent::Quit)
+        prepareToQuit();
+    return QMainWindow::eventFilter(watched, event);
+}
+
+void MainWindow::prepareToQuit()
+{
+    if (d->quitting)
+        return;
+    d->quitting = true;
+    // Closed here, before Qt walks its list of windows, because closing this
+    // one puts the detached windows back.
+    close();
+}
+
+void MainWindow::startTrayAndHotkey()
+{
+    d->hotkey = new platform::GlobalHotkey(this);
+    connect(d->hotkey, &platform::GlobalHotkey::activated, this, &MainWindow::toggleVisible);
+    d->registerHotkey();
+    d->createTray();
+}
+
+void MainWindow::setTrayPresent(bool present)
+{
+    d->trayPresent = present;
+    QApplication::setQuitOnLastWindowClosed(!present);
+    if (present)
+        qApp->installEventFilter(this);
+    else
+        qApp->removeEventFilter(this);
+}
+
+void MainWindow::showAndRaise()
+{
+    if (d->tray)
+        d->tray->setDockIconVisible(true);
+    const QList<QPointer<QWidget>> others = std::exchange(d->hiddenWithWindow, {});
+    for (const QPointer<QWidget> &other : others) {
+        if (other)
+            other->show();
+    }
+    setWindowState(windowState() & ~Qt::WindowMinimized);
+    show();
+    raise();
+    activateWindow();
+    if (QWidget *modal = QApplication::activeModalWidget()) {
+        modal->raise();
+        modal->activateWindow();
+    }
+}
+
+void MainWindow::hideToTray()
+{
+    d->saveWindowState();
+    if (!d->trayPresent) {
+        showMinimized();
+        return;
+    }
+    const QWidgetList windows = QApplication::topLevelWidgets();
+    for (QWidget *window : windows) {
+        const Qt::WindowType type = window->windowType();
+        if (window != this && window->isVisible() && (type == Qt::Window || type == Qt::Dialog)) {
+            d->hiddenWithWindow << window;
+            window->hide();
+        }
+    }
+    hide();
+    if (d->tray)
+        d->tray->setDockIconVisible(false);
+}
+
+void MainWindow::toggleVisible()
+{
+    // A modal dialog stays with its window, so it only comes to the front.
+    if (isVisible() && !isMinimized() && platform::appIsInFront() && !QApplication::activeModalWidget())
+        hideToTray();
+    else
+        showAndRaise();
 }
 
 void MainWindow::setFullScreen(bool on)
@@ -2351,6 +2526,8 @@ void MainWindow::showSettings()
     if (!d->settingsDialog) {
         d->settingsDialog = new SettingsDialog(*d->settings, this);
         d->settingsDialog->setAttribute(Qt::WA_DeleteOnClose);
+        d->settingsDialog->setHotkeyError(d->hotkeyError);
+        d->settingsDialog->setTrayAvailable(d->trayPresent);
         connect(d->settingsDialog, &SettingsDialog::changed, this, [this] { d->applyDeviceSettings(); });
     }
     d->settingsDialog->show();

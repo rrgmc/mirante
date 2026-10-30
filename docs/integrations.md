@@ -108,7 +108,7 @@ The `StatusCache` owns all API data. It keeps one status per item, in memory onl
 - **One job per item.** A fetch for an item already being fetched is skipped. A fetch that does not end in 90 seconds is dropped with an error. A fetch started before the item's configuration changed is dropped too, and its answer ignored.
 - **Errors keep data.** A fetch that fails keeps the last data, summary, attention and update time, and sets only the state and the message. Cells then show the data's age. An error is fetched again after the interval, like any status.
 - **Removal.** Removing an item empties its entry and removes its [seen attention keys](sync.md#device-settings). Opening another workspace empties every entry.
-- **When the app is hidden in the tray:** polling continues for pipelines and attention only, at the same interval.
+- **When the app is hidden in the tray:** polling continues for the same items, at the same interval. Cells stay in their placements while the window is hidden.
 - **Consumers:**
   - native summaries and lists;
   - [attention badges](ui.md#attention) and the tray count;

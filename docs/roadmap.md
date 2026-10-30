@@ -99,9 +99,10 @@ See [the M6 plan](plans/m6-native-item-types.md) and [the changes after trying i
 
 ## M8: Tray, notifications and keyboard
 
-- [ ] The tray icon with the attention count, and hiding to the tray on close. The fallback works where no tray exists.
+- [x] Hiding to the tray on close. The fallback works where no tray exists. ([decision 0075](decisions/0075-hide-to-tray-and-show-hide-hotkey.md))
+- [ ] The attention count on the tray icon.
 - [ ] Desktop notification when a linked pipeline fails. Clicking it opens the task.
-- [ ] The global hotkey works on Windows, macOS and X11, and reports clearly on Wayland.
+- [x] The global hotkey shows or hides the app on Windows, macOS and X11, and reports clearly on Wayland.
 - [ ] All shortcuts in [ui](ui.md#keyboard) work, including inside focused web pages.
 
 ## M9: Built-in panels
