@@ -193,14 +193,15 @@ The summaries have fixed layouts, as in [decision 0066](decisions/0066-fixed-nat
   - Id;
   - Status, a pill;
   - Ref, which takes the free width and never hides;
-  - Author and Started, compact and sorted by the date. GitLab's list answers usually leave these two out, and a missing value shows a dash. A missing date sorts as the oldest;
+  - Author, which GitLab's list answers usually leave out, so it usually shows a dash;
+  - Started, compact and sorted by the date, or the time the pipeline was created when GitLab gives no start. A missing date sorts as the oldest;
   - the links of the row, which never hide.
 - **A narrow cell** hides columns in this order: Author, Started, Id, Status.
 - **Filter:** a Status drop-down above the table, filled from the fetched rows. The choice survives new rows and is not saved.
 - **Links of a row:**
   - "Web" opens the row's `web_url` in the external browser;
   - "Open" shows that page in the same cell, or in the external browser if you hold `Shift`;
-  - "Add" adds a GitLab CI Pipeline to the item's task. A row whose ref is `refs/merge-requests/<iid>/head` adds one with `branchSource` `mergeRequest` and that `iid`, named `group/project!42 CI`. Any other ref adds one with `branchSource` `fixed` and that ref as its `branch`, named `group/project <ref> CI`.
+  - "Add" adds a GitLab CI Pipeline to the item's task. A row whose ref is `refs/merge-requests/<iid>/head`, `/merge` or `/train` adds one with `branchSource` `mergeRequest` and that `iid`, named `group/project!42 CI`. Any other ref adds one with `branchSource` `fixed` and that ref as its `branch`, named `group/project <ref> CI`.
 - **Row menu:** "Web", "Open page", "Add to task as item" and "Copy link".
 - **The Web link** above the table opens `<baseUrl>/<project>/-/pipelines`, and it hides without a project.
 - **Messages:** as for the merge request list, with the line "No pipelines".
