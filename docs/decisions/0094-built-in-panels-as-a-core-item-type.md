@@ -1,6 +1,6 @@
 # 0094. Built-in panels are one core item type, and see only their own task and group
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-10-30
 
 ## Context

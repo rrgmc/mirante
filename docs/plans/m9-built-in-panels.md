@@ -4,7 +4,7 @@ This plan builds [milestone M9](../roadmap.md#m9-built-in-panels). After M9, a t
 
 ## Decisions
 
-Proposed, to be accepted before the work starts:
+All accepted:
 
 - [Decision 0094](../decisions/0094-built-in-panels-as-a-core-item-type.md): `dash.panel` is one core item type, registered as the built-in module `dash`, with a choice of panel. A panel sees only its own task and the task's group. The app profile loads only `dash:` addresses.
 - [Decision 0095](../decisions/0095-the-bridge-gives-texts-and-colours.md): the bridge gives panels their translated texts, formatted values and the app's colours. It gains `openTask()`, `texts()` and `palette()`.
