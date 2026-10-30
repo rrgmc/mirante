@@ -160,6 +160,10 @@ The settings window holds settings of this device. They are kept in the [device 
 - **Window:**
   - "Global hotkey", the [keys](#keyboard) that show or hide Mirante from any application. "Clear" turns it off. Below it, a message says if the keys could not be registered.
   - "Closing the window keeps Mirante running in the tray", on by default. See [tray and notifications](#tray-and-notifications). Without a tray it is off and disabled.
+- **Terminal:**
+  - "Terminal command", the command that opens a terminal, with `{dir}` for the folder and `{command}` for the program to run. Empty, the default, uses the system's terminal; the grey placeholder says so and shows an example. See [terminal launch](integrations.md#terminal-launch).
+  - "Device name", shown on items that only work on one device, such as a local Claude session. Empty, it is the computer's host name, which the placeholder shows.
+- **Modules:** a group for each module that declares device settings, titled with the module's name, with one field per setting, such as the `folder` module's editor. Each field shows the stored value, else the module's default. Only a value the user changes is stored; emptying a text field removes it, so the default applies again. Without such modules, as in a build without modules, the section is left out. See [decision 0079](decisions/0079-module-device-settings.md).
 
 ## Window
 
@@ -382,7 +386,7 @@ Some reasons are events, such as an approval or a new Jira status. They stop cou
 
 ## Quick add
 
-Quick add creates a task from a link. Open it with a toolbar button or `Ctrl+Shift+N`, then paste a link. What it recognises depends on the [modules](modules.md#quick-add) in the build. With the `gitlab` and `jira` modules:
+Quick add creates a task from a link. Open it with the "Quick Add" button in the sidebar header or `Ctrl+Shift+N`, then paste a link. What it recognises depends on the [modules](modules.md#quick-add) in the build. With the `gitlab` and `jira` modules:
 
 - **A Jira key or issue URL:**
   - The task is named after the issue summary.
@@ -394,6 +398,19 @@ Quick add creates a task from a link. Open it with a toolbar button or `Ctrl+Shi
   - A Jira key found in the title or branch adds the issue too.
 
 The project is chosen by matching the merge request's GitLab project or the issue's Jira project key against the projects' module settings. If no project matches, or several do, the app asks.
+
+The dialog, from top to bottom (see [decision 0078](decisions/0078-quick-add-dialog.md)):
+
+- **Text.** When the dialog opens with one line of text on the clipboard, that text is filled in and read at once. Otherwise the app reads the text when it is pasted or when the user presses Return. Typing alone does not start a reading.
+- **Profile.** The modules read the text with the servers of this profile. It starts as the profile of the group of the entry selected in the sidebar, else the workspace's default. Choosing another profile reads the text again. The new items still use their group's profile.
+- **Status.** "Reading…" while the modules read the text, "Mirante does not recognise this text." when no module takes it, and "Looking for related items…" while related items are searched.
+- **Read as.** Shown only when several modules take the text. It lists them by module name, and choosing one shows its reading.
+- **Title.** The proposed task title, which the user can change.
+- **Project.** Chosen when exactly one project matches. Otherwise it is empty, and the user must choose one. A line below says "No project matches acme/backend" or "Several projects match". Projects in the trash are not offered.
+- **Items.** Each item has a check box, its type's icon and its name. Related items join the list, checked, under "Related", as the modules find them. Choosing another project searches for related items again.
+- **Create** makes an active task of Normal priority in the project, with the checked items in order. Its dashboard has one cell: a single item fills it, and several items are tabs of it, the first one current. The task opens in the preview slot. **Cancel** stops the readings and searches still running.
+
+Without any project, the dialog says "Create a project first." and has no Create button. A module that does not answer in 30 seconds counts as not taking the text. Quick add is in the File menu as "Quick Add…", and the sidebar header has a "Quick Add" button.
 
 ## Keyboard
 
