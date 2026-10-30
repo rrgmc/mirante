@@ -191,7 +191,9 @@ The summaries have fixed layouts, as in [decision 0066](decisions/0066-fixed-nat
 
 ## Jira
 
-Module `jira`. Jira types talk to the Jira site of the item's profile, set in its Jira General Configuration: a base URL, without a default, the deployment, the email for Jira Cloud, and a token. See [integrations](integrations.md#jira).
+Module `jira`. Jira types talk to the Jira site of the item's profile, set in its Jira General Configuration: a base URL, without a default, the deployment, the email for Jira Cloud, a token, and any extra fields. See [integrations](integrations.md#jira).
+
+**Extra fields** are field names, one per line, such as "Team" and "Fix version". Summaries and lists show them, found by name, ignoring case and a final "s". A name the site does not have is left out quietly. Values are plain text: an object reads as its name, and a list is joined with commas. See [decision 0073](decisions/0073-jira-extra-fields.md).
 
 A project can set its Jira project key in the project dialog's Jira section, stored as `jira.projectKey`. The list presets of the project use it.
 
@@ -201,14 +203,14 @@ A project can set its Jira project key in the project dialog's Jira section, sto
 
 - **Configuration:** `key`, the issue key, such as `PROJ-123`, required. Pasting an issue URL fills it. `showDetails`, `showDescription`, `showComments` and `showLinks` each show a section, and are on by default and when absent.
 - **Shows:** at the top, always, the key and summary, pills for the status and the type, and the actions. They scroll with the rest. Then these sections, in this order:
-  - Details: priority, assignee, reporter and sprint;
+  - Details: priority, assignee, reporter, sprint and the extra fields;
   - Description: rendered from the HTML in `renderedFields`;
   - Comments: the latest five, newest first;
-  - Sub-tasks and links: each with its key, which opens the issue in the external browser, its relation, summary and status.
+  - Sub-tasks and links: each with its key, which opens the issue in the external browser, its relation, summary and status. Then the issues whose parent is this one, such as the issues of an epic, with their status pills: up to 50, with a line saying how many more there are. A sub-task is not listed twice.
 - **Rendered HTML.** It loads nothing, neither images nor style sheets, so a description cannot call out. A link opens only in the external browser, resolved against the base URL, and only for `http` and `https`. All other text from the server is plain text.
-- **Actions:** Change status, a menu of the transitions Jira allows now, asked for each time it opens; Comment; Open page, or the external browser with `Shift`; and the Web link, `<baseUrl>/browse/<key>`. After a success the status is fetched again. A failure shows its message under the buttons.
+- **Actions:** Open page, or the external browser with `Shift`; and the Web link, `<baseUrl>/browse/<key>`. The view only reads. See [decision 0070](decisions/0070-read-mostly-native-views.md).
 - **Without data,** the view shows "Loading…" or the status's message. With old data and an error, it keeps the data, and the cell header shows the error.
-- **Status:** from M5. One request for the issue with all its fields, and the names of the fields, which tell which one is the sprint. The status line reads like "In Review · assigned to Ana". The item counts as closed when the status category is `done`.
+- **Status:** from M5. One request for the issue with all its fields, and the names of the fields, which tell which one is the sprint. A further search asks for its children, and if only that fails, the status stands without them. The status line reads like "In Review · assigned to Ana". The item counts as closed when the status category is `done`.
 - **Attention:** "Status changed to <name>", with the key `status:<status id>`, when the status changed since the user last viewed the item. It clears once seen, and the status an issue had when it was added does not count. See [decision 0061](decisions/0061-attention-from-status-of-any-rendering.md).
 
 ### Jira Issue (page)
@@ -228,16 +230,18 @@ A project can set its Jira project key in the project dialog's Jira section, sto
   - `myOpen`, "My open issues";
   - `currentSprint`, "Current sprint of this project", using the project's `jira.projectKey` setting;
   - `recentlyUpdated`, "Recently updated in this project".
+
+  `limit` sets how many rows it fetches, 100 by default, and `pageSize` how many the view shows at a time, 50 by default. Both use the default when absent or below 1, so older items need no change.
 - **Queries:**
   - `myOpen`: `assignee = currentUser() AND resolution = Unresolved ORDER BY updated DESC`;
   - `currentSprint`: `project = "<key>" AND sprint in openSprints() ORDER BY rank`;
   - `recentlyUpdated`: `project = "<key>" AND updated >= -7d ORDER BY updated DESC`.
 
   The key is quoted, so a value cannot change the query.
-- **Shows:** a sortable table with the columns Key, Summary, Status, Assignee and Updated, sorted on Updated, newest first. The status is a pill: green for the category `done`, amber for `indeterminate`, grey otherwise. The Web link above the table opens `<baseUrl>/issues/?jql=<query>` in the external browser.
-- **Row click:** shows the issue summary in a preview under a splitter, with the same sections and actions. The preview reads the issue itself. It reads it again after an action, and when the list has a new status. See [decision 0068](decisions/0068-views-read-what-the-user-asked-for.md).
-- **Row menu:** "Add to task as item", which adds a `jira.issue.summary` item for the issue; "Open page"; and "Copy link".
-- **Status:** the rows, up to 100, and their number, in one search. The status line reads like "12 issues", "1 issue", or "100+ issues" at the limit. A list raises no attention, and never counts as closed. See [decision 0067](decisions/0067-lists-report-status.md).
+- **Shows:** a sortable table with the columns Key, Summary, Status, Assignee, Updated, the extra fields and links, sorted on Updated, newest first. The extra fields hide first in a narrow cell. The status is a pill: green for the category `done`, amber for `indeterminate`, grey otherwise. Updated reads like `10-30 14:32`, or `2025-10-30` for another year, and sorts by the real date. The Web link above the table opens `<baseUrl>/issues/?jql=<query>` in the external browser. Previous and Next page through the fetched rows, and a drop-down filters them by status. See [decision 0071](decisions/0071-lists-link-out-without-a-preview.md).
+- **Row links:** "Web", the issue's page in the external browser; "Open", the page in the cell, or the external browser with `Shift`; and "Add", which adds a `jira.issue.summary` item for the issue to the task. The column never hides.
+- **Row menu:** the same, and "Copy link".
+- **Status:** the rows, up to `limit`, and their number, in one search. The status line reads like "12 issues", "1 issue", or "100+ issues" at the limit, which is the item's `limit`. A list raises no attention, and never counts as closed. See [decision 0067](decisions/0067-lists-report-status.md).
 - **Without a project key,** the two project presets send nothing, and the cell says "Set the Jira project key in the project's settings." An empty `jql` says "Set the JQL query in the item's settings."
 
 ## Claude
