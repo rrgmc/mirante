@@ -175,6 +175,7 @@ A worker thread is added only if a measured problem needs one.
 - `find_package(Qt6 6.8 REQUIRED COMPONENTS Widgets WebEngineWidgets WebChannel Network)`. `Qt6::Test` is used for tests.
 - qtkeychain and QHotkey come through `FetchContent`, built for Qt 6.
 - **Compilers:** MSVC 2022 64-bit on Windows, because Qt WebEngine does not support MinGW. Clang on macOS. GCC on Linux.
+- **Debug builds** link Qt WebEngine's debug libraries, which stop some real sites, such as claude.ai, on Chromium's internal checks. Check web pages with a release build. See [debug builds](web-views.md#debug-builds).
 - **Modules:** each module has an option `MIRANTE_MODULE_<ID>`, on by default. `MIRANTE_MODULES` sets the exact list. See [building](modules.md#building).
 - **Linux packages:** libsecret development files for qtkeychain, and X11 development files for QHotkey.
 - **Deployment:** `windeployqt` on Windows, an app bundle with `macdeployqt` on macOS. Linux builds are not packaged in the first version.
