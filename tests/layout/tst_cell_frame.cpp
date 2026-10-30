@@ -1,10 +1,17 @@
 // Tests CellFrame's status area: each kind of CellStatus shows its own
 // widget, the problem pill with a fix emits fixRequested, and the refresh
-// button shows when asked and emits refreshRequested.
+// button shows when asked and emits refreshRequested. Also tests the
+// drops of images from other apps that setImageDrop() turns on.
 #include "layout/CellFrame.h"
 
+#include <QApplication>
+#include <QDragEnterEvent>
+#include <QDragLeaveEvent>
+#include <QDragMoveEvent>
+#include <QDropEvent>
 #include <QHBoxLayout>
 #include <QLabel>
+#include <QMimeData>
 #include <QSignalSpy>
 #include <QTest>
 #include <QToolButton>
@@ -48,6 +55,36 @@ CellStatus status(CellStatus::Kind kind, const QString &text = {}, int count = 0
     return s;
 }
 
+// Sends a drag over target and drops it there, as a drag from another app
+// does. Returns the action of an accepted drop, or IgnoreAction for a drag
+// refused at any step.
+Qt::DropAction dragAndDrop(QWidget *target, const QMimeData *mime,
+                           Qt::DropActions actions = Qt::CopyAction | Qt::MoveAction)
+{
+    const QPoint pos = target->rect().center();
+    QDragEnterEvent enter(pos, actions, mime, Qt::LeftButton, Qt::NoModifier);
+    QApplication::sendEvent(target, &enter);
+    if (!enter.isAccepted())
+        return Qt::IgnoreAction;
+    QDragMoveEvent move(pos, actions, mime, Qt::LeftButton, Qt::NoModifier);
+    QApplication::sendEvent(target, &move);
+    if (!move.isAccepted()) {
+        QDragLeaveEvent leave;
+        QApplication::sendEvent(target, &leave);
+        return Qt::IgnoreAction;
+    }
+    QDropEvent drop(QPointF(pos), actions, mime, Qt::LeftButton, Qt::NoModifier);
+    QApplication::sendEvent(target, &drop);
+    return drop.isAccepted() ? drop.dropAction() : Qt::IgnoreAction;
+}
+
+QImage redImage()
+{
+    QImage image(8, 6, QImage::Format_RGB32);
+    image.fill(Qt::red);
+    return image;
+}
+
 } // namespace
 
 class TestCellFrame : public QObject
@@ -55,6 +92,51 @@ class TestCellFrame : public QObject
     Q_OBJECT
 
 private slots:
+    // A cell takes no drops of its own until setImageDrop().
+    void noImageDropByDefault()
+    {
+        auto frame = itemFrame();
+        QVERIFY(!frame->acceptDrops());
+        QMimeData mime;
+        mime.setImageData(redImage());
+        QCOMPARE(dragAndDrop(frame.get(), &mime), Qt::IgnoreAction);
+    }
+
+    // An image the reader reads is dropped as a copy, even when the source
+    // proposes a move, and reaches the callback once the drop is over.
+    void imageDrop()
+    {
+        auto frame = itemFrame();
+        QList<QImage> dropped;
+        frame->setImageDrop([](const QMimeData *data) { return qvariant_cast<QImage>(data->imageData()); },
+                            [&dropped](const QImage &image) { dropped << image; });
+        QVERIFY(frame->acceptDrops());
+        QMimeData mime;
+        mime.setImageData(redImage());
+        QCOMPARE(dragAndDrop(frame.get(), &mime), Qt::CopyAction);
+        QVERIFY(dropped.isEmpty());
+        QTRY_COMPARE(dropped.size(), 1);
+        QCOMPARE(dropped.front().size(), QSize(8, 6));
+    }
+
+    // A drag the reader finds no image in is refused, and so is one that
+    // cannot be copied.
+    void refusedDrops()
+    {
+        auto frame = itemFrame();
+        int dropped = 0;
+        frame->setImageDrop([](const QMimeData *data) { return qvariant_cast<QImage>(data->imageData()); },
+                            [&dropped](const QImage &) { ++dropped; });
+        QMimeData text;
+        text.setText(QStringLiteral("not an image"));
+        QCOMPARE(dragAndDrop(frame.get(), &text), Qt::IgnoreAction);
+        QMimeData image;
+        image.setImageData(redImage());
+        QCOMPARE(dragAndDrop(frame.get(), &image, Qt::MoveAction), Qt::IgnoreAction);
+        QCoreApplication::processEvents();
+        QCOMPARE(dropped, 0);
+    }
+
     void noStatusByDefault()
     {
         auto frame = itemFrame();

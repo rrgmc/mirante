@@ -129,6 +129,16 @@ QWidget *DashboardCellFactory::createCell(const std::optional<CellRef> &ref, boo
         QObject::connect(frame, &CellFrame::openAloneRequested, frame,
                          [openAlone, taskId, item = ref->item] { openAlone(taskId, item); });
     }
+    // An image dropped from another app replaces the image of an item whose
+    // type takes pasted images, as Ctrl+V does, even on a locked dashboard.
+    const ItemType *type = d->type(*item);
+    if (type && !type->pastedImageField().isEmpty() && d->services.readImageDrop && d->services.dropImage) {
+        const QString taskId = d->dashboard.isRoot() ? ref->task : d->dashboard.taskId;
+        frame->setImageDrop(d->services.readImageDrop,
+                            [drop = d->services.dropImage, taskId, item = ref->item](const QImage &image) {
+                                drop(taskId, item, image);
+                            });
+    }
     return frame;
 }
 

@@ -10,6 +10,10 @@
 #include <mirante/ItemType.h>
 
 #include <QApplication>
+#include <QDragEnterEvent>
+#include <QDragLeaveEvent>
+#include <QDragMoveEvent>
+#include <QDropEvent>
 #include <QEvent>
 #include <QHBoxLayout>
 #include <QKeySequence>
@@ -19,6 +23,7 @@
 #include <QPushButton>
 #include <QStackedWidget>
 #include <QStyle>
+#include <QTimer>
 #include <QToolButton>
 #include <QVBoxLayout>
 
@@ -125,6 +130,11 @@ struct CellFrame::Private
     QToolButton *problemButton = nullptr;   // a problem with a fix, such as "Token not set"
     QLabel *staleText = nullptr;
     QToolButton *refreshButton = nullptr;
+
+    // Images dropped from other apps; see setImageDrop().
+    ImageReader readImage;
+    std::function<void(const QImage &)> imageDropped;
+    QImage dragImage;       // the image being dragged over the cell, if any
 
     void showStatus();
 };
@@ -368,7 +378,9 @@ void CellFrame::setEditMode(bool on)
     else
         d->header->unsetCursor();
 
-    setStyleSheet(cellstyle::border(QStringLiteral("mirante--CellFrame"), palette(), on, d->focused));
+    // An image dragged over the cell shows the focus border, as its target.
+    setStyleSheet(cellstyle::border(QStringLiteral("mirante--CellFrame"), palette(), on,
+                                    d->focused || !d->dragImage.isNull()));
 }
 
 void CellFrame::setCellFocused(bool focused)
@@ -524,5 +536,62 @@ void CellFrame::setStatus(const CellStatus &status)
 CellStatus CellFrame::status() const { return d->status; }
 
 void CellFrame::setRefreshVisible(bool visible) { d->refreshButton->setVisible(visible); }
+
+void CellFrame::setImageDrop(ImageReader read, std::function<void(const QImage &image)> dropped)
+{
+    d->readImage = std::move(read);
+    d->imageDropped = std::move(dropped);
+    setAcceptDrops(d->readImage && d->imageDropped);
+}
+
+// Drags of cells and items in the layout editor do not get here: the view's
+// DropOverlay takes them from the cell first. Anything else that is not an
+// image goes on to the view, which refuses it.
+void CellFrame::dragEnterEvent(QDragEnterEvent *event)
+{
+    const QImage image = d->readImage && (event->possibleActions() & Qt::CopyAction)
+                             ? d->readImage(event->mimeData())
+                             : QImage();
+    if (image.isNull()) {
+        event->ignore();
+        return;
+    }
+    d->dragImage = image;
+    setEditMode(d->editMode);
+    // Copied, never moved: a file manager would otherwise delete the file.
+    event->setDropAction(Qt::CopyAction);
+    event->accept();
+}
+
+void CellFrame::dragMoveEvent(QDragMoveEvent *event)
+{
+    if (d->dragImage.isNull()) {
+        event->ignore();
+        return;
+    }
+    event->setDropAction(Qt::CopyAction);
+    event->accept();
+}
+
+void CellFrame::dragLeaveEvent(QDragLeaveEvent * /*event*/)
+{
+    d->dragImage = QImage();
+    setEditMode(d->editMode);
+}
+
+void CellFrame::dropEvent(QDropEvent *event)
+{
+    const QImage image = d->dragImage;
+    d->dragImage = QImage();
+    setEditMode(d->editMode);
+    if (image.isNull() || !d->imageDropped) {
+        event->ignore();
+        return;
+    }
+    event->setDropAction(Qt::CopyAction);
+    event->accept();
+    // A copy, since the dialog it opens can outlast the cell.
+    QTimer::singleShot(0, this, [dropped = d->imageDropped, image] { dropped(image); });
+}
 
 } // namespace mirante

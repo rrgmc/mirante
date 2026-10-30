@@ -1928,6 +1928,12 @@ MainWindow::MainWindow(Model &model, const ItemTypeRegistry &types, Store &store
     d->services.editItem = [this](const QString &taskId, const QString &itemId) {
         d->actions->editItem(taskId, itemId);
     };
+    // An image dropped from another app on an image item's cell replaces its
+    // image, as Ctrl+V does. See docs/decisions/0085-drop-images-from-other-apps.md.
+    d->services.readImageDrop = &ImagePaste::imageFromMime;
+    d->services.dropImage = [this](const QString &taskId, const QString &itemId, const QImage &image) {
+        dropImageOnItem(taskId, itemId, image);
+    };
     d->editor->setServices(&d->services);
     d->actions->setProfileManager(profiles);
 
@@ -1975,6 +1981,9 @@ MainWindow::MainWindow(Model &model, const ItemTypeRegistry &types, Store &store
     });
     connect(d->sidebar, &Sidebar::collapseRequested, this, [this] { d->showSidebar(false); });
     connect(d->sidebar, &Sidebar::titleDoubleClicked, this, [this] { d->promptRename(); });
+    // An image dropped from another app on a task or its Items row becomes a
+    // new item, as Paste Image… does.
+    connect(d->sidebar, &Sidebar::imageDropped, d->actions, &EntityActions::addImage);
     // The sidebar tints the row of what the hovered dashboard cell shows,
     // unless the settings window turned that off.
     connect(d->services.hover, &CellHoverTracker::hoveredChanged, d->sidebar, [this](const QString &id) {
@@ -2568,6 +2577,22 @@ void MainWindow::pasteImage(const QImage &image)
     result = itemId.isEmpty() ? d->imagePaste->paste(cropped, ref, path)
                               : d->imagePaste->pasteIntoItem(cropped, ref.taskId, itemId);
     showMessage(result);
+}
+
+void MainWindow::dropImageOnItem(const QString &taskId, const QString &itemId, const QImage &image)
+{
+    // As Ctrl+V on the item: a drop that cannot happen, such as in the
+    // read-only sample data, says why before any dialog opens.
+    ImagePaste::Result result = d->imagePaste->checkItem(taskId, itemId);
+    if (result == ImagePaste::Result::ReplacedImage) {
+        const QImage cropped = ImagePasteDialog::ask(image, this, d->exec);
+        if (cropped.isNull())
+            return;
+        result = d->imagePaste->pasteIntoItem(cropped, taskId, itemId);
+    }
+    const QString message = ImagePaste::message(result);
+    if (!message.isEmpty())
+        statusBar()->showMessage(message, 5000);
 }
 
 void MainWindow::showSettings()
