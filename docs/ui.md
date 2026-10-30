@@ -274,6 +274,8 @@ A preset only creates the first tree. The user can change it freely afterwards.
 
 Layouts are locked by default, to prevent accidental changes while working. The lock button at the far right of the tab bar row turns editing on for the current tab. Task dashboards shown inside a root dashboard have no lock of their own; they are edited on their own tab. Resizing splits works even when locked.
 
+`F2` locks or unlocks the current dashboard, as a click on its lock button does. For a root dashboard that is the lock at the end of the tab bar row. For a task dashboard preview it is the lock in its title bar. Focus and an item shown alone have no lock, so `F2` does nothing there. The lock buttons name the key in their tooltips. `F2` works while the sidebar's tree has the keyboard focus too.
+
 When editing is on:
 
 - **The cell context menu** offers, after "Maximise" and "Open Alone" for an item cell (see [a bigger view](#a-bigger-view-of-an-item)):
@@ -324,14 +326,14 @@ A root dashboard tab can be detached into its own operating system window. Nothi
 
 - "Detach into Window" in the context menu of a root dashboard tab takes the tab out of the tab bar and moves its dashboard into a new window. The dashboard is moved, not made again, so its web pages keep their state. Only cells whose item type cannot move to another window are made again.
 - The window's title is the dashboard's name. A rename changes it.
-- A small toolbar holds "Put Back" and the dashboard's own lock. The lock works as the lock of the main window does.
+- A small toolbar holds "Put Back" and the dashboard's own lock. The lock works as the lock of the main window does. `F2` in the window locks or unlocks its dashboard.
 - Closing the window, or "Put Back", puts the tab back at the end of the tabs and makes it current.
 - Opening a detached root dashboard from the sidebar, the quick switcher or the dashboard list brings its window to the front instead of opening a tab.
 - Deleting a root dashboard closes its window.
 - The window's position and size are stored on each device when it closes. A new window opens at the stored position and size, or at a default size.
 - The detached root dashboards are saved with the [open tabs](#opening-tasks). When the workspace opens again, they open again in their windows.
 - Opening another workspace closes the detached windows, after saving them. Closing the main window puts them back, after saving them, so they open detached next time.
-- The keyboard shortcuts of the main window, such as moving the focus between cells and maximising a cell, work in the main window only.
+- The keyboard shortcuts of the main window, such as moving the focus between cells and maximising a cell, work in the main window only. The lock key, `F2`, is the exception: each window has its own.
 - The maximise button and the cell menu entries "Maximise" and "Restore" work in a detached window too. The cell is maximised over the window's dashboard, below its toolbar, and stays in that window. Changing the main window's tab leaves it maximised. "Open Alone" opens the item in the main window's preview slot and brings the main window to the front.
 
 If the same item is shown in two places, each place has its own live view. See [decision 0003](decisions/0003-view-per-placement.md).
@@ -406,6 +408,7 @@ The project is chosen by matching the merge request's GitLab project or the issu
 | `F11` (macOS: `Ctrl+Cmd+F`) | Full screen on or off, as in web browsers. The platform's standard key, `QKeySequence::FullScreen`. |
 | `Cmd+,` (macOS) | Open the [settings window](#settings). Windows and Linux use Tools > Settings…. |
 | `Ctrl+Shift+M` | Maximise the focused cell, or restore the maximised one. See [a bigger view](#a-bigger-view-of-an-item). |
+| `F2` | Lock or unlock the current dashboard, as its lock button does. In a detached window, that window's dashboard. Nothing on Focus or an item shown alone. See [editing layouts](#editing-layouts). |
 | `Ctrl+W` | Close the preview or the current tab. Focus cannot be closed. |
 | `Ctrl+V` | With an image on the clipboard: replace the image of the Image item in the focused cell or the current item preview, after the [paste dialog](#pasting-images). It never adds an item to a dashboard; a new image item comes from "Paste Image…" in a task's Items menu. See [image](item-types.md#image). A text field keeps its own paste. |
 | Global hotkey (configurable) | Bring Mirante to the front |

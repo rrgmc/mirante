@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QKeySequence>
 #include <QObject>
 
 #include <memory>
@@ -8,9 +9,15 @@ namespace mirante {
 
 class MainWindow;
 
+// The key that locks or unlocks the current dashboard, as its lock button
+// does: F2. It works in the main window and in detached windows, and the lock
+// buttons name it in their tooltips.
+QKeySequence lockShortcut();
+
 // The window shortcuts of docs/ui.md#keyboard that M2 covers: focus movement
-// between cells, tab switching, maximise and close. It also tracks the focused
-// cell through QApplication::focusChanged. Implemented in Shortcuts.cpp.
+// between cells, tab switching, maximise and close, and also the lock key. It
+// tracks the focused cell through QApplication::focusChanged. Implemented in
+// Shortcuts.cpp.
 class Shortcuts : public QObject
 {
     Q_OBJECT
