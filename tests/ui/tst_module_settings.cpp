@@ -220,10 +220,13 @@ private slots:
         QMenu *standard = top[2]->menu();
         QVERIFY(standard);
         QCOMPARE(standard->title(), QStringLiteral("Default (default)"));
-        QCOMPARE(standard->actions().size(), 2);
+        QCOMPARE(standard->actions().size(), 4);
         // Set as Default follows Modules, disabled for the default itself.
         QCOMPARE(standard->actions().at(1)->text(), QStringLiteral("Set as &Default"));
         QVERIFY(!standard->actions().at(1)->isEnabled());
+        // Settings… comes last, after a separator.
+        QVERIFY(standard->actions().at(2)->isSeparator());
+        QCOMPARE(standard->actions().at(3)->text(), QStringLiteral("&Settings…"));
         QMenu *modules = standard->actions().front()->menu();
         QVERIFY(modules);
         QCOMPARE(modules->title(), QStringLiteral("&Modules"));
