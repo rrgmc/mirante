@@ -18,6 +18,7 @@
 #include <QJsonObject>
 #include <QLabel>
 #include <QLineEdit>
+#include <QMenu>
 #include <QPushButton>
 #include <QTableWidget>
 #include <QVBoxLayout>
@@ -67,15 +68,34 @@ struct ProjectDialog::Private
     QPushButton *removeFolder = nullptr;
     QLabel *message = nullptr;      // why OK was refused
 
-    // The project settings of one module.
+    // The project settings of one module. A section not shown leaves the
+    // module's stored settings as they are.
     struct Section
     {
         QString moduleId;
         QString moduleName;
         std::vector<Field> fields;
+        QGroupBox *box = nullptr;
         FieldForm *form = nullptr;
+        bool shown = false;
     };
     std::vector<Section> sections;
+    QPushButton *addSettings = nullptr;     // its menu lists the sections not shown
+
+    // "Add settings": shows the section, and takes its entry out of the menu.
+    void showSection(const QString &moduleId, QAction *entry)
+    {
+        for (Section &section : sections) {
+            if (section.moduleId == moduleId) {
+                section.shown = true;
+                section.box->show();
+            }
+        }
+        QMenu *menu = addSettings->menu();
+        menu->removeAction(entry);
+        entry->deleteLater();
+        addSettings->setVisible(!menu->isEmpty());
+    }
 
     // Exactly one folder is main when there are any: the first main one, or
     // else the first folder.
@@ -288,9 +308,12 @@ ProjectDialog::ProjectDialog(const Project &project, const Model &model, const D
     form->addRow(tr("Priority:"), d->priority);
     form->addRow(tr("Folders:"), folderBox);
 
-    // A section for each module with project settings, after the folders.
-    // The settings of modules not in the build stay in d->project.
+    // A section for each module with project settings, after the folders. It
+    // shows only if the project has values for the module; "Add settings"
+    // shows the others. The settings of modules not in the build stay in
+    // d->project.
     auto *sections = new QVBoxLayout;
+    auto *addMenu = new QMenu(this);
     for (const QString &moduleId : types.projectSettingModules()) {
         Private::Section section;
         section.moduleId = moduleId;
@@ -304,8 +327,23 @@ ProjectDialog::ProjectDialog(const Project &project, const Model &model, const D
         auto *boxLayout = new QVBoxLayout(box);
         boxLayout->addWidget(section.form);
         sections->addWidget(box);
+        section.box = box;
+        section.shown = !project.moduleSettings.value(moduleId).toObject().isEmpty();
+        box->setVisible(section.shown);
+        if (!section.shown) {
+            QAction *entry = addMenu->addAction(section.moduleName);
+            connect(entry, &QAction::triggered, this, [this, moduleId, entry] { d->showSection(moduleId, entry); });
+        }
         d->sections.push_back(section);
     }
+
+    d->addSettings = new QPushButton(tr("Add settings"), this);
+    d->addSettings->setObjectName(QStringLiteral("addSettings"));
+    d->addSettings->setMenu(addMenu);
+    d->addSettings->setVisible(!addMenu->isEmpty());
+    auto *addSettingsRow = new QHBoxLayout;
+    addSettingsRow->addWidget(d->addSettings);
+    addSettingsRow->addStretch(1);
 
     auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
     connect(buttons, &QDialogButtonBox::accepted, this, &ProjectDialog::accept);
@@ -317,6 +355,7 @@ ProjectDialog::ProjectDialog(const Project &project, const Model &model, const D
     auto *layout = new QVBoxLayout(this);
     layout->addLayout(form, 1);
     layout->addLayout(sections);
+    layout->addLayout(addSettingsRow);
     layout->addWidget(d->message);
     layout->addWidget(buttons);
 
@@ -342,6 +381,8 @@ Project ProjectDialog::value() const
     for (const Private::Row &row : d->rows)
         project.folders.push_back(row.folder);
     for (const Private::Section &section : d->sections) {
+        if (!section.shown)
+            continue;
         // The form keeps the keys it does not show. Of those it shows, an
         // empty value removes its key, and an empty module object goes.
         QJsonObject values = section.form->config();
@@ -388,6 +429,8 @@ void ProjectDialog::accept()
     if (problem.isEmpty()) {
         QStringList problems;
         for (const Private::Section &section : d->sections) {
+            if (!section.shown)
+                continue;
             for (const QString &message : section.form->problems())
                 problems << tr("%1: %2").arg(section.moduleName, message);
         }

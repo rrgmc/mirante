@@ -28,6 +28,7 @@ bool selectionShown(const QTabBar &bar);
 } // namespace tabbar
 
 // The tab bar of root dashboards. The + button asks for a new root dashboard.
+// Dragging a tab along the bar moves it; QTabBar::tabMoved() reports it.
 // A middle click on a tab asks to close it, and the context menu holds "New dashboard", "Close tab" and "All
 // dashboards…". A tab whose tab data is true is a root dashboard, so its menu
 // also holds "Rename dashboard…" and "Detach into Window". The preview and
