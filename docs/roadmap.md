@@ -80,6 +80,8 @@ See [the M5 plan](plans/m5-servers-and-status.md).
 
 ## M6: Native item types
 
+See [the M6 plan](plans/m6-native-item-types.md).
+
 - [ ] GitLab MR (summary), MR List, CI Pipeline, Issue (summary) and Issue List.
 - [ ] Jira Issue (summary) and Jira List.
 - [ ] Light actions: approve, retry, cancel, change Jira status, comment.
