@@ -477,6 +477,16 @@ struct MainWindow::Private
             delete takeTab(pages[std::size_t(index)]);
     }
 
+    // A tab was dragged to another place in the bar. pages follows it.
+    void moveTab(int from, int to)
+    {
+        if (from < 0 || from >= int(pages.size()) || to < 0 || to >= int(pages.size()))
+            return;
+        DashboardPage *page = pages[std::size_t(from)];
+        pages.erase(pages.begin() + from);
+        pages.insert(pages.begin() + to, page);
+    }
+
     // Makes a tab's page, the preview or Focus current. One page is current
     // across the root tab bar and the slots, so the other bar shows no
     // selection.
@@ -1871,6 +1881,9 @@ MainWindow::MainWindow(Model &model, const ItemTypeRegistry &types, Store &store
         if (index >= 0 && index < int(d->pages.size()))
             d->setCurrent(d->pages[std::size_t(index)]);
     });
+    // QTabBar reports a move before the change of index that comes with it, so
+    // the handler of currentChanged() above finds pages in step.
+    connect(d->tabBar, &QTabBar::tabMoved, this, [this](int from, int to) { d->moveTab(from, to); });
     connect(d->tabBar, &QTabBar::tabCloseRequested, this, [this](int index) { d->removeTab(index); });
     connect(d->tabBar, &RootTabBar::newDashboardRequested, this, &MainWindow::newRootDashboard);
     connect(d->tabBar, &RootTabBar::dashboardListRequested, this, &MainWindow::showDashboardList);

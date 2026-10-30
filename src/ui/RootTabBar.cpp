@@ -69,6 +69,7 @@ RootTabBar::RootTabBar(QWidget *parent)
     setExpanding(false);
     setUsesScrollButtons(true);
     setElideMode(Qt::ElideRight);
+    setMovable(true);
 }
 
 RootTabBar::~RootTabBar() = default;
@@ -79,6 +80,12 @@ bool RootTabBar::selectionShown() const { return tabbar::selectionShown(*this); 
 
 void RootTabBar::paintEvent(QPaintEvent *event)
 {
+    // Only QTabBar's own painting draws a tab being dragged. A drag starts with
+    // a press, which makes the tab current, so the selection is shown by then.
+    if (selectionShown()) {
+        QTabBar::paintEvent(event);
+        return;
+    }
     tabbar::paintTabs(
         *this, event->rect(), [this](QStyleOptionTab *option, int index) { initStyleOption(option, index); }, -1,
         selectionShown());

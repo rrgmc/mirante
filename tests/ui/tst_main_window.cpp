@@ -1077,6 +1077,108 @@ private slots:
         QVERIFY(!f.window->renameWorkspace(QStringLiteral("Other")));
     }
 
+    // Dragging a root tab moves it, and its page goes with it. The order is
+    // saved with the open tabs and comes back. The slots stay as they are.
+    void reorderTabs()
+    {
+        QTemporaryDir root;
+        QVERIFY(root.isValid());
+        const QString folder = QDir(root.path()).absoluteFilePath(QStringLiteral("workspace"));
+        QVERIFY(copyFixtures(folder));
+
+        Fixture f;
+        f.window->openWorkspace(folder);
+        f.window->resize(1000, 600);
+        f.window->show();
+        QVERIFY(QTest::qWaitForWindowExposed(f.window.get()));
+        RootTabBar *bar = f.bar();
+        QVERIFY(bar->isMovable());
+        QVERIFY(!f.slotBar()->isMovable());
+        QCOMPARE(bar->count(), 2);
+        const QStringList before{f.tabText(0), f.tabText(1)};
+        const QStringList after{before[1], before[0]};
+        QMap<QString, LayoutView *> views;
+        for (int i = 0; i < bar->count(); ++i) {
+            emit bar->tabPressed(i);
+            views[f.tabText(i)] = f.window->currentLayoutView();
+        }
+        const auto pagesInStep = [&] {
+            for (int i = 0; i < bar->count(); ++i) {
+                emit bar->tabPressed(i);
+                if (f.window->currentLayoutView() != views.value(f.tabText(i)))
+                    return false;
+            }
+            return true;
+        };
+
+        // A drag along the bar. Each mouse event goes to the bar with the
+        // button held, as a real drag does.
+        const auto moveTo = [bar](const QPoint &at) {
+            QMouseEvent move(QEvent::MouseMove, QPointF(at), bar->mapToGlobal(QPointF(at)), Qt::NoButton,
+                             Qt::LeftButton, Qt::NoModifier);
+            QApplication::sendEvent(bar, &move);
+        };
+        QPoint at = bar->tabRect(0).center();
+        const int end = bar->tabRect(1).right();
+        QTest::mousePress(bar, Qt::LeftButton, {}, at);
+        LayoutView *dragged = f.window->currentLayoutView();
+        QCOMPARE(dragged, views.value(before[0]));
+        while (at.x() < end) {
+            at.rx() += 8;
+            moveTo(at);
+        }
+        // Painting the bar places the image of the dragged tab under the mouse.
+        // That image is QTabBar's only plain QWidget child.
+        QVERIFY(!bar->grab().isNull());
+        QWidget *image = nullptr;
+        for (QWidget *child : bar->findChildren<QWidget *>(Qt::FindDirectChildrenOnly)) {
+            if (child->isVisible() && QLatin1String(child->metaObject()->className()) == QLatin1String("QWidget"))
+                image = child;
+        }
+        QVERIFY(image);
+        QVERIFY(image->geometry().left() > bar->tabRect(0).center().x());
+        QTest::mouseRelease(bar, Qt::LeftButton, {}, at);
+        QCOMPARE(QStringList({f.tabText(0), f.tabText(1)}), after);
+        QCOMPARE(bar->currentIndex(), 1);
+        QCOMPARE(f.window->currentLayoutView(), dragged);
+        QVERIFY(pagesInStep());
+
+        // A drag that leaves the bar only moves the tab, as far as it gets.
+        at = bar->tabRect(0).center();
+        QTest::mousePress(bar, Qt::LeftButton, {}, at);
+        moveTo(at + QPoint(0, 200));
+        QTest::mouseRelease(bar, Qt::LeftButton, {}, at + QPoint(0, 200));
+        QCOMPARE(bar->count(), 2);
+        QCOMPARE(QStringList({f.tabText(0), f.tabText(1)}), after);
+        QVERIFY(detachedWindows().empty());
+
+        // A move made while a slot is current leaves the slot current.
+        f.window->openFocus();
+        bar->moveTab(0, 1);
+        QCOMPARE(f.slotBar()->currentSlot(), int(SlotTabBar::FocusSlot));
+        QVERIFY(!bar->selectionShown());
+        QVERIFY(!bar->grab().isNull());
+        bar->moveTab(0, 1);
+        QVERIFY(pagesInStep());
+
+        // The order is kept with the open tabs, and comes back.
+        f.window->saveOpenTabs();
+        QCOMPARE(int(f.settings.openTabs(folder).ids.size()), 2);
+        QCOMPARE(f.model.rootDashboard(f.settings.openTabs(folder).ids[0])->name, after[0]);
+        f.window->openSampleData();
+        f.window->openWorkspace(folder);
+        QCOMPARE(QStringList({f.tabText(0), f.tabText(1)}), after);
+
+        // Detaching takes the tab that was clicked, in the new order.
+        const QString firstId = f.settings.openTabs(folder).ids[0];
+        emit bar->detachRequested(0);
+        QCOMPARE(bar->count(), 1);
+        QCOMPARE(f.tabText(0), before[0]);
+        const auto windows = detachedWindows();
+        QCOMPARE(windows.size(), 1);
+        QCOMPARE(windows.front()->dashboardId(), firstId);
+    }
+
     // Moving a workspace opens it in its new folder, keeps its open tabs and
     // its place in the recent list, and keeps writing there. Logins are kept
     // by profile id, so nothing about them changes.

@@ -218,6 +218,8 @@ private slots:
     void tabChangeReportsAtOnce();
     void addTabButtonInEditMode();
     void tabBarDragsInEditMode();
+    void tabsMoveInEditMode();
+    void movedTabKeepsPathsInStep();
     void cellSignalsCarryPath();
     void editModeReachesFrames();
     void detachAndReattach();
@@ -410,8 +412,8 @@ void TestLayoutView::splitterMoveReportsAfterDelay()
     QCOMPARE(edited.count(), 1);
 }
 
-// In edit mode, dragging a tab drags that tab's content, and dragging the empty
-// part of the tab bar drags the whole tab group.
+// In edit mode, dragging a tab out of its bar drags that tab's content, and
+// dragging the empty part of the tab bar drags the whole tab group.
 void TestLayoutView::tabBarDragsInEditMode()
 {
     FakeFactory factory;
@@ -424,26 +426,31 @@ void TestLayoutView::tabBarDragsInEditMode()
     QVERIFY(tabWidget);
     QTabBar *bar = tabWidget->tabBar();
     QSignalSpy started(&view, &LayoutView::cellDragStarted);
-    const auto drag = [bar](const QPoint &from) {
+    const auto drag = [bar](const QPoint &from, const QPoint &by) {
         QTest::mousePress(bar, Qt::LeftButton, {}, from);
-        QMouseEvent move(QEvent::MouseMove, QPointF(from + QPoint(40, 0)), bar->mapToGlobal(QPointF(from + QPoint(40, 0))),
-                         Qt::NoButton, Qt::LeftButton, Qt::NoModifier);
+        QMouseEvent move(QEvent::MouseMove, QPointF(from + by), bar->mapToGlobal(QPointF(from + by)), Qt::NoButton,
+                         Qt::LeftButton, Qt::NoModifier);
         QApplication::sendEvent(bar, &move);
-        QTest::mouseRelease(bar, Qt::LeftButton, {}, from + QPoint(40, 0));
+        QTest::mouseRelease(bar, Qt::LeftButton, {}, from + by);
     };
+    const QPoint out(0, bar->height());
+    const QPoint along(40, 0);
     const QPoint onTab = bar->tabRect(1).center();
     const QPoint empty(bar->tabRect(bar->count() - 1).right() + 30, bar->height() / 2);
 
     // Locked: no drag.
-    drag(onTab);
+    drag(onTab, out);
     QCOMPARE(started.count(), 0);
 
     view.setEditMode(true);
-    drag(onTab);
+    // Within the bar a tab does not start a drag.
+    drag(onTab, QPoint(4, 0));
+    QCOMPARE(started.count(), 0);
+    drag(onTab, out);
     QCOMPARE(started.count(), 1);
     QCOMPARE(started.at(0).at(0).value<NodePath>(), (NodePath{1, 1, 1}));
     QVERIFY(bar->width() > empty.x());
-    drag(empty);
+    drag(empty, along);
     QCOMPARE(started.count(), 2);
     QCOMPARE(started.at(1).at(0).value<NodePath>(), (NodePath{1, 1}));
     QCOMPARE(view.widgetAt({1, 1}), static_cast<QWidget *>(tabWidget));
@@ -459,6 +466,118 @@ void TestLayoutView::tabBarDragsInEditMode()
     view.setEditMode(false);
     hover(onTab);
     QCOMPARE(bar->cursor().shape(), Qt::ArrowCursor);
+}
+
+// In edit mode, a tab dragged along its bar moves in the tree. Its cell is not
+// made again, and a drag out of the bar then names its new place. Locked, the
+// tabs stay.
+void TestLayoutView::tabsMoveInEditMode()
+{
+    FakeFactory factory;
+    LayoutView view(&factory);
+    view.resize(800, 600);
+    view.setTree(sampleTree());
+    view.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&view));
+    QWidget *c = view.cellAt({1, 1, 0});
+    QWidget *d = view.cellAt({1, 1, 1});
+    auto *tabWidget = qobject_cast<QTabWidget *>(c->parentWidget()->parentWidget());
+    QVERIFY(tabWidget);
+    QTabBar *bar = tabWidget->tabBar();
+    const auto dragAlong = [bar] {
+        const QPoint from = bar->tabRect(0).center();
+        const int end = bar->tabRect(bar->count() - 1).right();
+        QTest::mousePress(bar, Qt::LeftButton, {}, from);
+        QPoint at = from;
+        while (at.x() < end) {
+            at.rx() += 8;
+            QMouseEvent move(QEvent::MouseMove, QPointF(at), bar->mapToGlobal(QPointF(at)), Qt::NoButton,
+                             Qt::LeftButton, Qt::NoModifier);
+            QApplication::sendEvent(bar, &move);
+        }
+        QTest::mouseRelease(bar, Qt::LeftButton, {}, at);
+    };
+
+    // Locked: the tabs stay.
+    QVERIFY(!bar->isMovable());
+    dragAlong();
+    QCOMPARE(view.cellAt({1, 1, 0}), c);
+
+    view.setEditMode(true);
+    QVERIFY(bar->isMovable());
+    const int created = factory.created;
+    QSignalSpy edited(&view, &LayoutView::treeEdited);
+    QSignalSpy started(&view, &LayoutView::cellDragStarted);
+    dragAlong();
+    QCOMPARE(started.count(), 0);
+    QVERIFY(edited.count() > 0);
+    const auto tree = edited.last().at(0).value<LayoutNode>();
+    QCOMPARE(layout::nodeAt(tree, {1, 1, 0})->ref->item, QStringLiteral("d"));
+    QCOMPARE(layout::nodeAt(tree, {1, 1, 1})->ref->item, QStringLiteral("c"));
+    QCOMPARE(layout::nodeAt(tree, {1, 1})->current, bar->currentIndex());
+    QCOMPARE(view.cellAt({1, 1, 0}), d);
+    QCOMPARE(view.cellAt({1, 1, 1}), c);
+    QCOMPARE(view.pathOf(c), std::optional<NodePath>(NodePath{1, 1, 1}));
+    QCOMPARE(tabWidget->indexOf(c), 1);
+    QCOMPARE(tabWidget->currentWidget(), c);
+    QCOMPARE(view.visibleCells().back(), c);
+    QCOMPARE(factory.created, created);
+
+    // The tree coming back from the model changes nothing.
+    view.setTree(tree);
+    QCOMPARE(view.widgetAt({1, 1}), static_cast<QWidget *>(tabWidget));
+    QCOMPARE(view.cellAt({1, 1, 1}), c);
+    QCOMPARE(tabWidget->indexOf(c), 1);
+
+    // A drag out of the bar names the new place, and leaves no bar drag behind.
+    const QPoint from = bar->tabRect(1).center();
+    const QPoint to = from + QPoint(0, bar->height());
+    QTest::mousePress(bar, Qt::LeftButton, {}, from);
+    QMouseEvent move(QEvent::MouseMove, QPointF(to), bar->mapToGlobal(QPointF(to)), Qt::NoButton, Qt::LeftButton,
+                     Qt::NoModifier);
+    QApplication::sendEvent(bar, &move);
+    QCOMPARE(started.count(), 1);
+    QCOMPARE(started.at(0).at(0).value<NodePath>(), (NodePath{1, 1, 1}));
+    QTest::mouseRelease(bar, Qt::LeftButton, {}, to);
+    dragAlong();
+    QCOMPARE(view.cellAt({1, 1, 0}), c);
+}
+
+// A move changes the paths of what is inside the moved tabs too.
+void TestLayoutView::movedTabKeepsPathsInStep()
+{
+    FakeFactory factory;
+    LayoutView view(&factory);
+    view.resize(800, 600);
+    view.setTree(tabs({split(Qt::Vertical, {cell(QStringLiteral("a")), cell(QStringLiteral("b"))}),
+                       cell(QStringLiteral("c")), cell(QStringLiteral("d"))}));
+    view.setEditMode(true);
+    view.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&view));
+    auto *tabWidget = qobject_cast<QTabWidget *>(view.widgetAt({}));
+    QVERIFY(tabWidget);
+    QWidget *a = view.cellAt({0, 0});
+    QWidget *c = view.cellAt({1});
+    auto *inner = qobject_cast<QSplitter *>(view.widgetAt({0}));
+    QVERIFY(inner);
+
+    tabWidget->tabBar()->moveTab(0, 2);
+    QCOMPARE(view.cellAt({2, 0}), a);
+    QCOMPARE(view.cellAt({0}), c);
+    QCOMPARE(view.widgetAt({2}), static_cast<QWidget *>(inner));
+    QCOMPARE(view.tree().children.at(2).kind, LayoutNode::Kind::Split);
+    QCOMPARE(view.tree().current, 2);
+
+    // A size reported later reaches the split at its new place.
+    QSignalSpy edited(&view, &LayoutView::treeEdited);
+    tabWidget->setCurrentIndex(2);
+    const QList<int> before = inner->sizes();
+    const int total = before[0] + before[1];
+    inner->setSizes({total / 4, total - total / 4});
+    emit inner->splitterMoved(total / 4, 1);
+    QVERIFY(edited.wait(2000));
+    const auto tree = edited.last().at(0).value<LayoutNode>();
+    QVERIFY(qAbs(layout::nodeAt(tree, {2})->sizes[0] - 0.25) < 0.02);
 }
 
 // A tab group's + button shows only in edit mode, and reports the group's path.

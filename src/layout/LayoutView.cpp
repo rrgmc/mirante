@@ -28,10 +28,23 @@ namespace {
 
 constexpr int sizeDelayMs = 300;
 
+// Where the tab at index is after QTabBar moved the tab at from to to.
+int indexAfterMove(int index, int from, int to)
+{
+    if (index == from)
+        return to;
+    if (from < index && index <= to)
+        return index - 1;
+    if (to <= index && index < from)
+        return index + 1;
+    return index;
+}
+
 // Keeps a tab group's + button just after its last tab. In document mode the
 // tab bar spans the whole group, so the position comes from the last tab's
 // rectangle. The placer is a child of the bar, so it goes with it.
-// Starts drags from a tab bar in edit mode: a tab drags its content, and the
+// Starts drags from a tab bar in edit mode: a tab drags its content once the
+// mouse leaves the bar, and until then QTabBar moves it along the bar. The
 // empty part of the bar drags the whole tab group. onDrag gets the tab index,
 // or -1 for the empty part. It is a child of the bar, so it goes with it.
 class TabBarDragWatcher : public QObject
@@ -46,6 +59,7 @@ public:
         // Hovering shows the open hand where a drag can start.
         bar->setMouseTracking(true);
         bar->installEventFilter(this);
+        connect(bar, &QTabBar::tabMoved, this, [this](int from, int to) { m_tab = indexAfterMove(m_tab, from, to); });
     }
 
 protected:
@@ -66,8 +80,14 @@ protected:
                 m_bar->unsetCursor();
         } else if (event->type() == QEvent::MouseMove && m_pressed) {
             const auto *mouse = static_cast<QMouseEvent *>(event);
-            if ((mouse->position().toPoint() - m_pressPos).manhattanLength() >= QApplication::startDragDistance()) {
+            const QPoint pos = mouse->position().toPoint();
+            if ((m_tab < 0 || !m_bar->rect().contains(pos))
+                && (pos - m_pressPos).manhattanLength() >= QApplication::startDragDistance()) {
                 m_pressed = false;
+                // The drag takes the real release, so the bar's own drag ends here.
+                QMouseEvent release(QEvent::MouseButtonRelease, mouse->position(), mouse->globalPosition(),
+                                    Qt::LeftButton, Qt::NoButton, mouse->modifiers());
+                QApplication::sendEvent(m_bar, &release);
                 m_onDrag(m_tab);
                 return true;
             }
@@ -194,6 +214,7 @@ struct LayoutView::Private
     void reportSizes();
     void replace(const NodePath &path, QWidget *current, QWidget *replacement);
     void blockContainerSignals();
+    void onTabMoved(QTabWidget *tabWidget, int from, int to);
 };
 
 void LayoutView::Private::blockContainerSignals()
@@ -331,6 +352,11 @@ QWidget *LayoutView::Private::build(const LayoutNode &node, NodePath &path, std:
             emit q->treeEdited(tree);
         });
         QTabBar *bar = tabWidget->tabBar();
+        // Unlocked, a tab moves along its bar. Its page moves with it, so no
+        // cell is made again.
+        bar->setMovable(editMode);
+        QObject::connect(bar, &QTabBar::tabMoved, q,
+                         [this, tabWidget](int from, int to) { onTabMoved(tabWidget, from, to); });
         bar->setContextMenuPolicy(Qt::CustomContextMenu);
         QObject::connect(bar, &QWidget::customContextMenuRequested, q, [this, tabWidget, bar](const QPoint &pos) {
             const auto found = tabs.find(tabWidget);
@@ -491,6 +517,35 @@ void LayoutView::Private::reportSizes()
     emit q->treeEdited(tree);
 }
 
+// A tab bar has moved a tab and its page. The tree and every path through that
+// tab group follow, so the widgets stay as they are.
+void LayoutView::Private::onTabMoved(QTabWidget *tabWidget, int from, int to)
+{
+    const auto found = tabs.find(tabWidget);
+    if (found == tabs.end())
+        return;
+    const NodePath tabsPath = found->second;
+    const auto pathAfterMove = [&](NodePath path) {
+        if (path.size() > tabsPath.size() && std::equal(tabsPath.begin(), tabsPath.end(), path.begin()))
+            path[tabsPath.size()] = indexAfterMove(path[tabsPath.size()], from, to);
+        return path;
+    };
+    const auto widgetsAfterMove = [&](const std::map<NodePath, QWidget *> &widgets) {
+        std::map<NodePath, QWidget *> result;
+        for (const auto &[path, widget] : widgets)
+            result[pathAfterMove(path)] = widget;
+        return result;
+    };
+    cells = widgetsAfterMove(cells);
+    containers = widgetsAfterMove(containers);
+    for (auto &[widget, path] : tabs)
+        path = pathAfterMove(path);
+    for (auto &[splitter, info] : splits)
+        info.path = pathAfterMove(info.path);
+    tree = layout::moveTab(tree, tabsPath, from, to);
+    emit q->treeEdited(tree);
+}
+
 // Puts replacement where current is, in the container of the node at path.
 void LayoutView::Private::replace(const NodePath &path, QWidget *current, QWidget *replacement)
 {
@@ -584,6 +639,7 @@ void LayoutView::setEditMode(bool on)
 {
     d->editMode = on;
     for (const auto &[tabWidget, path] : d->tabs) {
+        tabWidget->tabBar()->setMovable(on);
         if (auto *add = tabWidget->findChild<QToolButton *>(QStringLiteral("addTabButton")))
             add->setVisible(on);
     }
