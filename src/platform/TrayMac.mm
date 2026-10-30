@@ -139,14 +139,7 @@ void applyActivationPolicy(bool dockIconVisible)
         dockIconVisible ? NSApplicationActivationPolicyRegular : NSApplicationActivationPolicyAccessory;
     if (NSApp.activationPolicy == policy)
         return;
-    // Becoming a regular app again shows the bundle's icon file, not the icon
-    // Qt set at run time, so that icon is set again.
-    NSImage *icon = NSApp.applicationIconImage;
     [NSApp setActivationPolicy:policy];
-    if (dockIconVisible && icon) {
-        NSApp.applicationIconImage = nil;
-        NSApp.applicationIconImage = icon;
-    }
     // An app that was an accessory does not come to the front by itself.
     if (dockIconVisible) {
         if (@available(macOS 14, *))
