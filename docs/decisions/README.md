@@ -68,6 +68,7 @@ Each file records one design decision: what was decided, what else was considere
 | [0061](0061-attention-from-status-of-any-rendering.md) | Status comes from the item's object, and some attention clears when seen | Accepted |
 | [0062](0062-logins-follow-a-new-workspace-id.md) | Logins follow a workspace id that another device changed | Accepted; tokens by 0063 |
 | [0063](0063-tokens-follow-a-new-workspace-id.md) | Tokens follow a workspace id that another device changed | Accepted |
+| [0064](0064-keychain-entries-start-with-mirante.md) | Keychain entries start with "mirante/" | Accepted |
 
 ## Template
 

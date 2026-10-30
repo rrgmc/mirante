@@ -7,12 +7,21 @@
 // The operating system's keychain through qtkeychain: Credential Manager on
 // Windows, Keychain on macOS and Secret Service on Linux. Each call starts a
 // job that deletes itself when it finishes. See docs/sync.md#secrets.
+//
+// Each entry is named "mirante/<key>". Credential Manager on Windows ignores
+// the service and lists entries by key alone, so the prefix tells whose they
+// are (decision 0064).
 
 namespace mirante {
 
 namespace {
 
 const QString kService = QStringLiteral("mirante");
+
+QString entryName(const QString &key)
+{
+    return kService + QLatin1Char('/') + key;
+}
 
 class KeychainBackend : public SecretBackend
 {
@@ -21,7 +30,7 @@ public:
     {
         auto *job = new QKeychain::ReadPasswordJob(kService);
         job->setAutoDelete(true);
-        job->setKey(key);
+        job->setKey(entryName(key));
         QObject::connect(job, &QKeychain::Job::finished, job, [job, done = std::move(done)] {
             switch (job->error()) {
             case QKeychain::NoError:
@@ -42,7 +51,7 @@ public:
     {
         auto *job = new QKeychain::WritePasswordJob(kService);
         job->setAutoDelete(true);
-        job->setKey(key);
+        job->setKey(entryName(key));
         job->setTextData(value);
         QObject::connect(job, &QKeychain::Job::finished, job, [job, done = std::move(done)] {
             done(job->error() == QKeychain::NoError ? QString() : job->errorString());
@@ -54,7 +63,7 @@ public:
     {
         auto *job = new QKeychain::DeletePasswordJob(kService);
         job->setAutoDelete(true);
-        job->setKey(key);
+        job->setKey(entryName(key));
         QObject::connect(job, &QKeychain::Job::finished, job, [job, done = std::move(done)] {
             const bool ok = job->error() == QKeychain::NoError || job->error() == QKeychain::EntryNotFound;
             done(ok ? QString() : job->errorString());
