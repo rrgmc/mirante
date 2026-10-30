@@ -1,6 +1,7 @@
 #include <mirante/widgets/ActionRow.h>
 
 #include <mirante/widgets/FlowRow.h>
+#include <mirante/widgets/LinkStyle.h>
 #include <mirante/widgets/StatusPill.h>
 
 #include <QDesktopServices>
@@ -138,6 +139,7 @@ ActionRow::ActionRow(QWidget *parent)
 
     d->web = new QPushButton(tr("Web"), d->buttons);
     d->web->setObjectName(QStringLiteral("web"));
+    styleAsLink(d->web);
     d->webWidth = d->web->sizeHint().width();
     d->flow->addWidget(d->web);
     d->web->hide();
@@ -162,6 +164,17 @@ void ActionRow::addAction(const QString &id, const QString &label, const QString
         if (handler)
             handler();
     });
+}
+
+void ActionRow::addLinkAction(const QString &id, const QString &label, const QString &shortLabel,
+                              std::function<void()> handler)
+{
+    addAction(id, label, shortLabel, std::move(handler));
+    QPushButton *button = d->actions[id].button;
+    styleAsLink(button);
+    // The link is narrower than a button with the same label.
+    d->actions[id].fullWidth = button->sizeHint().width();
+    d->updateLabels();
 }
 
 void ActionRow::addMenuAction(const QString &id, const QString &label, const QString &shortLabel,
