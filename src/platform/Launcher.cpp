@@ -2,6 +2,7 @@
 
 #include "platform/Foreground.h"
 
+#include <QCoreApplication>
 #include <QDesktopServices>
 #include <QDir>
 #include <QFileInfo>
@@ -318,23 +319,24 @@ QString launchTerminal(const QString &commandTemplate, const QString &dir, const
         if (path.isEmpty())
             continue;
         if (!launch(command, path))
-            return QStringLiteral("The terminal %1 could not be started.").arg(command.program);
+            return QCoreApplication::translate("Launcher", "The terminal %1 could not be started.")
+                .arg(command.program);
         return {};
     }
     if (!QProcess::splitCommand(commandTemplate).isEmpty() && !commands.empty())
-        return QStringLiteral("The terminal %1 was not found.").arg(commands.front().program);
-    return QStringLiteral("No terminal was found.");
+        return QCoreApplication::translate("Launcher", "The terminal %1 was not found.").arg(commands.front().program);
+    return QCoreApplication::translate("Launcher", "No terminal was found.");
 }
 
 QString startProgram(const QString &dir, const QString &program, const QStringList &arguments)
 {
     const QString path = resolve(program);
     if (path.isEmpty())
-        return QStringLiteral("%1 was not found.").arg(program);
+        return QCoreApplication::translate("Launcher", "%1 was not found.").arg(program);
     const Command command = programCommand(currentPlatform(), dir, path, arguments);
     const QString commandPath = command.program == path ? path : resolve(command.program);
     if (commandPath.isEmpty() || !launch(command, commandPath))
-        return QStringLiteral("%1 could not be started.").arg(program);
+        return QCoreApplication::translate("Launcher", "%1 could not be started.").arg(program);
     return {};
 }
 

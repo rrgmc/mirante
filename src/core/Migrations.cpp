@@ -1,5 +1,6 @@
 #include "core/Migrations.h"
 
+#include <QCoreApplication>
 #include <QJsonValue>
 
 #include <cmath>
@@ -36,12 +37,12 @@ bool migrate(FileKind kind, QJsonObject &json, const std::vector<Step> &steps, Q
     const int current = int(steps.size()) + 1;
     const QJsonValue value = json.value(kSchemaVersion);
     if (value.isUndefined())
-        return fail(error, QStringLiteral("missing schemaVersion"));
+        return fail(error, QCoreApplication::translate("Migrations", "missing schemaVersion"));
     const double number = value.toDouble(-1);
     if (!value.isDouble() || number < 1 || number != std::floor(number))
-        return fail(error, QStringLiteral("invalid schemaVersion"));
+        return fail(error, QCoreApplication::translate("Migrations", "invalid schemaVersion"));
     if (number > current)
-        return fail(error, QStringLiteral("written by a newer version of Mirante"));
+        return fail(error, QCoreApplication::translate("Migrations", "written by a newer version of Mirante"));
 
     for (int version = int(number); version < current; ++version)
         steps[std::size_t(version - 1)](kind, json);

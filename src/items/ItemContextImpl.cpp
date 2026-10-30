@@ -29,8 +29,6 @@ namespace mirante {
 
 namespace {
 
-QString tr(const char *text) { return QCoreApplication::translate("ItemContext", text); }
-
 const Project *projectOfTask(const Model &model, const QString &taskId)
 {
     const Task *task = model.task(taskId);
@@ -95,11 +93,16 @@ QString itemPlaceholderText(const ItemType *type, const QString &itemName, const
 {
     if (const auto *unknown = dynamic_cast<const UnknownItemType *>(type)) {
         if (unknown->moduleInBuild())
-            return tr("This item type is no longer available: %1.").arg(unknown->id());
-        return tr("This item needs the %1 module, which this build does not include.").arg(unknown->moduleId());
+            return QCoreApplication::translate("ItemContext", "This item type is no longer available: %1.")
+                .arg(unknown->id());
+        return QCoreApplication::translate("ItemContext",
+                                           "This item needs the %1 module, which this build does not include.")
+            .arg(unknown->moduleId());
     }
-    return tr("Type: %1").arg(type ? type->name() : tr("unknown")) + QLatin1Char('\n') + tr("Name: %1").arg(itemName)
-         + QLatin1Char('\n') + tr("Id: %1").arg(itemId);
+    return QCoreApplication::translate("ItemContext", "Type: %1")
+               .arg(type ? type->name() : QCoreApplication::translate("ItemContext", "unknown"))
+        + QLatin1Char('\n') + QCoreApplication::translate("ItemContext", "Name: %1").arg(itemName) + QLatin1Char('\n')
+        + QCoreApplication::translate("ItemContext", "Id: %1").arg(itemId);
 }
 
 ItemContextImpl::ItemContextImpl(const PlacementServices &services, const QString &taskId, const QString &itemId)
@@ -172,7 +175,8 @@ QWidget *ItemContextImpl::createPage(const QUrl &url, QWidget *parent, QWidget *
     // Tests without a profile manager, or an item without a group, get a
     // message instead of a page.
     if (!webProfile)
-        return createMessageView(tr("Web pages are not available here."), parent);
+        return createMessageView(QCoreApplication::translate("ItemContext", "Web pages are not available here."),
+                                 parent);
     auto *panel = new WebPanel(webProfile, url, parent);
     toolbar = panel->toolbar();
     return panel;
@@ -267,9 +271,9 @@ void ItemContextImpl::mapFolder(const QString &folderId)
     const PlacementServices services = m_services;
     const QString projectId = project->id;
     const QString id = folder->id;
-    const QString path = QFileDialog::getExistingDirectory(QApplication::activeWindow(),
-                                                           tr("Choose the folder \"%1\"").arg(folder->name),
-                                                           services.settings->folderPath(id));
+    const QString title = QCoreApplication::translate("ItemContext", "Choose the folder \"%1\"").arg(folder->name);
+    const QString path
+        = QFileDialog::getExistingDirectory(QApplication::activeWindow(), title, services.settings->folderPath(id));
     if (path.isEmpty())
         return;
     services.settings->setFolderPath(id, path);

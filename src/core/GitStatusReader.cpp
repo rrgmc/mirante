@@ -1,5 +1,6 @@
 #include "core/GitStatusReader.h"
 
+#include <QCoreApplication>
 #include <QPointer>
 #include <QProcess>
 #include <QProcessEnvironment>
@@ -101,14 +102,17 @@ void GitStatusReader::Private::start(const QString &path)
         process, &QProcess::errorOccurred, q,
         [this, path, process](QProcess::ProcessError error) {
             if (error == QProcess::FailedToStart)
-                complete(path, process, failure(GitStatus::Result::GitMissing, QStringLiteral("Git was not found.")));
+                complete(path, process,
+                         failure(GitStatus::Result::GitMissing,
+                                 QCoreApplication::translate("GitStatusReader", "Git was not found.")));
         },
         Qt::QueuedConnection);
     const int seconds = timeout / 1000;
     QObject::connect(run.timer, &QTimer::timeout, q, [this, path, process, seconds] {
         complete(path, process,
                  failure(GitStatus::Result::Failed,
-                         QStringLiteral("Git took longer than %1 seconds.").arg(qMax(seconds, 1))));
+                         QCoreApplication::translate("GitStatusReader", "Git took longer than %1 seconds.")
+                             .arg(qMax(seconds, 1))));
     });
 
     run.timer->start(timeout);
@@ -119,7 +123,9 @@ void GitStatusReader::Private::finished(const QString &path, QProcess *process, 
                                         QProcess::ExitStatus exitStatus)
 {
     if (exitStatus != QProcess::NormalExit) {
-        complete(path, process, failure(GitStatus::Result::Failed, QStringLiteral("Git stopped unexpectedly.")));
+        complete(path, process,
+                 failure(GitStatus::Result::Failed,
+                         QCoreApplication::translate("GitStatusReader", "Git stopped unexpectedly.")));
         return;
     }
     if (exitCode == 0) {
@@ -133,7 +139,7 @@ void GitStatusReader::Private::finished(const QString &path, QProcess *process, 
     }
     QString message = errorLine(error);
     if (message.isEmpty())
-        message = QStringLiteral("Git failed with exit code %1.").arg(exitCode);
+        message = QCoreApplication::translate("GitStatusReader", "Git failed with exit code %1.").arg(exitCode);
     complete(path, process, failure(GitStatus::Result::Failed, message));
 }
 

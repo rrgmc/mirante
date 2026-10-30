@@ -32,8 +32,9 @@ public:
     QString shortName() const override { return QCoreApplication::translate("folder", "Folder"); }
     QString description() const override
     {
-        return QCoreApplication::translate("folder", "One of the project's folders: its local path, Git branch and status, with "
-                                               "shortcuts to a terminal, an editor and the file manager.");
+        return QCoreApplication::translate("folder",
+                                           "One of the project's folders: its local path, Git branch and status, with "
+                                           "shortcuts to a terminal, an editor and the file manager.");
     }
     Rendering rendering() const override { return Rendering::Native; }
 
@@ -62,7 +63,7 @@ private:
 
 void registerModule(ModuleRegistrar &registrar)
 {
-    registrar.setModuleName(QStringLiteral("Folder"));
+    registrar.setModuleName(QCoreApplication::translate("folder", "Folder"));
     registrar.setModuleDescription(QCoreApplication::translate(
         "folder", "A project's folder as an item, with its Git state and shortcuts to a terminal and an editor."));
     registrar.addItemType(std::make_unique<FolderItemType>(

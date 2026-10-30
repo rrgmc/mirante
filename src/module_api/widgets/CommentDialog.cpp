@@ -1,5 +1,6 @@
 #include <mirante/widgets/CommentDialog.h>
 
+#include <QCoreApplication>
 #include <QDialog>
 #include <QDialogButtonBox>
 #include <QPlainTextEdit>
@@ -23,7 +24,7 @@ std::optional<QString> askComment(QWidget *parent, const QString &title)
 
     auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, dialog);
     QPushButton *send = buttons->button(QDialogButtonBox::Ok);
-    send->setText(QDialog::tr("Send"));
+    send->setText(QCoreApplication::translate("mirante::widgets::CommentDialog", "Send"));
     send->setEnabled(false);
     layout->addWidget(buttons);
 

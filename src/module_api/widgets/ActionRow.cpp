@@ -4,6 +4,7 @@
 #include <mirante/widgets/LinkStyle.h>
 #include <mirante/widgets/StatusPill.h>
 
+#include <QCoreApplication>
 #include <QDesktopServices>
 #include <QEvent>
 #include <QHash>
@@ -137,7 +138,7 @@ ActionRow::ActionRow(QWidget *parent)
     d->buttons->show();
     d->buttons->installEventFilter(d.get());
 
-    d->web = new QPushButton(tr("Web"), d->buttons);
+    d->web = new QPushButton(QCoreApplication::translate("mirante::widgets::ActionRow", "Web"), d->buttons);
     d->web->setObjectName(QStringLiteral("web"));
     styleAsLink(d->web);
     d->webWidth = d->web->sizeHint().width();

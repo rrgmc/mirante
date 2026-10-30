@@ -28,11 +28,6 @@ const QString kEditor = QStringLiteral("editor");
 const QString kFileManager = QStringLiteral("fileManager");
 const QString kChooseFolder = QStringLiteral("chooseFolder");
 
-QString trFolder(const char *text)
-{
-    return QCoreApplication::translate("folder", text);
-}
-
 // A label for a path or a branch name, which wraps and is never read as
 // markup.
 QLabel *plainLabel(const QString &objectName, QWidget *parent)
@@ -61,14 +56,16 @@ QString statusLine(const GitState &state)
         if (count > 0)
             parts << text.arg(count);
     };
-    add(state.ahead, trFolder("%1 ahead"));
-    add(state.behind, trFolder("%1 behind"));
-    add(state.staged, trFolder("%1 staged"));
-    add(state.changed, trFolder("%1 changed"));
-    add(state.untracked, trFolder("%1 untracked"));
-    add(state.conflicts, state.conflicts == 1 ? trFolder("%1 conflict") : trFolder("%1 conflicts"));
+    add(state.ahead, QCoreApplication::translate("folder", "%1 ahead"));
+    add(state.behind, QCoreApplication::translate("folder", "%1 behind"));
+    add(state.staged, QCoreApplication::translate("folder", "%1 staged"));
+    add(state.changed, QCoreApplication::translate("folder", "%1 changed"));
+    add(state.untracked, QCoreApplication::translate("folder", "%1 untracked"));
+    add(state.conflicts,
+        state.conflicts == 1 ? QCoreApplication::translate("folder", "%1 conflict")
+                             : QCoreApplication::translate("folder", "%1 conflicts"));
     if (parts.isEmpty())
-        return trFolder("Clean");
+        return QCoreApplication::translate("folder", "Clean");
     return parts.join(QStringLiteral(" ") + QChar(0x00B7) + QStringLiteral(" "));
 }
 
@@ -93,13 +90,17 @@ public:
         layout->addWidget(m_status);
         setStateRow(state);
 
-        actions()->addAction(kTerminal, trFolder("Terminal"), trFolder("Terminal"), [this] {
+        actions()->addAction(kTerminal, QCoreApplication::translate("folder", "Terminal"),
+                             QCoreApplication::translate("folder", "Terminal"), [this] {
             actions()->showError(m_context.launchTerminal(m_localPath, QString(), {}));
         });
-        actions()->addAction(kEditor, trFolder("Editor"), trFolder("Editor"), [this] { openEditor(); });
-        actions()->addAction(kFileManager, trFolder("File manager"), trFolder("Files"),
+        actions()->addAction(kEditor, QCoreApplication::translate("folder", "Editor"),
+                             QCoreApplication::translate("folder", "Editor"), [this] { openEditor(); });
+        actions()->addAction(kFileManager, QCoreApplication::translate("folder", "File manager"),
+                             QCoreApplication::translate("folder", "Files"),
                              [this] { m_context.showFolder(m_localPath); });
-        actions()->addAction(kChooseFolder, trFolder("Choose folder…"), trFolder("Folder…"), [this] {
+        actions()->addAction(kChooseFolder, QCoreApplication::translate("folder", "Choose folder…"),
+                             QCoreApplication::translate("folder", "Folder…"), [this] {
             // A modal picker. The core does not make the view again after it,
             // so the view reads the path again itself.
             m_context.mapFolder(folderId());
@@ -149,7 +150,7 @@ private:
 
         if (!mapped) {
             setTitle(QString());
-            m_path->setText(trFolder("Folder not set on this device"));
+            m_path->setText(QCoreApplication::translate("folder", "Folder not set on this device"));
             m_branch->hide();
             m_status->hide();
             return;
@@ -202,22 +203,22 @@ private:
             if (!state.branch.isEmpty())
                 branch = state.branch;
             else if (!state.commit.isEmpty())
-                branch = trFolder("Detached at %1").arg(state.commit);
+                branch = QCoreApplication::translate("folder", "Detached at %1").arg(state.commit);
             else
-                branch = trFolder("Detached");
+                branch = QCoreApplication::translate("folder", "Detached");
             status = statusLine(state);
             break;
         case GitState::Result::NotARepository:
-            status = trFolder("Not a Git repository");
+            status = QCoreApplication::translate("folder", "Not a Git repository");
             break;
         case GitState::Result::GitMissing:
             // The branch comes from the files, without Git.
             branch = m_context.gitHead(m_localPath);
-            status = trFolder("Git was not found");
+            status = QCoreApplication::translate("folder", "Git was not found");
             break;
         case GitState::Result::Failed:
             branch = m_context.gitHead(m_localPath);
-            status = state.message.isEmpty() ? trFolder("Git failed.") : state.message;
+            status = state.message.isEmpty() ? QCoreApplication::translate("folder", "Git failed.") : state.message;
             break;
         }
         m_branch->setText(branch);
