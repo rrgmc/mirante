@@ -64,6 +64,8 @@ Each file records one design decision: what was decided, what else was considere
 | [0057](0057-any-profile-can-be-the-default.md) | Any profile can be the default | Accepted |
 | [0058](0058-one-instance-per-web-data-folder.md) | One Mirante process per web data folder; a later start hands over | Accepted |
 | [0059](0059-logins-per-workspace.md) | Each workspace keeps its own logins | Accepted |
+| [0060](0060-jira-cloud-or-data-center-by-setting.md) | Jira Cloud or Data Center is a setting, guessed from the site | Proposed |
+| [0061](0061-attention-from-status-of-any-rendering.md) | Status comes from the item's object, and some attention clears when seen | Proposed |
 
 ## Template
 
