@@ -49,8 +49,8 @@ public:
     Item value() const;
 
     // The profiles offered, from profiles::all(), after the first entry,
-    // "The group's profile", which names groupProfileName. groupProfileId is
-    // the id of that profile; a pasted link is read in it. Only that entry,
+    // "<groupProfileName> (from the group)". groupProfileId is the id of that
+    // profile; a pasted link is read in it. Only that entry,
     // for Default, by default.
     void setProfiles(const std::vector<Profile> &profiles, const QString &groupProfileId,
                      const QString &groupProfileName);

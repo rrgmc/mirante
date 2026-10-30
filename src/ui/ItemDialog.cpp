@@ -501,7 +501,7 @@ void ItemDialog::setProfiles(const std::vector<Profile> &profiles, const QString
     d->groupProfile = groupProfileId;
     d->profileIds.clear();
     d->profile->clear();
-    d->profile->addItem(tr("The group's profile (%1)").arg(groupProfileName), QString());
+    d->profile->addItem(tr("%1 (from the group)").arg(groupProfileName), QString());
     for (const Profile &profile : profiles) {
         d->profile->addItem(profile.name, profile.id);
         d->profileIds << profile.id;

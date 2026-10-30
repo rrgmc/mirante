@@ -29,7 +29,7 @@ A module registers each of its types in the `ItemTypeRegistry` with:
 | `singleView` | Optional, off by default: the item can have only one view at a time |
 | `reparentSafe` | Optional, on by default: the view can be moved to another cell without being created again |
 
-A new item starts with a grid of the registered types, where the user picks one, then edits the item of that type; see [the item dialog](ui.md#item-dialog). The item dialog keeps the configuration keys that its form or editor does not show. For a type that uses a [profile](data-model.md#profile), the dialog also offers a **Profile** choice: "The group's profile (<name>)", which is the default, or any profile of the list. A type uses a profile when its `rendering` is web or its module has settings screens. The choice is stored in the item's `profile`, not in its configuration. See [web views](web-views.md#profiles). An item whose module is missing has neither fields nor an editor; its dialog edits the name only and keeps the configuration unchanged.
+A new item starts with a grid of the registered types, where the user picks one, then edits the item of that type; see [the item dialog](ui.md#item-dialog). The item dialog keeps the configuration keys that its form or editor does not show. For a type that uses a [profile](data-model.md#profile), the dialog also offers a **Profile** choice: "<name> (from the group)", such as "Work (from the group)", which is the default, or any profile of the list. A type uses a profile when its `rendering` is web or its module has settings screens. The choice is stored in the item's `profile`, not in its configuration. See [web views](web-views.md#profiles). An item whose module is missing has neither fields nor an editor; its dialog edits the name only and keeps the configuration unchanged.
 
 New types are added by registering a class in a module. No core code changes. See [adding a module](modules.md#adding-a-module).
 
@@ -44,7 +44,7 @@ A pasted web address can make an item. The new item dialog asks every type's `fr
 | `<base>/<project>/-/merge_requests/<iid>` | GitLab MR (summary), GitLab MR (page), GitLab CI Pipeline | `project`, `iid`; the pipeline also `branchSource` = `mergeRequest` | `group/project!42`; the pipeline `group/project!42 CI` |
 | `<base>/<project>/-/issues/<iid>` | GitLab Issue (summary), GitLab Issue (page) | `project`, `iid` | `group/project#7` |
 | `<base>/<project>/-/merge_requests`, `<base>/<project>/-/issues` | GitLab MR List, GitLab Issue List | `scope` = `project`, `project`, `preset` = `allOpen` | `group/project MRs`, `group/project issues` |
-| `<base>/<project>/-/pipelines[/<id>][?ref=<branch>]` | GitLab CI Pipeline | `project`, `branchSource` = `fixed`, `branch` from `ref`. The pipeline's id is not kept, because the type follows a branch. | `group/project <branch> CI` |
+| `<base>/<project>/-/pipelines[/<id>][?ref=<branch>]` | GitLab CI Pipeline | `project`, `branchSource` = `fixed`, `branch` from `ref`, or `master` without one. The pipeline's id is not kept, because the type follows a branch. | `group/project <branch> CI` |
 | `<base>/browse/<key>`, `.../issues/<key>`, or `?selectedIssue=<key>` | Jira Issue (summary), Jira Issue (page) | `key` | the key |
 | a Jira address with `?jql=<query>` | Jira List | `preset` = `jql`, `jql` | "Jira search" |
 | `https://claude.ai/...` | Claude session (web) | `url` | "Claude session" |
@@ -64,15 +64,14 @@ Two flags tell the core what the view cannot do. Both default to what an ordinar
 
 ## Light actions
 
-Native summaries offer a few actions that save opening the web page:
+Native views are read-mostly, as in [decision 0070](decisions/0070-read-mostly-native-views.md). The only actions are for CI, because running CI is repeatable and changes no one's review or issue:
 
 - retry a pipeline or a single job;
-- cancel a pipeline;
-- approve a merge request;
-- move a Jira issue to another status;
-- add a comment to a merge request, GitLab issue or Jira issue.
+- cancel a pipeline, after a confirmation;
+- play a manual job;
+- trigger a new pipeline on the branch, after a confirmation, since it starts work.
 
-Anything else uses the "Open page" button. It opens the matching page type in the same cell, or in the external browser if the user holds `Shift`.
+Anything else, such as approving or commenting, uses the "Open page" button. It opens the matching page type in the same cell, or in the external browser if the user holds `Shift`.
 
 ## GitLab
 
@@ -82,7 +81,7 @@ The summaries have fixed layouts, as in [decision 0066](decisions/0066-fixed-nat
 
 - With no data yet, a summary shows "Loading…" or the status's message. With old data and an error, it keeps the data, and the cell header shows the problem.
 - After an action succeeds, the status is fetched again. A failed action shows its message in the action row. A `403` says that the token cannot do this, and names the `api` scope.
-- Only cancelling a pipeline asks first.
+- Only cancelling and triggering a pipeline ask first.
 - "Open page" shows the page in the same cell, as in [decision 0069](decisions/0069-open-page-in-the-placement.md), or in the external browser if the user holds `Shift`.
 - **The Web link** is a "Web" button at the end of the actions. It opens the same address in the external browser, and it hides without a web address. The address is `web_url` in the data. Without one, for a merge request or an issue, it is built from the base URL and the configuration, as for the page types. A link to a job's log also opens in the external browser.
 - Dates are local and short. Text from the server is plain text, so it is never read as markup.
@@ -94,14 +93,12 @@ The summaries have fixed layouts, as in [decision 0066](decisions/0066-fixed-nat
 - **Configuration:** `project`, the project path, which defaults to the project's `gitlab.project` setting when empty; `iid`, the merge request number, required. Pasting a merge request URL fills both.
 - **Top:** the title; pills for the state and for a draft; the source and target branches.
 - **Sections and fields,** in this order:
-  - Pipeline (`showPipeline`): the head pipeline's status and id, and its failed jobs, each with its duration and a link to its log. A job that is allowed to fail says so.
+  - Pipeline (`showPipeline`): the head pipeline's status and id, with a "Web" link to its page, and its failed jobs, each with its duration and a link to its log. A job that is allowed to fail says so.
   - Approvals (`showApprovals`): the count, and who has approved.
   - People (`showPeople`): the author, assignees and reviewers.
   - Labels (`showLabels`).
 - **Actions:**
-  - "Approve", while the merge request is open and you have not approved it;
   - "Retry pipeline", when the head pipeline failed or was canceled;
-  - "Comment";
   - "Open page" and "Web".
 - **Status:** a summary such as "Open · 2 of 3 approvals · pipeline failed". The item is closed when the merge request is merged or closed.
 - **Attention,** only while the merge request is open. "You" is the owner of the profile's token.
@@ -153,16 +150,26 @@ The summaries have fixed layouts, as in [decision 0066](decisions/0066-fixed-nat
 
 - **Configuration:**
   - `project`, the project path, empty for the `gitlab.project` setting;
-  - `branchSource`, with three choices: `fixed` (the branch in `branch`), `mainFolder` ("current branch of the main folder"), or `mergeRequest` ("branch of a linked merge request", the merge request numbered `iid`).
-- **Top:** the latest pipeline for that branch: its id; a pill for its status; the branch and the duration.
-- **Sections:** one for each stage, in the order of the jobs, without fields. Each lists its jobs, with their status and duration. A failed job also has a link to its log and a "Retry" button.
+  - `branchSource`, with three choices: `fixed` (the branch in `branch`, `master` by default), `mainFolder` ("current branch of the main folder"), or `mergeRequest` ("branch of a linked merge request", the merge request numbered `iid`).
+- **The group.** The pipelines created within 10 minutes of the latest, as in [decision 0072](decisions/0072-pipelines-started-together.md). Some repositories start several at once for one merge request.
+- **Top:** the pipeline shown, at first the latest: its id; a pill for its status; the branch, the duration and when it was created. An entry of GitLab's lists has no duration, so only the latest shows one.
+  - With more than one in the group, a row of pills, one per pipeline in the group, switches between them. The shown one is bold.
+  - "Previous" and "Next" step through all of the latest 20 pipelines, also those before the group. "Previous" goes back in time. The view reads an older pipeline's jobs when it shows.
+  - A pipeline the user chose stays shown through a new status while it is among those 20. Otherwise the latest shows, and a newer latest replaces it.
+- **Jobs:** one table, with a heading for each stage, in the order the jobs were created. Each row has a pill for the job's status, the name, the duration and links:
+  - "Log", on any job that has run. It opens in the external browser;
+  - "Retry", on a finished job: passed, failed or canceled;
+  - "Play", on a manual job.
 - **Actions:**
   - "Retry pipeline", when the pipeline failed or was canceled;
   - "Cancel pipeline", while it can still be cancelled, after a confirmation;
-  - "Open page" and "Web", on the pipeline's own page.
-- **Messages:** a branch without pipelines shows "No pipeline on <branch>", and a pipeline that follows the main folder shows its status's message, in place of everything else, so there is no Web link.
-- **Status:** a summary such as "Failed · main · 1 failed job", or "No pipeline on main" for a branch without pipelines. The item is never closed. Until M7, a pipeline that follows the main folder reports no status.
-- **Attention:** the pipeline failed. Each failed pipeline is a new reason, so a retry that fails again counts again. Together with the merge request's failed pipeline, this is the only event that sends a [desktop notification](ui.md#tray-and-notifications).
+  - "Trigger pipeline", which starts a new pipeline on the branch, after a confirmation;
+  - "Merge request", which opens it in the external browser: the merge request `iid` of the configuration when `branchSource` is `mergeRequest`, otherwise the open merge request of that source branch. It hides when there is none;
+  - "Open page" and "Web", on the page of the pipeline shown.
+- **Refresh:** while the pipeline shown is unfinished and the view is visible, the view asks for a new status every 15 seconds. A pipeline that waits on a manual job counts as finished here, since it waits for a person. Otherwise the usual interval holds.
+- **Messages:** a branch without pipelines shows "No pipeline on <branch>" as its title, with only "Trigger pipeline" and the merge request's link. A pipeline that follows the main folder shows its status's message, in place of everything else.
+- **Status:** a summary of the latest, such as "Failed · main · 1 failed job", or "No pipeline on main" for a branch without pipelines. The item is never closed. Until M7, a pipeline that follows the main folder reports no status.
+- **Attention:** a pipeline of the group failed, whichever is shown. Each failed pipeline is a new reason with its own key, so a failure is not hidden by a later pipeline that passed, and a retry that fails again counts again. Together with the merge request's failed pipeline, this is the only event that sends a [desktop notification](ui.md#tray-and-notifications).
 
 "Current branch of the main folder" reads `.git/HEAD` of the folder's local path on this device. If the folder is not mapped on this device, the panel asks for a branch.
 
@@ -179,7 +186,7 @@ The summaries have fixed layouts, as in [decision 0066](decisions/0066-fixed-nat
 - **The list presets are:** `assignedToMe` ("Assigned to me"), `createdByMe` ("Created by me") and `allOpen` ("All open"). Custom filters work the same way as for merge requests.
 - **The list shows** a sortable table with the columns Ref, such as `backend#7`, Title, Assignees, Labels and Updated, sorted on Updated, newest first. A narrow cell hides columns in this order: Labels, Assignees, Updated, Ref. It makes no further requests. The row click, the row menu, the Web link and the messages follow the merge request list, with the issue summary as the preview, a GitLab Issue (summary) added to the task with a name such as `group/project#7`, the address ending in `/issues`, and the line "No issues".
 - **The page's address** is `<baseUrl>/<project>/-/issues/<iid>`. Its messages are those of the merge request page.
-- **The summary's actions:** "Comment"; "Close" while the issue is open, or "Reopen" when it is closed; "Open page" and "Web".
+- **The summary's actions:** "Open page" and "Web".
 - **Status:** the summary and the page report a summary such as "Open · assigned to Ana", and are closed when the issue is closed. They report no attention. The list reports as the merge request list does, with a summary such as "12 issues" or "100+ issues". See [decision 0067](decisions/0067-lists-report-status.md).
 
 ## Jira

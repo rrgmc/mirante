@@ -9,7 +9,7 @@ The GitLab, Jira and Claude code lives in the `gitlab`, `jira` and `claude` [mod
 - **API:** REST v4 at `<baseUrl>/api/v4`. It works with gitlab.com and self-hosted GitLab.
 - **Server:** `gitlab.general.baseUrl` of the item's profile, `https://gitlab.com` by default. The token is entered on the same screen and kept in the keychain.
 - **Authentication:** a personal access token in the `PRIVATE-TOKEN` header.
-- **Token scope:** `api`, because the light actions write data. A token with only `read_api` works too, but then the actions fail with a clear message.
+- **Token scope:** `api`, because the CI actions write data. A token with only `read_api` works too, but then those actions fail with a clear message.
 - **Caching:** requests send `If-None-Match` with the last ETag. A `304 Not Modified` answer costs almost nothing and keeps cached data.
 - **Paging:** lists follow the `Link` header, up to a limit per item (100 rows by default).
 - **Rate limits:** on `429 Too Many Requests` the client waits for the time given in `Retry-After` before trying again.
@@ -23,13 +23,14 @@ Main endpoints:
 | Merge request list | `GET /merge_requests`, `GET /projects/:id/merge_requests`, `GET /groups/:id/merge_requests` |
 | Latest pipeline for a branch | `GET /projects/:id/pipelines/latest?ref=<branch>` |
 | One pipeline | `GET /projects/:id/pipelines/:pid` |
+| Pipelines of a branch | `GET /projects/:id/pipelines?ref=<branch>` |
+| Pipelines of a merge request | `GET /projects/:id/merge_requests/:iid/pipelines` |
 | Jobs | `GET /projects/:id/pipelines/:pid/jobs` |
 | Retry or cancel | `POST /projects/:id/pipelines/:pid/retry`, `.../cancel`, `POST /projects/:id/jobs/:jid/retry` |
-| Approve | `POST /projects/:id/merge_requests/:iid/approve` |
-| Comment | `POST /projects/:id/merge_requests/:iid/notes`, `POST /projects/:id/issues/:iid/notes` |
+| Play a manual job | `POST /projects/:id/jobs/:jid/play` |
+| Trigger a pipeline | `POST /projects/:id/pipeline?ref=<branch>` |
 | Issues | `GET /projects/:id/issues/:iid`, `GET /issues`, `GET /projects/:id/issues`, `GET /groups/:id/issues` |
 | Latest issue notes | `GET /projects/:id/issues/:iid/notes?sort=desc&order_by=created_at` |
-| Close or reopen an issue | `PUT /projects/:id/issues/:iid` with `{"state_event": "close"}` or `{"state_event": "reopen"}` |
 | Current user | `GET /user`, to resolve "me" in presets and attention |
 
 Project and group paths such as `acme/backend` are URL-encoded and used as `:id`, as in `acme%2Fbackend`. The branch in `ref` is URL-encoded too. `GitLabClient` in the module has one method per endpoint; see the [module's README](../src/modules/gitlab/README.md#the-client).
@@ -38,7 +39,7 @@ What each item type asks for its status:
 
 - **A merge request** (summary or page): the merge request, its approvals and the current user, at once. The current user is asked in every status job, and its ETag makes the repeat cheap. A summary whose head pipeline failed then asks for that pipeline's jobs. If that request fails, the status stands without the jobs.
 - **An issue** (summary or page): the issue. A summary then asks for the latest 20 notes and leaves out system notes. If that request fails, the status stands without the notes.
-- **A CI pipeline:** for a linked merge request, the merge request first, for its source branch. Then the latest pipeline of the branch, and that pipeline's jobs. A `404` for the latest pipeline means the branch has none, and is not an error.
+- **A CI pipeline:** for a linked merge request, the merge request first, for its source branch. Then the latest pipeline of the branch. Then, at once, the latest 20 pipelines of the merge request or the branch and, for a fixed branch, its open merge request, for the link in the view. Then, at once, the jobs of each pipeline created within 10 minutes of the newest. A `404` for the latest pipeline means the branch has none, and is not an error. A failed request for the list, the open merge request or a sibling's jobs keeps the status of the latest. See [decision 0072](decisions/0072-pipelines-started-together.md).
 - **A list:** the list of its scope, up to 100 rows, most recently updated first. A merge request list with the `reviewRequested` preset asks for the current user first. See [decision 0067](decisions/0067-lists-report-status.md).
 
 The attention rules are in [item types](item-types.md#gitlab).
@@ -128,7 +129,7 @@ Modules poll through the cache, never around it. A view asks the server directly
 
 - A missing token shows "Token not set on this device" with a button to enter it. Nothing is sent.
 - A `401` on any request, or a `403` on a `GET`, marks the profile's server as failing. The main window's warning bar shows a line for it, and the server's requests return without being sent until its token or its settings screen changes.
-- A `403` on a `POST` or a `PUT` is a missing permission for that one action, such as a `read_api` token approving a merge request. Only that action fails; the server keeps working.
+- A `403` on a `POST` or a `PUT` is a missing permission for that one action, such as a `read_api` token retrying a pipeline. Only that action fails; the server keeps working.
 - A `429` waits for `Retry-After` seconds, or 30 without one, and sends again, at most three times. The server's other requests wait too.
 - A request that gets no answer in 30 seconds fails as a network error.
 - Network errors keep the last data and show its age, such as "Updated 12 min ago".
