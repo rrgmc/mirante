@@ -262,11 +262,14 @@ private slots:
         QPalette app = QApplication::palette();
         const QPalette saved = app;
         app.setColor(QPalette::Window, QColor(0x12, 0x34, 0x56));
+        // See-through, as Windows 11's style gives some: laid over the window.
+        app.setColor(QPalette::Base, QColor(0xff, 0xff, 0xff, 0x80));
         QApplication::setPalette(app);
         const QJsonObject colours = bridge()->palette();
         QApplication::setPalette(saved);
 
         QCOMPARE(colours.value(QStringLiteral("window")).toString(), QStringLiteral("#123456"));
+        QCOMPARE(colours.value(QStringLiteral("base")).toString(), QStringLiteral("#899aab"));
         QCOMPARE(colours.value(QStringLiteral("priorityUrgent")).toString(), QStringLiteral("#d93b3b"));
         QVERIFY(colours.value(QStringLiteral("priorityNormal")).toString().startsWith(QStringLiteral("rgba(")));
         for (const char *key : {"base", "text", "muted", "border", "accent", "link", "attention"})

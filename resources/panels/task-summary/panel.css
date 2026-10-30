@@ -1,0 +1,4 @@
+/* Task summary: rows of items, each with its status. See common/dash.css. */
+.row .detail.muted {
+    font-style: italic;
+}
