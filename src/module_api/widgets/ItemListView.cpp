@@ -16,6 +16,7 @@
 #include <QSplitter>
 #include <QStyledItemDelegate>
 #include <QTableView>
+#include <QTextDocument>
 #include <QToolButton>
 #include <QVBoxLayout>
 
@@ -116,8 +117,11 @@ public:
         const ListCell cell = row.cells.value(index.column());
         switch (role) {
         case Qt::DisplayRole:
-        case Qt::ToolTipRole:
             return cell.text;
+        case Qt::ToolTipRole:
+            // A tooltip reads text that looks like HTML as markup, and this
+            // text comes from a server.
+            return cell.text.isEmpty() ? QString() : Qt::convertFromPlainText(cell.text);
         case SortKeyRole:
             return cell.sortKey.isNull() ? QVariant(cell.text) : cell.sortKey;
         case StatusColoursRole:
@@ -214,6 +218,7 @@ struct ItemListView::Private : public QObject
     QWidget *previewArea = nullptr;
     QVBoxLayout *previewLayout = nullptr;
     QWidget *preview = nullptr;
+    bool previewSized = false;  // the preview got its share of the height
     ActionRow *webRow = nullptr;
     QLabel *message = nullptr;
     QSet<int> columnsHiddenByView;
@@ -441,6 +446,15 @@ void ItemListView::setPreview(QWidget *preview)
         preview->show();
     }
     d->previewArea->setVisible(preview != nullptr);
+
+    // Stretch factors do not share the height when a hidden widget first
+    // shows, so the first preview gets its share here. After that, the place
+    // where the user left the splitter holds.
+    const int height = d->splitter->height();
+    if (preview && !d->previewSized && height > 0) {
+        d->previewSized = true;
+        d->splitter->setSizes({height * 3 / 5, height - height * 3 / 5});
+    }
 }
 
 QWidget *ItemListView::preview() const { return d->preview; }

@@ -192,15 +192,16 @@ A project can set its Jira project key in the project dialog's Jira section, sto
 
 `jira.issue.summary`, native.
 
-- **Configuration:** `key`, the issue key, such as `PROJ-123`, required. Pasting an issue URL fills it.
-- **Shows:**
-  - key, summary, status, type, priority, assignee, reporter, sprint;
-  - the description, rendered from the HTML in `renderedFields`;
-  - the latest comments;
-  - sub-tasks and linked issues;
-  - development information: linked branches and merge requests, where the Jira instance provides it.
-- **Actions:** change status, using the transitions Jira allows for the issue; add comment.
-- **Status:** from M5. One request for the issue's summary, status, assignee, priority, type and last update. The status line reads like "In Review · assigned to Ana". The item counts as closed when the status category is `done`.
+- **Configuration:** `key`, the issue key, such as `PROJ-123`, required. Pasting an issue URL fills it. `showDetails`, `showDescription`, `showComments` and `showLinks` each show a section, and are on by default and when absent.
+- **Shows:** at the top, always, the key and summary, pills for the status and the type, and the actions. They scroll with the rest. Then these sections, in this order:
+  - Details: priority, assignee, reporter and sprint;
+  - Description: rendered from the HTML in `renderedFields`;
+  - Comments: the latest five, newest first;
+  - Sub-tasks and links: each with its key, which opens the issue in the external browser, its relation, summary and status.
+- **Rendered HTML.** It loads nothing, neither images nor style sheets, so a description cannot call out. A link opens only in the external browser, resolved against the base URL, and only for `http` and `https`. All other text from the server is plain text.
+- **Actions:** Change status, a menu of the transitions Jira allows now, asked for each time it opens; Comment; Open page, or the external browser with `Shift`; and the Web link, `<baseUrl>/browse/<key>`. After a success the status is fetched again. A failure shows its message under the buttons.
+- **Without data,** the view shows "Loading…" or the status's message. With old data and an error, it keeps the data, and the cell header shows the error.
+- **Status:** from M5. One request for the issue with all its fields, and the names of the fields, which tell which one is the sprint. The status line reads like "In Review · assigned to Ana". The item counts as closed when the status category is `done`.
 - **Attention:** "Status changed to <name>", with the key `status:<status id>`, when the status changed since the user last viewed the item. It clears once seen, and the status an issue had when it was added does not count. See [decision 0061](decisions/0061-attention-from-status-of-any-rendering.md).
 
 ### Jira Issue (page)
@@ -210,7 +211,7 @@ A project can set its Jira project key in the project dialog's Jira section, sto
 - **Address:** `<baseUrl>/browse/<key>`, where `baseUrl` is the Jira base URL of the item's profile.
 - **Without a Jira base URL,** the cell says "Set the Jira base URL in this profile's Modules > Jira > General Configuration, in the Profiles menu."
 - **Without an issue key,** the cell says "Set the issue key in the item's settings."
-- **Status and attention:** the same as the summary's, from the same request.
+- **Status and attention:** the same as the summary's, from a smaller request: the issue's summary, status, assignee, priority, type and last update.
 
 ### Jira List
 
@@ -220,9 +221,17 @@ A project can set its Jira project key in the project dialog's Jira section, sto
   - `myOpen`, "My open issues";
   - `currentSprint`, "Current sprint of this project", using the project's `jira.projectKey` setting;
   - `recentlyUpdated`, "Recently updated in this project".
-- **Shows:** a sortable table with columns for key, summary, status, assignee and the date of the last update.
-- **Row click:** shows the issue summary in a preview area. A row menu offers "Add to task as item".
-- **Status:** none in M5. M6 decides what a list reports.
+- **Queries:**
+  - `myOpen`: `assignee = currentUser() AND resolution = Unresolved ORDER BY updated DESC`;
+  - `currentSprint`: `project = "<key>" AND sprint in openSprints() ORDER BY rank`;
+  - `recentlyUpdated`: `project = "<key>" AND updated >= -7d ORDER BY updated DESC`.
+
+  The key is quoted, so a value cannot change the query.
+- **Shows:** a sortable table with the columns Key, Summary, Status, Assignee and Updated, sorted on Updated, newest first. The status is a pill: green for the category `done`, amber for `indeterminate`, grey otherwise. The Web link above the table opens `<baseUrl>/issues/?jql=<query>` in the external browser.
+- **Row click:** shows the issue summary in a preview under a splitter, with the same sections and actions. The preview reads the issue itself. It reads it again after an action, and when the list has a new status. See [decision 0068](decisions/0068-views-read-what-the-user-asked-for.md).
+- **Row menu:** "Add to task as item", which adds a `jira.issue.summary` item for the issue; "Open page"; and "Copy link".
+- **Status:** the rows, up to 100, and their number, in one search. The status line reads like "12 issues", "1 issue", or "100+ issues" at the limit. A list raises no attention, and never counts as closed. See [decision 0067](decisions/0067-lists-report-status.md).
+- **Without a project key,** the two project presets send nothing, and the cell says "Set the Jira project key in the project's settings." An empty `jql` says "Set the JQL query in the item's settings."
 
 ## Claude
 

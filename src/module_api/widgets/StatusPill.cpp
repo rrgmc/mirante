@@ -14,7 +14,11 @@ constexpr int verticalPadding = 2;
 
 StatusColours statusColours(StatusRole role, const QPalette &palette)
 {
-    const bool dark = palette.color(QPalette::Window).lightness() < 128;
+    // A scroll area's content can have a transparent window colour, which says
+    // nothing about the theme. The text colour then tells.
+    const QColor window = palette.color(QPalette::Window);
+    const bool dark = window.alpha() == 0 ? palette.color(QPalette::WindowText).lightness() >= 128
+                                          : window.lightness() < 128;
     switch (role) {
     case StatusRole::Good:
         return dark ? StatusColours{QColor(0x1f, 0x4d, 0x2c), QColor(0xb7, 0xeb, 0xc3)}
