@@ -146,12 +146,23 @@ int main(int argc, char *argv[])
     // to the front.
     QObject::connect(&instance, &mirante::SingleInstance::activationRequested, &window,
                      [&window](const QString &dataFolder) {
-                         if (!dataFolder.isEmpty())
+                         // A dialog may hold entities of the open workspace,
+                         // so the workspace is not switched under it: the
+                         // window only comes to the front, with the dialog.
+                         // The workspace already open is not opened again.
+                         QWidget *modal = QApplication::activeModalWidget();
+                         const bool other = !dataFolder.isEmpty()
+                             && QDir(dataFolder).absolutePath() != QDir(window.workspace()).absolutePath();
+                         if (other && !modal)
                              window.openWorkspace(dataFolder);
                          window.setWindowState(window.windowState() & ~Qt::WindowMinimized);
                          window.show();
                          window.raise();
                          window.activateWindow();
+                         if (modal) {
+                             modal->raise();
+                             modal->activateWindow();
+                         }
                      });
 
     return app.exec();

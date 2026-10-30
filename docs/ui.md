@@ -160,7 +160,7 @@ Otherwise, as after a monitor was unplugged or a resolution shrank, the window o
 
 ### Starting Mirante again
 
-Only one Mirante runs with each [web data folder](README.md#glossary), because two would damage each other's logins. Starting Mirante while it runs brings the running window to the front, restored if it was minimized, and the new start exits. A workspace given with `--data` opens in the running window. If the running Mirante does not answer within five seconds, the new start says that Mirante is already running with this web data folder. Test runs that must run beside the user's own Mirante use `--web-data <folder>` for their own logins. See [decision 0058](decisions/0058-one-instance-per-web-data-folder.md).
+Only one Mirante runs with each [web data folder](README.md#glossary), because two would damage each other's logins. Starting Mirante while it runs brings the running window to the front, restored if it was minimized, and the new start exits. A workspace given with `--data` opens in the running window, unless it is the one already open, or a dialog is open there: then the window only comes to the front, with the dialog. If the running Mirante does not answer within five seconds, the new start says that Mirante is already running with this web data folder. Test runs that must run beside the user's own Mirante use `--web-data <folder>` for their own logins. See [decision 0058](decisions/0058-one-instance-per-web-data-folder.md).
 
 ## Look
 
