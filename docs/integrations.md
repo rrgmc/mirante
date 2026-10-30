@@ -67,13 +67,14 @@ Main endpoints, below the API root:
 |---|---|
 | Issue | `GET /issue/:key?expand=renderedFields`, with `fields` to limit the answer, and `names` added to `expand` where the sprint is needed |
 | Search | `GET /search/jql` on Cloud, `GET /search` on Data Center, with the JQL query, up to the item's `limit` rows, 100 by default |
+| Fields | `GET /field`, the id and name of each field, where a list has extra fields |
 | Current user | `GET /myself` |
 
 What each item type asks for its status:
 
 - **An issue page:** the issue, with only `summary`, `status`, `assignee`, `priority`, `issuetype` and `updated`.
 - **An issue summary:** the issue, with all fields and `expand=renderedFields,names`. The sprint is the field whose entry in `names` is "Sprint", because its id differs per site. Then a search for its children, with `summary` and `status`: `parent = "<key>"` on Cloud, and `"Epic Link" = "<key>" OR parent = "<key>"` on Data Center. Cloud's search gives no total, so the children are counted by fetching them, up to 500. If only this search fails, as on a site without the `Epic Link` field, the status stands without the children.
-- **A list:** one search, with `summary`, `status`, `assignee` and `updated`, up to the item's `limit` rows. A project preset without a project key, or an empty query, sends nothing. See [decision 0067](decisions/0067-lists-report-status.md).
+- **A list:** one search, with `summary`, `status`, `assignee` and `updated`, up to the item's `limit` rows. With extra fields, `GET /field` comes first, since a search's `fields` takes only ids and they differ per site. The search then also asks for those fields and for `expand=names`. If `GET /field` fails, the search goes ahead without them. A project preset without a project key, or an empty query, sends nothing. See [decision 0067](decisions/0067-lists-report-status.md).
 
 See [item types](item-types.md#jira-issue-summary).
 

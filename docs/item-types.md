@@ -184,7 +184,9 @@ The summaries have fixed layouts, as in [decision 0066](decisions/0066-fixed-nat
 
 ## Jira
 
-Module `jira`. Jira types talk to the Jira site of the item's profile, set in its Jira General Configuration: a base URL, without a default, the deployment, the email for Jira Cloud, and a token. See [integrations](integrations.md#jira).
+Module `jira`. Jira types talk to the Jira site of the item's profile, set in its Jira General Configuration: a base URL, without a default, the deployment, the email for Jira Cloud, a token, and any extra fields. See [integrations](integrations.md#jira).
+
+**Extra fields** are field names, one per line, such as "Team" and "Fix version". Summaries and lists show them, found by name, ignoring case and a final "s". A name the site does not have is left out quietly. Values are plain text: an object reads as its name, and a list is joined with commas. See [decision 0073](decisions/0073-jira-extra-fields.md).
 
 A project can set its Jira project key in the project dialog's Jira section, stored as `jira.projectKey`. The list presets of the project use it.
 
@@ -194,7 +196,7 @@ A project can set its Jira project key in the project dialog's Jira section, sto
 
 - **Configuration:** `key`, the issue key, such as `PROJ-123`, required. Pasting an issue URL fills it. `showDetails`, `showDescription`, `showComments` and `showLinks` each show a section, and are on by default and when absent.
 - **Shows:** at the top, always, the key and summary, pills for the status and the type, and the actions. They scroll with the rest. Then these sections, in this order:
-  - Details: priority, assignee, reporter and sprint;
+  - Details: priority, assignee, reporter, sprint and the extra fields;
   - Description: rendered from the HTML in `renderedFields`;
   - Comments: the latest five, newest first;
   - Sub-tasks and links: each with its key, which opens the issue in the external browser, its relation, summary and status. Then the issues whose parent is this one, such as the issues of an epic, with their status pills: up to 50, with a line saying how many more there are. A sub-task is not listed twice.
@@ -229,7 +231,7 @@ A project can set its Jira project key in the project dialog's Jira section, sto
   - `recentlyUpdated`: `project = "<key>" AND updated >= -7d ORDER BY updated DESC`.
 
   The key is quoted, so a value cannot change the query.
-- **Shows:** a sortable table with the columns Key, Summary, Status, Assignee, Updated and links, sorted on Updated, newest first. The status is a pill: green for the category `done`, amber for `indeterminate`, grey otherwise. Updated reads like `10-30 14:32`, or `2025-10-30` for another year, and sorts by the real date. The Web link above the table opens `<baseUrl>/issues/?jql=<query>` in the external browser. Previous and Next page through the fetched rows, and a drop-down filters them by status. See [decision 0071](decisions/0071-lists-link-out-without-a-preview.md).
+- **Shows:** a sortable table with the columns Key, Summary, Status, Assignee, Updated, the extra fields and links, sorted on Updated, newest first. The extra fields hide first in a narrow cell. The status is a pill: green for the category `done`, amber for `indeterminate`, grey otherwise. Updated reads like `10-30 14:32`, or `2025-10-30` for another year, and sorts by the real date. The Web link above the table opens `<baseUrl>/issues/?jql=<query>` in the external browser. Previous and Next page through the fetched rows, and a drop-down filters them by status. See [decision 0071](decisions/0071-lists-link-out-without-a-preview.md).
 - **Row links:** "Web", the issue's page in the external browser; "Open", the page in the cell, or the external browser with `Shift`; and "Add", which adds a `jira.issue.summary` item for the issue to the task. The column never hides.
 - **Row menu:** the same, and "Copy link".
 - **Status:** the rows, up to `limit`, and their number, in one search. The status line reads like "12 issues", "1 issue", or "100+ issues" at the limit, which is the item's `limit`. A list raises no attention, and never counts as closed. See [decision 0067](decisions/0067-lists-report-status.md).
