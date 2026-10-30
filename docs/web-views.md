@@ -167,6 +167,10 @@ palette()         { window, base, alternateBase, text, muted, border, accent, hi
 
 `state` of a task is `active`, `done` or `archived`. `state` of a status is `none`, `ok`, `noserver`, `notoken`, `refused`, `notfound` or `error`. `priority` is 0 for Urgent to 3 for Low. `closed` is true, false or null when the type does not say. `changed` follows the task, the tasks, projects and name of its group, the status of the task's items, the attention the panel shows, and the palette.
 
+Colours are opaque. Some styles, such as Windows 11's, give see-through palette colours, which a page would lay over each other; the bridge lays each over the window's colour first.
+
 The bridge never exposes tokens, server settings, profiles or raw API calls.
+
+**The pages.** Each panel is a folder under `resources/panels/` with `index.html`, `panel.js` and `panel.css`, in plain HTML, CSS and JavaScript, with no framework and no build step. They share `common/dash.js` and `common/dash.css`. `dash.js` connects the channel, sets the colours and the font as CSS custom properties, and calls the panel's `render()` on start, on `changed`, and once a minute, so ages stay right. Pages set text with `textContent`, never as markup.
 
 There are two panels in the first version: task summary and group overview. They are described in [item types](item-types.md#built-in-panels).

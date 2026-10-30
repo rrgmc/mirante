@@ -97,7 +97,9 @@ Smaller choices made here:
 - **Task summary.** One row per item with status, in the task's item order. Each row: the type name as a small pill, the item name, the summary, and the time it was updated. A row that needs attention has a red left edge and the reasons under it. A row in an error state, such as `notoken`, shows the message in muted text. A click on a row opens the item. Without any item with status, it shows "No items in this task report a status."
 - **Group overview.** A heading with the group's name. One row per active task of the group: the priority marker, the title, the project in muted text, and the attention badge when the count is not zero. A click opens the task. Without tasks, it shows "No active tasks in this group."
 - Both lay out in one column and stay readable in a cell 300 pixels wide.
-- Tests: a page loads each panel with a bridge over fixture data, and checks the number of rows and the text of the first one with `runJavaScript()` (release only). The look is checked by hand.
+- `DashView` paints the app's colour while the page loads.
+- The bridge makes see-through palette colours opaque. Windows 11's style gives a see-through Base, which the page laid over itself as two shades of grey. Found by looking at the panels in the app.
+- Tests: `tst_dash_panels` loads each panel with a bridge over the status tests' workspace, and checks the rows, the attention marks, a redraw after a new status, and that a click opens the item or task, with `runJavaScript()` (release only). The look is checked by hand.
 
 ## Part 5: documents
 

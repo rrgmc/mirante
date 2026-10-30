@@ -39,6 +39,11 @@ DashView::DashView(QWebEngineProfile *profile, const QUrl &url, QObject *bridge,
         channel->registerObject(QStringLiteral("dash"), bridge);
         page->setWebChannel(channel);
     }
+    // The app's colour while the page loads, not a white flash. Opaque, since
+    // a style may give a see-through one.
+    QColor base = palette().color(QPalette::Base);
+    base.setAlpha(255);
+    page->setBackgroundColor(base);
     setPage(page);
     load(url);
 }

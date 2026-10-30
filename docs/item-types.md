@@ -351,4 +351,9 @@ The editor command is a device setting of the `folder` module, default `code`. I
 - **Module:** the core's own module `dash`, "Built in". It is part of every build. See [decision 0094](decisions/0094-built-in-panels-as-a-core-item-type.md).
 - **Profile:** none to choose. Panels load in the app profile, so the item dialog offers neither a profile nor keys for the page.
 
-An unknown `panel` value shows "Choose the panel in the item's settings." instead of a page.
+- **Shows:**
+  - **Task summary:** the task's title, its group and project, then one row per item whose type reports a status, in the task's order. A row has the type's short name, the item's name, the age of its status and its summary. Without a status yet it says "Not fetched yet", and in an error state, such as a missing token, the state's message in grey. An item that needs attention has a red left edge and its reasons under it. Without such items it says "No items in this task report a status."
+  - **Group overview:** the group's name, then one row per active task of the group, not in the trash, by priority, then in the sidebar's order. A row has the priority's colour, the title, the project, a red attention count when it is not zero, and "This task" on the panel's own task. Without tasks it says "No active tasks in this group."
+- **Actions:** a click on a row, or Enter on a row reached with Tab, opens the item alone or the task in the preview.
+
+A panel draws again when something it shows changes, and once a minute for the ages. An unknown `panel` value shows "Choose the panel in the item's settings." instead of a page.

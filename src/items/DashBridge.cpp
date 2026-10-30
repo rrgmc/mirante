@@ -56,6 +56,17 @@ QString statusStateName(ItemStatus::State state)
     return {};
 }
 
+// The colour as it looks over ground. Some styles, such as Windows 11's,
+// give see-through palette colours, which a page would lay over each other.
+QColor opaque(const QColor &colour, const QColor &ground)
+{
+    if (colour.alpha() == 255)
+        return colour;
+    const qreal a = colour.alphaF();
+    return QColor::fromRgbF(colour.redF() * a + ground.redF() * (1 - a), colour.greenF() * a + ground.greenF() * (1 - a),
+                            colour.blueF() * a + ground.blueF() * (1 - a));
+}
+
 // A colour as CSS takes it: "#rrggbb", or rgba() when it is see-through.
 QString cssColour(const QColor &colour)
 {
@@ -337,20 +348,24 @@ QJsonObject DashBridge::texts() const
 QJsonObject DashBridge::palette() const
 {
     const QPalette palette = QApplication::palette();
+    // What the page's colours lie on: the window's colour, itself made
+    // opaque over white or black.
+    const QColor window = palette.color(QPalette::Window);
+    const QColor ground = opaque(window, window.lightness() >= 128 ? QColor(Qt::white) : QColor(Qt::black));
     const QFont font = QApplication::font();
     // The priority and attention colours of the sidebar (SidebarDelegate.cpp).
     QColor normal(0x3b, 0x82, 0xf6);
     normal.setAlphaF(0.35f);
     return {
-        {QStringLiteral("window"), cssColour(palette.color(QPalette::Window))},
-        {QStringLiteral("base"), cssColour(palette.color(QPalette::Base))},
-        {QStringLiteral("alternateBase"), cssColour(palette.color(QPalette::AlternateBase))},
-        {QStringLiteral("text"), cssColour(palette.color(QPalette::WindowText))},
-        {QStringLiteral("muted"), cssColour(palette.color(QPalette::PlaceholderText))},
-        {QStringLiteral("border"), cssColour(palette.color(QPalette::Mid))},
-        {QStringLiteral("accent"), cssColour(palette.color(QPalette::Accent))},
-        {QStringLiteral("highlight"), cssColour(palette.color(QPalette::Highlight))},
-        {QStringLiteral("link"), cssColour(palette.color(QPalette::Link))},
+        {QStringLiteral("window"), cssColour(opaque(palette.color(QPalette::Window), ground))},
+        {QStringLiteral("base"), cssColour(opaque(palette.color(QPalette::Base), ground))},
+        {QStringLiteral("alternateBase"), cssColour(opaque(palette.color(QPalette::AlternateBase), ground))},
+        {QStringLiteral("text"), cssColour(opaque(palette.color(QPalette::WindowText), ground))},
+        {QStringLiteral("muted"), cssColour(opaque(palette.color(QPalette::PlaceholderText), ground))},
+        {QStringLiteral("border"), cssColour(opaque(palette.color(QPalette::Mid), ground))},
+        {QStringLiteral("accent"), cssColour(opaque(palette.color(QPalette::Accent), ground))},
+        {QStringLiteral("highlight"), cssColour(opaque(palette.color(QPalette::Highlight), ground))},
+        {QStringLiteral("link"), cssColour(opaque(palette.color(QPalette::Link), ground))},
         {QStringLiteral("attention"), cssColour(QColor(0xd9, 0x48, 0x3b))},
         {QStringLiteral("priorityUrgent"), cssColour(QColor(0xd9, 0x3b, 0x3b))},
         {QStringLiteral("priorityHigh"), cssColour(QColor(0xe8, 0x86, 0x2a))},

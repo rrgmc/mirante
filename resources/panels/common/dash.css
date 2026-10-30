@@ -1,0 +1,146 @@
+/* The look every built-in panel shares. The colours and the font come from
+   the app, through dash.js; these defaults only show until they arrive. */
+:root {
+    --window: #f5f5f5;
+    --base: #ffffff;
+    --alternateBase: #f0f0f0;
+    --text: #1f2328;
+    --muted: #6b7280;
+    --border: #d0d7de;
+    --accent: #3b6ea5;
+    --highlight: #3b6ea5;
+    --link: #3b6ea5;
+    --attention: #d9483b;
+    --priorityUrgent: #d93b3b;
+    --priorityHigh: #e8862a;
+    --priorityNormal: rgba(59, 130, 246, 0.35);
+    --priorityLow: #9aa1ad;
+    --font-family: system-ui, sans-serif;
+    --font-size: 13px;
+}
+
+html,
+body {
+    margin: 0;
+    padding: 0;
+    background: var(--base);
+    color: var(--text);
+    font-family: var(--font-family);
+    font-size: var(--font-size);
+    line-height: 1.4;
+}
+
+#root {
+    padding: 8px 10px;
+}
+
+.heading {
+    margin: 0 0 2px;
+    font-size: 1.15em;
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.subheading {
+    margin: 0 0 8px;
+    color: var(--muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.message {
+    margin: 16px 0;
+    color: var(--muted);
+    text-align: center;
+}
+
+.list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    border-top: 1px solid var(--border);
+}
+
+.row {
+    display: block;
+    padding: 6px 6px 6px 8px;
+    border-bottom: 1px solid var(--border);
+    border-left: 3px solid transparent;
+    cursor: pointer;
+    outline: none;
+}
+
+.row:hover {
+    background: var(--alternateBase);
+}
+
+.row:focus-visible {
+    border-left-color: var(--highlight);
+    background: var(--alternateBase);
+}
+
+.row.attention {
+    border-left-color: var(--attention);
+}
+
+.line {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    min-width: 0;
+}
+
+.name {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.muted {
+    color: var(--muted);
+}
+
+.side {
+    flex: 0 0 auto;
+    color: var(--muted);
+    font-size: 0.9em;
+}
+
+.pill {
+    flex: 0 0 auto;
+    padding: 0 5px;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    color: var(--muted);
+    font-size: 0.85em;
+}
+
+.badge {
+    flex: 0 0 auto;
+    min-width: 1.4em;
+    padding: 0 5px;
+    border-radius: 0.8em;
+    background: var(--attention);
+    color: #ffffff;
+    font-size: 0.85em;
+    font-weight: 700;
+    text-align: center;
+}
+
+.reasons {
+    margin: 2px 0 0;
+    padding: 0;
+    list-style: none;
+    color: var(--attention);
+}
+
+.detail {
+    margin-top: 1px;
+    overflow-wrap: anywhere;
+}

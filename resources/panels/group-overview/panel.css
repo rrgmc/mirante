@@ -1,0 +1,17 @@
+/* Group overview: rows of tasks, each with its priority marker. See
+   common/dash.css. */
+.heading {
+    margin-bottom: 8px;
+}
+
+.marker {
+    flex: 0 0 auto;
+    width: 0.6em;
+    height: 0.6em;
+    border-radius: 50%;
+    align-self: center;
+}
+
+.row .detail {
+    padding-left: calc(0.6em + 6px);
+}
