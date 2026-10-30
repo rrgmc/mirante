@@ -1,10 +1,14 @@
 // Tests FocusView on the fixtures: the rows, their order, the group filter,
-// following the model's changes, and opening a task.
+// following the model's changes, opening a task, and the attention badges
+// and toggle.
+#include "AttentionTestSupport.h"
+
 #include "core/Model.h"
 #include "core/Store.h"
 #include "ui/FocusView.h"
 #include "ui/SidebarModel.h"
 
+#include <QCheckBox>
 #include <QComboBox>
 #include <QListView>
 #include <QSignalSpy>
@@ -265,6 +269,50 @@ private slots:
         // Not on a row: no menu.
         emit list->customContextMenuRequested(QPoint(5, list->viewport()->height() - 2));
         QCOMPARE(asked.size(), 1);
+    }
+
+    // Rows carry the task's attention count for the badge, and "Needs
+    // attention first" moves those tasks to the top, keeping the order within
+    // each part. Only the user's change of the toggle is reported.
+    void attentionFirst()
+    {
+        attentiontest::Fixture f;
+        FocusView view(f.model);
+        const QStringList usual = view.taskIds();
+        QCOMPARE(usual.size(), 4);
+        QCOMPARE(usual.first(), QStringLiteral("t1"));
+        auto *box = view.findChild<QCheckBox *>(QStringLiteral("attentionFirst"));
+        QVERIFY(box);
+        QCOMPARE(box->text(), QStringLiteral("Needs attention first"));
+        QVERIFY(!view.attentionFirst());
+
+        // Without Attention the toggle changes nothing.
+        QSignalSpy changed(&view, &FocusView::attentionFirstChanged);
+        view.setAttentionFirst(true);
+        QVERIFY(view.attentionFirst());
+        QVERIFY(box->isChecked());
+        QCOMPARE(changed.count(), 0);
+        QCOMPARE(view.taskIds(), usual);
+
+        // The two tasks last in the usual order need attention.
+        const QString third = usual.at(2);
+        const QString fourth = usual.at(3);
+        view.setAttention(f.attention.get());
+        for (const QString &taskId : {third, fourth})
+            f.setReasons(f.model.task(taskId)->items.front().id, {QStringLiteral("pipeline-failed")});
+        QTRY_COMPARE(view.taskIds(), (QStringList{third, fourth, usual.at(0), usual.at(1)}));
+
+        auto *list = view.findChild<QListView *>();
+        QCOMPARE(list->model()->index(0, 0).data(SidebarModel::AttentionRole).toInt(), 1);
+        QCOMPARE(list->model()->index(2, 0).data(SidebarModel::AttentionRole).toInt(), 0);
+
+        // The user turns it off: the usual order, and the change is reported.
+        box->click();
+        QVERIFY(!view.attentionFirst());
+        QCOMPARE(changed.count(), 1);
+        QCOMPARE(changed.at(0).at(0).toBool(), false);
+        QCOMPARE(view.taskIds(), usual);
+        QCOMPARE(list->model()->index(2, 0).data(SidebarModel::AttentionRole).toInt(), 1);
     }
 
 private:
