@@ -1,6 +1,7 @@
 // Tests QuickAddRun with fake handlers and finders: answers in any order, a
 // handler that never finishes, stale answers dropped, projects matched, items
-// already offered dropped, and the task that create() makes.
+// already offered dropped, the task that create() makes, and the items that
+// addToTask() adds, leaving out what the task already has.
 #include "core/Model.h"
 #include "items/ItemTypeRegistry.h"
 #include "items/QuickAddRun.h"
@@ -413,6 +414,88 @@ private slots:
         QVERIFY(!none->dashboards.front().layout.ref);
 
         QVERIFY(run.create(QStringLiteral("missing"), QStringLiteral("x"), items).isEmpty());
+    }
+
+    void addsToTheTask()
+    {
+        QuickAddRun run(model, types, nullptr);
+        const QString taskId = run.create(QStringLiteral("p1"), QStringLiteral("Fix login"),
+                                          {item(QStringLiteral("alpha.mr"), QStringLiteral("!42"), {{QStringLiteral("iid"), 42}})});
+        const Task before = *model.task(taskId);
+
+        const std::vector<QuickAddItem> items = {
+            item(QStringLiteral("beta.issue"), QStringLiteral("PROJ-7"), {{QStringLiteral("key"), QStringLiteral("PROJ-7")}}),
+            item(QStringLiteral("alpha.pipeline"), QStringLiteral("main"), {{QStringLiteral("ref"), QStringLiteral("main")}}),
+        };
+        const QStringList ids = run.addToTask(taskId, items);
+        QCOMPARE(ids.size(), 2);
+        const Task *task = model.task(taskId);
+        QCOMPARE(task->items.size(), size_t(3));
+        // In order, after the items it had.
+        QCOMPARE(task->items[0].id, before.items[0].id);
+        QCOMPARE(task->items[1].id, ids[0]);
+        QCOMPARE(task->items[1].type, QStringLiteral("beta.issue"));
+        QCOMPARE(task->items[1].name, QStringLiteral("PROJ-7"));
+        QCOMPARE(task->items[1].config.value(QStringLiteral("key")).toString(), QStringLiteral("PROJ-7"));
+        QVERIFY(task->items[1].profile.isEmpty());
+        QCOMPARE(task->items[2].id, ids[1]);
+        QCOMPARE(task->items[2].type, QStringLiteral("alpha.pipeline"));
+        // No dashboard changes, and the rest of the task stays.
+        QVERIFY(task->dashboards == before.dashboards);
+        QCOMPARE(task->title, before.title);
+        QCOMPARE(task->projectId, before.projectId);
+
+        QVERIFY(run.addToTask(taskId, {}).isEmpty());
+        QCOMPARE(model.task(taskId)->items.size(), size_t(3));
+        QVERIFY(run.addToTask(QStringLiteral("missing"), items).isEmpty());
+    }
+
+    void leavesOutWhatTheTaskHas()
+    {
+        QuickAddRun run(model, types, nullptr);
+        const QuickAddItem mr = item(QStringLiteral("alpha.mr"), QStringLiteral("!42"), {{QStringLiteral("iid"), 42}});
+        const QuickAddItem issue = item(QStringLiteral("beta.issue"), QStringLiteral("PROJ-7"),
+                                        {{QStringLiteral("key"), QStringLiteral("PROJ-7")}});
+        // The task has the proposal's merge request, under another name, and
+        // the issue.
+        QuickAddItem renamed = mr;
+        renamed.name = QStringLiteral("My MR");
+        const QString taskId = run.create(QStringLiteral("p1"), QStringLiteral("Fix login"), {renamed, issue});
+        run.setTask(taskId);
+
+        handlerScripts[QStringLiteral("alpha")] = [](QuickAddRequest &request) {
+            QuickAddProposal p = proposal(QStringLiteral("Fix login"));
+            p.items.push_back(item(QStringLiteral("alpha.mr"), QStringLiteral("!43"), {{QStringLiteral("iid"), 43}}));
+            request.finish(p);
+        };
+        handlerScripts[QStringLiteral("beta")] = [](QuickAddRequest &request) { request.finish(std::nullopt); };
+        QSignalSpy proposed(&run, &QuickAddRun::proposed);
+        run.propose(QStringLiteral("x"), QString());
+        QCOMPARE(proposed.count(), 1);
+        const auto handled = proposed.at(0).at(0).value<QuickAddRun::Proposal>();
+        QCOMPARE(handled.proposal.items.size(), size_t(1));
+        QCOMPARE(handled.proposal.items.front().name, QStringLiteral("!43"));
+
+        // The finders see the task's items as offered, and what they find
+        // again is dropped.
+        QSignalSpy found(&run, &QuickAddRun::found);
+        run.findRelated(handled, QString(), QStringLiteral("p1"), QString());
+        QCOMPARE(pendingFinders.size(), size_t(2));
+        QCOMPARE(pendingFinders[0].request->items().size(), size_t(3));
+        const QuickAddItem pipeline = item(QStringLiteral("alpha.pipeline"), QStringLiteral("main"),
+                                           {{QStringLiteral("ref"), QStringLiteral("main")}});
+        pendingFinders[0].request->finish({issue, mr, pipeline});
+        QCOMPARE(found.count(), 1);
+        const auto items = found.at(0).at(0).value<std::vector<QuickAddItem>>();
+        QCOMPARE(items.size(), size_t(1));
+        QCOMPARE(items.front().typeId, QStringLiteral("alpha.pipeline"));
+        pendingFinders[1].request->finish({});
+
+        // Without a task, nothing is left out.
+        run.setTask(QString());
+        run.propose(QStringLiteral("x"), QString());
+        QCOMPARE(proposed.count(), 2);
+        QCOMPARE(proposed.at(1).at(0).value<QuickAddRun::Proposal>().proposal.items.size(), size_t(2));
     }
 };
 

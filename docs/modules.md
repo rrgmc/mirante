@@ -283,9 +283,11 @@ Quick add is generic. The core passes the pasted text to every quick add handler
 
 - recognise the text, such as a merge request URL or a Jira key;
 - propose a task title and its items;
-- name a project setting and value to match, such as `gitlab.project = acme/backend`. The core picks the project whose setting has that value. If none matches, or several do, it asks the user.
+- name a project setting and value to match, such as `gitlab.project = acme/backend`. The core picks the project whose setting has that value. If none matches, or several do, it asks the user. When the items go to an existing task, the task's project is used and the match is ignored.
 
-The core then passes the new task's title and its items' text, such as a branch name, to every related-item finder. A finder can offer more items. For example, the `gitlab` module finds merge requests whose branch contains a Jira key, and the `jira` module recognises a Jira key in a merge request title.
+The core then passes the task's title and its items' text, such as a branch name, to every related-item finder. A finder can offer more items. For example, the `gitlab` module finds merge requests whose branch contains a Jira key, and the `jira` module recognises a Jira key in a merge request title.
+
+The core either creates a task with the chosen items, or adds them to an existing task. See [decision 0083](decisions/0083-quick-add-into-a-task.md).
 
 This lets the `jira` and `gitlab` modules work together without depending on each other. See [ui](ui.md#quick-add) and [decision 0078](decisions/0078-quick-add-dialog.md).
 
@@ -311,7 +313,7 @@ void registerModule(ModuleRegistrar &registrar)
 
 - **Requests.** A handler gets a `QuickAddRequest`, a finder a `RelatedItemRequest`. Like a `StatusJob`, each gives the module's settings and server, in the profile the dialog shows, and ends with `finish()`, exactly once. A run that does not finish in 30 seconds counts as finding nothing.
 - **Proposals.** A `QuickAddProposal` has the task's title, its items in order, an optional `ProjectMatch` of one of the module's project settings, and texts for the finders, such as a branch name.
-- **Items.** A `QuickAddItem` has a type id, a name and a configuration, as the item dialog would make. Its profile is empty, so it follows its group. The core drops an item whose type and configuration are already offered.
+- **Items.** A `QuickAddItem` has a type id, a name and a configuration, as the item dialog would make. Its profile is empty, so it follows its group. The core drops an item whose type and configuration are already offered, or, when adding to a task, that the task already has. Finders see the task's items among the offered items.
 - **Finders** also read the chosen project's settings with `projectSetting()`, such as the GitLab project to search.
 - **Tests.** `<mirante/testing/FakeQuickAdd.h>` has `FakeQuickAddRequest` and `FakeRelatedItemRequest`.
 
