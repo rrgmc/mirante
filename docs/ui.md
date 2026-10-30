@@ -20,7 +20,7 @@ This document describes navigation, dashboards and editing. It was checked with 
 
 - **Sidebar, on the left:** the workspace's name, then a tree of groups, projects and tasks. It has no Focus entry: Focus has its own slot in the tab row. See [decision 0053](decisions/0053-no-focus-entry-in-the-sidebar.md).
 - **Tab row, on the right, above the content:**
-  - On the left, the **tabs**: root dashboards only. The `+` button and the dashboard list button follow them. Task dashboards and items open in the preview slot, which never becomes a tab. See [decision 0052](decisions/0052-no-pinning.md).
+  - On the left, the **tabs**: root dashboards only. The `+` button and the dashboard list button follow them. Dragging a tab along the row moves it among the other tabs. Task dashboards and items open in the preview slot, which never becomes a tab. See [decision 0052](decisions/0052-no-pinning.md).
   - On the right, after a thin separator, two fixed **slots**: **Focus** and the **preview**, then the lock. They look like tabs. See [decision 0048](decisions/0048-focus-and-preview-slots.md).
   - One page is current across the tabs and the slots. While a slot is current, no tab shows as selected, and the other way round.
 - **Content area:** the page of the current tab or slot.
@@ -212,7 +212,7 @@ The menu bar has File, View, Profiles, Tools and Help. On macOS there is no Tool
 - Opening the task dashboard or the item that the preview already shows switches to the preview.
 - Closing the last tab, or closing the preview while there is no tab, shows Focus.
 
-The open tabs are stored on each device for each workspace, not synced: the root dashboard tabs in order, the current tab, and the [detached](#detached-windows) root dashboards. If the Focus slot was current, it is current next time. The preview is not kept; if it was current, the first tab is current next time. They are saved when another workspace opens and when the window closes, and come back when the workspace opens again. The first time a workspace opens on a device, every root dashboard opens.
+The open tabs are stored on each device for each workspace, not synced: the root dashboard tabs in the order they have in the tab row, the current tab, and the [detached](#detached-windows) root dashboards. If the Focus slot was current, it is current next time. The preview is not kept; if it was current, the first tab is current next time. They are saved when another workspace opens and when the window closes, and come back when the workspace opens again. The first time a workspace opens on a device, every root dashboard opens.
 
 ## Root dashboards
 
@@ -291,7 +291,8 @@ When editing is on:
   - "Delete tab" removes the tab and its content from the layout.
   - "Ungroup" appears only when the group has one tab. It removes the tab group: the tab's content takes the group's place.
 - **A `+` button** at the right of each tab group adds an empty tab at the end.
-- **Drag and drop:** drag a cell by its header, a tab by its tab, a whole tab group by the empty part of its tab bar, or an item from the sidebar. Cell headers and tab bars show an open hand while the dashboard is unlocked. Holding a drag over a tab that is not shown opens it, so a cell can be dropped beside its content. A tab group or a split moves within its own dashboard. The zones work over web pages too: a web page does not take a drag of a cell or an item, but it still takes other drags, such as files. A semi-transparent overlay shows five drop zones on the cell under the cursor:
+- **Moving a tab:** dragging a tab along its tab bar moves it within its tab group, and the group's order is saved with the layout. While the dashboard is locked, the tabs stay in place.
+- **Drag and drop:** drag a cell by its header, a tab by its tab out of its tab bar, a whole tab group by the empty part of its tab bar, or an item from the sidebar. Cell headers and tab bars show an open hand while the dashboard is unlocked. Holding a drag over a tab that is not shown opens it, so a cell can be dropped beside its content. A tab group or a split moves within its own dashboard. The zones work over web pages too: a web page does not take a drag of a cell or an item, but it still takes other drags, such as files. A semi-transparent overlay shows five drop zones on the cell under the cursor:
   - the left, right, top or bottom edge splits the cell on that side;
   - the centre adds the dropped content as a tab, turning the cell into a tab group if needed. On an empty cell, or a "Removed" one whose task or item was deleted, the centre fills the cell instead.
 - Dropping on a tab bar inserts a new tab at that position.
