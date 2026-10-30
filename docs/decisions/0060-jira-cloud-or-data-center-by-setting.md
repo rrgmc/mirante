@@ -1,6 +1,6 @@
 # 0060. Jira Cloud or Data Center is a setting, guessed from the site
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-10-29
 
 ## Context

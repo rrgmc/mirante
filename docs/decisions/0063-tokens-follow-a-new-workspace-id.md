@@ -1,6 +1,6 @@
 # 0063. Tokens follow a workspace id that another device changed
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-10-29
 
 ## Context

@@ -1,6 +1,6 @@
 # 0061. Status comes from the item's object, and some attention clears when seen
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-10-29
 
 ## Context

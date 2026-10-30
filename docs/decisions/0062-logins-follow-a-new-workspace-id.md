@@ -1,6 +1,6 @@
 # 0062. Logins follow a workspace id that another device changed
 
-- Status: Accepted
+- Status: Accepted; tokens superseded by [0063](0063-tokens-follow-a-new-workspace-id.md)
 - Date: 2026-10-29
 
 ## Context
