@@ -24,6 +24,7 @@
 #include <QComboBox>
 #include <QDialogButtonBox>
 #include <QGroupBox>
+#include <QKeySequenceEdit>
 #include <QLabel>
 #include <QLineEdit>
 #include <QListWidget>
@@ -219,6 +220,7 @@ private slots:
     void itemProfile();
     void itemFieldsOfTheProfile();
     void itemWatch();
+    void itemPageKeys();
     void profilesDialog();
     void profilesDialogDoubleClickRenames();
     void dashboard();
@@ -390,6 +392,48 @@ void TestDialogs::itemWatch()
     QVERIFY(!creating.showsWatch());
     creating.setType(formType);
     QVERIFY(creating.showsWatch());
+}
+
+// The page keys row shows for a type whose views are web views. Add records
+// a key once; Remove drops the selected one. A native type keeps its keys.
+void TestDialogs::itemPageKeys()
+{
+    Item web;
+    web.id = QStringLiteral("i11");
+    web.type = webType;
+    web.name = QStringLiteral("Page");
+    web.pageKeys = {QStringLiteral("Ctrl+K")};
+    ItemDialog dialog(web, false, types, {});
+    QVERIFY(dialog.showsPageKeys());
+    QCOMPARE(dialog.value().pageKeys, QStringList({QStringLiteral("Ctrl+K")}));
+
+    auto *record = dialog.findChild<QKeySequenceEdit *>(QStringLiteral("pageKeyEdit"));
+    auto *add = dialog.findChild<QPushButton *>(QStringLiteral("addPageKey"));
+    auto *remove = dialog.findChild<QPushButton *>(QStringLiteral("removePageKey"));
+    auto *list = dialog.findChild<QListWidget *>(QStringLiteral("pageKeyList"));
+    QVERIFY(record && add && remove && list);
+    QVERIFY(!add->isEnabled());
+    record->setKeySequence(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_P));
+    QVERIFY(add->isEnabled());
+    add->click();
+    QVERIFY(record->keySequence().isEmpty());
+    record->setKeySequence(QKeySequence(Qt::CTRL | Qt::Key_K));
+    add->click();
+    QCOMPARE(dialog.value().pageKeys, QStringList({QStringLiteral("Ctrl+K"), QStringLiteral("Ctrl+Shift+P")}));
+
+    list->setCurrentRow(0);
+    QVERIFY(remove->isEnabled());
+    remove->click();
+    QCOMPARE(dialog.value().pageKeys, QStringList({QStringLiteral("Ctrl+Shift+P")}));
+
+    Item native;
+    native.id = QStringLiteral("i12");
+    native.type = editorType;
+    native.name = QStringLiteral("Own");
+    native.pageKeys = {QStringLiteral("Ctrl+K")};
+    ItemDialog nativeDialog(native, false, types, {});
+    QVERIFY(!nativeDialog.showsPageKeys());
+    QCOMPARE(nativeDialog.value().pageKeys, QStringList({QStringLiteral("Ctrl+K")}));
 }
 
 void TestDialogs::itemProfile()

@@ -1,8 +1,11 @@
 #pragma once
 
+#include <QKeySequence>
+#include <QList>
 #include <QWebEnginePage>
 #include <QWidget>
 
+#include <functional>
 #include <memory>
 
 class QUrl;
@@ -29,6 +32,10 @@ public:
     QWidget *toolbar() const;
 
     QWebEngineView *view() const;
+
+    // The keys the page keeps instead of the app's shortcuts, such as an
+    // item's pageKeys. See PageArea::setPageKeys().
+    void setPageKeys(std::function<QList<QKeySequence>()> keys);
 
 private:
     struct Private;

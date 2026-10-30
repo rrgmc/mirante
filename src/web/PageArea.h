@@ -1,7 +1,10 @@
 #pragma once
 
+#include <QKeySequence>
+#include <QList>
 #include <QWidget>
 
+#include <functional>
 #include <memory>
 
 class QWebEngineProfile;
@@ -30,6 +33,10 @@ public:
     // Loads the page again. After a failed load it loads the address that
     // failed, which a plain reload may not know.
     void reload();
+
+    // The keys the page keeps instead of the app's shortcuts, asked on each
+    // key. See PageKeys.
+    void setPageKeys(std::function<QList<QKeySequence>()> keys);
 
 private:
     struct Private;

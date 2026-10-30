@@ -2131,6 +2131,22 @@
         <source>Watch:</source>
         <translation>Acompanhar:</translation>
     </message>
+    <message>
+        <source>While the page has the keyboard focus, these keys go to the page instead of running Mirante&apos;s shortcuts.</source>
+        <translation>Enquanto a página tem o foco do teclado, estas teclas vão para a página em vez de executar os atalhos do Mirante.</translation>
+    </message>
+    <message>
+        <source>Add</source>
+        <translation>Adicionar</translation>
+    </message>
+    <message>
+        <source>Remove</source>
+        <translation>Remover</translation>
+    </message>
+    <message>
+        <source>Keys for the page:</source>
+        <translation>Teclas da página:</translation>
+    </message>
 </context>
 <context>
     <name>mirante::LayoutEditor</name>

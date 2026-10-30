@@ -68,6 +68,7 @@ public:
     bool showsProfile() const;
     bool showsWatch() const;
     void setWatch(bool watch);
+    bool showsPageKeys() const;
     // Chooses a registered type while creating, as the type page does, and
     // shows the item's page. Does nothing while editing.
     void setType(const QString &typeId);

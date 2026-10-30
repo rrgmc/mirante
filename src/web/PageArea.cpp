@@ -1,5 +1,6 @@
 #include "web/PageArea.h"
 
+#include "web/PageKeys.h"
 #include "web/WebPage.h"
 
 #include <QFrame>
@@ -49,6 +50,7 @@ struct PageArea::Private
     PageArea *q = nullptr;
     WebPage *page = nullptr;
     QWebEngineView *view = nullptr;
+    PageKeys *keys = nullptr;
 
     // The permission bar asks about the first waiting permission.
     QFrame *permissionBar = nullptr;
@@ -182,6 +184,7 @@ PageArea::PageArea(QWebEngineProfile *profile, QWidget *parent)
     // The page is the view's child, so it goes before its profile does.
     d->page = new WebPage(profile, d->view);
     d->view->setPage(d->page);
+    d->keys = PageKeys::install(d->view);
 
     d->buildPermissionBar();
     d->buildFailure();
@@ -226,5 +229,7 @@ void PageArea::reload()
     else
         d->page->triggerAction(QWebEnginePage::Reload);
 }
+
+void PageArea::setPageKeys(std::function<QList<QKeySequence>()> keys) { d->keys->setKeys(std::move(keys)); }
 
 } // namespace mirante

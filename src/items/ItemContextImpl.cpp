@@ -12,6 +12,7 @@
 #include "items/ItemTypeRegistry.h"
 #include "items/UnknownItemType.h"
 #include "platform/Launcher.h"
+#include "web/PageKeys.h"
 #include "web/ProfileManager.h"
 #include "web/WebPanel.h"
 
@@ -178,6 +179,12 @@ QWidget *ItemContextImpl::createPage(const QUrl &url, QWidget *parent, QWidget *
         return createMessageView(QCoreApplication::translate("ItemContext", "Web pages are not available here."),
                                  parent);
     auto *panel = new WebPanel(webProfile, url, parent);
+    // Read on each key, so a change to the item applies at once. The model
+    // outlives every view.
+    panel->setPageKeys([model = static_cast<const Model *>(m_services.model), taskId = m_taskId, itemId = m_itemId] {
+        const Item *item = model ? model->item(taskId, itemId) : nullptr;
+        return item ? PageKeys::fromStrings(item->pageKeys) : QList<QKeySequence>();
+    });
     toolbar = panel->toolbar();
     return panel;
 }
