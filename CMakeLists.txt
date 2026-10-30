@@ -41,6 +41,8 @@ if(APPLE AND TARGET WrapOpenGL::WrapOpenGL)
 endif()
 
 option(MIRANTE_WERROR "Treat compiler warnings as errors" OFF)
+set(MIRANTE_MACOS_SIGN_IDENTITY "$ENV{MIRANTE_MACOS_SIGN_IDENTITY}" CACHE STRING
+    "macOS: the certificate that signs the bundle in the bin folder. Empty leaves it ad hoc signed")
 
 include(MiranteTargets)
 include(Dependencies)
