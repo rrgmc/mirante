@@ -29,6 +29,9 @@ public:
     void setStatus(const QString &text, StatusRole role);
     StatusRole role() const { return m_role; }
 
+protected:
+    void paintEvent(QPaintEvent *event) override;
+
 private:
     StatusRole m_role;
 };
