@@ -151,8 +151,10 @@ Help > Modules… opens the Modules window. It shows what this build of the app 
 The settings window holds settings of this device. They are kept in the [device settings](sync.md#device-settings), not in the workspace, so they are not synced. Module settings, which belong to the workspace, are in the [Profiles menu](#profiles-menu).
 
 - **Opening it.** On macOS it is the standard Settings… item of the application menu, with `Cmd+,`. On Windows and Linux it is Tools > Settings…, with the platform's preferences key if it has one. There is no Edit menu, since the app has no edit commands, and Tools is where Windows apps keep their options. See [menus](#menus).
-- **Applying changes.** Each change is saved and applied at once, without a restart. The window has only a Close button.
+- **Applying changes.** Each change is saved and applied at once, without a restart, except the language. The window has only a Close button.
 - **Layout.** The options are grouped in sections. Each section is a bold heading over a form. A note at the top says that the settings apply to this device only.
+- **General:**
+  - "Language": "System", the default, "English" or "Português (Brasil)". "System" takes Brazilian Portuguese when the system's first user interface language is any Portuguese, and English otherwise. Next to it, "Applies at the next start.": unlike the other options, the language changes only when Mirante starts again. Dates and numbers follow the language. See [decision 0086](decisions/0086-english-and-brazilian-portuguese.md).
 - **Sidebar:**
   - "Highlight the sidebar row of the cell under the mouse", on by default. It turns the hover tint of the [sidebar tree](#sidebar-tree) on or off. Turned off, any tint goes at once.
 - **Status:**
@@ -319,7 +321,7 @@ An image can also be dropped from another app, such as an image file from the fi
 - A drop on a task row, or on its Items row, in the sidebar does what **Paste Image…** does there. The row under the image is tinted while it is dragged.
 - A drop on a cell that shows an Image item does what `Ctrl+V` does in that cell: it replaces the image, on a locked dashboard too. The cell shows its focus border while the image is over it.
 - A drop on an image field in the item dialog does what its "Paste" button does.
-- The drop takes the first file whose suffix is `png`, `jpg`, `jpeg`, `gif`, `bmp` or `webp` and that can be read, else the image the drag carries. WebP files are read only where Qt has a WebP plugin.
+- The drop takes the first file whose suffix is `png`, `jpg`, `jpeg`, `gif`, `bmp` or `webp` and that can be read, else the image the drag carries.
 - Anywhere else, and for a drag without such an image, such as a text file, the pointer shows that the drop is refused. The Trash list refuses every drop.
 - A drop is always a copy: the file stays where it was. The dialog opens once the drop is over, so the app the image came from does not wait for it.
 - The sidebar's own drags, and the drags of the layout editor, work as before, also over an Image cell.

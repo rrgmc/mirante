@@ -117,7 +117,7 @@ See [the M7 plan](plans/m7-quick-add-and-local-items.md) and [the changes after 
 
 - [ ] CI builds and tests on macOS again.
 - [ ] CI builds the Windows package and the macOS app bundle.
-- [ ] Windows package with `windeployqt`, macOS app bundle with `macdeployqt`.
+- [ ] Windows package with `windeployqt`, macOS app bundle with `macdeployqt`. Both include Qt's `qtbase` translations, which the app loads from `QLibraryInfo::TranslationsPath`, and the WebP image plugin.
 - [ ] A short install and first-run guide in the root `README.md`.
 
 ## Future: Custom builds
