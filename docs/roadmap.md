@@ -130,6 +130,19 @@ See [the M10 plan](plans/m10-packaging.md). Checked by hand with [the M10 checkl
 - [ ] Windows package with `windeployqt`, macOS app bundle with `macdeployqt`. Both include Qt's `qtbase` translations, which the app loads from `QLibraryInfo::TranslationsPath`, and the WebP image plugin.
 - [ ] A short install and first-run guide in the root `README.md`.
 
+## M11: GitHub module
+
+See [the M11 plan](plans/m11-github-module.md) and [decision 0102](decisions/0102-github-module.md).
+
+- [ ] The `github` module, with GitHub PR (summary), PR (page), PR List, Actions Run, Actions Run List, Issue (summary), Issue (page) and Issue List, for github.com and GitHub Enterprise Server.
+- [ ] Its General Configuration holds the web address, the token and the repositories. The API address follows from the web address.
+- [ ] Status and attention: failed checks, review requested, approved, changes requested and conflicts on a pull request; a failed run in a branch's newest commit.
+- [ ] Re-run a run, its failed jobs or one job, and cancel a run.
+- [ ] The lists across repositories use the search API, with the presets and a custom filter.
+- [ ] Pasting a GitHub link picks the right type, and quick add takes a pull request address.
+- [ ] `ApiClient` joins pages of answers that wrap their rows, and GitHub's rate limits wait instead of pausing the server.
+- [ ] Tests cover URL recognition, status and attention, list queries and the views, on recorded answers.
+
 ## Future: Custom builds
 
 Not scheduled. It needs the packaging from M10. Anyone can build their own Mirante with the modules they choose, including modules from other people's repositories, and get its executables from CI. Modules stay compiled in, as in [decision 0013](decisions/0013-compiled-in-modules.md). Decision records and a code plan are written when this work starts.
