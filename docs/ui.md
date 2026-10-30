@@ -144,6 +144,8 @@ The settings window holds settings of this device. They are kept in the [device 
 - **Layout.** The options are grouped in sections. Each section is a bold heading over a form. A note at the top says that the settings apply to this device only.
 - **Sidebar:**
   - "Highlight the sidebar row of the cell under the mouse", on by default. It turns the hover tint of the [sidebar tree](#sidebar-tree) on or off. Turned off, any tint goes at once.
+- **Status:**
+  - "Check servers every", a number of minutes from 1 to 60, 2 by default. It sets how often the app asks the servers for the status of the items it watches. See [polling and caching](integrations.md#polling-and-caching).
 
 ## Window
 
@@ -228,8 +230,8 @@ Each cell has a small header containing:
 - a **type pill**: a small rounded label with the type's icon and short name, such as "MR", "Issue", "Jira", "Claude", "Folder", "Image", "Notes" or "Web". Its colour depends on the module, so items of one module look alike. A type whose module is not in the build gets a grey pill with the module id;
 - the item name, in normal weight;
 - in a root dashboard, where an item can come from any task, a grey **place pill** with its project and task after the name, such as "backend › Overview";
-- status badges;
-- buttons: refresh, open in browser, a menu, and maximise.
+- the item's [status](#attention): an attention badge, a problem pill, or the data's age;
+- buttons: refresh, open in browser, a menu, and maximise. Refresh shows only for items of types that report status.
 
 ### A bigger view of an item
 
@@ -337,7 +339,8 @@ Focus answers "what should I work on now?", across all projects.
   3. manual order.
 - The list follows changes to groups, projects and tasks as they happen.
 - A double click or `Enter` opens the task's default dashboard in the preview slot.
-- A toggle, "Needs attention first", moves tasks with attention badges to the top. It arrives with attention in M5.
+- Each row shows the task's [attention badge](#attention) at its right.
+- A check box right of the group combo box, "Needs attention first", moves the tasks with attention badges to the top. Within each part the usual order stays. The box is off at first, and its state is kept in the [device settings](sync.md#device-settings).
 
 ## Attention
 
@@ -349,6 +352,16 @@ Attention means something needs action now. Sources:
 - a linked Jira issue changed status.
 
 Attention appears as badges. It changes the order only in the Focus view, and only when its toggle is on. See [decision 0009](decisions/0009-priority-and-attention.md).
+
+Some reasons are events, such as an approval or a new Jira status. They stop counting once a cell showing the item has been visible for two seconds. The others, such as a failed pipeline, count for as long as they are true. See [decision 0061](decisions/0061-attention-from-status-of-any-rendering.md).
+
+- **Badges.** A badge is a small round label in the attention colour, a strong red, with a white count. Counts above 99 show as "99+".
+  - In a **cell header**, before the refresh and menu buttons, it counts the item's reasons. Its tooltip lists them.
+  - In the **sidebar**, at the right of the row, it counts the task's items that need attention. A project's badge sums its tasks, and a group's badge sums its projects. Only active tasks count, so done and archived tasks and anything in the trash count zero. The row's tooltip gives the count too.
+  - In **Focus**, each row has the task's badge, as in the sidebar.
+- **Problems.** When the item's status cannot be fetched, the cell header shows an amber pill in place of the badge: "Token not set", "Token refused", "No server set" or "Not found". For the first three the pill is a button that opens the profile's settings screen of the module. Its tooltip gives the message and the profile's name.
+- **Old data.** When the last fetch failed with a network or server error but older data exists, the header shows the data's age in grey, such as "12 min ago". The badges keep the older data's count.
+- **Refresh.** The refresh button in the cell header fetches the item's status at once. Otherwise the app checks the servers at the interval set in the [settings window](#settings).
 
 ## Quick add
 
