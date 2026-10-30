@@ -115,9 +115,9 @@ See [the M8 plan](plans/m8-tray-notifications-and-keyboard.md). Checked by hand 
 
 See [the M9 plan](plans/m9-built-in-panels.md). Checked by hand with [the M9 checklist](plans/m9-checks.md).
 
-- [ ] The `dash://` scheme, served only in the app profile, with the security headers.
-- [ ] `DashBridge` provides the members listed in [web views](web-views.md#built-in-panels).
-- [ ] The Task summary and Group overview panels.
+- [x] The `dash://` scheme, served only in the app profile, with the security headers.
+- [x] `DashBridge` provides the members listed in [web views](web-views.md#built-in-panels).
+- [x] The Task summary and Group overview panels.
 
 ## M10: Packaging
 
