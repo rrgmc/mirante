@@ -1,6 +1,6 @@
 # 0096. The app icon is a landscape seen through three arches
 
-- Status: Accepted
+- Status: Superseded by 0097
 - Date: 2026-10-30
 
 ## Context
