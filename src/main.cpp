@@ -7,14 +7,18 @@
 #include "items/ItemTypeRegistry.h"
 #include "items/ViewPool.h"
 #include "platform/AttachedDialogs.h"
+#include "platform/Foreground.h"
 #include "ui/AppStyle.h"
 #include "ui/MainWindow.h"
 #include "web/ProfileManager.h"
+#include "web/SingleInstance.h"
 
 #include <QApplication>
 #include <QCommandLineParser>
 #include <QDir>
+#include <QFileInfo>
 #include <QIcon>
+#include <QMessageBox>
 #include <QStandardPaths>
 
 #include <memory>
@@ -50,6 +54,11 @@ int main(int argc, char *argv[])
         QStringLiteral("Keep this device's settings in the INI <file> instead, for test runs."),
         QStringLiteral("file"));
     parser.addOption(settingsOption);
+    const QCommandLineOption webDataOption(
+        QStringLiteral("web-data"),
+        QStringLiteral("Keep the web logins in <folder> instead, for test runs beside another instance."),
+        QStringLiteral("folder"));
+    parser.addOption(webDataOption);
     const QCommandLineOption logOption(QStringLiteral("log"),
                                        QStringLiteral("Keep the log messages for Help > Show Log. Always on in debug builds."));
     parser.addOption(logOption);
@@ -59,6 +68,37 @@ int main(int argc, char *argv[])
     if (!parser.isSet(logOption))
         logBuffer.reset();
 #endif
+
+    // --- One instance per web data folder -------------------------------
+    // Two processes must not use the same web logins at once. A later start
+    // hands its --data over to the running instance and exits. See
+    // docs/decisions/0058-one-instance-per-web-data-folder.md.
+    const QString webDataFolder = parser.isSet(webDataOption)
+        ? QFileInfo(parser.value(webDataOption)).absoluteFilePath()
+        : QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation) + QStringLiteral("/profiles");
+    mirante::SingleInstance instance(webDataFolder);
+    if (!instance.tryLock()) {
+        if (instance.heldElsewhere()) {
+            const QString data = parser.isSet(dataOption) ? QFileInfo(parser.value(dataOption)).absoluteFilePath()
+                                                          : QString();
+            mirante::platform::allowForegroundFor(instance.holderPid());
+            if (instance.handOver(data))
+                return 0;
+        }
+        // The holder may have quit meanwhile.
+        if (!instance.tryLock()) {
+            QMessageBox::critical(
+                nullptr, QStringLiteral(MIRANTE_APP_NAME),
+                instance.heldElsewhere()
+                    ? QStringLiteral("Mirante is already running with the web data folder %1, but it does not "
+                                     "answer. Close it, or wait for it, and start Mirante again.")
+                          .arg(QDir::toNativeSeparators(webDataFolder))
+                    : QStringLiteral("Mirante cannot use the web data folder %1.")
+                          .arg(QDir::toNativeSeparators(webDataFolder)));
+            return 1;
+        }
+    }
+    // --- End of one instance per web data folder ------------------------
 
     // Created in the order of docs/architecture.md#ownership-and-lifetime, and
     // destroyed in reverse. Services that do not exist yet are left out. The
@@ -80,8 +120,7 @@ int main(int argc, char *argv[])
     mirante::Store store(model);
     // The profiles' web logins outlive the window, and with it every page that uses
     // them. The pool's limit is read once, at start.
-    mirante::ProfileManager profiles(QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation)
-                                     + QStringLiteral("/profiles"));
+    mirante::ProfileManager profiles(webDataFolder);
     // Logins from before user-managed profiles are no longer used. See
     // docs/decisions/0042-user-managed-web-profiles.md.
     profiles.removeOldProfiles();
@@ -102,6 +141,29 @@ int main(int argc, char *argv[])
     else
         window.openSampleData();
     window.show();
+
+    // A later start handed over: open its workspace, if it gave one, and come
+    // to the front.
+    QObject::connect(&instance, &mirante::SingleInstance::activationRequested, &window,
+                     [&window](const QString &dataFolder) {
+                         // A dialog may hold entities of the open workspace,
+                         // so the workspace is not switched under it: the
+                         // window only comes to the front, with the dialog.
+                         // The workspace already open is not opened again.
+                         QWidget *modal = QApplication::activeModalWidget();
+                         const bool other = !dataFolder.isEmpty()
+                             && QDir(dataFolder).absolutePath() != QDir(window.workspace()).absolutePath();
+                         if (other && !modal)
+                             window.openWorkspace(dataFolder);
+                         window.setWindowState(window.windowState() & ~Qt::WindowMinimized);
+                         window.show();
+                         window.raise();
+                         window.activateWindow();
+                         if (modal) {
+                             modal->raise();
+                             modal->activateWindow();
+                         }
+                     });
 
     return app.exec();
 }

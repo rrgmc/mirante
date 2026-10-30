@@ -70,4 +70,6 @@ Mirante is a personal desktop dashboard for all of one person's work, built with
 
 **Data folder.** The folder holding the synced JSON files.
 
+**Web data folder.** The folder on this device that holds the profiles' web logins: the app's local data folder plus `/profiles`, or the folder given with `--web-data`. It is never synced, and only one Mirante process uses it at a time. See [decision 0058](decisions/0058-one-instance-per-web-data-folder.md).
+
 **Workspace.** A data folder with a `workspace.mirante` file at its top. File > Open Workspace opens one, File > New Workspace makes one, and the app remembers the recent ones on each device. A workspace has a name, kept in its `workspace.mirante` and shown above the sidebar tree.

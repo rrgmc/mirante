@@ -62,6 +62,7 @@ Each file records one design decision: what was decided, what else was considere
 | [0055](0055-move-workspace.md) | Moving a workspace to another folder | Accepted |
 | [0056](0056-modules-window.md) | A Modules window lists the modules and their item types | Accepted |
 | [0057](0057-any-profile-can-be-the-default.md) | Any profile can be the default | Accepted |
+| [0058](0058-one-instance-per-web-data-folder.md) | One Mirante process per web data folder; a later start hands over | Accepted |
 | [0059](0059-logins-per-workspace.md) | Each workspace keeps its own logins | Accepted |
 
 ## Template
