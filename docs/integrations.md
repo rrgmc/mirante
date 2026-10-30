@@ -23,8 +23,12 @@ Main endpoints:
 | Merge request list | `GET /merge_requests`, `GET /projects/:id/merge_requests`, `GET /groups/:id/merge_requests` |
 | Latest pipeline for a branch | `GET /projects/:id/pipelines/latest?ref=<branch>` |
 | One pipeline | `GET /projects/:id/pipelines/:pid` |
+| Pipelines of a branch | `GET /projects/:id/pipelines?ref=<branch>` |
+| Pipelines of a merge request | `GET /projects/:id/merge_requests/:iid/pipelines` |
 | Jobs | `GET /projects/:id/pipelines/:pid/jobs` |
 | Retry or cancel | `POST /projects/:id/pipelines/:pid/retry`, `.../cancel`, `POST /projects/:id/jobs/:jid/retry` |
+| Play a manual job | `POST /projects/:id/jobs/:jid/play` |
+| Trigger a pipeline | `POST /projects/:id/pipeline?ref=<branch>` |
 | Issues | `GET /projects/:id/issues/:iid`, `GET /issues`, `GET /projects/:id/issues`, `GET /groups/:id/issues` |
 | Latest issue notes | `GET /projects/:id/issues/:iid/notes?sort=desc&order_by=created_at` |
 | Current user | `GET /user`, to resolve "me" in presets and attention |
@@ -35,7 +39,7 @@ What each item type asks for its status:
 
 - **A merge request** (summary or page): the merge request, its approvals and the current user, at once. The current user is asked in every status job, and its ETag makes the repeat cheap. A summary whose head pipeline failed then asks for that pipeline's jobs. If that request fails, the status stands without the jobs.
 - **An issue** (summary or page): the issue. A summary then asks for the latest 20 notes and leaves out system notes. If that request fails, the status stands without the notes.
-- **A CI pipeline:** for a linked merge request, the merge request first, for its source branch. Then the latest pipeline of the branch, and that pipeline's jobs. A `404` for the latest pipeline means the branch has none, and is not an error.
+- **A CI pipeline:** for a linked merge request, the merge request first, for its source branch. Then the latest pipeline of the branch. Then, at once, the latest 20 pipelines of the merge request or the branch and, for a fixed branch, its open merge request, for the link in the view. Then, at once, the jobs of each pipeline created within 10 minutes of the newest. A `404` for the latest pipeline means the branch has none, and is not an error. A failed request for the list, the open merge request or a sibling's jobs keeps the status of the latest. See [decision 0072](decisions/0072-pipelines-started-together.md).
 - **A list:** the list of its scope, up to 100 rows, most recently updated first. A merge request list with the `reviewRequested` preset asks for the current user first. See [decision 0067](decisions/0067-lists-report-status.md).
 
 The attention rules are in [item types](item-types.md#gitlab).
