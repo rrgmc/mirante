@@ -67,6 +67,8 @@ See [the M4 plan](plans/m4-web-views.md).
 
 ## M5: Servers and status
 
+See [the M5 plan](plans/m5-servers-and-status.md).
+
 - [ ] Modules register project settings. The project dialog is built from their fields.
 - [ ] Tokens typed into the settings screens are stored with qtkeychain, under `<profileId>/<moduleId>/<fieldKey>`. See [decision 0054](decisions/0054-module-settings-replace-connections.md).
 - [ ] `SecretStore` stores tokens in the keychain on all three platforms.
