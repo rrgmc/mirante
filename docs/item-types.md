@@ -175,7 +175,7 @@ The summaries have fixed layouts, as in [decision 0066](decisions/0066-fixed-nat
   - "Open page" and "Web", on the page of the pipeline shown.
 - **Refresh:** while the pipeline shown is unfinished and the view is visible, the view asks for a new status every 15 seconds. A pipeline that waits on a manual job counts as finished here, since it waits for a person. Otherwise the usual interval holds.
 - **Messages:** a branch without pipelines shows "No pipeline on <branch>" as its title, with only "Trigger pipeline" and the merge request's link. A pipeline that follows the main folder shows its status's message, in place of everything else.
-- **Status:** a summary of the latest, such as "Failed · main · 1 failed job", or "No pipeline on main" for a branch without pipelines. The item is never closed. Until M7, a pipeline that follows the main folder reports no status.
+- **Status:** a summary of the latest, such as "Failed · main · 1 failed job", or "No pipeline on main" for a branch without pipelines. The item is never closed. A pipeline that follows the main folder reads the folder's branch at each fetch, and reports no status, with a message, when the folder has no path on this device or is not on a branch.
 - **Attention:** a pipeline of the group failed, whichever is shown. Each failed pipeline is a new reason with its own key, so a failure is not hidden by a later pipeline that passed, and a retry that fails again counts again. Together with the merge request's failed pipeline, this is the only event that sends a [desktop notification](ui.md#tray-and-notifications).
 
 "Current branch of the main folder" reads `.git/HEAD` of the folder's local path on this device. If the folder is not mapped on this device, the panel asks for a branch.
