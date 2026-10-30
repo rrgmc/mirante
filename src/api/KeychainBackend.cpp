@@ -18,11 +18,6 @@ namespace {
 
 const QString kService = QStringLiteral("mirante");
 
-QString entryName(const QString &key)
-{
-    return kService + QLatin1Char('/') + key;
-}
-
 class KeychainBackend : public SecretBackend
 {
 public:
@@ -30,7 +25,7 @@ public:
     {
         auto *job = new QKeychain::ReadPasswordJob(kService);
         job->setAutoDelete(true);
-        job->setKey(entryName(key));
+        job->setKey(keychainEntryName(key));
         QObject::connect(job, &QKeychain::Job::finished, job, [job, done = std::move(done)] {
             switch (job->error()) {
             case QKeychain::NoError:
@@ -51,7 +46,7 @@ public:
     {
         auto *job = new QKeychain::WritePasswordJob(kService);
         job->setAutoDelete(true);
-        job->setKey(entryName(key));
+        job->setKey(keychainEntryName(key));
         job->setTextData(value);
         QObject::connect(job, &QKeychain::Job::finished, job, [job, done = std::move(done)] {
             done(job->error() == QKeychain::NoError ? QString() : job->errorString());
@@ -63,7 +58,7 @@ public:
     {
         auto *job = new QKeychain::DeletePasswordJob(kService);
         job->setAutoDelete(true);
-        job->setKey(entryName(key));
+        job->setKey(keychainEntryName(key));
         QObject::connect(job, &QKeychain::Job::finished, job, [job, done = std::move(done)] {
             const bool ok = job->error() == QKeychain::NoError || job->error() == QKeychain::EntryNotFound;
             done(ok ? QString() : job->errorString());
@@ -73,6 +68,11 @@ public:
 };
 
 } // namespace
+
+QString keychainEntryName(const QString &key)
+{
+    return kService + QLatin1Char('/') + key;
+}
 
 std::unique_ptr<SecretBackend> makeKeychainBackend()
 {

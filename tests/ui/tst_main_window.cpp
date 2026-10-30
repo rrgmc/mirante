@@ -2249,6 +2249,40 @@ private slots:
         QVERIFY(view->attentionFirst());
     }
 
+    // Profiles > <profile> > Settings… shows where the profile's data is
+    // kept. Without web profiles there is nothing to show.
+    void profileSettingsShowStorage()
+    {
+        {
+            Fixture f;
+            auto *settings = f.window->findChild<QAction *>(QStringLiteral("profileSettings.default"));
+            QVERIFY(settings);
+            QVERIFY(!settings->isEnabled());
+        }
+        Fixture f(true);
+        auto *settings = f.window->findChild<QAction *>(QStringLiteral("profileSettings.default"));
+        QVERIFY(settings);
+        QVERIFY(settings->isEnabled());
+        settings->trigger();
+        auto *dialog = f.window->findChild<QDialog *>(QStringLiteral("profileSettingsDialog"));
+        QVERIFY(dialog);
+        QVERIFY(dialog->isVisible());
+        const QString folder = f.profiles->storagePath(ProfileManager::storageName(QStringLiteral("default")));
+        QCOMPARE(dialog->findChild<QLineEdit *>(QStringLiteral("webDataPath"))->text(),
+                 QDir::toNativeSeparators(folder));
+        QCOMPARE(dialog->findChild<QLineEdit *>(QStringLiteral("cachePath"))->text(),
+                 QDir::toNativeSeparators(QDir(folder).filePath(QStringLiteral("cache"))));
+        const QString prefix = keychainEntryName(f.model.workspaceId() + QStringLiteral("/default/"));
+        QCOMPARE(dialog->findChild<QLineEdit *>(QStringLiteral("tokenPrefix"))->text(), prefix + QStringLiteral("…"));
+        QVERIFY(prefix.startsWith(QStringLiteral("mirante/")));
+
+        // A second opening replaces the first window.
+        const QPointer<QDialog> first = dialog;
+        settings->trigger();
+        QTRY_VERIFY(!first);
+        QVERIFY(f.window->findChild<QDialog *>(QStringLiteral("profileSettingsDialog")));
+    }
+
 private:
     // The visible detached windows, ignoring those already put back.
     static QList<DetachedWindow *> detachedWindows()

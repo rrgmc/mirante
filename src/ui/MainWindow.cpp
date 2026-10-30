@@ -2,6 +2,7 @@
 
 #include "Version.h"
 #include "api/Attention.h"
+#include "api/SecretBackend.h"
 #include "api/SecretStore.h"
 #include "api/ServerClient.h"
 #include "api/StatusCache.h"
@@ -34,6 +35,7 @@
 #include "ui/FocusView.h"
 #include "ui/LogWindow.h"
 #include "ui/ModulesDialog.h"
+#include "ui/ProfileSettingsDialog.h"
 #include "ui/ImagePaste.h"
 #include "ui/ImagePasteDialog.h"
 #include "ui/QuickSwitcher.h"
@@ -192,6 +194,7 @@ struct MainWindow::Private
     QPointer<LogWindow> logWindow;
     QPointer<SettingsDialog> settingsDialog;
     QPointer<ModulesDialog> modulesDialog;
+    QPointer<ProfileSettingsDialog> profileSettingsDialog;
     // Whether the sidebar tints the row of the hovered cell, from the device
     // settings. See applyDeviceSettings().
     bool sidebarHoverTint = true;
@@ -1349,6 +1352,30 @@ struct MainWindow::Private
             if (model->profile(profileId))
                 model->setDefaultProfile(profileId);
         });
+        menu->addSeparator();
+        QAction *settings = menu->addAction(MainWindow::tr("&Settings…"));
+        settings->setObjectName(QStringLiteral("profileSettings.") + profileId);
+        settings->setEnabled(profiles != nullptr);
+        QObject::connect(settings, &QAction::triggered, q, [this, profileId] { showProfileSettings(profileId); });
+    }
+
+    // The profile's settings window, which shows where its data is kept.
+    // One is open at a time.
+    void showProfileSettings(const QString &profileId)
+    {
+        const Profile *profile = model->profile(profileId);
+        if (!profile || !profiles)
+            return;
+        ProfileStorage storage;
+        storage.webData = profiles->storagePath(ProfileManager::storageName(profileId));
+        storage.cache = QDir(storage.webData).filePath(QStringLiteral("cache"));
+        // Every token key of the profile starts the same, whatever the module.
+        const QString anyKey = secretKey(model->workspaceId(), profileId, QStringLiteral("m"), QStringLiteral("f"));
+        storage.tokenPrefix = keychainEntryName(anyKey.left(anyKey.size() - 3));
+        delete profileSettingsDialog;
+        profileSettingsDialog = new ProfileSettingsDialog(profiles::listName(*model, *profile), storage, q);
+        profileSettingsDialog->setAttribute(Qt::WA_DeleteOnClose);
+        profileSettingsDialog->show();
     }
 
     // The profile's Modules submenu: a submenu for each module with settings

@@ -27,6 +27,9 @@ public:
 // The operating system's keychain, through qtkeychain, under the service
 // "mirante". Implemented in KeychainBackend.cpp.
 std::unique_ptr<SecretBackend> makeKeychainBackend();
+// The name of a key's entry in the keychain: "mirante/<key>". See decision
+// 0064.
+QString keychainEntryName(const QString &key);
 
 // Values in memory only, lost at exit. For tests and --no-keychain.
 // Implemented in MemoryBackend.cpp.
