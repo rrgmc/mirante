@@ -11,8 +11,8 @@ All accepted:
 
 Smaller choices made here:
 
-- **The scheme.** `dash` is registered with `QWebEngineUrlScheme` before `QApplication`, with host syntax and the flags `SecureScheme | LocalScheme | LocalAccessAllowed`, so a panel is a secure context that may load its own files. Only the app profile installs a handler. Every other profile fails a `dash:` address with "unknown scheme".
-- **Addresses.** The host must be `panels`. The path is cleaned, and must not climb out with `..`. `dash://panels/<path>` is served from the resource `:/panels/<path>`. The one exception is `dash://panels/common/qwebchannel.js`, served from Qt's own `:/qtwebchannel/qwebchannel.js`, because the policy below forbids `qrc:`. Anything else fails with `UrlNotFound`. Only `GET` is answered; other methods fail with `RequestDenied`.
+- **The scheme.** `dash` is registered with `QWebEngineUrlScheme` before `QApplication`, with host syntax and the flags `SecureScheme | LocalScheme`, so a panel is a secure context that pages of other schemes cannot load. Only the app profile installs a handler. Every other profile fails a `dash:` address.
+- **Addresses.** The host must be `panels`. Every part of the path must be a plain name: no empty part, no `.` and no `..`, also percent-encoded. `dash://panels/<path>` is served from the resource `:/panels/<path>`. The one exception is `dash://panels/common/qwebchannel.js`, served from Qt's own `:/qtwebchannel/qwebchannel.js`, because the policy below forbids `qrc:`. Anything else fails with `UrlNotFound`. Only `GET` is answered; other methods fail with `RequestDenied`.
 - **The headers.** Every reply sets, with `QWebEngineUrlRequestJob::setAdditionalResponseHeaders()` (Qt 6.7 and later):
 
   ```text
@@ -60,12 +60,11 @@ Smaller choices made here:
 - `dash::registerScheme()` in `main.cpp`, before `QApplication`.
 - `DashSchemeHandler` and `resourceFor()`.
 - `ProfileManager::appProfile()` installs the handler.
-- `resources/panels/common/` with a placeholder `test.html`, so the scheme can be tested before the panels exist. It is removed in Part 4.
-- Tests, in `tst_dash_scheme`:
-  - `resourceFor()`: a good path; the wrong host; `..` in several spellings, also percent-encoded; an empty path; `qwebchannel.js`.
-  - A page in the app profile loads `dash://panels/common/test.html`, and its `document.title` is right. A page in a list profile fails to load the same address.
-  - The response headers, read back with `fetch()` from the page itself. `connect-src 'none'` forbids that, so the test page is served under a test-only policy instead: `DashSchemeHandler` takes the policy as a constructor argument, and the test makes its own handler in its own profile.
-  - The test needs release libraries; see [debug builds](../web-views.md#debug-builds). In debug it is skipped, like `tst_page_keys`.
+- Tests, in `tst_dash_scheme`, which registers the scheme in its own `main()`. Its pages come from `tests/web/dash/`, compiled into the test as `dash://panels/test/`:
+  - `resourceFor()`: a good path; the wrong host; `..` in several spellings, also percent-encoded; an empty path; a folder; `qwebchannel.js`.
+  - The content types and the headers, as plain values.
+  - A page in the app profile loads `dash://panels/test/index.html`, with its script and `qwebchannel.js`. Its inline script does not run, which shows that the policy arrived. A page in a list profile fails to load the same address.
+  - The page tests need release libraries; see [debug builds](../web-views.md#debug-builds). In debug they are skipped, like `tst_page_keys`.
 
 ## Part 2: the type and the view
 

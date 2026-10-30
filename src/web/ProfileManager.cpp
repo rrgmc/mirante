@@ -1,6 +1,7 @@
 #include "web/ProfileManager.h"
 
 #include "core/Entities.h"
+#include "web/DashSchemeHandler.h"
 
 #include <QApplication>
 #include <QCryptographicHash>
@@ -239,7 +240,12 @@ QWebEngineProfile *ProfileManager::appProfile()
 {
     // Built-in panels belong to the app, not to a workspace.
     const QString name = QStringLiteral("app");
-    return profileAt(this, d->profiles, QDir(d->root).filePath(name), name);
+    QWebEngineProfile *profile = profileAt(this, d->profiles, QDir(d->root).filePath(name), name);
+    // Only this profile serves dash://. Without the scheme registered, as in
+    // most tests, there is nothing to serve.
+    if (dash::isRegistered() && !profile->urlSchemeHandler(dash::schemeName()))
+        profile->installUrlSchemeHandler(dash::schemeName(), new DashSchemeHandler(profile));
+    return profile;
 }
 
 void ProfileManager::removeFolder(const QString &path, std::function<void()> done)

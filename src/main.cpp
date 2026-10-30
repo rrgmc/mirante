@@ -18,6 +18,7 @@
 #include "platform/Platform.h"
 #include "ui/AppStyle.h"
 #include "ui/MainWindow.h"
+#include "web/DashSchemeHandler.h"
 #include "web/ProfileManager.h"
 #include "web/SingleInstance.h"
 
@@ -44,6 +45,9 @@ int main(int argc, char *argv[])
 
     // Qt WebEngine asks for shared OpenGL contexts, set before the application.
     QCoreApplication::setAttribute(Qt::AA_ShareOpenGLContexts);
+    // The built-in panels' scheme, which Qt WebEngine needs before the
+    // application. See docs/web-views.md#built-in-panels.
+    mirante::dash::registerScheme();
     QApplication app(argc, argv);
     QApplication::setStyle(new mirante::AppStyle);
     // On macOS, dialogs stay attached to their window.

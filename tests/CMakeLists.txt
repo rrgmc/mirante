@@ -8,3 +8,9 @@ mirante_add_tests(items LIBS mirante_items)
 mirante_add_tests(layout LIBS mirante_layout)
 mirante_add_tests(ui LIBS mirante_ui)
 mirante_add_tests(module_widgets LIBS mirante_module_widgets)
+
+# The pages that tst_dash_scheme loads from dash://panels/test/.
+qt_add_resources(web_tst_dash_scheme dash_test_pages
+    PREFIX /panels/test
+    BASE "${CMAKE_CURRENT_SOURCE_DIR}/web/dash"
+    FILES web/dash/index.html web/dash/test.js)

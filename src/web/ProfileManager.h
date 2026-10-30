@@ -38,7 +38,8 @@ public:
     // the id "default". The manager does not check that the workspace lists the id;
     // profiles::effective() does that.
     QWebEngineProfile *profile(const QString &profileId);
-    // "app", for built-in panels from M9.
+    // "app", for built-in panels. It serves dash:// once the scheme is
+    // registered; see dash::registerScheme().
     QWebEngineProfile *appProfile();
 
     // Clears the cookies and cache of a profile, then removes its folder once

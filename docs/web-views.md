@@ -126,9 +126,18 @@ The debug build cannot be used for these checks: Qt WebEngine's debug libraries 
 
 Built-in panels are HTML pages shipped with the app. They show data from the [status cache](integrations.md#polling-and-caching).
 
-- **The `dash://` scheme.** It is registered with `QWebEngineUrlScheme` before `QApplication` is created. It is served by `DashSchemeHandler` from Qt resources, at paths such as `dash://panels/task-summary/index.html`.
-- **The `app` profile.** Built-in panels only load in this profile, never in a profile of the list.
-- **Content Security Policy.** Every response sends `default-src dash:; connect-src 'none'`, so panel pages cannot load remote code or call the network.
+- **The `dash://` scheme.** It is registered with `QWebEngineUrlScheme` before `QApplication` is created, by `dash::registerScheme()`. It has host syntax and is secure and local: a panel is a secure context, and pages of other schemes cannot load it. It is served by `DashSchemeHandler` from Qt resources: `dash://panels/<path>` is the resource `:/panels/<path>`, such as `dash://panels/task-summary/index.html`. Another host, a path with an empty part, `.` or `..`, a folder, or a file other than HTML, JavaScript, CSS or SVG fails as not found. Only `GET` is answered. `dash://panels/common/qwebchannel.js` is Qt's own `qwebchannel.js`, because the policy below does not allow `qrc:`.
+- **The `app` profile.** Only this profile installs the handler, in `ProfileManager::appProfile()`. A profile of the list fails a `dash:` address, so built-in panels load only in the app profile.
+- **The headers.** Every response sends:
+
+  ```text
+  Content-Security-Policy: default-src dash:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: no-referrer
+  Cache-Control: no-store
+  ```
+
+  Panel pages cannot load remote code, run inline scripts or call the network. `no-store` makes a panel changed in a new build load fresh.
 - **The bridge.** Panels talk to the app through `QWebChannel`, using one object named `dash`:
 
 | Member | Description |
