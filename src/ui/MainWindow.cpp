@@ -1361,10 +1361,10 @@ struct MainWindow::Private
                 model->setDefaultProfile(profileId);
         });
         menu->addSeparator();
-        QAction *settings = menu->addAction(MainWindow::tr("&Settings…"));
-        settings->setObjectName(QStringLiteral("profileSettings.") + profileId);
-        settings->setEnabled(profiles != nullptr);
-        QObject::connect(settings, &QAction::triggered, q, [this, profileId] { showProfileSettings(profileId); });
+        QAction *profileSettings = menu->addAction(MainWindow::tr("&Settings…"));
+        profileSettings->setObjectName(QStringLiteral("profileSettings.") + profileId);
+        profileSettings->setEnabled(profiles != nullptr);
+        QObject::connect(profileSettings, &QAction::triggered, q, [this, profileId] { showProfileSettings(profileId); });
     }
 
     // The profile's settings window, which shows where its data is kept.
