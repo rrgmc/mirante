@@ -60,6 +60,21 @@ private slots:
         }
     }
 
+    // A transparent window colour says nothing, so the text colour decides.
+    void transparentWindowFollowsTheTextColour()
+    {
+        const QColor transparent(0, 0, 0, 0);
+        QPalette light;
+        light.setColor(QPalette::Window, transparent);
+        light.setColor(QPalette::WindowText, Qt::black);
+        QPalette dark = light;
+        dark.setColor(QPalette::WindowText, Qt::white);
+        QCOMPARE(statusColours(StatusRole::Good, light).fill,
+                 statusColours(StatusRole::Good, paletteWithWindow(Qt::white)).fill);
+        QCOMPARE(statusColours(StatusRole::Good, dark).fill,
+                 statusColours(StatusRole::Good, paletteWithWindow(Qt::black)).fill);
+    }
+
     void modesAndRolesDiffer()
     {
         const QList<QPalette> palettes = bothModes();

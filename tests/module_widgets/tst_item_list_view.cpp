@@ -11,6 +11,7 @@
 #include <QSplitter>
 #include <QTableView>
 #include <QTest>
+#include <QTextDocument>
 #include <QToolButton>
 
 #include <algorithm>
@@ -345,6 +346,37 @@ private slots:
         view.setPreview(new QLabel(QStringLiteral("Third")));
         QVERIFY(view.preview()->isVisible());
         QVERIFY(closeButton(view)->isVisible());
+    }
+
+    void firstPreviewGetsItsShareOfTheHeight()
+    {
+        ItemListView view;
+        view.setColumns(fourColumns(), UpdatedColumn);
+        view.setRows({makeRow(QStringLiteral("a"), 2)});
+        view.resize(800, 700);
+        view.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&view));
+
+        view.setPreview(new QLabel(QStringLiteral("Preview")));
+        const QList<int> sizes = view.findChild<QSplitter *>()->sizes();
+        QCOMPARE(sizes.size(), 2);
+        QVERIFY2(sizes.at(1) >= 200, qPrintable(QString::number(sizes.at(1))));
+        QVERIFY(sizes.at(0) > sizes.at(1));
+    }
+
+    // A tooltip must not read server text as markup.
+    void tooltipIsPlainText()
+    {
+        ItemListView view;
+        view.setColumns(fourColumns(), UpdatedColumn);
+        view.setRows({makeRow(QStringLiteral("a"), 2, QStringLiteral("<b>bold</b>"))});
+
+        const QAbstractItemModel *model = tableOf(view)->model();
+        const QModelIndex title = model->index(0, TitleColumn);
+        QCOMPARE(title.data().toString(), QStringLiteral("<b>bold</b>"));
+        QTextDocument shown;
+        shown.setHtml(title.data(Qt::ToolTipRole).toString());
+        QCOMPARE(shown.toPlainText(), QStringLiteral("<b>bold</b>"));
     }
 
     void closingThePreviewLetsTheSameRowBringItBack()
