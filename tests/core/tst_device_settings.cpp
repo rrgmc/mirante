@@ -1,6 +1,7 @@
 // Tests DeviceSettings on a QSettings in a temporary INI file: the keys M2
 // used, the recent list, folder paths, the open tabs of each workspace, the
-// windows of detached dashboards and the hidden-view limit.
+// windows of detached dashboards, the hidden-view limit, the poll interval,
+// the seen attention keys and Focus's attention order.
 #include "core/DeviceSettings.h"
 
 #include <QDir>
@@ -428,6 +429,96 @@ private slots:
         }
         settings = std::make_unique<QSettings>(iniPath(), QSettings::IniFormat);
         QCOMPARE(DeviceSettings(settings.get()).hiddenViewLimit(), limit);
+    }
+
+    void pollInterval()
+    {
+        {
+            DeviceSettings device(settings.get());
+            QCOMPARE(device.pollInterval(), 120);
+            device.setPollInterval(300);
+        }
+        reopen();
+        DeviceSettings device(settings.get());
+        QCOMPARE(device.pollInterval(), 300);
+        // Kept between 30 seconds and one hour.
+        device.setPollInterval(5);
+        QCOMPARE(device.pollInterval(), 30);
+        device.setPollInterval(100000);
+        QCOMPARE(device.pollInterval(), 3600);
+    }
+
+    void pollIntervalFromFile_data()
+    {
+        QTest::addColumn<QString>("text");
+        QTest::addColumn<int>("seconds");
+        QTest::newRow("number") << QStringLiteral("600") << 600;
+        QTest::newRow("too small") << QStringLiteral("1") << 30;
+        QTest::newRow("too large") << QStringLiteral("99999") << 3600;
+        QTest::newRow("text") << QStringLiteral("often") << 120;
+        QTest::newRow("empty") << QString() << 120;
+    }
+
+    void pollIntervalFromFile()
+    {
+        QFETCH(QString, text);
+        QFETCH(int, seconds);
+        settings.reset();
+        {
+            QFile file(iniPath());
+            QVERIFY(file.open(QIODevice::WriteOnly | QIODevice::Truncate));
+            file.write("[status]\npollInterval=" + text.toUtf8() + "\n");
+        }
+        settings = std::make_unique<QSettings>(iniPath(), QSettings::IniFormat);
+        QCOMPARE(DeviceSettings(settings.get()).pollInterval(), seconds);
+    }
+
+    void seenAttention()
+    {
+        const QString ws = QStringLiteral("8d0c2f4e-1b7a-4c5d-9e3f-6a2b1c0d9e8f");
+        const QString other = QStringLiteral("1f2e3d4c-5b6a-4978-8a9b-0c1d2e3f4a5b");
+        const QString item = QStringLiteral("3c4d5e6f-7a8b-4c9d-8e0f-1a2b3c4d5e6f");
+        const QStringList keys{QStringLiteral("approved"), QStringLiteral("status:10001")};
+        {
+            DeviceSettings device(settings.get());
+            QVERIFY(!device.hasSeenAttention(ws, item));
+            QVERIFY(device.seenAttention(ws, item).isEmpty());
+            device.setSeenAttention(ws, item, keys);
+            // An empty list is still a record.
+            device.setSeenAttention(ws, QStringLiteral("empty"), {});
+            // Empty ids are ignored.
+            device.setSeenAttention(QString(), item, {QStringLiteral("x")});
+            device.setSeenAttention(ws, QString(), {QStringLiteral("x")});
+        }
+        reopen();
+        DeviceSettings device(settings.get());
+        QVERIFY(device.hasSeenAttention(ws, item));
+        QCOMPARE(device.seenAttention(ws, item), keys);
+        QVERIFY(device.hasSeenAttention(ws, QStringLiteral("empty")));
+        QVERIFY(device.seenAttention(ws, QStringLiteral("empty")).isEmpty());
+        QVERIFY(!device.hasSeenAttention(QString(), item));
+        QVERIFY(!device.hasSeenAttention(ws, QString()));
+        // Each workspace has its own records.
+        QVERIFY(!device.hasSeenAttention(other, item));
+
+        device.removeSeenAttention(ws, item);
+        QVERIFY(!device.hasSeenAttention(ws, item));
+        QVERIFY(device.seenAttention(ws, item).isEmpty());
+        QVERIFY(device.hasSeenAttention(ws, QStringLiteral("empty")));
+    }
+
+    void focusAttentionFirst()
+    {
+        {
+            DeviceSettings device(settings.get());
+            QVERIFY(!device.focusAttentionFirst());
+            device.setFocusAttentionFirst(true);
+        }
+        reopen();
+        DeviceSettings device(settings.get());
+        QVERIFY(device.focusAttentionFirst());
+        device.setFocusAttentionFirst(false);
+        QVERIFY(!device.focusAttentionFirst());
     }
 };
 
