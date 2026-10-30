@@ -768,6 +768,54 @@ private slots:
         QCOMPARE(f.window->workspace(), folder);
     }
 
+    // Another device may give the workspace a new id, for example when it
+    // opened a copy synced before this device wrote the id. The logins of the
+    // id this device knew move to the new one. An id this device gives, as
+    // after the id was removed from a copy, takes nothing.
+    void loginsFollowANewWorkspaceId()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid() && copyFixtures(dir.path()));
+        const QString file = dir.filePath(QStringLiteral("workspace.mirante"));
+        const auto setId = [&file](const QString &id) {
+            QFile in(file);
+            if (!in.open(QIODevice::ReadOnly))
+                return false;
+            QJsonObject json = QJsonDocument::fromJson(in.readAll()).object();
+            in.close();
+            if (id.isEmpty())
+                json.remove(QStringLiteral("id"));
+            else
+                json.insert(QStringLiteral("id"), id);
+            QFile out(file);
+            return out.open(QIODevice::WriteOnly) && out.write(QJsonDocument(json).toJson()) > 0;
+        };
+
+        Fixture f(true);
+        const QDir root(f.profilesRoot);
+        QVERIFY(setId(QStringLiteral("first-id")));
+        f.window->openWorkspace(dir.path());
+        QCOMPARE(f.profiles->workspace(), QStringLiteral("first-id"));
+        QCOMPARE(f.settings.workspaceId(dir.path()), QStringLiteral("first-id"));
+        QVERIFY(QDir().mkpath(root.filePath(QStringLiteral("first-id/p-default/cache"))));
+
+        f.window->openSampleData();
+        QVERIFY(setId(QStringLiteral("second-id")));
+        f.window->openWorkspace(dir.path());
+        QCOMPARE(f.profiles->workspace(), QStringLiteral("second-id"));
+        QVERIFY(QDir(root.filePath(QStringLiteral("second-id/p-default/cache"))).exists());
+        QVERIFY(!QDir(root.filePath(QStringLiteral("first-id"))).exists());
+        QCOMPARE(f.settings.workspaceId(dir.path()), QStringLiteral("second-id"));
+
+        f.window->openSampleData();
+        QVERIFY(setId(QString()));
+        f.window->openWorkspace(dir.path());
+        const QString given = f.model.workspaceId();
+        QVERIFY(!given.isEmpty() && given != QStringLiteral("second-id"));
+        QVERIFY(QDir(root.filePath(QStringLiteral("second-id/p-default/cache"))).exists());
+        QCOMPARE(f.settings.workspaceId(dir.path()), given);
+    }
+
     // A folder is a workspace only with a workspace.mirante in it. Without
     // one it is not opened; createWorkspace writes the file and opens it.
     void workspaceNeedsItsFile()

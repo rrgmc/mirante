@@ -80,12 +80,19 @@ public:
     // a workspace has just received its id. A folder the workspace already
     // has is left. Returns how many were moved.
     int adoptRootProfiles();
+    // Moves the profile folders of the workspace that had workspaceId on this
+    // device into the open workspace's folder, after another device gave the
+    // workspace a new id. See decision 0062. A folder the workspace already
+    // has, or a profile still loaded, is left. Returns how many were moved.
+    int adoptProfilesOf(const QString &workspaceId);
 
 signals:
     void profileClearing(const QString &profileId);
     void profileCleared(const QString &profileId);
 
 private:
+    // Moves the p-* folders in source into the open workspace's folder.
+    int adoptProfilesIn(const QString &source);
     // Removes the profile kept in this folder, loaded or not, and the
     // folder. done runs once the folder is gone, or the attempts ran out.
     void removeFolder(const QString &path, std::function<void()> done = {});

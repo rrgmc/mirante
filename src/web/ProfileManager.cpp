@@ -201,15 +201,19 @@ QString ProfileManager::storageName(const QString &profileId)
     return QStringLiteral("p-%1").arg(id);
 }
 
-void ProfileManager::setWorkspace(const QString &key)
+// The folder name under root for a workspace key.
+static QString workspaceFolder(const QString &key)
 {
-    if (key.isEmpty() || isPlainName(key)) {
-        d->workspace = key;
-        return;
-    }
+    if (key.isEmpty() || isPlainName(key))
+        return key;
     // A folder path, or an id from synced data that could reach outside root.
     const QByteArray hash = QCryptographicHash::hash(key.toUtf8(), QCryptographicHash::Sha1).toHex();
-    d->workspace = QStringLiteral("h-") + QString::fromLatin1(hash.left(16));
+    return QStringLiteral("h-") + QString::fromLatin1(hash.left(16));
+}
+
+void ProfileManager::setWorkspace(const QString &key)
+{
+    d->workspace = workspaceFolder(key);
 }
 
 QString ProfileManager::workspace() const { return d->workspace; }
@@ -316,13 +320,31 @@ void ProfileManager::removeOldProfiles()
 
 int ProfileManager::adoptRootProfiles()
 {
+    return adoptProfilesIn(d->root);
+}
+
+int ProfileManager::adoptProfilesOf(const QString &workspaceId)
+{
+    const QString folder = workspaceFolder(workspaceId);
+    if (folder.isEmpty() || folder == d->workspace)
+        return 0;
+    const QString source = QDir(d->root).filePath(folder);
+    const int moved = adoptProfilesIn(source);
+    // The old workspace's folder goes once nothing is left in it.
+    QDir().rmdir(source);
+    return moved;
+}
+
+int ProfileManager::adoptProfilesIn(const QString &source)
+{
     if (d->workspace.isEmpty())
         return 0;
     const QDir root(d->root);
+    const QDir sourceDir(source);
     const QString target = root.filePath(d->workspace);
     int moved = 0;
-    for (const QString &folder : root.entryList({QStringLiteral("p-*")}, QDir::Dirs | QDir::NoDotAndDotDot)) {
-        const QString from = root.filePath(folder);
+    for (const QString &folder : sourceDir.entryList({QStringLiteral("p-*")}, QDir::Dirs | QDir::NoDotAndDotDot)) {
+        const QString from = sourceDir.filePath(folder);
         const QString to = QDir(target).filePath(folder);
         // A profile already loaded from there, or a folder the workspace
         // already has, stays as it is.
