@@ -17,8 +17,9 @@ class ServerClients;
 
 // The work of quick add, without widgets: it runs the modules' handlers on
 // pasted text, matches the proposal to a project, runs the finders, and
-// creates the task. QuickAddDialog shows it. See docs/ui.md#quick-add and
-// decision 0078. Implemented in QuickAddRun.cpp.
+// creates the task or adds the items to one. QuickAddDialog shows it. See
+// docs/ui.md#quick-add and decisions 0078 and 0083. Implemented in
+// QuickAddRun.cpp.
 class QuickAddRun : public QObject
 {
     Q_OBJECT
@@ -32,6 +33,11 @@ public:
     // How long a handler or finder may take, 30 seconds by default. Then it
     // counts as having found nothing.
     void setTimeout(int ms);
+
+    // The task the items go to, or empty, the default, for a new task. Items
+    // whose type and configuration the task already has are then left out of
+    // the proposals and the finders' answers.
+    void setTask(const QString &taskId);
 
     // One handler's answer.
     struct Proposal
@@ -70,6 +76,11 @@ public:
     // tab, the first current. Returns the task's id, or empty if the project
     // does not exist.
     QString create(const QString &projectId, const QString &title, const std::vector<QuickAddItem> &items);
+
+    // Adds the items to the end of the task's items, in order, as "Add to
+    // task as item" does. No dashboard changes. Returns the new items' ids,
+    // or none if the task does not exist.
+    QStringList addToTask(const QString &taskId, const std::vector<QuickAddItem> &items);
 
 signals:
     void proposed(const mirante::QuickAddRun::Proposal &proposal);

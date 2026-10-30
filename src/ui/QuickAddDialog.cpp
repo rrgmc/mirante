@@ -84,6 +84,8 @@ struct QuickAddDialog::Private
     QString currentText;                // the text box, and its text before
     QString previousText;               // the last change, to tell a paste
     QString created;
+    QString taskId;                     // the task the items go to, or empty for a new task
+    QStringList added;
 
     Private(QuickAddDialog *q, Model &model, const ItemTypeRegistry &types, QuickAddRun &run)
         : q(q)
@@ -94,7 +96,16 @@ struct QuickAddDialog::Private
     }
 
     QString profileId() const { return profile->currentData().toString(); }
-    QString projectId() const { return project->currentData().toString(); }
+    bool intoTask() const { return !taskId.isEmpty(); }
+
+    QString projectId() const
+    {
+        if (intoTask()) {
+            const Task *task = model.task(taskId);
+            return task ? task->projectId : QString();
+        }
+        return project->currentData().toString();
+    }
 
     // The profiles, as the item dialog lists them: the default first, then
     // the others by name.
@@ -149,15 +160,20 @@ struct QuickAddDialog::Private
 
     void setDetailsVisible(bool visible)
     {
-        form->setRowVisible(title, visible);
-        form->setRowVisible(project, visible);
-        form->setRowVisible(projectHint, visible && !projectHint->text().isEmpty());
+        // A task has its title and project already.
+        const bool details = visible && !intoTask();
+        form->setRowVisible(title, details);
+        form->setRowVisible(project, details);
+        form->setRowVisible(projectHint, details && !projectHint->text().isEmpty());
         form->setRowVisible(itemList, visible);
     }
 
     void updateCreate()
     {
-        create->setEnabled(chosen >= 0 && !title->text().trimmed().isEmpty() && !projectId().isEmpty());
+        if (intoTask())
+            create->setEnabled(chosen >= 0 && model.task(taskId));
+        else
+            create->setEnabled(chosen >= 0 && !title->text().trimmed().isEmpty() && !projectId().isEmpty());
     }
 
     void read()
@@ -215,7 +231,7 @@ struct QuickAddDialog::Private
     }
 
     // Shows a proposal: its title, project and items. Then looks for
-    // related items if a project is chosen.
+    // related items if a project is chosen, at once for a task.
     void showProposal(int index)
     {
         chosen = index;
@@ -227,8 +243,12 @@ struct QuickAddDialog::Private
         for (const QuickAddItem &item : proposal.proposal.items)
             addItem(item);
 
-        const QStringList matches = QuickAddRun::matchProjects(model, proposal.moduleId, proposal.proposal.project);
-        if (matches.size() == 1) {
+        const QStringList matches = intoTask()
+            ? QStringList()
+            : QuickAddRun::matchProjects(model, proposal.moduleId, proposal.proposal.project);
+        if (intoTask()) {
+            projectHint->clear();
+        } else if (matches.size() == 1) {
             project->setCurrentIndex(project->findData(matches.front()));
             projectHint->clear();
         } else {
@@ -300,7 +320,8 @@ struct QuickAddDialog::Private
         findRelated();
     }
 
-    void createTask()
+    // Create Task, or Add Items for a task.
+    void accept()
     {
         if (!create->isEnabled())
             return;
@@ -312,6 +333,15 @@ struct QuickAddDialog::Private
                 chosenItems.push_back(items[size_t(index.toInt())]);
         }
         run.cancel();
+        if (intoTask()) {
+            const QStringList ids = run.addToTask(taskId, chosenItems);
+            if (!model.task(taskId))
+                return;
+            added = ids;
+            emit q->itemsAdded(taskId, ids);
+            q->accept();
+            return;
+        }
         const QString id = run.create(projectId(), title->text().trimmed(), chosenItems);
         if (id.isEmpty())
             return;
@@ -323,10 +353,35 @@ struct QuickAddDialog::Private
 
 QuickAddDialog::QuickAddDialog(Model &model, const ItemTypeRegistry &types, QuickAddRun &run,
                                const QString &profileId, QWidget *parent)
+    : QuickAddDialog(model, types, run, profileId, QString(), parent)
+{
+}
+
+QuickAddDialog *QuickAddDialog::forTask(Model &model, const ItemTypeRegistry &types, QuickAddRun &run,
+                                        const QString &taskId, QWidget *parent)
+{
+    // The profile of the task's group, else the workspace's default.
+    QString profileId;
+    const Task *task = model.task(taskId);
+    const Project *project = task ? model.project(task->projectId) : nullptr;
+    if (const Group *group = project ? model.group(project->groupId) : nullptr)
+        profileId = profiles::groupDefault(model, *group);
+    return new QuickAddDialog(model, types, run, profileId, taskId, parent);
+}
+
+QuickAddDialog::QuickAddDialog(Model &model, const ItemTypeRegistry &types, QuickAddRun &run,
+                               const QString &profileId, const QString &taskId, QWidget *parent)
     : QDialog(parent)
     , d(std::make_unique<Private>(this, model, types, run))
 {
-    setWindowTitle(tr("Quick Add"));
+    d->taskId = taskId;
+    run.setTask(taskId);
+    if (d->intoTask()) {
+        const Task *task = model.task(taskId);
+        setWindowTitle(tr("Add Items from Link: %1").arg(task ? task->title : QString()));
+    } else {
+        setWindowTitle(tr("New Task from Link"));
+    }
     setObjectName(QStringLiteral("quickAddDialog"));
 
     d->text = new QLineEdit;
@@ -365,7 +420,8 @@ QuickAddDialog::QuickAddDialog(Model &model, const ItemTypeRegistry &types, Quic
     auto *buttons = new QDialogButtonBox;
     // An action, not an accept button: the button box would make an accept
     // button the default, and Return in the text box would press it.
-    d->create = buttons->addButton(tr("Create"), QDialogButtonBox::ActionRole);
+    d->create = buttons->addButton(d->intoTask() ? tr("Add Items") : tr("Create Task"),
+                                   QDialogButtonBox::ActionRole);
     d->create->setObjectName(QStringLiteral("create"));
     QPushButton *cancel = buttons->addButton(QDialogButtonBox::Cancel);
     cancel->setObjectName(QStringLiteral("cancel"));
@@ -379,7 +435,8 @@ QuickAddDialog::QuickAddDialog(Model &model, const ItemTypeRegistry &types, Quic
     layout->addWidget(buttons);
 
     d->fillProfiles(profileId);
-    const bool hasProjects = d->fillProjects() > 0;
+    // A task has a project; a new task needs one.
+    const bool hasProjects = d->fillProjects() > 0 || d->intoTask();
     d->noProjects->setVisible(!hasProjects);
     d->create->setVisible(hasProjects);
     d->clearForm();
@@ -407,7 +464,7 @@ QuickAddDialog::QuickAddDialog(Model &model, const ItemTypeRegistry &types, Quic
     });
     connect(d->project, &QComboBox::currentIndexChanged, this, [this] { d->onProjectChosen(); });
     connect(d->title, &QLineEdit::textChanged, this, [this] { d->updateCreate(); });
-    connect(d->create, &QPushButton::clicked, this, [this] { d->createTask(); });
+    connect(d->create, &QPushButton::clicked, this, [this] { d->accept(); });
     connect(cancel, &QPushButton::clicked, this, &QDialog::reject);
 
     connect(&run, &QuickAddRun::proposed, this, [this](const QuickAddRun::Proposal &p) { d->onProposed(p); });
@@ -446,5 +503,7 @@ void QuickAddDialog::setText(const QString &text)
 }
 
 QString QuickAddDialog::createdTaskId() const { return d->created; }
+
+QStringList QuickAddDialog::addedItemIds() const { return d->added; }
 
 } // namespace mirante
