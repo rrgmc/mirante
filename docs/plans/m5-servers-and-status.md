@@ -322,7 +322,7 @@ signals:
 | Issue (summary, page) | issue | none | `state` is `closed` |
 | CI Pipeline | for `mergeRequest`, the merge request, then its source branch; for `fixed`, the branch; then the latest pipeline and its jobs | "Pipeline failed" (`pipeline-failed:<pipeline id>`, notify) | never |
 
-  The summary reads like "Open · 2 of 3 approvals · pipeline failed". The CI Pipeline with `mainFolder` reports `State::None` with "Follows the main folder from M7"; [M7](../roadmap.md#m7-quick-add-claude-local-folders-and-notes) adds it.
+  The summary reads like "Open · 2 of 3 approvals · pipeline failed". The CI Pipeline with `mainFolder` reports `State::None` with "Follows the main folder from M7"; [M7](../roadmap.md#m7-quick-add-folders-and-notes) adds it.
 - **Lists** report no status in M5.
 
 **Tests:** `tst_client` (paths, encoding, paging options, POST bodies), `tst_status` on recorded responses (each row of the table, a merged MR, an MR with no pipeline, `NoToken` and `NotFound` passed through), `tst_settings` additions for the server type. Recorded responses live in `src/modules/gitlab/tests/data/`, trimmed by hand from real answers, with names and emails replaced.
