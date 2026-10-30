@@ -57,13 +57,13 @@ See [the M3 plan](plans/m3-data-folder.md).
 
 See [the M4 plan](plans/m4-web-views.md).
 
-- [ ] `ProfileManager` with the web profiles of the workspace and the app profile. The user manages the list; groups choose a default and web items may override it. See [decision 0042](decisions/0042-user-managed-web-profiles.md).
-- [ ] Item types Web page, Claude session (web), GitLab MR (page), GitLab Issue (page) and Jira Issue (page).
-- [ ] Logging in to claude.ai, gitlab.com and Jira Cloud works in a web profile and survives a restart. The result is recorded in [web views](web-views.md#known-risk-logins-in-embedded-browsers).
-- [ ] A login in one web profile is not visible in another.
-- [ ] The same item in two visible cells shows two live views.
-- [ ] The memory policy unloads hidden views beyond the limit.
-- [ ] Root dashboard tabs can be detached into a window and put back, and window geometry is stored on the device. Nothing else detaches. See [decision 0024](decisions/0024-detach-root-dashboard-tabs.md).
+- [x] `ProfileManager` with the web profiles of the workspace and the app profile. The user manages the list; groups choose a default and web items may override it. See [decision 0042](decisions/0042-user-managed-web-profiles.md).
+- [x] Item types Web page, Claude session (web), GitLab MR (page), GitLab Issue (page) and Jira Issue (page).
+- [x] Logging in to claude.ai, gitlab.com and Jira Cloud works in a web profile and survives a restart. The result is recorded in [web views](web-views.md#known-risk-logins-in-embedded-browsers).
+- [x] A login in one web profile is not visible in another.
+- [x] The same item in two visible cells shows two live views.
+- [x] The memory policy unloads hidden views beyond the limit.
+- [x] Root dashboard tabs can be detached into a window and put back, and window geometry is stored on the device. Nothing else detaches. See [decision 0024](decisions/0024-detach-root-dashboard-tabs.md).
 
 ## M5: Servers and status
 
