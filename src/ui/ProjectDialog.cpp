@@ -3,14 +3,19 @@
 #include "core/DeviceSettings.h"
 #include "core/Edits.h"
 #include "core/Model.h"
+#include "items/ItemTypeRegistry.h"
+#include "ui/FieldForm.h"
 
 #include <QComboBox>
 #include <QDialogButtonBox>
 #include <QDir>
 #include <QFileDialog>
 #include <QFormLayout>
+#include <QGroupBox>
 #include <QHBoxLayout>
 #include <QHeaderView>
+#include <QJsonArray>
+#include <QJsonObject>
 #include <QLabel>
 #include <QLineEdit>
 #include <QPushButton>
@@ -30,6 +35,14 @@ void selectData(QComboBox *combo, const QVariant &data)
     const int index = combo->findData(data);
     if (index >= 0)
         combo->setCurrentIndex(index);
+}
+
+// Whether a project setting's value counts as not set. Such a value removes
+// its key.
+bool isEmptyValue(const QJsonValue &value)
+{
+    return value.isNull() || value.isUndefined() || (value.isString() && value.toString().trimmed().isEmpty())
+        || (value.isArray() && value.toArray().isEmpty());
 }
 
 } // namespace
@@ -53,6 +66,16 @@ struct ProjectDialog::Private
     QTableWidget *folders = nullptr;
     QPushButton *removeFolder = nullptr;
     QLabel *message = nullptr;      // why OK was refused
+
+    // The project settings of one module.
+    struct Section
+    {
+        QString moduleId;
+        QString moduleName;
+        std::vector<Field> fields;
+        FieldForm *form = nullptr;
+    };
+    std::vector<Section> sections;
 
     // Exactly one folder is main when there are any: the first main one, or
     // else the first folder.
@@ -197,7 +220,6 @@ ProjectDialog::ProjectDialog(const Project &project, const Model &model, const D
     : QDialog(parent)
     , d(std::make_unique<Private>())
 {
-    Q_UNUSED(types)
     d->q = this;
     d->project = project;
     for (const Folder &folder : project.folders)
@@ -266,6 +288,25 @@ ProjectDialog::ProjectDialog(const Project &project, const Model &model, const D
     form->addRow(tr("Priority:"), d->priority);
     form->addRow(tr("Folders:"), folderBox);
 
+    // A section for each module with project settings, after the folders.
+    // The settings of modules not in the build stay in d->project.
+    auto *sections = new QVBoxLayout;
+    for (const QString &moduleId : types.projectSettingModules()) {
+        Private::Section section;
+        section.moduleId = moduleId;
+        section.moduleName = types.moduleName(moduleId);
+        section.fields = types.projectSettings(moduleId);
+        auto *box = new QGroupBox(section.moduleName, this);
+        box->setObjectName(QStringLiteral("section.") + moduleId);
+        section.form = new FieldForm(section.fields, EditorContext(), box);
+        section.form->setObjectName(QStringLiteral("moduleSettings.") + moduleId);
+        section.form->setConfig(project.moduleSettings.value(moduleId).toObject());
+        auto *boxLayout = new QVBoxLayout(box);
+        boxLayout->addWidget(section.form);
+        sections->addWidget(box);
+        d->sections.push_back(section);
+    }
+
     auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
     connect(buttons, &QDialogButtonBox::accepted, this, &ProjectDialog::accept);
     connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
@@ -275,6 +316,7 @@ ProjectDialog::ProjectDialog(const Project &project, const Model &model, const D
 
     auto *layout = new QVBoxLayout(this);
     layout->addLayout(form, 1);
+    layout->addLayout(sections);
     layout->addWidget(d->message);
     layout->addWidget(buttons);
 
@@ -299,6 +341,19 @@ Project ProjectDialog::value() const
     project.folders.clear();
     for (const Private::Row &row : d->rows)
         project.folders.push_back(row.folder);
+    for (const Private::Section &section : d->sections) {
+        // The form keeps the keys it does not show. Of those it shows, an
+        // empty value removes its key, and an empty module object goes.
+        QJsonObject values = section.form->config();
+        for (const Field &field : section.fields) {
+            if (isEmptyValue(values.value(field.key)))
+                values.remove(field.key);
+        }
+        if (values.isEmpty())
+            project.moduleSettings.remove(section.moduleId);
+        else
+            project.moduleSettings.insert(section.moduleId, values);
+    }
     return project;
 }
 
@@ -330,6 +385,14 @@ void ProjectDialog::accept()
         problem = tr("Enter a name.");
     else if (std::any_of(d->rows.begin(), d->rows.end(), [](const Private::Row &row) { return row.folder.name.isEmpty(); }))
         problem = tr("Enter a name for every folder.");
+    if (problem.isEmpty()) {
+        QStringList problems;
+        for (const Private::Section &section : d->sections) {
+            for (const QString &message : section.form->problems())
+                problems << tr("%1: %2").arg(section.moduleName, message);
+        }
+        problem = problems.join(QLatin1Char('\n'));
+    }
 
     if (!problem.isEmpty()) {
         d->message->setText(problem);
