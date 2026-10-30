@@ -140,7 +140,7 @@ jobs:
 
   macos-dmg:
     needs: release
-    runs-on: macos-14
+    runs-on: macos-15
     # The signing secrets live in this environment, which admits only version
     # tags. See docs/releasing.md.
     environment: release
