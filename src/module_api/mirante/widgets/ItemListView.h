@@ -65,6 +65,9 @@ public:
     void setMessage(const QString &text);
 
 signals:
+    // A row was selected. Not sent when the selection only follows new rows,
+    // or when it ends, as when its row goes or the preview's close button is
+    // used. selectedKey() is then empty.
     void rowSelected(const QString &key);
     void rowMenuRequested(const QString &key, const QPoint &globalPos);
 
