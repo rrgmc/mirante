@@ -93,6 +93,7 @@ Each file records one design decision: what was decided, what else was considere
 | [0086](0086-english-and-brazilian-portuguese.md) | The app speaks English and Brazilian Portuguese | Accepted |
 | [0087](0087-watched-items.md) | Only watched items reach the tray and send notifications | Accepted |
 | [0088](0088-keys-a-page-keeps.md) | App shortcuts work in web pages, and an item can give keys to its page | Accepted |
+| [0089](0089-module-identity.md) | Modules give a UUID, a version, an author and a homepage | Accepted |
 
 ## Template
 

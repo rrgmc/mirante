@@ -5,6 +5,7 @@
 
 #include <mirante/QuickAdd.h>
 
+#include <QVersionNumber>
 #include <QtGlobal>
 
 #include <algorithm>
@@ -44,6 +45,10 @@ struct ItemTypeRegistry::Private
     {
         QString name;   // empty when the module gave none
         QString description;
+        QUuid uuid;
+        QString version;
+        QString author;
+        QUrl homepage;
         std::vector<std::unique_ptr<SettingsScreen>> screens;
         std::unique_ptr<Settings> settings;
         std::unique_ptr<ServerType> server;
@@ -190,6 +195,40 @@ void ItemTypeRegistry::registerModule(const QString &moduleId, RegisterFunction 
             m_registry.modules[m_moduleId].description = description;
         }
 
+        void setModuleUuid(const QUuid &uuid) override
+        {
+            if (uuid.isNull())
+                qFatal("Module %s set a null UUID", qUtf8Printable(m_moduleId));
+            for (const auto &[id, module] : m_registry.modules) {
+                if (id != m_moduleId && module.uuid == uuid)
+                    qFatal("Module %s set the UUID %s, which module %s already has", qUtf8Printable(m_moduleId),
+                           qUtf8Printable(uuid.toString(QUuid::WithoutBraces)), qUtf8Printable(id));
+            }
+            m_registry.modules[m_moduleId].uuid = uuid;
+        }
+
+        void setModuleVersion(const QString &version) override
+        {
+            // Numbers separated by dots, and nothing after them.
+            qsizetype suffix = 0;
+            if (QVersionNumber::fromString(version, &suffix).isNull() || suffix != version.size())
+                qFatal("Module %s set the version \"%s\": use numbers separated by dots, such as 1.2.0",
+                       qUtf8Printable(m_moduleId), qUtf8Printable(version));
+            m_registry.modules[m_moduleId].version = version;
+        }
+
+        void setModuleAuthor(const QString &author) override { m_registry.modules[m_moduleId].author = author; }
+
+        void setModuleHomepage(const QUrl &homepage) override
+        {
+            const QString scheme = homepage.scheme();
+            if (!homepage.isValid() || homepage.host().isEmpty()
+                || (scheme != QLatin1String("http") && scheme != QLatin1String("https")))
+                qFatal("Module %s set the homepage \"%s\": use an http or https address", qUtf8Printable(m_moduleId),
+                       qUtf8Printable(homepage.toString()));
+            m_registry.modules[m_moduleId].homepage = homepage;
+        }
+
         void addSettingsScreen(std::unique_ptr<SettingsScreen> screen) override
         {
             m_registry.addScreen(m_moduleId, std::move(screen));
@@ -306,6 +345,30 @@ QString ItemTypeRegistry::moduleDescription(const QString &moduleId) const
 {
     const auto found = d->modules.find(moduleId);
     return found == d->modules.end() ? QString() : found->second.description;
+}
+
+QUuid ItemTypeRegistry::moduleUuid(const QString &moduleId) const
+{
+    const auto found = d->modules.find(moduleId);
+    return found == d->modules.end() ? QUuid() : found->second.uuid;
+}
+
+QString ItemTypeRegistry::moduleVersion(const QString &moduleId) const
+{
+    const auto found = d->modules.find(moduleId);
+    return found == d->modules.end() ? QString() : found->second.version;
+}
+
+QString ItemTypeRegistry::moduleAuthor(const QString &moduleId) const
+{
+    const auto found = d->modules.find(moduleId);
+    return found == d->modules.end() ? QString() : found->second.author;
+}
+
+QUrl ItemTypeRegistry::moduleHomepage(const QString &moduleId) const
+{
+    const auto found = d->modules.find(moduleId);
+    return found == d->modules.end() ? QUrl() : found->second.homepage;
 }
 
 std::vector<const ItemType *> ItemTypeRegistry::moduleTypes(const QString &moduleId) const

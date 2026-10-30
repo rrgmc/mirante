@@ -6,6 +6,8 @@
 #include <mirante/Module.h>
 
 #include <QCoreApplication>
+#include <QUrl>
+#include <QUuid>
 
 #include <memory>
 
@@ -57,6 +59,10 @@ void registerModule(ModuleRegistrar &registrar)
     registrar.setModuleName(QCoreApplication::translate("notes", "Notes"));
     registrar.setModuleDescription(QCoreApplication::translate(
         "notes", "Markdown notes, kept in the task's file, so they sync with the workspace."));
+    registrar.setModuleUuid(QUuid(QStringLiteral("27bc56ed-94f4-43f0-85be-623c723b1bb0")));
+    registrar.setModuleVersion(QStringLiteral("0.1.0"));
+    registrar.setModuleAuthor(QStringLiteral("Rangel Reale"));
+    registrar.setModuleHomepage(QUrl(QStringLiteral("https://github.com/rrgmc/mirante/tree/master/src/modules/notes")));
     registrar.addItemType(std::make_unique<NotesItemType>(
         QStringLiteral("notes"), QCoreApplication::translate("notes", "Notes")));
 }

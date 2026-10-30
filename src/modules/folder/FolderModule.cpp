@@ -7,6 +7,8 @@
 #include <mirante/Module.h>
 
 #include <QCoreApplication>
+#include <QUrl>
+#include <QUuid>
 
 #include <memory>
 #include <vector>
@@ -66,6 +68,10 @@ void registerModule(ModuleRegistrar &registrar)
     registrar.setModuleName(QCoreApplication::translate("folder", "Folder"));
     registrar.setModuleDescription(QCoreApplication::translate(
         "folder", "A project's folder as an item, with its Git state and shortcuts to a terminal and an editor."));
+    registrar.setModuleUuid(QUuid(QStringLiteral("f28b2ac0-3992-4a4c-8e77-40b891218bbc")));
+    registrar.setModuleVersion(QStringLiteral("0.1.0"));
+    registrar.setModuleAuthor(QStringLiteral("Rangel Reale"));
+    registrar.setModuleHomepage(QUrl(QStringLiteral("https://github.com/rrgmc/mirante/tree/master/src/modules/folder")));
     registrar.addItemType(std::make_unique<FolderItemType>(
         QStringLiteral("folder"), QCoreApplication::translate("folder", "Folder / terminal")));
 

@@ -8,6 +8,8 @@
 #include <QJsonObject>
 #include <QString>
 #include <QStringList>
+#include <QUrl>
+#include <QUuid>
 
 #include <functional>
 #include <memory>
@@ -62,6 +64,12 @@ public:
     QString moduleName(const QString &moduleId) const;
     // The description the module gave itself, else empty.
     QString moduleDescription(const QString &moduleId) const;
+    // The UUID, version, author and homepage the module gave itself, each
+    // null or empty without one. See decision 0089.
+    QUuid moduleUuid(const QString &moduleId) const;
+    QString moduleVersion(const QString &moduleId) const;
+    QString moduleAuthor(const QString &moduleId) const;
+    QUrl moduleHomepage(const QString &moduleId) const;
     // The module's item types, sorted by name, as types() sorts them. Empty
     // for an unknown module.
     std::vector<const ItemType *> moduleTypes(const QString &moduleId) const;

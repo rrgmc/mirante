@@ -67,6 +67,10 @@ void registerTools(ModuleRegistrar &registrar)
 {
     registrar.setModuleName(QStringLiteral("Zeta Tools"));
     registrar.setModuleDescription(QStringLiteral("Tools for testing."));
+    registrar.setModuleUuid(QUuid(QStringLiteral("6f1c1d8e-3c2a-4f5e-9b7d-2a4e8c0f1b3d")));
+    registrar.setModuleVersion(QStringLiteral("1.2.0"));
+    registrar.setModuleAuthor(QStringLiteral("Ana Lima"));
+    registrar.setModuleHomepage(QUrl(QStringLiteral("https://example.com/tools")));
     registrar.addSettingsScreen(std::make_unique<Screen>());
     registrar.addItemType(std::make_unique<DescribedType>(QStringLiteral("atools.wrench"), QStringLiteral("Wrench"),
                                                           QStringLiteral("Turns bolts.")));
@@ -117,8 +121,9 @@ private slots:
         QCOMPARE(alpha->childCount(), 1);
     }
 
-    // The first module is selected. A module shows its description, its
-    // settings screens and where to edit them, and its types with theirs.
+    // The first module is selected. A module shows its description, the
+    // identity it gave, its settings screens and where to edit them, and its
+    // types with theirs.
     void describesModule()
     {
         ItemTypeRegistry types;
@@ -130,11 +135,18 @@ private slots:
         QString text = dialog.details()->toPlainText();
         QVERIFY2(text.contains(QStringLiteral("No settings.")), qPrintable(text));
         QVERIFY(text.contains(QStringLiteral("Alpha")));
+        QVERIFY(!text.contains(QStringLiteral("Version:")));
+        QVERIFY(!text.contains(QStringLiteral("UUID:")));
 
         dialog.tree()->setCurrentItem(dialog.tree()->topLevelItem(1));
         text = dialog.details()->toPlainText();
         QVERIFY2(text.contains(QStringLiteral("Zeta Tools")), qPrintable(text));
         QVERIFY(text.contains(QStringLiteral("Tools for testing.")));
+        QVERIFY(text.contains(QStringLiteral("Version: 1.2.0")));
+        QVERIFY(text.contains(QStringLiteral("Author: Ana Lima")));
+        QVERIFY(text.contains(QStringLiteral("Homepage: https://example.com/tools")));
+        QVERIFY(text.contains(QStringLiteral("UUID: 6f1c1d8e-3c2a-4f5e-9b7d-2a4e8c0f1b3d")));
+        QVERIFY(dialog.details()->toHtml().contains(QStringLiteral("href=\"https://example.com/tools\"")));
         QVERIFY(text.contains(QStringLiteral("Settings: General Configuration")));
         QVERIFY(text.contains(QStringLiteral("Profiles > profile > Modules > Zeta Tools")));
         QVERIFY(text.contains(QStringLiteral("Hammer")));
