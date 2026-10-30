@@ -140,7 +140,7 @@ Each server client keeps the `ETag` and body of the 500 URLs it used last, and s
 
 ## Terminal launch
 
-`TerminalLauncher` starts a command in a new terminal window, in a given folder. It is used by local Claude sessions and by the folder item.
+`Launcher`, in `platform/`, starts a command in a new terminal window, in a given folder. It is used by local Claude sessions and by the folder item.
 
 | Platform | Default |
 |---|---|
@@ -148,7 +148,14 @@ Each server client keeps the `ETag` and body of the 500 URLs it used last, and s
 | macOS | `osascript` tells Terminal.app to run `cd <dir> && <command>`. |
 | Linux | The first one found of: `x-terminal-emulator`, `gnome-terminal --working-directory=<dir> --`, `konsole --workdir <dir> -e`, `xterm -e`. |
 
-On every platform a device setting can replace the default with a template, such as `alacritty --working-directory {dir} -e {command}`. Arguments are passed as a list, not through a shell, except where the platform requires a shell, as with `osascript`.
+On every platform the **terminal command** can replace the default. It is set in the [settings window](ui.md#settings) and kept in the [device settings](sync.md#device-settings), so each device has its own. It is a template, such as `alacritty --working-directory {dir} -e {command}`:
+
+- it is split into arguments as a shell would split it, with quotes keeping spaces together;
+- `{dir}` is replaced by the folder, inside any argument;
+- an argument that is exactly `{command}` is replaced by the program and its arguments, each as a separate argument;
+- empty, the default, uses the platform's terminal above.
+
+Arguments are passed as a list, not through a shell, except where the platform requires a shell, as with `osascript`. See [decision 0082](decisions/0082-commands-as-argument-lists.md).
 
 ## Later: custom certificate authorities
 
