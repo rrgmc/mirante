@@ -47,12 +47,13 @@ QStringList childIds(const SidebarModel &model, const QModelIndex &parent)
     return ids;
 }
 
-// Drops id at row under parent and returns the move it asks for, as
-// "kind id index", or "refused". canDropMimeData must agree.
-QString drop(SidebarModel &sidebar, const QString &id, int row, const QModelIndex &parent)
+// Drops the row dragged at row under parent and returns the move it asks for,
+// as "kind id index", followed by " in taskId" for an item or a dashboard, or
+// "refused". canDropMimeData must agree.
+QString drop(SidebarModel &sidebar, const QModelIndex &dragged, int row, const QModelIndex &parent)
 {
     QSignalSpy spy(&sidebar, &SidebarModel::moveRequested);
-    std::unique_ptr<QMimeData> data(sidebar.mimeData({sidebar.indexOf(id)}));
+    std::unique_ptr<QMimeData> data(sidebar.mimeData({dragged}));
     const bool can = sidebar.canDropMimeData(data.get(), Qt::MoveAction, row, 0, parent);
     const bool dropped = sidebar.dropMimeData(data.get(), Qt::MoveAction, row, 0, parent);
     if (can != dropped || spy.count() != (dropped ? 1 : 0))
@@ -60,15 +61,26 @@ QString drop(SidebarModel &sidebar, const QString &id, int row, const QModelInde
     if (!dropped)
         return QStringLiteral("refused");
     const QList<QVariant> &args = spy.first();
-    return QStringLiteral("%1 %2 %3")
-        .arg(int(args.at(0).value<SidebarModel::Kind>()))
-        .arg(args.at(1).toString())
-        .arg(args.at(2).toInt());
+    QString result = QStringLiteral("%1 %2 %3")
+                         .arg(int(args.at(0).value<SidebarModel::Kind>()))
+                         .arg(args.at(1).toString())
+                         .arg(args.at(2).toInt());
+    if (const QString taskId = args.at(3).toString(); !taskId.isEmpty())
+        result += QStringLiteral(" in ") + taskId;
+    return result;
 }
 
-QString move(SidebarModel::Kind kind, const QString &id, int index)
+QString drop(SidebarModel &sidebar, const QString &id, int row, const QModelIndex &parent)
 {
-    return QStringLiteral("%1 %2 %3").arg(int(kind)).arg(id).arg(index);
+    return drop(sidebar, sidebar.indexOf(id), row, parent);
+}
+
+QString move(SidebarModel::Kind kind, const QString &id, int index, const QString &taskId = {})
+{
+    QString result = QStringLiteral("%1 %2 %3").arg(int(kind)).arg(id).arg(index);
+    if (!taskId.isEmpty())
+        result += QStringLiteral(" in ") + taskId;
+    return result;
 }
 
 // Loads the fixtures and checks the model with QAbstractItemModelTester.
@@ -103,6 +115,7 @@ private slots:
     void findsIndexes();
     void dragging();
     void drops();
+    void itemDrops();
     void followsModelEdits();
     void resetsOnModelReset();
     void repaintsChangedTask();
@@ -265,9 +278,9 @@ void TestSidebarModel::dragging()
         QVERIFY(!dragPayload(data.get()));
     }
 
-    // Items and dashboards are not dropped in the sidebar.
+    // Items and dashboards are dropped only among their siblings; see itemDrops.
     std::unique_ptr<QMimeData> itemDrop(f.sidebar->mimeData({item}));
-    QVERIFY(!f.sidebar->canDropMimeData(itemDrop.get(), Qt::CopyAction, 0, 0, items));
+    QVERIFY(f.sidebar->canDropMimeData(itemDrop.get(), Qt::CopyAction, 0, 0, items));
     QVERIFY(!f.sidebar->canDropMimeData(itemDrop.get(), Qt::CopyAction, 0, 0, {}));
 
     std::unique_ptr<QMimeData> itemData(f.sidebar->mimeData({item}));
@@ -367,6 +380,99 @@ void TestSidebarModel::drops()
     // A drop changes nothing itself.
     QCOMPARE(childIds(sidebar, {}), (QStringList{"g1", "g2"}));
     QCOMPARE(childIds(sidebar, project1), (QStringList{"a", "c", "b", "d"}));
+}
+
+// Drops of items and dashboards among those of their own list, on a small
+// model: tasks t1 and t2 in one project. t1 has items i1, i2, i3 and
+// dashboards d1, d2; t2 has an item i1 of its own, with the same id.
+void TestSidebarModel::itemDrops()
+{
+    Group group;
+    group.id = QStringLiteral("g");
+    Project project;
+    project.id = QStringLiteral("p");
+    project.groupId = group.id;
+    const auto makeItem = [](const char *id) {
+        Item item;
+        item.id = QLatin1String(id);
+        item.type = QStringLiteral("web.page");
+        item.name = item.id;
+        return item;
+    };
+    const auto makeDashboard = [](const char *id) {
+        Dashboard dashboard;
+        dashboard.id = QLatin1String(id);
+        dashboard.name = dashboard.id;
+        return dashboard;
+    };
+    Task t1;
+    t1.id = QStringLiteral("t1");
+    t1.projectId = project.id;
+    t1.items = {makeItem("i1"), makeItem("i2"), makeItem("i3")};
+    t1.dashboards = {makeDashboard("d1"), makeDashboard("d2")};
+    t1.defaultDashboardId = QStringLiteral("d1");
+    Task t2 = t1;
+    t2.id = QStringLiteral("t2");
+    t2.order = 1;
+    t2.items = {makeItem("i1")};
+
+    Model model;
+    model.reset({group}, {project}, {t1, t2}, {});
+    ItemTypeRegistry types;
+    SidebarModel sidebar(model, types);
+    QAbstractItemModelTester tester(&sidebar, QAbstractItemModelTester::FailureReportingMode::Fatal);
+
+    const QModelIndex task1 = sidebar.indexOf(t1.id);
+    const QModelIndex dashboards = sidebar.index(0, 0, task1);
+    const QModelIndex items = sidebar.index(1, 0, task1);
+    const QModelIndex otherItems = sidebar.index(1, 0, sidebar.indexOf(t2.id));
+    QVERIFY(sidebar.flags(items).testFlag(Qt::ItemIsDropEnabled));
+    QVERIFY(sidebar.flags(dashboards).testFlag(Qt::ItemIsDropEnabled));
+    // The rows follow the order of the task's lists.
+    QCOMPARE(childIds(sidebar, items), (QStringList{"i1", "i2", "i3"}));
+    QCOMPARE(childIds(sidebar, dashboards), (QStringList{"d1", "d2"}));
+
+    const QModelIndex i1 = sidebar.index(0, 0, items);
+    const QModelIndex i3 = sidebar.index(2, 0, items);
+    const auto item = SidebarModel::Kind::Item;
+    QCOMPARE(drop(sidebar, i3, 0, items), move(item, "i3", 0, "t1"));
+    QCOMPARE(drop(sidebar, i1, 2, items), move(item, "i1", 1, "t1"));
+    QCOMPARE(drop(sidebar, i1, 3, items), move(item, "i1", 2, "t1"));
+    // A drop on an item is a drop above it.
+    QCOMPARE(drop(sidebar, i1, -1, i3), move(item, "i1", 1, "t1"));
+    const QModelIndex d2 = sidebar.index(1, 0, dashboards);
+    QCOMPARE(drop(sidebar, d2, 0, dashboards), move(SidebarModel::Kind::Dashboard, "d2", 0, "t1"));
+
+    // The item of t2 with the same id is told apart by its task.
+    const QModelIndex other = sidebar.index(0, 0, otherItems);
+    QCOMPARE(drop(sidebar, other, 0, otherItems), move(item, "i1", 0, "t2"));
+    QCOMPARE(drop(sidebar, other, 0, items), QStringLiteral("refused"));
+
+    // Items stay in their own list in their own task, and dashboards in theirs.
+    QCOMPARE(drop(sidebar, i1, 0, otherItems), QStringLiteral("refused"));
+    QCOMPARE(drop(sidebar, i1, 0, dashboards), QStringLiteral("refused"));
+    QCOMPARE(drop(sidebar, d2, 0, items), QStringLiteral("refused"));
+    QCOMPARE(drop(sidebar, i1, -1, d2), QStringLiteral("refused"));
+    QCOMPARE(drop(sidebar, i1, -1, items), QStringLiteral("refused"));
+    QCOMPARE(drop(sidebar, i1, 0, task1), QStringLiteral("refused"));
+    // Tasks are not dropped among items.
+    QCOMPARE(drop(sidebar, task1, 0, items), QStringLiteral("refused"));
+
+    // The drag still carries the reference that dashboards take.
+    std::unique_ptr<QMimeData> data(sidebar.mimeData({i1}));
+    const std::optional<DragPayload> payload = dragPayload(data.get());
+    QVERIFY(payload);
+    QCOMPARE(payload->ref.task, t1.id);
+    QCOMPARE(payload->ref.item, QStringLiteral("i1"));
+
+    // A drop changes nothing itself.
+    QCOMPARE(childIds(sidebar, items), (QStringList{"i1", "i2", "i3"}));
+
+    // A changed order in the task shows in the tree.
+    Task moved = t1;
+    std::swap(moved.items[0], moved.items[2]);
+    model.setTask(moved);
+    QCOMPARE(childIds(sidebar, sidebar.index(1, 0, sidebar.indexOf(t1.id))), (QStringList{"i3", "i2", "i1"}));
 }
 
 // The tree follows the model's setters and removers.

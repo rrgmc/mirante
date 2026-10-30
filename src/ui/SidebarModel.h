@@ -15,9 +15,10 @@ class Model;
 // The sidebar tree over Model: groups, then projects, then tasks. Each task
 // has two fixed children, "Dashboards" and "Items", which hold the task's
 // task dashboards and items. Groups use their manual order; projects and tasks
-// are sorted with Sorting. Items and dashboards are dragged onto dashboards as
-// DragMime payloads. Groups, projects and tasks are dragged only to reorder the
-// sidebar, under a sidebar-only MIME type.
+// are sorted with Sorting. Items and dashboards follow their order in the task.
+// Items and dashboards are dragged onto dashboards as DragMime payloads, and
+// among their siblings under a sidebar-only MIME type. Groups, projects and
+// tasks are dragged only to reorder the sidebar, under that type alone.
 // Implemented in SidebarModel.cpp.
 class SidebarModel : public QAbstractItemModel
 {
@@ -59,7 +60,8 @@ public:
 
     // Drops of groups among groups, projects among the projects of their
     // group, and tasks among the tasks of their project, as in the M3 plan,
-    // part 6. A drop changes nothing itself: it emits moveRequested.
+    // part 6. Items and dashboards are dropped among those of their own list
+    // in their own task. A drop changes nothing itself: it emits moveRequested.
     Qt::DropActions supportedDropActions() const override;
     bool canDropMimeData(const QMimeData *data, Qt::DropAction action, int row, int column,
                          const QModelIndex &parent) const override;
@@ -67,9 +69,11 @@ public:
                       const QModelIndex &parent) override;
 
 signals:
-    // A dropped group, project or task, and its new place among its siblings,
-    // hidden ones included. A drop never changes a priority.
-    void moveRequested(mirante::SidebarModel::Kind kind, const QString &id, int index);
+    // A dropped group, project, task, item or dashboard, and its new place
+    // among its siblings, hidden ones included. For an item or a dashboard,
+    // taskId is its task; otherwise it is empty. A drop never changes a
+    // priority.
+    void moveRequested(mirante::SidebarModel::Kind kind, const QString &id, int index, const QString &taskId);
 
 private:
     void emitChanged(const QModelIndex &parent);

@@ -123,8 +123,11 @@ Tree buildTree(const Model &model, const SortFilter &filter)
     return tree;
 }
 
-// A sidebar reorder drag of a group, project or task. It has a type of its own,
-// so dashboards, which accept only DragMime payloads, never take it.
+// A sidebar reorder drag. It has a type of its own, so dashboards, which
+// accept only DragMime payloads, never take it. The data is the id of the
+// group, project or task, or for an item or a task dashboard, the task id and
+// its id with a line break between them, since those ids are unique only
+// within their task.
 constexpr char moveMimeType[] = "application/x-mirante-sidebar-move";
 
 // What a reorder drop asks for.
@@ -133,6 +136,7 @@ struct Move
     SidebarModel::Kind kind = SidebarModel::Kind::Group;
     QString id;
     int index = 0;
+    QString taskId;  // for an item or a dashboard
 };
 
 // The position of the entry with id in list, or -1.
@@ -229,6 +233,21 @@ struct SidebarModel::Private
         return it == tree.byId.constEnd() ? nullptr : &tree.nodes[std::size_t(*it)];
     }
 
+    // The row an item or dashboard reorder drag names, as moveMimeType data.
+    const Node *dragged(const QString &data) const
+    {
+        const int split = data.indexOf(QLatin1Char('\n'));
+        if (split < 0)
+            return node(data);
+        const QString taskId = data.left(split);
+        const QString id = data.mid(split + 1);
+        for (const Node &n : tree.nodes) {
+            if ((n.kind == Kind::Item || n.kind == Kind::Dashboard) && n.taskId == taskId && n.id == id)
+                return &n;
+        }
+        return nullptr;
+    }
+
     std::optional<Move> move(const QMimeData *data, int row, const QModelIndex &parent) const;
 };
 
@@ -239,10 +258,10 @@ std::optional<Move> SidebarModel::Private::move(const QMimeData *data, int row, 
     const QString type = QString::fromLatin1(moveMimeType);
     if (filter.trash || !data || !data->hasFormat(type))
         return std::nullopt;
-    const QString id = QString::fromUtf8(data->data(type));
-    const Node *moved = node(id);
-    if (!moved || (moved->kind != Kind::Group && moved->kind != Kind::Project && moved->kind != Kind::Task))
+    const Node *moved = dragged(QString::fromUtf8(data->data(type)));
+    if (!moved || moved->kind == Kind::ItemList || moved->kind == Kind::DashboardList)
         return std::nullopt;
+    const QString id = moved->id;
 
     if (parent.isValid() && !node(parent))
         return std::nullopt;
@@ -281,6 +300,10 @@ std::optional<Move> SidebarModel::Private::move(const QMimeData *data, int row, 
     result.id = moved->id;
     if (moved->kind == Kind::Group) {
         result.index = position;
+    } else if (moved->kind == Kind::Item || moved->kind == Kind::Dashboard) {
+        // Every item and dashboard of the task is a row, so the row is the index.
+        result.index = position;
+        result.taskId = moved->taskId;
     } else if (moved->kind == Kind::Project) {
         const Project *project = model.project(id);
         if (!project)
@@ -535,7 +558,8 @@ QVariant SidebarModel::data(const QModelIndex &index, int role) const
 
 Qt::ItemFlags SidebarModel::flags(const QModelIndex &index) const
 {
-    // The top level, groups and projects take drops among their children.
+    // The top level, groups, projects and the two lists of a task take drops
+    // among their children.
     // Nothing in the Trash list is dragged or takes a drop.
     if (!index.isValid())
         return d->filter.trash ? Qt::NoItemFlags : Qt::ItemIsDropEnabled;
@@ -560,6 +584,7 @@ Qt::ItemFlags SidebarModel::flags(const QModelIndex &index) const
         break;
     case Kind::ItemList:
     case Kind::DashboardList:
+        flags |= Qt::ItemIsDropEnabled;
         break;
     }
     return flags;
@@ -588,14 +613,15 @@ bool SidebarModel::dropMimeData(const QMimeData *data, Qt::DropAction action, in
     const std::optional<Move> move = d->move(data, row, parent);
     if (!move)
         return false;
-    emit moveRequested(move->kind, move->id, move->index);
+    emit moveRequested(move->kind, move->id, move->index, move->taskId);
     return true;
 }
 
 // A drag carries one entry: the first draggable one among the indexes. An
 // item or a dashboard is a DragMime reference, which dashboards accept; a
-// dashboard is dropped as a task cell showing that dashboard. A group, project
-// or task only reorders the sidebar, under a type dashboards do not accept.
+// dashboard is dropped as a task cell showing that dashboard. It also carries
+// the reorder type, to move it among its siblings. A group, project or task
+// only reorders the sidebar, under a type dashboards do not accept.
 QMimeData *SidebarModel::mimeData(const QModelIndexList &indexes) const
 {
     for (const QModelIndex &index : indexes) {
@@ -615,7 +641,9 @@ QMimeData *SidebarModel::mimeData(const QModelIndexList &indexes) const
             payload.ref.item = node->id;
         else
             payload.ref.dashboard = node->id;
-        return dragMimeData(payload);
+        QMimeData *data = dragMimeData(payload);
+        data->setData(QString::fromLatin1(moveMimeType), (node->taskId + QLatin1Char('\n') + node->id).toUtf8());
+        return data;
     }
     return nullptr;
 }
