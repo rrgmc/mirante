@@ -2226,4 +2226,12 @@ QWidget *MainWindow::contentArea() const { return d->stack; }
 
 Shortcuts *MainWindow::shortcuts() const { return d->shortcuts; }
 
+
+// A stub of T0. Task T9 of the M5 plan implements it.
+
+void MainWindow::setApiServices(const ApiServices &services)
+{
+    Q_UNUSED(services)
+}
+
 } // namespace mirante

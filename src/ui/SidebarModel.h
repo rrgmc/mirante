@@ -8,6 +8,7 @@
 
 namespace mirante {
 
+class Attention;
 class ItemTypeRegistry;
 class Model;
 
@@ -31,10 +32,15 @@ public:
         TaskIdRole,                     // for a task and everything under it: the task id
         PriorityRole,                   // for projects and tasks: Priority, as int
         GroupColourRole,                // for groups and projects: the group's colour, as QColor
+        AttentionRole,                  // for groups, projects and tasks: the attention count, as int
     };
 
     SidebarModel(const Model &model, const ItemTypeRegistry &types, QObject *parent = nullptr);
     ~SidebarModel() override;
+
+    // The attention counts of AttentionRole. Null, the default, gives 0
+    // everywhere. It must outlive the model. See the M5 plan, part 8.
+    void setAttention(const Attention *attention);
 
     void setFilter(const SortFilter &filter);
     SortFilter filter() const;

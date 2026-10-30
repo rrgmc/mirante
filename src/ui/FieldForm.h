@@ -31,6 +31,14 @@ public:
     // The values typed into Secret fields, by key; only those changed and
     // not empty. config() never holds them. See decision 0054.
     QJsonObject secrets() const;
+
+    // Whether a Secret field's token is set on this device. The placeholder
+    // says so, and a set token gets a Remove button. Unknown until set. See
+    // the M5 plan, part 8.
+    enum class SecretState { Unknown, Set, NotSet };
+    void setSecretState(const QString &key, SecretState state);
+    // The keys of Secret fields whose Remove button was pressed.
+    QStringList removedSecrets() const;
     // The messages of validate() for the current values.
     QStringList problems() const override;
 

@@ -20,6 +20,7 @@ class DeviceSettings;
 class ItemTypeRegistry;
 class Model;
 class ProfileManager;
+class SecretStore;
 class Store;
 class ProfilesDialog;
 
@@ -52,6 +53,12 @@ public:
     // device, under the keychain key secretKey(). The default only logs that
     // secrets are stored from M5, without the value. See decision 0054.
     void setSaveSecret(std::function<void(const QString &key, const QString &secret)> save);
+    // The tokens of this device. Typed tokens are written there, a token's
+    // Remove button removes it, and deleting a profile removes its tokens.
+    // Settings screens show whether each token is set. Null, the default,
+    // keeps the behaviour of setSaveSecret(). It must outlive this object.
+    // See the M5 plan, part 8. Task T9 replaces setSaveSecret() with it.
+    void setSecretStore(SecretStore *store);
     // The keychain key of a secret: "<workspace id>/<profile id>/<module
     // id>/<field key>", such as "5a3e…/default/gitlab/token", so each
     // workspace keeps its own, as it keeps its own logins (decision 0059).

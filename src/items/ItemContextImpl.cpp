@@ -137,4 +137,16 @@ void ItemContextImpl::updateConfig(const QJsonObject &config)
     }
 }
 
+// Stubs of T0. Task T8 of the M5 plan implements them.
+
+ApiClient *ItemContextImpl::server()
+{
+    return nullptr;
+}
+
+ItemStatusSource *ItemContextImpl::status()
+{
+    return nullptr;
+}
+
 } // namespace mirante

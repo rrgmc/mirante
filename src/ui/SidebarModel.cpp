@@ -595,4 +595,12 @@ void SidebarModel::emitChanged(const QModelIndex &parent)
         emitChanged(index(row, 0, parent));
 }
 
+
+// A stub of T0. Task T7 of the M5 plan implements it and AttentionRole.
+
+void SidebarModel::setAttention(const Attention *attention)
+{
+    Q_UNUSED(attention)
+}
+
 } // namespace mirante

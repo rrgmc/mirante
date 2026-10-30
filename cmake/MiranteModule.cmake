@@ -88,7 +88,7 @@ function(mirante_add_module id)
         get_filename_component(test_name "${test_source}" NAME_WE)
         mirante_add_test(module_${id}_${test_name}
             SOURCES "${test_source}"
-            LIBS ${target} mirante_items)
+            LIBS ${target} mirante_items mirante::module_api_testing)
     endforeach()
 endfunction()
 

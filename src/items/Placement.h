@@ -1,16 +1,22 @@
 #pragma once
 
+#include "items/CellStatus.h"
+
 #include <QString>
 #include <QWidget>
 
+#include <functional>
 #include <memory>
 
 namespace mirante {
 
+class Attention;
 class DeviceSettings;
 class ItemTypeRegistry;
 class Model;
 class ProfileManager;
+class ServerClients;
+class StatusCache;
 class ViewPool;
 
 // What placements need. MainWindow owns the objects. See the M4 plan, part 5.
@@ -21,6 +27,14 @@ struct PlacementServices
     ProfileManager *profiles = nullptr;
     ViewPool *pool = nullptr;
     DeviceSettings *settings = nullptr;
+    // The status of items, and their servers. Null turns status off, as in
+    // most tests. See the M5 plan, part 8.
+    StatusCache *status = nullptr;
+    Attention *attention = nullptr;
+    ServerClients *servers = nullptr;
+    // Opens the settings screen of a module's server in a profile, for the
+    // fix button of "Token not set" and the like. Null leaves it out.
+    std::function<void(const QString &profileId, const QString &moduleId)> openServerSettings;
 };
 
 // The body of an item's cell: the item's view, made when the placement is
@@ -49,8 +63,21 @@ public:
     // toolbar, or null.
     QWidget *headerWidget() const;
 
+    // What the cell header shows about the item's status. Kind::None for a
+    // type without status, or without a status cache.
+    CellStatus cellStatus() const;
+    // True for a type with status: the cell header then shows a refresh button.
+    bool hasStatus() const;
+
+public slots:
+    // Fetches the item's status at once.
+    void refresh();
+    // Opens the settings screen of the item's server in its profile.
+    void openSettings();
+
 signals:
     void headerWidgetChanged(QWidget *widget);
+    void cellStatusChanged(const mirante::CellStatus &status);
 
 private:
     struct Private;

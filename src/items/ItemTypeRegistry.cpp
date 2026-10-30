@@ -44,6 +44,8 @@ struct ItemTypeRegistry::Private
         QString description;
         std::vector<std::unique_ptr<SettingsScreen>> screens;
         std::unique_ptr<Settings> settings;
+        std::unique_ptr<ServerType> server;
+        std::vector<Field> projectSettings;
     };
 
     SettingsReader reader;
@@ -136,6 +138,22 @@ void ItemTypeRegistry::registerModule(const QString &moduleId, RegisterFunction 
         }
 
         const ModuleSettings &settings() const override { return *m_registry.modules.at(m_moduleId).settings; }
+
+        void setServerType(std::unique_ptr<ServerType> type) override
+        {
+            if (!type)
+                qFatal("Module %s set a null server type", qUtf8Printable(m_moduleId));
+            auto &server = m_registry.modules[m_moduleId].server;
+            if (server)
+                qFatal("Module %s set its server type twice", qUtf8Printable(m_moduleId));
+            server = std::move(type);
+        }
+
+        void addProjectSetting(const Field &field) override
+        {
+            // A stub of T0. Task T4 of the M5 plan checks and keeps the field.
+            Q_UNUSED(field)
+        }
 
     private:
         Private &m_registry;
@@ -249,6 +267,34 @@ const ModuleSettings *ItemTypeRegistry::moduleSettings(const QString &moduleId) 
 {
     const auto found = d->modules.find(moduleId);
     return found == d->modules.end() ? nullptr : found->second.settings.get();
+}
+
+const ItemType *ItemTypeRegistry::findType(const QString &typeId) const
+{
+    const auto found = d->byId.find(typeId);
+    return found == d->byId.end() ? nullptr : found->second;
+}
+
+const ServerType *ItemTypeRegistry::serverType(const QString &moduleId) const
+{
+    const auto found = d->modules.find(moduleId);
+    return found == d->modules.end() ? nullptr : found->second.server.get();
+}
+
+std::vector<Field> ItemTypeRegistry::projectSettings(const QString &moduleId) const
+{
+    const auto found = d->modules.find(moduleId);
+    return found == d->modules.end() ? std::vector<Field>() : found->second.projectSettings;
+}
+
+QStringList ItemTypeRegistry::projectSettingModules() const
+{
+    QStringList ids;
+    for (const auto &entry : d->modules) {
+        if (!entry.second.projectSettings.empty())
+            ids << entry.first;
+    }
+    return ids;
 }
 
 } // namespace mirante

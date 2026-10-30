@@ -393,4 +393,21 @@ void CellFrame::setMaximised(bool maximised)
     d->maximiseButton->setToolTip(maximised ? tr("Restore (%1)").arg(shortcut) : tr("Maximise (%1)").arg(shortcut));
 }
 
+// Stubs of T0. Task T7 of the M5 plan implements them.
+
+void CellFrame::setStatus(const CellStatus &status)
+{
+    Q_UNUSED(status)
+}
+
+CellStatus CellFrame::status() const
+{
+    return {};
+}
+
+void CellFrame::setRefreshVisible(bool visible)
+{
+    Q_UNUSED(visible)
+}
+
 } // namespace mirante

@@ -880,4 +880,12 @@ void EntityActions::fillTrashMenu(QMenu *menu, SidebarModel::Kind kind, const QS
     }
 }
 
+
+// A stub of T0. Task T9 of the M5 plan implements it.
+
+void EntityActions::setSecretStore(SecretStore *store)
+{
+    Q_UNUSED(store)
+}
+
 } // namespace mirante

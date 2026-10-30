@@ -289,4 +289,22 @@ QStringList FocusView::taskIds() const
     return ids;
 }
 
+
+// Stubs of T0. Task T7 of the M5 plan implements them.
+
+void FocusView::setAttention(const Attention *attention)
+{
+    Q_UNUSED(attention)
+}
+
+void FocusView::setAttentionFirst(bool on)
+{
+    Q_UNUSED(on)
+}
+
+bool FocusView::attentionFirst() const
+{
+    return false;
+}
+
 } // namespace mirante

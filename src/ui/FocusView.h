@@ -10,13 +10,15 @@ class QMenu;
 
 namespace mirante {
 
+class Attention;
 class Model;
 
 // The Focus list of docs/ui.md#focus-view: active tasks of every group, or of
 // one group chosen in a combo box, in focusOrder(). Each row shows the task,
 // its project and group, and the priority marker. It follows the model's
-// changes. The "Needs attention first" toggle arrives in M5. See the M3 plan,
-// part 6. Implemented in FocusView.cpp.
+// changes. Rows show the task's attention badge, and the "Needs attention
+// first" toggle moves those tasks to the top. See the M3 plan, part 6, and
+// the M5 plan, part 8. Implemented in FocusView.cpp.
 class FocusView : public QWidget
 {
     Q_OBJECT
@@ -29,6 +31,14 @@ public:
     void setGroupFilter(const QString &groupId);
     QString groupFilter() const;
 
+    // The attention counts of the badges and the toggle. Null, the default,
+    // shows no badges and leaves the toggle without effect. It must outlive
+    // the view.
+    void setAttention(const Attention *attention);
+    // The "Needs attention first" toggle.
+    void setAttentionFirst(bool on);
+    bool attentionFirst() const;
+
     // The task ids listed, in order. For tests.
     QStringList taskIds() const;
 
@@ -40,6 +50,8 @@ public:
 signals:
     // A double click or Enter on a task.
     void taskOpened(const QString &taskId);
+    // The user changed the toggle. MainWindow keeps it in DeviceSettings.
+    void attentionFirstChanged(bool on);
 
 private:
     struct Private;
