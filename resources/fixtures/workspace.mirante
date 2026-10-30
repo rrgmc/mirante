@@ -1,4 +1,5 @@
 {
+    "defaultProfile": "default",
     "name": "Sample data",
     "profiles": [
         {
@@ -9,7 +10,8 @@
                         "baseUrl": "https://gitlab.com"
                     }
                 }
-            }
+            },
+            "name": "Default"
         },
         {
             "connections": [

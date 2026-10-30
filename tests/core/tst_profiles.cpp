@@ -1,7 +1,7 @@
 // Tests the profiles of core/Profiles.h: the resolution order of item, group
-// and Default, the fallback for a missing profile, the list offered to the
-// user, names, removing a profile, and module settings by profile in the
-// model.
+// and the default profile, the fallback for a missing profile, the default
+// and its fallback, the list offered to the user, names, removing a profile,
+// and module settings by profile in the model.
 #include "core/Entities.h"
 #include "core/Model.h"
 #include "core/Profiles.h"
@@ -33,7 +33,7 @@ private:
     Model model;
 
     // Group g1 holds project p1, which holds task t1 with item i1. The
-    // workspace lists "work" and "bank".
+    // workspace lists Default, the default, then "work" and "bank".
     void load(const QString &groupProfile, const QString &itemProfile)
     {
         Group group;
@@ -51,7 +51,8 @@ private:
         task.projectId = project.id;
         task.items.push_back(item);
         model.reset({group}, {project}, {task}, {});
-        model.setProfiles({makeProfile(QStringLiteral("work"), QStringLiteral("Work")),
+        model.setProfiles({makeProfile(kDefaultProfile, QStringLiteral("Default")),
+                           makeProfile(QStringLiteral("work"), QStringLiteral("Work")),
                            makeProfile(QStringLiteral("bank"), QStringLiteral("bank"))});
     }
 
@@ -113,10 +114,66 @@ private slots:
         QCOMPARE(profiles::nameOf(model, kDefaultProfile), QStringLiteral("Default"));
         QCOMPARE(profiles::nameOf(model, QStringLiteral("work")), QStringLiteral("Work"));
         QVERIFY(profiles::nameOf(model, QStringLiteral("gone")).isEmpty());
+        QCOMPARE(profiles::listName(model, all[0]), QStringLiteral("Default (default)"));
+        QCOMPARE(profiles::listName(model, all[1]), QStringLiteral("bank"));
+
+        // Another default comes first, and is marked instead.
+        model.setDefaultProfile(QStringLiteral("work"));
+        const std::vector<Profile> marked = profiles::all(model);
+        QCOMPARE(marked[0].id, QStringLiteral("work"));
+        QCOMPARE(marked[1].id, QStringLiteral("bank"));
+        QCOMPARE(marked[2].id, kDefaultProfile);
+        QCOMPARE(profiles::listName(model, marked[0]), QStringLiteral("Work (default)"));
+        QCOMPARE(profiles::listName(model, marked[2]), QStringLiteral("Default"));
+    }
+
+    // Items and groups that choose no profile, or a missing one, end at the
+    // marked default, whichever it is.
+    void markedDefaultEndsTheOrder()
+    {
+        load(QString(), QString());
+        QSignalSpy changed(&model, &Model::profilesChanged);
+        model.setDefaultProfile(QStringLiteral("bank"));
+        QCOMPARE(changed.count(), 1);
+        model.setDefaultProfile(QStringLiteral("bank"));
+        QCOMPARE(changed.count(), 1);
+        QCOMPARE(model.defaultProfile(), QStringLiteral("bank"));
+        QCOMPARE(effective(), QStringLiteral("bank"));
+
+        load(QStringLiteral("gone"), QStringLiteral("gone"));
+        model.setDefaultProfile(QStringLiteral("work"));
+        QCOMPARE(effective(), QStringLiteral("work"));
+        QCOMPARE(profiles::groupDefault(model, *model.group(QStringLiteral("g1"))), QStringLiteral("work"));
+
+        // A group that names the profile with the id "default" keeps it.
+        load(kDefaultProfile, QString());
+        model.setDefaultProfile(QStringLiteral("work"));
+        QCOMPARE(effective(), kDefaultProfile);
+    }
+
+    // A default that is not listed, such as one deleted on another device,
+    // falls back on the first profile by name, ignoring case, without being
+    // stored.
+    void unlistedDefaultFallsBack()
+    {
+        load(QString(), QString());
+        model.setDefaultProfile(QStringLiteral("gone"));
+        QCOMPARE(model.defaultProfile(), QStringLiteral("bank"));
+        QCOMPARE(effective(), QStringLiteral("bank"));
+        // When it arrives, it is the default again.
+        model.setProfile(makeProfile(QStringLiteral("gone"), QStringLiteral("Back")));
+        QCOMPARE(model.defaultProfile(), QStringLiteral("gone"));
+
+        // Equal names fall back on the id.
+        model.setProfiles({makeProfile(QStringLiteral("b"), QStringLiteral("Same")),
+                           makeProfile(QStringLiteral("a"), QStringLiteral("same"))});
+        model.setDefaultProfile(QStringLiteral("gone too"));
+        QCOMPARE(model.defaultProfile(), QStringLiteral("a"));
     }
 
     // Removing a profile leaves the group and item that name it as they are.
-    // They fall back: the item to its group's profile, the group to Default.
+    // They fall back: the item to its group's profile, the group to the
+    // default.
     void removeFallsBack()
     {
         load(QStringLiteral("work"), QStringLiteral("bank"));
@@ -135,7 +192,7 @@ private slots:
         QCOMPARE(model.profiles().size(), std::size_t(1));
         QCOMPARE(model.profiles().front().id, kDefaultProfile);
 
-        // Default and unknown ids cannot be removed.
+        // The last profile and unknown ids cannot be removed.
         QVERIFY(!profiles::remove(model, kDefaultProfile));
         QVERIFY(!profiles::remove(model, QStringLiteral("work")));
         QCOMPARE(changed.count(), 2);
@@ -146,26 +203,53 @@ private slots:
         QCOMPARE(effective(), QStringLiteral("work"));
     }
 
-    void resetClearsTheList()
+    // Removing the default stores the first of the others by name as the
+    // default, so it stays the default when profiles are added later.
+    void removeTheDefault()
     {
         load(QString(), QString());
+        model.setDefaultProfile(QStringLiteral("work"));
+        QVERIFY(profiles::remove(model, QStringLiteral("work")));
+        QCOMPARE(model.defaultProfile(), QStringLiteral("bank"));
+        model.setProfile(makeProfile(QStringLiteral("aaa"), QStringLiteral("Aaa")));
+        QCOMPARE(model.defaultProfile(), QStringLiteral("bank"));
+
+        // The profile with the id "default" goes like any other.
+        QVERIFY(profiles::remove(model, kDefaultProfile));
+        QVERIFY(!model.profile(kDefaultProfile));
+        QCOMPARE(effective(), QStringLiteral("bank"));
+    }
+
+    // reset() and an empty list leave one profile, "Default", which is the
+    // default.
+    void alwaysOneProfile()
+    {
+        load(QString(), QString());
+        model.setDefaultProfile(QStringLiteral("work"));
         model.reset({}, {}, {}, {});
+        QCOMPARE(model.profiles().size(), std::size_t(1));
+        QCOMPARE(model.profiles().front().id, kDefaultProfile);
+        QCOMPARE(model.profiles().front().name, QStringLiteral("Default"));
+        QCOMPARE(model.defaultProfile(), kDefaultProfile);
+
+        model.setProfiles({makeProfile(QStringLiteral("work"), QStringLiteral("Work"))});
+        model.setProfiles({});
         QCOMPARE(model.profiles().size(), std::size_t(1));
         QCOMPARE(model.profiles().front().id, kDefaultProfile);
     }
 
-    // Default is always first, once, and keeps no name. setProfile() adds or
-    // replaces one profile.
-    void defaultAlwaysFirst()
+    // The list keeps its stored order and every name, the profile with the
+    // id "default" too. setProfile() adds or replaces one profile.
+    void storedOrderAndNames()
     {
         Profile standard = makeProfile(kDefaultProfile, QStringLiteral("Mine"));
         standard.moduleSettings = QJsonObject{{QStringLiteral("gitlab"), QJsonObject{}}};
         model.setProfiles({makeProfile(QStringLiteral("work"), QStringLiteral("Work")), standard});
         QCOMPARE(model.profiles().size(), std::size_t(2));
-        QCOMPARE(model.profiles()[0].id, kDefaultProfile);
-        QVERIFY(model.profiles()[0].name.isEmpty());
-        QVERIFY(model.profiles()[0].hasData());
-        QCOMPARE(model.profiles()[1].id, QStringLiteral("work"));
+        QCOMPARE(model.profiles()[0].id, QStringLiteral("work"));
+        QCOMPARE(model.profiles()[1].id, kDefaultProfile);
+        QCOMPARE(model.profiles()[1].name, QStringLiteral("Mine"));
+        QVERIFY(model.profiles()[1].hasData());
 
         QSignalSpy changed(&model, &Model::profilesChanged);
         model.setProfile(makeProfile(QStringLiteral("bank"), QStringLiteral("Bank")));

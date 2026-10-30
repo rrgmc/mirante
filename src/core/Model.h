@@ -65,15 +65,21 @@ public:
     QString workspaceName() const;
     void setWorkspaceName(const QString &name);
 
-    // The workspace's profiles, from workspace.mirante: Default first, which
-    // always exists, then the others in their stored order. See
-    // core/Profiles.h for lookups by the resolution order. reset() leaves only
-    // an empty Default.
+    // The workspace's profiles, from workspace.mirante, in their stored
+    // order. There is always at least one. See core/Profiles.h for lookups by
+    // the resolution order. reset() leaves one empty profile called
+    // "Default", with the id kDefaultProfile, which is the default.
     const std::vector<Profile> &profiles() const;
     const Profile *profile(const QString &id) const;   // nullptr if not listed
-    // Replaces the list. Default is added if missing, and moved first. Its
-    // name is not stored, so it is cleared.
+    // Replaces the list. An empty list gets the profile reset() leaves.
     void setProfiles(std::vector<Profile> profiles);
+    // The id of the default profile, where the resolution order ends. Always
+    // a listed profile: if the stored id is not listed, the first profile by
+    // name, ignoring case. See docs/decisions/0057-any-profile-can-be-the-default.md.
+    QString defaultProfile() const;
+    // Stores the id of the default profile. An id that is not listed is kept,
+    // and defaultProfile() falls back until it is.
+    void setDefaultProfile(const QString &id);
     // Adds the profile, or replaces the one with its id.
     void setProfile(const Profile &profile);
 

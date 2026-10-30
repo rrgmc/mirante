@@ -1,5 +1,7 @@
 #include "core/Model.h"
 
+#include "core/Profiles.h"
+
 #include <QHash>
 #include <QStringList>
 
@@ -11,10 +13,12 @@ namespace mirante {
 
 namespace {
 
-Profile defaultProfile()
+// The profile a workspace gets when it has none.
+Profile firstProfile()
 {
     Profile profile;
     profile.id = kDefaultProfile;
+    profile.name = profiles::defaultName();
     return profile;
 }
 
@@ -26,7 +30,8 @@ Profile defaultProfile()
 struct Model::Private
 {
     QString workspaceName;
-    std::vector<Profile> profiles = {defaultProfile()};
+    std::vector<Profile> profiles = {firstProfile()};
+    QString defaultProfile = kDefaultProfile;   // as stored; see Model::defaultProfile()
     std::map<QString, Group> groups;
     std::map<QString, Project> projects;
     std::map<QString, Task> tasks;
@@ -468,21 +473,32 @@ const Profile *Model::profile(const QString &id) const
 
 void Model::setProfiles(std::vector<Profile> profiles)
 {
-    // Default first, and only once.
-    Profile standard = defaultProfile();
-    std::vector<Profile> ordered;
-    for (Profile &profile : profiles) {
-        if (profile.id == kDefaultProfile) {
-            standard = std::move(profile);
-            standard.name.clear();
-        } else {
-            ordered.push_back(std::move(profile));
-        }
-    }
-    ordered.insert(ordered.begin(), std::move(standard));
-    if (ordered == d->profiles)
+    // A workspace always has a profile.
+    if (profiles.empty())
+        profiles.push_back(firstProfile());
+    if (profiles == d->profiles)
         return;
-    d->profiles = std::move(ordered);
+    d->profiles = std::move(profiles);
+    emit profilesChanged();
+}
+
+QString Model::defaultProfile() const
+{
+    if (profile(d->defaultProfile))
+        return d->defaultProfile;
+    // The first by name, then by id, so every device picks the same one.
+    const auto first = std::min_element(d->profiles.begin(), d->profiles.end(), [](const Profile &a, const Profile &b) {
+        const int byName = a.name.compare(b.name, Qt::CaseInsensitive);
+        return byName != 0 ? byName < 0 : a.id < b.id;
+    });
+    return first->id;
+}
+
+void Model::setDefaultProfile(const QString &id)
+{
+    if (id == d->defaultProfile)
+        return;
+    d->defaultProfile = id;
     emit profilesChanged();
 }
 

@@ -6,20 +6,20 @@ Web content uses Qt WebEngine, which embeds Chromium. This document describes lo
 
 A `QWebEngineProfile` holds cookies, local storage, cache and site permissions. Pages in different profiles cannot see each other's logins.
 
-The workspace holds a list of [profiles](data-model.md#profile), each with an id and a name, such as "Work" and "Personal". A profile holds web logins and module settings, with the server and token of each module; this section is about its web logins. The user manages the list with Profiles > Manage Profiles…; see [ui](ui.md#profiles). A profile called Default always exists and cannot be renamed or deleted. See decisions [0042](decisions/0042-user-managed-web-profiles.md) and [0050](decisions/0050-profiles-hold-logins-connections-and-settings.md).
+The workspace holds a list of [profiles](data-model.md#profile), each with an id and a name, such as "Work" and "Personal". A profile holds web logins and module settings, with the server and token of each module; this section is about its web logins. The user manages the list with Profiles > Manage Profiles…; see [ui](ui.md#profiles). There is always at least one profile, and one of them is the default. Any profile can be renamed, and any but the last can be deleted. See decisions [0042](decisions/0042-user-managed-web-profiles.md), [0050](decisions/0050-profiles-hold-logins-connections-and-settings.md) and [0057](decisions/0057-any-profile-can-be-the-default.md).
 
 Mirante creates these `QWebEngineProfile`s:
 
 | Profile | Storage name | Used for |
 |---|---|---|
-| One per profile | `p-<id>`, `p-default` for Default | The web items that use that profile |
+| One per profile | `p-<id>`, such as `p-default` for the profile with the id `default` | The web items that use that profile |
 | App | `app` | [Built-in panels](#built-in-panels) only |
 
-**Which profile an item uses.** Each group has a default profile, set in the [group dialog](ui.md#group-dialog). Each item of a type that uses a profile can choose its own in its properties. An item uses the first of these that exists:
+**Which profile an item uses.** Each group can choose a profile, in the [group dialog](ui.md#group-dialog). Each item of a type that uses a profile can choose its own in its properties. An item uses the first of these that exists:
 
 1. the item's own profile;
-2. its group's default profile;
-3. Default.
+2. its group's profile;
+3. the workspace's default profile.
 
 A step that names a profile not in the list is skipped. This happens when the profile was deleted, or when its entry has not arrived from another device yet. The code is `profiles::effective` in `src/core/Profiles.h`. The same profile gives the item its module settings, with its servers.
 

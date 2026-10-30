@@ -199,8 +199,8 @@ GroupDialog::GroupDialog(const Group &group, QWidget *parent)
     layout->addWidget(d->message);
     layout->addWidget(buttons);
 
-    // Until setProfiles() is called, only Default is offered.
-    setProfiles({});
+    // Until setProfiles() is called, only the default is offered.
+    setProfiles({}, tr("Default"));
     d->name->setFocus();
 }
 
@@ -211,9 +211,8 @@ Group GroupDialog::value() const
     Group group = d->group;
     group.name = d->name->text().trimmed();
 
-    // Default is stored as no profile.
-    const QString profile = d->profile->currentData().toString();
-    group.profile = profile == kDefaultProfile ? QString() : profile;
+    // The default profile is stored as no profile.
+    group.profile = d->profile->currentData().toString();
 
     if (!d->chosenColour.isEmpty())
         group.colour = d->chosenColour;
@@ -225,21 +224,17 @@ void GroupDialog::setColour(const QString &colour) { d->chooseColour(colour); }
 
 void GroupDialog::setName(const QString &name) { d->name->setText(name); }
 
-void GroupDialog::setProfiles(const std::vector<Profile> &profiles)
+void GroupDialog::setProfiles(const std::vector<Profile> &profiles, const QString &defaultName)
 {
     d->profile->clear();
-    bool hasDefault = false;
-    for (const Profile &profile : profiles) {
+    d->profile->addItem(tr("The default profile (%1)").arg(defaultName), QString());
+    for (const Profile &profile : profiles)
         d->profile->addItem(profile.name, profile.id);
-        hasDefault = hasDefault || profile.id == kDefaultProfile;
-    }
-    if (!hasDefault)
-        d->profile->insertItem(0, tr("Default"), kDefaultProfile);
     // A profile that is not listed, because it was deleted or has not arrived
     // yet, is kept until another is chosen.
-    const QString current = d->group.profile.isEmpty() ? kDefaultProfile : d->group.profile;
+    const QString current = d->group.profile;
     if (d->profile->findData(current) < 0)
-        d->profile->addItem(tr("Unknown profile, uses Default"), current);
+        d->profile->addItem(tr("Unknown profile, uses the default"), current);
     d->profile->setCurrentIndex(d->profile->findData(current));
 }
 

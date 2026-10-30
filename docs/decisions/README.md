@@ -46,7 +46,7 @@ Each file records one design decision: what was decided, what else was considere
 | [0039](0039-profiles-deleted-only-by-local-delete.md) | A group's web profile is deleted only when the group is deleted on this device | Accepted; for web profiles by 0042 |
 | [0040](0040-profiles-per-group-and-module.md) | One web login profile per group and module | Superseded by 0042 |
 | [0041](0041-own-look-for-tabs-and-tool-buttons.md) | Mirante draws its own tabs and tool buttons | Accepted |
-| [0042](0042-user-managed-web-profiles.md) | Web profiles are a list the user manages | Accepted; in part superseded by 0050 |
+| [0042](0042-user-managed-web-profiles.md) | Web profiles are a list the user manages | Accepted; in part superseded by 0050 and 0057 |
 | [0043](0043-pick-the-item-type-first.md) | A new item starts by picking its type in an icon grid | Accepted |
 | [0044](0044-module-settings-in-the-workspace.md) | Modules have settings screens, stored in the workspace | Accepted; in part superseded by 0050 |
 | [0045](0045-preview-and-crop-pasted-images.md) | Pasted images open a preview with a crop first | Accepted; pasting onto dashboards by 0051 |
@@ -54,12 +54,13 @@ Each file records one design decision: what was decided, what else was considere
 | [0047](0047-item-headers-in-group-colours.md) | Item cell headers take their group's colour | Accepted |
 | [0048](0048-focus-and-preview-slots.md) | Focus and the preview have fixed slots right of the tabs | Accepted; pinning by 0052; the sidebar's Focus entry by 0053 |
 | [0049](0049-items-from-a-pasted-link.md) | Item types read a pasted link, and the item dialog offers the types that take it | Accepted; connections superseded by 0054 |
-| [0050](0050-profiles-hold-logins-connections-and-settings.md) | Profiles hold logins, connections and module settings | Accepted; connections superseded by 0054 |
+| [0050](0050-profiles-hold-logins-connections-and-settings.md) | Profiles hold logins, connections and module settings | Accepted; connections superseded by 0054, Default by 0057 |
 | [0051](0051-paste-images-from-the-items-menu.md) | Pasted images become items of a task, not cells of a dashboard | Accepted |
 | [0052](0052-no-pinning.md) | The preview is never pinned | Accepted |
 | [0053](0053-no-focus-entry-in-the-sidebar.md) | The sidebar has no Focus entry | Accepted |
 | [0054](0054-module-settings-replace-connections.md) | Module settings replace connections | Accepted |
 | [0055](0055-move-workspace.md) | Moving a workspace to another folder | Accepted |
+| [0057](0057-any-profile-can-be-the-default.md) | Any profile can be the default | Accepted |
 
 ## Template
 

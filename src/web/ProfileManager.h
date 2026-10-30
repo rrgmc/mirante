@@ -28,11 +28,11 @@ public:
     ~ProfileManager() override;
 
     // The storage name of a profile's web logins: "p-<id>". An id that is not made of
-    // letters, digits, "-" and "_" gives the name of Default.
+    // letters, digits, "-" and "_" gives the name of the id "default".
     static QString storageName(const QString &profileId);
 
     // The profile with this id, made when first asked for. An empty id means
-    // Default. The manager does not check that the workspace lists the id;
+    // the id "default". The manager does not check that the workspace lists the id;
     // profiles::effective() does that.
     QWebEngineProfile *profile(const QString &profileId);
     // "app", for built-in panels from M9.
@@ -41,11 +41,12 @@ public:
     // Clears the cookies and cache of a profile, then removes its folder once
     // no page uses it. Called only when the user deletes the profile on this
     // device; see docs/decisions/0039-profiles-deleted-only-by-local-delete.md.
-    // Default is never removed.
+    // An id that is not a plain name is never removed: it maps to the folder
+    // of the id "default".
     void removeProfile(const QString &profileId);
 
     // Deletes a profile's logins, cookies, cache and site data on this device,
-    // Default's too, and keeps the profile. Qt cannot clear site storage of a
+    // and keeps the profile. Qt cannot clear site storage of a
     // loaded profile, so the profile is released and its folder removed, as
     // for removeProfile(). profileClearing() comes first, so views drop their
     // pages, and profileCleared() at the end, so they can load them again.

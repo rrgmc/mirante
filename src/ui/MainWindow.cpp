@@ -1211,6 +1211,8 @@ struct MainWindow::Private
         QStringList shown;
         for (const Profile &profile : profiles::all(*model))
             shown << profile.id << profile.name;
+        // all() lists the default first, but two profiles can swap places.
+        shown << model->defaultProfile();
         return shown;
     }
 
@@ -1226,7 +1228,7 @@ struct MainWindow::Private
         QObject::connect(manage, &QAction::triggered, q, [this] { actions->editProfiles(); });
         profilesMenu->addSeparator();
         for (const Profile &profile : profiles::all(*model)) {
-            QMenu *menu = profilesMenu->addMenu(profile.name);
+            QMenu *menu = profilesMenu->addMenu(profiles::listName(*model, profile));
             menu->setObjectName(QStringLiteral("profileMenu.") + profile.id);
             fillProfileMenu(menu, profile.id);
         }
@@ -1238,6 +1240,13 @@ struct MainWindow::Private
     void fillProfileMenu(QMenu *menu, const QString &profileId)
     {
         addModulesMenu(menu, profileId);
+        QAction *makeDefault = menu->addAction(MainWindow::tr("Set as &Default"));
+        makeDefault->setObjectName(QStringLiteral("setDefaultProfile.") + profileId);
+        makeDefault->setEnabled(profileId != model->defaultProfile());
+        QObject::connect(makeDefault, &QAction::triggered, q, [this, profileId] {
+            if (model->profile(profileId))
+                model->setDefaultProfile(profileId);
+        });
     }
 
     // The profile's Modules submenu: a submenu for each module with settings

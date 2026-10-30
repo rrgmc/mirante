@@ -22,9 +22,10 @@ public:
     // The group with the edited fields; every other field as given.
     Group value() const;
 
-    // The profiles offered, from profiles::all(). Default is offered even if
-    // missing. Only Default by default.
-    void setProfiles(const std::vector<Profile> &profiles);
+    // The profiles offered, from profiles::all(). The first entry is "The
+    // default profile (<defaultName>)", stored as no profile, so the group
+    // follows the workspace's default. Only that entry by default.
+    void setProfiles(const std::vector<Profile> &profiles, const QString &defaultName);
 
     // The colour shown as chosen: the group's own, or its palette colour if
     // it has none. A colour chosen in the dialog is stored; otherwise the

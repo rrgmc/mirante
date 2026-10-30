@@ -196,8 +196,11 @@ private slots:
         QVERIFY(top[1]->isSeparator());
         QMenu *standard = top[2]->menu();
         QVERIFY(standard);
-        QCOMPARE(standard->title(), QStringLiteral("Default"));
-        QCOMPARE(standard->actions().size(), 1);
+        QCOMPARE(standard->title(), QStringLiteral("Default (default)"));
+        QCOMPARE(standard->actions().size(), 2);
+        // Set as Default follows Modules, disabled for the default itself.
+        QCOMPARE(standard->actions().at(1)->text(), QStringLiteral("Set as &Default"));
+        QVERIFY(!standard->actions().at(1)->isEnabled());
         QMenu *modules = standard->actions().front()->menu();
         QVERIFY(modules);
         QCOMPARE(modules->title(), QStringLiteral("&Modules"));
@@ -251,23 +254,36 @@ private slots:
     }
 
     // The menu is built again when profiles are added, renamed or removed,
-    // in the order of the list.
+    // or the default changes, in the order of the list: the default first,
+    // marked, then by name.
     void followsTheProfiles()
     {
         Fixture f(true);
-        QCOMPARE(f.profileTitles(), QStringList{QStringLiteral("Default")});
-        f.model.setProfiles({makeProfile(QStringLiteral("w"), QStringLiteral("Work")),
-                             makeProfile(QStringLiteral("b"), QStringLiteral("bank"))});
-        QTRY_COMPARE(f.profileTitles(),
-                     (QStringList{QStringLiteral("Default"), QStringLiteral("bank"), QStringLiteral("Work")}));
+        QCOMPARE(f.profileTitles(), QStringList{QStringLiteral("Default (default)")});
+        f.model.setProfile(makeProfile(QStringLiteral("w"), QStringLiteral("Work")));
+        f.model.setProfile(makeProfile(QStringLiteral("b"), QStringLiteral("bank")));
+        QTRY_COMPARE(f.profileTitles(), (QStringList{QStringLiteral("Default (default)"), QStringLiteral("bank"),
+                                                     QStringLiteral("Work")}));
         QVERIFY(f.entry(QStringLiteral("w"), QStringLiteral("general")));
 
         f.model.setProfile(makeProfile(QStringLiteral("b"), QStringLiteral("Personal")));
-        QTRY_COMPARE(f.profileTitles(),
-                     (QStringList{QStringLiteral("Default"), QStringLiteral("Personal"), QStringLiteral("Work")}));
+        QTRY_COMPARE(f.profileTitles(), (QStringList{QStringLiteral("Default (default)"), QStringLiteral("Personal"),
+                                                     QStringLiteral("Work")}));
 
+        // Set as Default in a profile's submenu.
+        auto *makeDefault = f.profilesMenu()->findChild<QAction *>(QStringLiteral("setDefaultProfile.w"));
+        QVERIFY(makeDefault);
+        QVERIFY(makeDefault->isEnabled());
+        makeDefault->trigger();
+        QCOMPARE(f.model.defaultProfile(), QStringLiteral("w"));
+        QTRY_COMPARE(f.profileTitles(), (QStringList{QStringLiteral("Work (default)"), QStringLiteral("Default"),
+                                                     QStringLiteral("Personal")}));
+        QVERIFY(!f.profilesMenu()->findChild<QAction *>(QStringLiteral("setDefaultProfile.w"))->isEnabled());
+
+        // Removing the default makes the first of the others by name the default.
         profiles::remove(f.model, QStringLiteral("w"));
-        QTRY_COMPARE(f.profileTitles(), (QStringList{QStringLiteral("Default"), QStringLiteral("Personal")}));
+        QTRY_COMPARE(f.profileTitles(),
+                     (QStringList{QStringLiteral("Default (default)"), QStringLiteral("Personal")}));
         QVERIFY(!f.entry(QStringLiteral("w"), QStringLiteral("general")));
     }
 

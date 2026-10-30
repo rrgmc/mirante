@@ -43,13 +43,13 @@ struct Folder
 
 // A profile of the workspace, listed in workspace.mirante: web logins (kept
 // on each device) and module settings, such as the server of each module.
-// Tokens are kept in the keychain. The Default profile always exists, with id
-// kDefaultProfile; its name is not stored. See docs/data-model.md#profile and
-// decisions 0050 and 0054.
+// Tokens are kept in the keychain. A workspace always has at least one, and
+// one is its default. See docs/data-model.md#profile and decisions 0050, 0054
+// and 0057.
 struct Profile
 {
     QString id;
-    QString name;                                // empty for Default
+    QString name;
     // The values of the modules' settings screens: an object of module ids,
     // each an object of screen ids, each the values of that screen.
     QJsonObject moduleSettings;
@@ -62,7 +62,8 @@ struct Profile
     QJsonObject toJson() const;
 };
 
-// The id of the Default profile.
+// The id of the profile a workspace gets when it has none, called "Default".
+// Workspaces from before decision 0057 always have it, as their default.
 inline const QString kDefaultProfile = QStringLiteral("default");
 
 struct Group
