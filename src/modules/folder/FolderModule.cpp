@@ -16,10 +16,10 @@ namespace mirante::modules::folder {
 namespace {
 
 // The Folder / terminal type.
-class StubItemType : public ItemType
+class FolderItemType : public ItemType
 {
 public:
-    StubItemType(const QString &id, const QString &name)
+    FolderItemType(const QString &id, const QString &name)
         : m_id(id)
         , m_name(name)
         , m_icon(QStringLiteral(":/modules/folder/icons/folder.svg"))
@@ -65,7 +65,7 @@ void registerModule(ModuleRegistrar &registrar)
     registrar.setModuleName(QStringLiteral("Folder"));
     registrar.setModuleDescription(QCoreApplication::translate(
         "folder", "A project's folder as an item, with its Git state and shortcuts to a terminal and an editor."));
-    registrar.addItemType(std::make_unique<StubItemType>(
+    registrar.addItemType(std::make_unique<FolderItemType>(
         QStringLiteral("folder"), QCoreApplication::translate("folder", "Folder / terminal")));
 
     // The editor that opens a folder, kept on each device. The folder's path
