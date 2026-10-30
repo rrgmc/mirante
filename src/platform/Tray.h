@@ -26,8 +26,11 @@ public:
     // at sign-in before the taskbar has started.
     static bool isAvailable();
 
-    // The menu must outlive the tray.
-    Tray(const QIcon &icon, const QString &toolTip, QMenu *menu, QObject *parent = nullptr);
+    // The menu must outlive the tray. The macOS menu bar shows monochromeIcon
+    // as a template image: macOS draws its alpha in the menu bar's colour, so
+    // it matches light and dark menu bars. Elsewhere the tray shows icon.
+    Tray(const QIcon &icon, const QIcon &monochromeIcon, const QString &toolTip, QMenu *menu,
+         QObject *parent = nullptr);
     ~Tray() override;
 
     // Shows or removes the Dock icon while the window is shown or hidden in the

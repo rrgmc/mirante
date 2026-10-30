@@ -468,6 +468,7 @@ The global hotkey uses the QHotkey library. It works on Windows, macOS and X11, 
 - Closing the main window hides it to the system tray, the menu bar on macOS. Polling and notifications continue. A device setting turns this off, and closing then quits. See [decision 0075](decisions/0075-hide-to-tray-and-show-hide-hotkey.md).
 - Hiding also hides the other open windows, such as detached dashboards and the settings window. They come back with the main window, and detached dashboards stay detached. The window's place and the open tabs are saved each time it hides.
 - On macOS Mirante leaves the Dock while it is hidden.
+- The macOS menu bar shows a monochrome icon, `resources/icons/mirante-tray.svg`, as a template image. macOS draws it in the menu bar's colour, like other apps' icons, with its three panels in shades of that colour. Windows and Linux show the app icon.
 - Clicking the tray icon brings Mirante to the front. On macOS, a click opens the menu instead.
 - The tray menu has "Show Mirante", "Settings…" and "Quit". File > Quit also exits. Under an open modal dialog, "Quit" brings the dialog to the front instead.
 - The tray icon shows the number of tasks that need attention. This is not built yet; see the [roadmap](roadmap.md#m8-tray-notifications-and-keyboard).
