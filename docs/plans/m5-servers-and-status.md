@@ -6,10 +6,11 @@ Native summary and list views stay placeholders until M6. The light actions are 
 
 ## Decisions
 
-M5 depends on two new decisions:
+M5 depends on three new decisions:
 
 - [Decision 0060](../decisions/0060-jira-cloud-or-data-center-by-setting.md): Jira Cloud or Data Center is a **Deployment** setting on the Jira screen, guessed from the site by default, with an **Email** field for Jira Cloud.
 - [Decision 0061](../decisions/0061-attention-from-status-of-any-rendering.md): page types report status too, and the attention reasons that are events clear once the item has been seen.
+- [Decision 0063](../decisions/0063-tokens-follow-a-new-workspace-id.md): when another device changed the workspace id, tokens move to the new id with the logins, as [decision 0062](../decisions/0062-logins-follow-a-new-workspace-id.md) does for logins.
 
 Two smaller choices are made here and written into [integrations](../integrations.md#errors) by T2:
 
@@ -210,8 +211,14 @@ public:
 
     void write(const QString &key, const QString &value);
     void remove(const QString &key);
-    // Removes every key that starts with prefix, such as "<ws>/<profile>/".
-    void removeAll(const QString &prefix, const QStringList &keys);
+    // Removes the given keys.
+    void removeAll(const QStringList &keys);
+    // Moves each of the keys from one workspace id to another: reads the
+    // token under the old key, writes it under the new one unless one is
+    // there already, then removes the old one. done is called once, after
+    // all keys. Keys being moved answer read() only after their move.
+    void moveAll(const QString &fromWorkspaceId, const QString &toWorkspaceId,
+                 const QStringList &keysWithoutWorkspace, std::function<void()> done);
 
 signals:
     void changed(const QString &key);
@@ -223,11 +230,12 @@ QString secretKey(const QString &workspaceId, const QString &profileId,
 ```
 
 - **Backends.** `SecretBackend` has asynchronous `read`, `write` and `remove`. `KeychainBackend` uses qtkeychain's `ReadPasswordJob`, `WritePasswordJob` and `DeletePasswordJob`, with the service `mirante` and `setAutoDelete(true)`. `MemoryBackend` keeps values in a map, for tests and for `--no-keychain`.
-- **Listing.** No keychain lists its keys portably. `removeAll` therefore takes the keys to remove: the core builds them from the profile and every module's `Secret` fields.
+- **Listing.** No keychain lists its keys portably. `removeAll` and `moveAll` therefore take the keys: the core builds them from the profiles and every module's `Secret` fields, with `tokenKeys(model, registry)`, a free function in `SecretStore.h` that gives `<profile id>/<module id>/<field key>` for every profile and every `Secret` field of the build.
+- **A changed workspace id.** `moveAll` implements [decision 0063](../decisions/0063-tokens-follow-a-new-workspace-id.md).
 - **Errors.** A keychain error, such as a locked keychain or no Secret Service on Linux, emits `failed`. The main window's warning bar shows "Could not use the keychain: <message>". The token then counts as not set.
 - **`secretKey`** moves from `EntityActions` to `SecretStore.h`. `EntityActions::secretKey` calls it until T9 removes it.
 
-**Tests:** `tst_secret_store` with `MemoryBackend`: a read loads once; `cached` and `state` follow reads, writes and removes; `changed` is emitted; `removeAll` removes the listed keys only. `KeychainBackend` is checked by hand, because CI runners have no unlocked keychain.
+**Tests:** `tst_secret_store` with `MemoryBackend`: a read loads once; `cached` and `state` follow reads, writes and removes; `changed` is emitted; `removeAll` removes the listed keys only; `moveAll` moves set tokens, keeps a token already under the new key and removes the old one, skips keys not set, holds back a `read()` of a key until its move is done, and calls `done` once. `KeychainBackend` is checked by hand, because CI runners have no unlocked keychain.
 
 ## Part 3: the server client
 
@@ -382,6 +390,7 @@ signals: void refreshRequested(); void fixRequested();
 - `EntityActions::setSaveSecret` writes to the `SecretStore`. The log line of M4 goes.
 - `MainWindow` fills the new `PlacementServices` members, calls `noteTaskOpened` when a task dashboard opens in a tab or slot, gives `Attention` to the sidebar and Focus, and fills the warning bar from `ServerClients::failingChanged` and `SecretStore::failed`.
 - Opening another workspace drops the status cache's entries and the clients, because the workspace id is part of every key.
+- Where `MainWindow` moves logins with `ProfileManager::adoptProfilesOf()` after the id changed on another device ([decision 0062](../decisions/0062-logins-follow-a-new-workspace-id.md)), it also calls `SecretStore::moveAll` with the remembered id, the new one and `tokenKeys()`. It is not called when this device gave the id.
 - Tests and the `tools/run.ps1` checks with a scratch settings file pass `--no-keychain`, so they never touch the user's keychain. The checks by hand of the keychain itself run without it.
 
 ## Tasks for parallel work
@@ -392,8 +401,8 @@ The headers written by T0 are the interfaces. Where they differ in detail from t
 
 | Task | Branch | Work | Owns | Needs |
 |---|---|---|---|---|
-| T0 | `m5-interfaces` | The `src/api/` library and its CMake, with `Qt6::Network` and qtkeychain. `Qt6::Network` on the module interface. `ApiClient.h`, `Status.h` and the additions to `ItemType`, `ItemContext`, `Module.h` and `Fields.h`. The `module_api_testing` target and its two fakes, linked by `mirante_add_module()`. Every new header of parts 2 to 8 with stubs that compile, including `CellStatus`, the `PlacementServices` members, `SidebarModel::AttentionRole` and the `DeviceSettings` declarations. The decisions' status set to Accepted. The keychain key form corrected in the roadmap, data model, ui and modules documents, and [modules](../modules.md#servers-and-tokens) updated for `ServerType`, `fetchStatus` and project settings. | everything it creates; after merging, the headers belong to the orchestrator | none |
-| T1 | `m5-secrets` | Part 2: `SecretStore` and its two backends. `tst_secret_store`. Updates [sync](../sync.md#secrets). | `src/api/SecretStore*`, `src/api/*Backend*`, their tests | T0 |
+| T0 | `m5-interfaces` | The `src/api/` library and its CMake, with `Qt6::Network` and qtkeychain. `Qt6::Network` on the module interface. `ApiClient.h`, `Status.h` and the additions to `ItemType`, `ItemContext`, `Module.h` and `Fields.h`. The `module_api_testing` target and its two fakes, linked by `mirante_add_module()`. Every new header of parts 2 to 8 with stubs that compile, including `CellStatus`, the `PlacementServices` members, `SidebarModel::AttentionRole` and the `DeviceSettings` declarations. The status of decisions 0060, 0061 and 0063 set to Accepted, and that of 0062 to "Accepted; tokens superseded by 0063". The keychain key form corrected in the roadmap, data model, ui and modules documents, and [modules](../modules.md#servers-and-tokens) updated for `ServerType`, `fetchStatus` and project settings. | everything it creates; after merging, the headers belong to the orchestrator | none |
+| T1 | `m5-secrets` | Part 2: `SecretStore`, its two backends, `tokenKeys()` and `moveAll`. `tst_secret_store`. Updates [sync](../sync.md#secrets), and [web views](../web-views.md#profiles) where it says tokens do not move. | `src/api/SecretStore*`, `src/api/*Backend*`, their tests | T0 |
 | T2 | `m5-server-client` | Part 3: `ServerClient` and `ServerClients`. `tst_server_client`. Updates [integrations](../integrations.md#errors) with the two choices at the top of this plan. | `src/api/ServerClient*`, its test | T0 |
 | T3 | `m5-status-cache` | Part 4: `StatusCache`, `Attention` and the `DeviceSettings` additions. `tst_status_cache`, `tst_attention`, `tst_device_settings` additions. Updates [integrations](../integrations.md#polling-and-caching) and [sync](../sync.md#device-settings). | `src/api/StatusCache*`, `src/api/Attention*`, `src/core/DeviceSettings.cpp`, their tests | T0 |
 | T4 | `m5-project-settings` | Part 5: project settings in the registry and the project dialog. `tst_registry` and `tst_dialogs` additions. Updates [ui](../ui.md) and [data model](../data-model.md#project). | `src/items/ItemTypeRegistry.cpp`, `src/ui/ProjectDialog.cpp`, their tests | T0 |
@@ -401,7 +410,7 @@ The headers written by T0 are the interfaces. Where they differ in detail from t
 | T6 | `m5-jira` | Part 7. Updates the module's `README.md`, [item types](../item-types.md), [integrations](../integrations.md#jira) and [data model](../data-model.md#servers-and-tokens). | `src/modules/jira/` | T0 |
 | T7 | `m5-badges` | Part 8, the widgets only: `CellFrame`'s status area and refresh button, the sidebar badge, Focus's badge and toggle, the Status section of the settings window. Widgets are fed by hand in tests. Updates [ui](../ui.md#attention). | `src/layout/CellFrame.cpp`, `src/ui/SidebarModel.cpp`, `src/ui/SidebarDelegate.cpp`, `src/ui/FocusView.cpp`, `src/ui/SettingsDialog.cpp`, their tests | T0 |
 | T8 | `m5-placement-status` | Part 8, the placement: subscribing, visibility, `markSeen`, `ItemContextImpl::server()` and `status()`, `DashboardCellFactory` connecting a placement to its frame. `tst_placement` additions. | `src/items/Placement.cpp`, `src/items/ItemContextImpl.cpp`, `src/layout/DashboardCellFactory.cpp`, their tests | T2, T3, T7 |
-| T9 | `m5-wiring` | Part 9, and the rest of Part 8: the secret state in `FieldForm`, `EntityActions` writing and removing tokens, the warning bar lines, `noteTaskOpened`. `tst_field_form`, `tst_entity_actions` and `tst_main_window` additions. | `src/main.cpp`, `src/ui/EntityActions.cpp`, `src/ui/FieldForm.cpp`, `src/ui/MainWindow.cpp`, their tests | T1, T4, T5, T6, T8 |
+| T9 | `m5-wiring` | Part 9, and the rest of Part 8: the secret state in `FieldForm`, `EntityActions` writing and removing tokens, the warning bar lines, `noteTaskOpened`, moving tokens with the logins. `tst_field_form`, `tst_entity_actions` and `tst_main_window` additions. | `src/main.cpp`, `src/ui/EntityActions.cpp`, `src/ui/FieldForm.cpp`, `src/ui/MainWindow.cpp`, their tests | T1, T4, T5, T6, T8 |
 | T10 | none | Done by the orchestrator: write `docs/plans/m5-checks.md`, run the `dev`, `no-modules`, `release` and `ci` presets, and tick the roadmap once the user has checked. | any | all |
 
 T5 and T6 need the module interface only, so they run beside the core tasks. T7 owns `SettingsDialog.cpp` because the Status section is one more widget section there; T3 owns only the `DeviceSettings` side.
@@ -424,6 +433,7 @@ The first check by hand after T9 is a real token against gitlab.com and the user
 - **By hand on Windows:** the M5 acceptance criteria, listed in `docs/plans/m5-checks.md` by T10. They include:
   - a GitLab token and a Jira Cloud token typed into their screens, kept after a restart, and visible in Windows Credential Manager under `mirante` with the expected key;
   - removing a token, and deleting a profile, removes the entry;
+  - after changing the `id` in `workspace.mirante` by hand while the app is closed, as another device would, the tokens are under the new id when the workspace opens, and the GitLab item still shows its status;
   - a GitLab MR (page) item of a merge request with a failed pipeline shows a badge in its cell, its task, project and group, and Focus;
   - a Jira Issue (page) item: changing the issue's status in Jira shows "Status changed", which clears after the cell has been visible for two seconds;
   - the refresh button fetches at once; the poll interval in the settings window takes effect;
