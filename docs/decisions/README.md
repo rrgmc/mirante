@@ -81,7 +81,7 @@ Each file records one design decision: what was decided, what else was considere
 | [0074](0074-refuse-workspaces-from-newer-versions.md) | A workspace from a newer version is not opened | Accepted |
 | [0075](0075-hide-to-tray-and-show-hide-hotkey.md) | Closing hides to the tray, and a global hotkey shows or hides the app | Accepted; the default hotkey by 0076 |
 | [0076](0076-left-hand-default-hotkey.md) | The default global hotkey is pressed with the left hand | Accepted |
-| [0077](0077-no-macos-in-ci-during-development.md) | No macOS in CI during development | Accepted |
+| [0077](0077-no-macos-in-ci-during-development.md) | No macOS in CI during development | Accepted; macOS back in CI in M10 |
 | [0078](0078-quick-add-dialog.md) | Quick add is a dialog that reads text through the modules | Accepted; in part superseded by 0083 |
 | [0079](0079-module-device-settings.md) | Modules declare device settings as fields | Accepted |
 | [0080](0080-git-read-by-the-core.md) | The core reads Git state for modules | Accepted |
@@ -102,7 +102,10 @@ Each file records one design decision: what was decided, what else was considere
 | [0095](0095-the-bridge-gives-texts-and-colours.md) | The bridge gives panels their texts and colours | Accepted |
 | [0096](0096-app-icon-arcada.md) | The app icon is a landscape seen through three arches | Superseded by 0097 |
 | [0097](0097-app-icon-monte.md) | The app icon is an M drawn as two peaks under the sun | Accepted |
+| [0098](0098-packages-from-cmake-install.md) | Packages are made by `cmake --install` and CPack, and take their version from the tag | Accepted |
+| [0099](0099-linux-package-in-opt.md) | The Linux package installs into `/opt/mirante`, with its own Qt and an AppArmor profile | Accepted |
 | [0100](0100-item-types-in-a-module-tree.md) | A new item picks its type in a tree of modules, with a description | Accepted |
+| [0101](0101-macos-release-signing.md) | The macOS release is a universal bundle, signed with a Developer ID and notarised | Accepted |
 | [0102](0102-github-module.md) | A GitHub module, shaped like the GitLab module | Proposed |
 
 ## Template

@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Mirante
+GenericName=Work dashboard
+GenericName[pt_BR]=Painel de trabalho
+Comment=A personal all-work desktop dashboard
+Comment[pt_BR]=Um painel pessoal para todo o trabalho
+Exec=/opt/mirante/bin/mirante %U
+Icon=mirante
+Terminal=false
+Categories=Office;ProjectManagement;Development;

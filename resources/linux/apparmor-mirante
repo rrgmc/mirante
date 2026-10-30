@@ -1,0 +1,13 @@
+# Installed as /etc/apparmor.d/mirante by the .deb package. Ubuntu 23.10 and
+# later block unprivileged user namespaces, which the sandbox of Qt WebEngine's
+# helper needs. This profile allows them for Mirante and its helper, and
+# confines nothing else. See docs/decisions/0099-linux-package-in-opt.md.
+
+abi <abi/4.0>,
+include <tunables/global>
+
+profile mirante /opt/mirante/{bin/mirante,libexec/QtWebEngineProcess} flags=(unconfined) {
+  userns,
+
+  include if exists <local/mirante>
+}
