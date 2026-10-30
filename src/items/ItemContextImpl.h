@@ -86,7 +86,8 @@ QString moduleOfType(const QString &typeId);
 QLabel *createMessageLabel(const QString &text, QWidget *parent);
 
 // What the body of an item's cell says when its type makes no view: the
-// missing module, or the type, name and id of the item. type may be null.
+// missing module, the removed type, or the type, name and id of the item.
+// type may be null.
 QString itemPlaceholderText(const ItemType *type, const QString &itemName, const QString &itemId);
 
 } // namespace mirante

@@ -4,13 +4,14 @@
 
 namespace mirante {
 
-// The type of an item whose module is not in this build. Its cells show the
-// missing-module placeholder. See docs/modules.md#missing-modules.
-// Implemented in UnknownItemType.cpp.
+// The type of an item whose type is not registered: its module is not in
+// this build, or its module no longer has the type. Its cells show a
+// placeholder that says which. See docs/modules.md#missing-modules and
+// decision 0084. Implemented in UnknownItemType.cpp.
 class UnknownItemType : public ItemType
 {
 public:
-    explicit UnknownItemType(const QString &id);
+    explicit UnknownItemType(const QString &id, bool moduleInBuild = false);
 
     QString id() const override;
     QString name() const override;
@@ -18,9 +19,12 @@ public:
 
     // The part of the id before the first dot, such as "timetrack".
     QString moduleId() const;
+    // Whether the module is in this build, so that only the type is gone.
+    bool moduleInBuild() const;
 
 private:
     QString m_id;
+    bool m_moduleInBuild = false;
 };
 
 } // namespace mirante

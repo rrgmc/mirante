@@ -93,8 +93,11 @@ QLabel *createMessageLabel(const QString &text, QWidget *parent)
 
 QString itemPlaceholderText(const ItemType *type, const QString &itemName, const QString &itemId)
 {
-    if (const auto *unknown = dynamic_cast<const UnknownItemType *>(type))
+    if (const auto *unknown = dynamic_cast<const UnknownItemType *>(type)) {
+        if (unknown->moduleInBuild())
+            return tr("This item type is no longer available: %1.").arg(unknown->id());
         return tr("This item needs the %1 module, which this build does not include.").arg(unknown->moduleId());
+    }
     return tr("Type: %1").arg(type ? type->name() : tr("unknown")) + QLatin1Char('\n') + tr("Name: %1").arg(itemName)
          + QLatin1Char('\n') + tr("Id: %1").arg(itemId);
 }
