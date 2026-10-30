@@ -50,7 +50,9 @@ No core folder depends on a module. The core reaches modules only through the re
 | `Profiles` | Finds the profile of an item by the [resolution order](data-model.md#profile), lists the profiles to offer, and removes one from the list |
 | `ProfileMigration` | Turns connections, of groups or profiles, into module settings, and moves the workspace's module settings into the profile with the id `default`. See [migration to profiles](data-model.md#migration-to-profiles). |
 | `Edits` | Changes to entities as pure functions, such as removing an item from a task and clearing its cells, for the `Model`'s setters |
-| `DeviceSettings` | Typed access to the `QSettings` values listed in [sync](sync.md#device-settings) |
+| `DeviceSettings` | Typed access to the `QSettings` values listed in [sync](sync.md#device-settings), including the modules' device settings |
+| `GitHead` | Reads the current branch from a folder's `.git/HEAD`, following a worktree's `.git` file, without starting a process. See [decision 0080](decisions/0080-git-read-by-the-core.md). |
+| `GitStatusReader` | Runs `git status --porcelain=v2 --branch` on a folder in the background, one run per folder at a time, and parses its output |
 | `GroupColours` | The colour of each group: its own, or a palette colour chosen by its id, and the colour for a new group. See [decision 0046](decisions/0046-group-colours.md). |
 | `Sorting` | Priority and order sorting, used by the sidebar and Focus |
 | `LayoutTree` | The [layout tree](data-model.md#layout-tree): split, tabs and cell nodes, with JSON conversion, edit operations and normalisation. It lives in `core` because `Dashboard` holds one. |
@@ -76,12 +78,13 @@ The same `LayoutView` shows task dashboards and root dashboards. A task cell ins
 | Class | Responsibility |
 |---|---|
 | `ItemType` | Interface: id, name, icon, fields, rendering, status, actions, `fromUrl`, `createView`, and the view flags `singleView` and `reparentSafe`. See [the view](item-types.md#the-view). |
-| `ItemTypeRegistry` | Holds all types, finds a type by id, and finds the type that recognises a pasted URL. It also holds each module's name and settings screens, and gives each module a `ModuleSettings` that reads the model through a reader set in `main.cpp`. |
+| `ItemTypeRegistry` | Holds all types, finds a type by id, and finds the type that recognises a pasted URL. It also holds each module's name, settings screens, device settings, quick add handlers and related-item finders, and gives each module a `ModuleSettings` that reads the model through a reader set in `main.cpp`. |
 | `ModuleRegistrar` | Receives what each module registers: item types, its name, settings screens, settings, quick add handlers, related-item finders. See [modules](modules.md#what-a-module-registers). |
 | `ItemContext` | What an item's code can reach: settings, module settings, status, profile, folders, terminal. See [modules](modules.md#item-context). |
 | `UnknownItemType` | Placeholder for an item whose module is not in this build. See [missing modules](modules.md#missing-modules). |
 | `Placement` | One shown instance of an item, and the body of its cell. It makes the view with the type's `createView` when it is first shown, and owns it. It makes the view again when the item's type, configuration or profile changes, or the module settings of that profile, and drops it when the item goes. A web view is added to the `ViewPool`, and the placement tells the pool when it is shown or hidden. It reports the view's header widget, such as a web toolbar, with `headerWidgetChanged`. It also shows the page of `ItemContext::showPage()` in place of the view, with a "Back to summary" button in the header widget, as in [decision 0069](decisions/0069-open-page-in-the-placement.md). |
-| `ItemContextImpl` | The `ItemContext` of one placement. It reads the item, its project and its module settings from the `Model` on each call, folders from `DeviceSettings`, and web logins from the `ProfileManager`. `createWebView` makes a `WebPanel` and reports its toolbar to the placement. Without a `ProfileManager`, as in tests, it returns a message instead of a page. |
+| `QuickAddRun` | The work of quick add without widgets: runs the modules' handlers and finders asynchronously, matches a proposal to a project, and creates the task with its items and dashboard. |
+| `ItemContextImpl` | The `ItemContext` of one placement. It reads the item, its project and its module settings from the `Model` on each call, folders from `DeviceSettings`, and web logins from the `ProfileManager`. `createWebView` makes a `WebPanel` and reports its toolbar to the placement. Without a `ProfileManager`, as in tests, it returns a message instead of a page. Git state comes from `GitHead` and `GitStatusReader`, and programs start through `Launcher`. |
 | `ViewPool` | Applies the [memory policy](web-views.md#memory-policy) to web views. When more hidden views are loaded than the limit, it asks the placements hidden longest to unload. |
 
 Native views are ordinary widgets. Lists use `QTableView` with a model fed from the `StatusCache`.
@@ -115,11 +118,10 @@ Native views are ordinary widgets. Lists use `QTableView` with a model fed from 
 
 | Class | Responsibility |
 |---|---|
-| `TerminalLauncher` | Opens a terminal running a command, in a folder. See [terminal launch](integrations.md#terminal-launch). |
+| `Launcher` | Builds and starts the command that opens a terminal running a program in a folder, starts a program such as an editor, and shows a folder in the file manager. A program and its arguments are passed apart and quoted for each platform. See [terminal launch](integrations.md#terminal-launch) and [decision 0082](decisions/0082-commands-as-argument-lists.md). |
 | `GlobalHotkey` | Wraps QHotkey. Reports when the platform cannot register a hotkey. |
 | `Tray` | The tray icon and its menu: `QSystemTrayIcon`, or a native status item on macOS. The attention count arrives in M8. It reports when no tray exists, so the window can fall back. |
 | `Foreground` | `allowForegroundFor(pid)`: on Windows, lets another process bring its window to the front. A later start calls it for the running instance before it hands over. |
-| `GitHead` | Reads the current branch from a folder's `.git/HEAD`, including worktrees |
 
 Code that differs per platform lives only here, behind these classes.
 
@@ -135,7 +137,7 @@ Code that differs per platform lives only here, behind these classes.
 | `ImagePaste` | Pastes an image from the clipboard into an image item, or as a new item of a task, on no dashboard. See [image](item-types.md#image). |
 | `ImagePasteDialog` | The paste dialog: a preview of a pasted image, with an `ImageCropView` to crop it. See [pasting images](ui.md#pasting-images). |
 | `QuickSwitcher` | `Ctrl+K` fuzzy search |
-| `QuickAdd` | Creates a task from a pasted link, using the modules' quick add handlers. See [quick add](ui.md#quick-add). |
+| `QuickAddDialog` | The [quick add](ui.md#quick-add) dialog. It shows what a `QuickAddRun` proposes and finds, and creates the task. See [decision 0078](decisions/0078-quick-add-dialog.md). |
 | `DashboardPage` | One tab's or slot's page: a `LayoutView` of one dashboard with its cell factory, or the Focus list. A detached window holds one too. |
 | `DetachedWindow` | A top-level window holding one detached root dashboard. See [decision 0024](decisions/0024-detach-root-dashboard-tabs.md). |
 | `SettingsDialog` | The [settings window](ui.md#settings): options of this device, kept in `DeviceSettings`, in sections. Each change is saved at once and reported with `changed()`. |

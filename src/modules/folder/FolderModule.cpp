@@ -1,5 +1,8 @@
 // The folder module: a project folder as an item. See README.md.
+#include "FolderView.h"
+
 #include <mirante/Fields.h>
+#include <mirante/ItemContext.h>
 #include <mirante/ItemType.h>
 #include <mirante/Module.h>
 
@@ -12,7 +15,7 @@ namespace mirante::modules::folder {
 
 namespace {
 
-// A type with an id, a name, an icon and its configuration fields. The view arrives later.
+// The Folder / terminal type.
 class StubItemType : public ItemType
 {
 public:
@@ -44,6 +47,11 @@ public:
         return {folder};
     }
 
+    QWidget *createView(ItemContext &context, QWidget *parent) const override
+    {
+        return createFolderView(context, parent);
+    }
+
 private:
     QString m_id;
     QString m_name;
@@ -59,6 +67,15 @@ void registerModule(ModuleRegistrar &registrar)
         "folder", "A project's folder as an item, with its Git state and shortcuts to a terminal and an editor."));
     registrar.addItemType(std::make_unique<StubItemType>(
         QStringLiteral("folder"), QCoreApplication::translate("folder", "Folder / terminal")));
+
+    // The editor that opens a folder, kept on each device. The folder's path
+    // is its last argument. See decision 0079.
+    Field editor;
+    editor.key = QStringLiteral("editor");
+    editor.label = QCoreApplication::translate("folder", "Editor command");
+    editor.defaultValue = QStringLiteral("code");
+    editor.placeholder = QStringLiteral("code");
+    registrar.addDeviceSetting(editor);
 }
 
 } // namespace mirante::modules::folder

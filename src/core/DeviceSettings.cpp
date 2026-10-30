@@ -419,4 +419,27 @@ void DeviceSettings::setCloseToTray(bool on)
     d->settings->setValue(closeToTrayKey, on);
 }
 
+// Stubs until T2 of the M7 plan.
+QString DeviceSettings::terminalCommand() const { return {}; }
+
+void DeviceSettings::setTerminalCommand(const QString &command) { Q_UNUSED(command) }
+
+QString DeviceSettings::deviceName() const { return {}; }
+
+void DeviceSettings::setDeviceName(const QString &name) { Q_UNUSED(name) }
+
+QJsonValue DeviceSettings::moduleSetting(const QString &moduleId, const QString &key) const
+{
+    Q_UNUSED(moduleId)
+    Q_UNUSED(key)
+    return QJsonValue(QJsonValue::Undefined);
+}
+
+void DeviceSettings::setModuleSetting(const QString &moduleId, const QString &key, const QJsonValue &value)
+{
+    Q_UNUSED(moduleId)
+    Q_UNUSED(key)
+    Q_UNUSED(value)
+}
+
 } // namespace mirante

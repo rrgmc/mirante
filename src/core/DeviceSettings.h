@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QByteArray>
+#include <QJsonValue>
 #include <QRect>
 #include <QSize>
 #include <QString>
@@ -125,6 +126,22 @@ public:
     // On if not set. See docs/ui.md#tray-and-notifications.
     bool closeToTray() const;
     void setCloseToTray(bool on);
+
+    // The terminal command template, with {dir} and {command}. Empty, the
+    // default, uses the platform's terminal. See
+    // docs/integrations.md#terminal-launch and decision 0082.
+    QString terminalCommand() const;
+    void setTerminalCommand(const QString &command);
+
+    // This device's name, shown on local Claude session items. The host name
+    // if not set; an empty name goes back to it.
+    QString deviceName() const;
+    void setDeviceName(const QString &name);
+
+    // A module's device setting, under modules/<moduleId>/<key>. Undefined if
+    // not set; an undefined or null value removes it. See decision 0079.
+    QJsonValue moduleSetting(const QString &moduleId, const QString &key) const;
+    void setModuleSetting(const QString &moduleId, const QString &key, const QJsonValue &value);
 
 private:
     struct Private;

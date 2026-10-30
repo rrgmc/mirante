@@ -91,7 +91,8 @@ Settings that only make sense on one device are stored with `QSettings`, outside
 - detached root dashboard window geometry;
 - the open root tabs, the current tab and the detached root dashboards of each workspace;
 - the workspace id this device last opened each workspace folder with ([decision 0062](decisions/0062-logins-follow-a-new-workspace-id.md));
-- terminal command template, editor command;
+- the terminal command template ([terminal launch](integrations.md#terminal-launch));
+- the device settings that modules declare, such as the `folder` module's editor command and the `claude` module's program, under `modules/<module id>/<key>` ([decision 0079](decisions/0079-module-device-settings.md));
 - the status poll interval, from 30 seconds to one hour, two minutes if not set ([polling](integrations.md#polling-and-caching)), and the hidden-view limit;
 - the attention reasons seen on each item, by workspace id and item id: the keys of the reasons that clear when seen ([decision 0061](decisions/0061-attention-from-status-of-any-rendering.md)). They are not synced, so each device shows an event until it is seen there. Removing an item removes its record;
 - whether Focus lists the tasks that need attention first;

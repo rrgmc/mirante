@@ -98,6 +98,13 @@ public:
 
     virtual Rendering rendering() const { return Rendering::Native; }
 
+    // Configuration keys that the type's view writes itself, with
+    // ItemContext::updateConfig(), such as a note's text. When only these
+    // keys change, the core keeps the view and calls the receivers of
+    // ItemContext::onConfigChanged() instead of making the view again.
+    // Empty by default. See decision 0081.
+    virtual QStringList viewKeys() const { return {}; }
+
     // True if the status cache fetches a status for items of this type. A
     // type reports status when its configuration names one object on a
     // server, whether it shows a summary or a page. See

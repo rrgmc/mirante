@@ -1,5 +1,8 @@
 // The image module: an image with an optional link and memo. See README.md.
+#include "ImageView.h"
+
 #include <mirante/Fields.h>
+#include <mirante/ItemContext.h>
 #include <mirante/ItemType.h>
 #include <mirante/Module.h>
 
@@ -12,7 +15,7 @@ namespace mirante::modules::image {
 
 namespace {
 
-// A type with an id, a name, an icon and its configuration fields. The view arrives later.
+// The Image type.
 class StubItemType : public ItemType
 {
 public:
@@ -57,6 +60,11 @@ public:
 
     // A pasted image fills the file field. See docs/decisions/0021-image-items-as-files.md.
     QString pastedImageField() const override { return QStringLiteral("file"); }
+
+    QWidget *createView(ItemContext &context, QWidget *parent) const override
+    {
+        return createImageView(context, parent);
+    }
 
 private:
     QString m_id;
