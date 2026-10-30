@@ -20,11 +20,9 @@
 #include <QScrollBar>
 #include <QSet>
 #include <QSortFilterProxyModel>
-#include <QSplitter>
 #include <QStyledItemDelegate>
 #include <QTableView>
 #include <QTextDocument>
-#include <QToolButton>
 #include <QVBoxLayout>
 
 #include <algorithm>
@@ -328,15 +326,6 @@ private:
     int m_hoveredLink = -1;
 };
 
-// Removes a widget that its layout has already dropped. See the same function
-// in SummaryView.cpp for why it is deleted later and loses its parent.
-void discard(QWidget *widget)
-{
-    widget->hide();
-    widget->setParent(nullptr);
-    widget->deleteLater();
-}
-
 } // namespace
 
 struct ItemListView::Private : public QObject
@@ -350,6 +339,7 @@ struct ItemListView::Private : public QObject
     ItemListView *q = nullptr;
     ListModel *model = nullptr;
     ListProxy *proxy = nullptr;
+    QWidget *tableArea = nullptr;
     QTableView *table = nullptr;
     CellDelegate *delegate = nullptr;
     QWidget *filterRow = nullptr;
@@ -365,19 +355,11 @@ struct ItemListView::Private : public QObject
     // The link under the mouse button, so that a click starts and ends on it.
     QPersistentModelIndex pressedIndex;
     int pressedLink = -1;
-    QSplitter *splitter = nullptr;
-    QWidget *previewArea = nullptr;
-    QVBoxLayout *previewLayout = nullptr;
-    QWidget *preview = nullptr;
-    bool previewSized = false;  // the preview got its share of the height
     ActionRow *webRow = nullptr;
     QLabel *message = nullptr;
     QSet<int> columnsHiddenByView;
-    // The key of the last selected row, so that a signal goes out only when it
-    // really changes.
-    QString currentKey;
-    // While rows change, the selection moves around and is put right after. The
-    // page waits too, since the number of rows can pass through a low point.
+    // While rows change, the page waits, since the number of rows can pass
+    // through a low point.
     bool changingRows = false;
 
     QString selectedKey() const
@@ -400,8 +382,8 @@ struct ItemListView::Private : public QObject
     }
 
     // Makes a change to the rows or to which of them show. The selection stays on
-    // its row, without a signal. The view does not move, although selecting a row
-    // scrolls to it.
+    // its row, so that Return acts on the row the user chose. The view does not
+    // move, although selecting a row scrolls to it.
     template<typename Change>
     void changeRows(Change change)
     {
@@ -412,7 +394,6 @@ struct ItemListView::Private : public QObject
         change();
         select(key);
         changingRows = false;
-        currentKey = selectedKey();
 
         updatePage();
         table->verticalScrollBar()->setValue(position);
@@ -659,20 +640,17 @@ ItemListView::ItemListView(QWidget *parent)
     d->proxy->setSortRole(SortKeyRole);
     d->proxy->setSortCaseSensitivity(Qt::CaseInsensitive);
 
-    d->splitter = new QSplitter(Qt::Vertical, this);
-    d->splitter->setChildrenCollapsible(false);
-    layout->addWidget(d->splitter, 1);
-
-    auto *tableArea = new QWidget(d->splitter);
-    auto *tableLayout = new QVBoxLayout(tableArea);
+    d->tableArea = new QWidget(this);
+    layout->addWidget(d->tableArea, 1);
+    auto *tableLayout = new QVBoxLayout(d->tableArea);
     tableLayout->setContentsMargins(0, 0, 0, 0);
 
-    d->filterRow = new QWidget(tableArea);
+    d->filterRow = new QWidget(d->tableArea);
     d->filterFlow = new FlowRow(d->filterRow);
     tableLayout->addWidget(d->filterRow);
     d->filterRow->hide();
 
-    d->table = new QTableView(tableArea);
+    d->table = new QTableView(d->tableArea);
     tableLayout->addWidget(d->table, 1);
     d->table->setModel(d->proxy);
     d->delegate = new CellDelegate(d->table);
@@ -690,7 +668,7 @@ ItemListView::ItemListView(QWidget *parent)
     d->table->viewport()->installEventFilter(d.get());
     d->table->installEventFilter(d.get());
 
-    d->pageRow = new QWidget(tableArea);
+    d->pageRow = new QWidget(d->tableArea);
     auto *pageLayout = new QHBoxLayout(d->pageRow);
     pageLayout->setContentsMargins(0, 0, 0, 0);
     d->pageLine = new QLabel(d->pageRow);
@@ -716,42 +694,11 @@ ItemListView::ItemListView(QWidget *parent)
     connect(d->proxy, &QAbstractItemModel::rowsInserted, d.get(), [this] { d->updatePage(); });
     connect(d->proxy, &QAbstractItemModel::rowsRemoved, d.get(), [this] { d->updatePage(); });
 
-    connect(d->table->selectionModel(), &QItemSelectionModel::selectionChanged, d.get(), [this] {
-        if (d->changingRows)
-            return;
-        const QString key = d->selectedKey();
-        if (key == d->currentKey)
-            return;
-        d->currentKey = key;
-        if (!key.isEmpty())
-            emit rowSelected(key);
-    });
     connect(d->table, &QWidget::customContextMenuRequested, d.get(), [this](const QPoint &pos) {
         const QModelIndex index = d->table->indexAt(pos);
         if (index.isValid())
             emit rowMenuRequested(index.data(RowKeyRole).toString(),
                                   d->table->viewport()->mapToGlobal(pos));
-    });
-
-    d->previewArea = new QWidget(d->splitter);
-    d->previewLayout = new QVBoxLayout(d->previewArea);
-    d->previewLayout->setContentsMargins(0, 0, 0, 0);
-    auto *previewBar = new QHBoxLayout;
-    previewBar->addStretch(1);
-    auto *close = new QToolButton(d->previewArea);
-    close->setObjectName(QStringLiteral("closePreview"));
-    close->setText(tr("Close"));
-    close->setToolTip(tr("Close the preview"));
-    close->setAutoRaise(true);
-    previewBar->addWidget(close);
-    d->previewLayout->addLayout(previewBar);
-    d->previewArea->hide();
-    d->splitter->setStretchFactor(0, 3);
-    d->splitter->setStretchFactor(1, 2);
-    // Without a selection, a click on the same row brings the preview back.
-    connect(close, &QToolButton::clicked, d.get(), [this] {
-        setPreview(nullptr);
-        d->table->selectionModel()->clear();
     });
 
     d->message = new QLabel(this);
@@ -806,8 +753,6 @@ void ItemListView::setCell(const QString &key, int column, const ListCell &cell)
     });
 }
 
-QString ItemListView::selectedKey() const { return d->selectedKey(); }
-
 void ItemListView::setPageSize(int rows)
 {
     const int size = std::max(rows, 0);
@@ -854,33 +799,6 @@ void ItemListView::addFilter(int column, const QString &label)
     });
 }
 
-void ItemListView::setPreview(QWidget *preview)
-{
-    if (preview == d->preview)
-        return;
-    if (d->preview) {
-        d->previewLayout->removeWidget(d->preview);
-        discard(d->preview);
-    }
-    d->preview = preview;
-    if (preview) {
-        d->previewLayout->addWidget(preview, 1);
-        preview->show();
-    }
-    d->previewArea->setVisible(preview != nullptr);
-
-    // Stretch factors do not share the height when a hidden widget first
-    // shows, so the first preview gets its share here. After that, the place
-    // where the user left the splitter holds.
-    const int height = d->splitter->height();
-    if (preview && !d->previewSized && height > 0) {
-        d->previewSized = true;
-        d->splitter->setSizes({height * 3 / 5, height - height * 3 / 5});
-    }
-}
-
-QWidget *ItemListView::preview() const { return d->preview; }
-
 void ItemListView::setWebLink(const QUrl &url)
 {
     d->webRow->setWebLink(url);
@@ -893,7 +811,7 @@ void ItemListView::setMessage(const QString &text)
 {
     d->message->setText(text);
     d->message->setVisible(!text.isEmpty());
-    d->splitter->setVisible(text.isEmpty());
+    d->tableArea->setVisible(text.isEmpty());
 }
 
 } // namespace mirante::widgets

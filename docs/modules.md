@@ -261,7 +261,7 @@ Native views of different modules need the same small widgets, and modules canno
   - `addFilter(column, label)` adds a drop-down above the table, filled from that column's values, with "All" first. The choice survives `setRows()` while its value exists, and otherwise falls back to "All".
   - Sorting and filtering cover all rows. A new sort or filter goes back to the first page. New rows keep the page, or move to the last page if there are now fewer.
   - The object names `filter.<column>`, `previousPage`, `nextPage` and `pageLine` let tests find the controls.
-  - A preview of the selected row can still show under a splitter, through `setPreview()` and `rowSelected`. These go when the lists no longer use them.
+  - A selected row keeps its highlight across new rows, sorts and pages, so that Return acts on the row the user chose.
 - `compactDate()`: a date for a table, in local time: `10-30 14:32` in this year, `2025-10-30` otherwise.
 
 ### Testing
