@@ -9,6 +9,7 @@
 #include <QPushButton>
 #include <QSettings>
 #include <QSignalSpy>
+#include <QSpinBox>
 #include <QTemporaryDir>
 #include <QTest>
 
@@ -52,6 +53,37 @@ private slots:
         QVERIFY(settings.sidebarHoverTint());
     }
 
+    // "Check servers every" shows the poll interval in minutes, two by
+    // default, and saves a change in seconds.
+    void pollInterval()
+    {
+        QTemporaryDir dir;
+        QSettings ini(dir.filePath(QStringLiteral("settings.ini")), QSettings::IniFormat);
+        DeviceSettings settings(&ini);
+        SettingsDialog dialog(settings);
+        QSignalSpy changed(&dialog, &SettingsDialog::changed);
+        auto *box = dialog.findChild<QSpinBox *>(QStringLiteral("pollInterval"));
+        QVERIFY(box);
+        QCOMPARE(box->minimum(), 1);
+        QCOMPARE(box->maximum(), 60);
+        QCOMPARE(box->value(), 2);
+        QCOMPARE(changed.count(), 0);
+
+        box->setValue(5);
+        QCOMPARE(changed.count(), 1);
+        QCOMPARE(settings.pollInterval(), 300);
+
+        SettingsDialog again(settings);
+        QCOMPARE(again.findChild<QSpinBox *>(QStringLiteral("pollInterval"))->value(), 5);
+
+        // An interval of 30 seconds, the least the device settings keep,
+        // shows as one minute.
+        settings.setPollInterval(30);
+        SettingsDialog third(settings);
+        QCOMPARE(third.findChild<QSpinBox *>(QStringLiteral("pollInterval"))->value(), 1);
+        QCOMPARE(settings.pollInterval(), 30);
+    }
+
     // The options sit under section headings, and the dialog closes with Close.
     void sectionsAndClose()
     {
@@ -63,6 +95,8 @@ private slots:
         for (const QLabel *label : dialog.findChildren<QLabel *>())
             texts << label->text();
         QVERIFY(texts.contains(QStringLiteral("Sidebar")));
+        QVERIFY(texts.contains(QStringLiteral("Status")));
+        QVERIFY(texts.contains(QStringLiteral("Check servers every")));
         auto *buttons = dialog.findChild<QDialogButtonBox *>();
         QVERIFY(buttons && buttons->button(QDialogButtonBox::Close));
 

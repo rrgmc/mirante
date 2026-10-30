@@ -1,12 +1,15 @@
 #include "ui/FocusView.h"
 
+#include "api/Attention.h"
 #include "core/Model.h"
 #include "core/Sorting.h"
 #include "ui/SidebarDelegate.h"
 #include "ui/SidebarModel.h"
 
 #include <QApplication>
+#include <QCheckBox>
 #include <QComboBox>
+#include <QHBoxLayout>
 #include <QKeyEvent>
 #include <QListView>
 #include <QMenu>
@@ -54,7 +57,10 @@ public:
 
     void paint(QPainter *painter, const QStyleOptionViewItem &option, const QModelIndex &index) const override
     {
-        SidebarDelegate::paint(painter, option, index);
+        if (index.data(SidebarModel::AttentionRole).toInt() > 0)
+            paintWithBadge(painter, option, index);
+        else
+            SidebarDelegate::paint(painter, option, index);
         const QString context = index.data(contextRole).toString();
         if (context.isEmpty())
             return;
@@ -90,10 +96,36 @@ public:
         painter->restore();
     }
 
+    // SidebarDelegate leaves the badge's space out of the row it gives the
+    // style, so the selection would stop short of the badge. The selection
+    // is painted here across the whole row instead, and the row on top of it
+    // is painted as not selected, with the selected text colour.
+    void paintWithBadge(QPainter *painter, const QStyleOptionViewItem &option, const QModelIndex &index) const
+    {
+        QStyleOptionViewItem panel = option;
+        initStyleOption(&panel, index);
+        panel.rect = option.rect;
+        const QWidget *widget = option.widget;
+        const QStyle *style = widget != nullptr ? widget->style() : QApplication::style();
+        style->drawPrimitive(QStyle::PE_PanelItemViewItem, &panel, painter, widget);
+
+        QStyleOptionViewItem row = option;
+        const bool selected = (option.state & QStyle::State_Selected) != 0;
+        const bool lightSelection = style->name().startsWith(QLatin1String("windows"), Qt::CaseInsensitive);
+        if (selected && !lightSelection) {
+            for (const auto group : {QPalette::Active, QPalette::Inactive})
+                row.palette.setColor(group, QPalette::Text, option.palette.color(group, QPalette::HighlightedText));
+        }
+        row.state &= ~(QStyle::State_Selected | QStyle::State_MouseOver);
+        SidebarDelegate::paint(painter, row, index);
+    }
+
     QSize sizeHint(const QStyleOptionViewItem &option, const QModelIndex &index) const override
     {
-        // The sidebar's taller rows are for the sidebar only.
+        // The sidebar's taller rows are for the sidebar only. Its width
+        // includes the attention badge.
         QSize size = QStyledItemDelegate::sizeHint(option, index);
+        size.setWidth(SidebarDelegate::sizeHint(option, index).width());
         const QString context = index.data(contextRole).toString();
         if (!context.isEmpty())
             size.rwidth() += QFontMetrics(option.font).horizontalAdvance(QStringLiteral("  ") + context);
@@ -133,6 +165,10 @@ struct FocusView::Private
     QStandardItemModel *rows = nullptr;
     bool updatingGroups = false;
     MenuFiller menuFiller;
+    const Attention *attention = nullptr;
+    QMetaObject::Connection attentionConnection;
+    QCheckBox *attentionFirst = nullptr;
+    bool settingAttentionFirst = false;     // set by setAttentionFirst(), not by the user
 
     explicit Private(const Model &m)
         : model(m)
@@ -171,9 +207,17 @@ struct FocusView::Private
             }
         }
 
+        tasks = focusOrder(std::move(tasks), model);
+        const auto count = [this](const Task *task) { return attention ? attention->taskCount(task->id) : 0; };
+        // "Needs attention first" moves the tasks with a badge to the top,
+        // keeping the order within each part.
+        if (attentionFirst->isChecked())
+            std::stable_partition(tasks.begin(), tasks.end(), [&count](const Task *task) { return count(task) > 0; });
+
         rows->clear();
-        for (const Task *task : focusOrder(std::move(tasks), model)) {
+        for (const Task *task : tasks) {
             auto *row = new QStandardItem(task->title);
+            row->setData(count(task), SidebarModel::AttentionRole);
             row->setEditable(false);
             row->setData(int(SidebarModel::Kind::Task), SidebarModel::KindRole);
             row->setData(task->id, SidebarModel::IdRole);
@@ -218,9 +262,18 @@ FocusView::FocusView(const Model &model, QWidget *parent)
     d->list->setSelectionMode(QAbstractItemView::SingleSelection);
     d->list->setUniformItemSizes(true);
 
+    d->attentionFirst = new QCheckBox(tr("Needs attention first"), this);
+    d->attentionFirst->setObjectName(QStringLiteral("attentionFirst"));
+    d->attentionFirst->setToolTip(tr("List the tasks with an attention badge at the top"));
+
+    auto *bar = new QHBoxLayout;
+    bar->addWidget(d->groups);
+    bar->addWidget(d->attentionFirst);
+    bar->addStretch(1);
+
     auto *layout = new QVBoxLayout(this);
     layout->setContentsMargins(0, 0, 0, 0);
-    layout->addWidget(d->groups, 0, Qt::AlignLeft);
+    layout->addLayout(bar);
     layout->addWidget(d->list, 1);
 
     const auto open = [this](const QModelIndex &index) {
@@ -248,6 +301,12 @@ FocusView::FocusView(const Model &model, QWidget *parent)
         if (d->updatingGroups || index < 0)
             return;
         setGroupFilter(d->groups->itemData(index).toString());
+    });
+
+    connect(d->attentionFirst, &QCheckBox::toggled, this, [this](bool on) {
+        d->rebuildRows();
+        if (!d->settingAttentionFirst)
+            emit attentionFirstChanged(on);
     });
 
     const auto rebuild = [this] { d->rebuild(); };
@@ -289,22 +348,24 @@ QStringList FocusView::taskIds() const
     return ids;
 }
 
-
-// Stubs of T0. Task T7 of the M5 plan implements them.
-
 void FocusView::setAttention(const Attention *attention)
 {
-    Q_UNUSED(attention)
+    if (attention == d->attention)
+        return;
+    disconnect(d->attentionConnection);
+    d->attention = attention;
+    if (attention)
+        d->attentionConnection = connect(attention, &Attention::countsChanged, this, [this] { d->rebuildRows(); });
+    d->rebuildRows();
 }
 
 void FocusView::setAttentionFirst(bool on)
 {
-    Q_UNUSED(on)
+    d->settingAttentionFirst = true;
+    d->attentionFirst->setChecked(on);
+    d->settingAttentionFirst = false;
 }
 
-bool FocusView::attentionFirst() const
-{
-    return false;
-}
+bool FocusView::attentionFirst() const { return d->attentionFirst->isChecked(); }
 
 } // namespace mirante
