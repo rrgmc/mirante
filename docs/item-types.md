@@ -44,7 +44,7 @@ A pasted web address can make an item. The new item dialog asks every type's `fr
 | `<base>/<project>/-/merge_requests/<iid>` | GitLab MR (summary), GitLab MR (page), GitLab CI Pipeline | `project`, `iid`; the pipeline also `branchSource` = `mergeRequest` | `group/project!42`; the pipeline `group/project!42 CI` |
 | `<base>/<project>/-/issues/<iid>` | GitLab Issue (summary), GitLab Issue (page) | `project`, `iid` | `group/project#7` |
 | `<base>/<project>/-/merge_requests`, `<base>/<project>/-/issues` | GitLab MR List, GitLab Issue List | `scope` = `project`, `project`, `preset` = `allOpen` | `group/project MRs`, `group/project issues` |
-| `<base>/<project>/-/pipelines[/<id>][?ref=<branch>]` | GitLab CI Pipeline | `project`, `branchSource` = `fixed`, `branch` from `ref`. The pipeline's id is not kept, because the type follows a branch. | `group/project <branch> CI` |
+| `<base>/<project>/-/pipelines[/<id>][?ref=<branch>]` | GitLab CI Pipeline | `project`, `branchSource` = `fixed`, `branch` from `ref`, or `master` without one. The pipeline's id is not kept, because the type follows a branch. | `group/project <branch> CI` |
 | `<base>/browse/<key>`, `.../issues/<key>`, or `?selectedIssue=<key>` | Jira Issue (summary), Jira Issue (page) | `key` | the key |
 | a Jira address with `?jql=<query>` | Jira List | `preset` = `jql`, `jql` | "Jira search" |
 | `https://claude.ai/...` | Claude session (web) | `url` | "Claude session" |
@@ -148,7 +148,7 @@ The summaries have fixed layouts, as in [decision 0066](decisions/0066-fixed-nat
 
 - **Configuration:**
   - `project`, the project path, empty for the `gitlab.project` setting;
-  - `branchSource`, with three choices: `fixed` (the branch in `branch`), `mainFolder` ("current branch of the main folder"), or `mergeRequest` ("branch of a linked merge request", the merge request numbered `iid`).
+  - `branchSource`, with three choices: `fixed` (the branch in `branch`, `master` by default), `mainFolder` ("current branch of the main folder"), or `mergeRequest` ("branch of a linked merge request", the merge request numbered `iid`).
 - **Top:** the latest pipeline for that branch: its id; a pill for its status; the branch and the duration.
 - **Sections:** one for each stage, in the order of the jobs, without fields. Each lists its jobs, with their status and duration. A failed job also has a link to its log and a "Retry" button.
 - **Actions:**
