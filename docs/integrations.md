@@ -114,7 +114,7 @@ The `StatusCache` owns all API data. It keeps one status per item, in memory onl
   - [attention badges](ui.md#attention) and the tray count;
   - [built-in panels](web-views.md#built-in-panels), through the bridge.
 
-Modules poll through the cache, never around it. A view asks the server directly only for what a user's action or a visible list needs, such as a list row's preview. See [decision 0068](decisions/0068-views-read-what-the-user-asked-for.md). All requests are asynchronous and use one `QNetworkAccessManager`. At most four requests run at once for each server of a profile.
+Modules poll through the cache, never around it. A view asks the server directly only for what a user's action or a visible list needs, such as the pipeline and approvals of a merge request list's rows. See [decision 0068](decisions/0068-views-read-what-the-user-asked-for.md). All requests are asynchronous and use one `QNetworkAccessManager`. At most four requests run at once for each server of a profile.
 
 ### Attention
 

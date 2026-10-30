@@ -47,9 +47,6 @@ struct ListRow
 // A sortable table, with optional filters above it, pages below it, and links on
 // its rows. Sorting and filtering cover all rows, and the pages cut up the result.
 // See decision 0071.
-//
-// A preview of the selected row can show under a splitter. It stays hidden until
-// the view is given one. See decision 0066.
 class ItemListView : public QWidget
 {
     Q_OBJECT
@@ -63,8 +60,6 @@ public:
     void setColumnVisible(int column, bool visible);
     void setRows(const QList<ListRow> &rows);
     void setCell(const QString &key, int column, const ListCell &cell);
-
-    QString selectedKey() const;
 
     // How many rows show at a time, with Previous and Next under the table. Zero
     // or less means no pages, which is the default. The controls hide when all
@@ -82,10 +77,6 @@ public:
     // filter.<column>.
     void addFilter(int column, const QString &label);
 
-    // The preview under the splitter. The view takes the widget. Null hides it.
-    void setPreview(QWidget *preview);
-    QWidget *preview() const;
-
     // The "Web" link in a thin row above the table. An empty url hides it.
     void setWebLink(const QUrl &url);
     QUrl webLink() const;
@@ -94,10 +85,6 @@ public:
     void setMessage(const QString &text);
 
 signals:
-    // A row was selected. Not sent when the selection only follows new rows,
-    // or when it ends, as when its row goes or the preview's close button is
-    // used. selectedKey() is then empty.
-    void rowSelected(const QString &key);
     void rowMenuRequested(const QString &key, const QPoint &globalPos);
     // A link in a cell was clicked, or Return was pressed on its row, which
     // activates the row's first link.

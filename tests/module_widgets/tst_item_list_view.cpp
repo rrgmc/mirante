@@ -1,21 +1,19 @@
 // Tests ItemListView: sorting by key, the selection across setRows, hiding
-// columns by width, the preview hiding and returning, the row menu, the "Web"
-// link, the message, cells drawn as pills, links on rows, pages and filters.
+// columns by width, the row menu, the "Web" link, the message, cells drawn as
+// pills, links on rows, pages and filters.
 #include <mirante/widgets/ItemListView.h>
 
 #include <QComboBox>
 #include <QHeaderView>
+#include <QItemSelectionModel>
 #include <QLabel>
 #include <QMouseEvent>
-#include <QPointer>
 #include <QPushButton>
 #include <QScrollBar>
 #include <QSignalSpy>
-#include <QSplitter>
 #include <QTableView>
 #include <QTest>
 #include <QTextDocument>
-#include <QToolButton>
 
 #include <algorithm>
 
@@ -64,9 +62,12 @@ void clickRow(const ItemListView &view, int row, int column = TitleColumn)
     QTest::mouseClick(table->viewport(), Qt::LeftButton, {}, table->visualRect(index).center());
 }
 
-QToolButton *closeButton(const ItemListView &view)
+// The key of the selected row, from its ref, or empty without a selection.
+QString selectedKey(const ItemListView &view)
 {
-    return view.findChild<QToolButton *>(QStringLiteral("closePreview"));
+    const QModelIndexList selected = tableOf(view)->selectionModel()->selectedIndexes();
+    return selected.isEmpty() ? QString()
+                              : selected.first().siblingAtColumn(RefColumn).data().toString().mid(1);
 }
 
 enum { LinkTitleColumn, LinksColumn };
@@ -254,13 +255,10 @@ private slots:
         view.resize(800, 400);
         view.show();
         QVERIFY(QTest::qWaitForWindowExposed(&view));
-        QVERIFY(view.selectedKey().isEmpty());
+        QVERIFY(selectedKey(view).isEmpty());
 
-        QSignalSpy selected(&view, &ItemListView::rowSelected);
         clickRow(view, 1);
-        QCOMPARE(view.selectedKey(), QStringLiteral("b"));
-        QCOMPARE(selected.size(), 1);
-        QCOMPARE(selected.first().first().toString(), QStringLiteral("b"));
+        QCOMPARE(selectedKey(view), QStringLiteral("b"));
     }
 
     void selectionIsKeptAcrossSetRows()
@@ -273,20 +271,17 @@ private slots:
         view.show();
         QVERIFY(QTest::qWaitForWindowExposed(&view));
         clickRow(view, 1);
-        QCOMPARE(view.selectedKey(), QStringLiteral("b"));
+        QCOMPARE(selectedKey(view), QStringLiteral("b"));
 
-        QSignalSpy selected(&view, &ItemListView::rowSelected);
         // "b" moves to the top, and another row takes its old source position.
         view.setRows({makeRow(QStringLiteral("x"), 1), makeRow(QStringLiteral("b"), 9),
                       makeRow(QStringLiteral("y"), 2), makeRow(QStringLiteral("z"), 3)});
-        QCOMPARE(view.selectedKey(), QStringLiteral("b"));
+        QCOMPARE(selectedKey(view), QStringLiteral("b"));
         QCOMPARE(tableOf(view)->currentIndex().row(), 0);
-        QCOMPARE(selected.size(), 0);
 
         // Fewer rows, with the selected one moving within them.
         view.setRows({makeRow(QStringLiteral("b"), 1), makeRow(QStringLiteral("y"), 2)});
-        QCOMPARE(view.selectedKey(), QStringLiteral("b"));
-        QCOMPARE(selected.size(), 0);
+        QCOMPARE(selectedKey(view), QStringLiteral("b"));
     }
 
     void selectionEndsWhenItsRowGoes()
@@ -298,15 +293,13 @@ private slots:
         view.show();
         QVERIFY(QTest::qWaitForWindowExposed(&view));
         clickRow(view, 0);
-        QCOMPARE(view.selectedKey(), QStringLiteral("a"));
+        QCOMPARE(selectedKey(view), QStringLiteral("a"));
 
-        QSignalSpy selected(&view, &ItemListView::rowSelected);
         view.setRows({makeRow(QStringLiteral("b"), 1)});
-        QVERIFY(view.selectedKey().isEmpty());
-        QCOMPARE(selected.size(), 0);
+        QVERIFY(selectedKey(view).isEmpty());
     }
 
-    void aResortOfTheSameRowsSendsNoSignal()
+    void aResortOfTheSameRowsKeepsTheSelection()
     {
         ItemListView view;
         view.setColumns(fourColumns(), UpdatedColumn);
@@ -316,10 +309,8 @@ private slots:
         QVERIFY(QTest::qWaitForWindowExposed(&view));
         clickRow(view, 1);
 
-        QSignalSpy selected(&view, &ItemListView::rowSelected);
         view.setCell(QStringLiteral("b"), UpdatedColumn, {QStringLiteral("now"), 5, {}});
-        QCOMPARE(view.selectedKey(), QStringLiteral("b"));
-        QCOMPARE(selected.size(), 0);
+        QCOMPARE(selectedKey(view), QStringLiteral("b"));
     }
 
     void scrollPositionIsKeptAcrossSetRows()
@@ -341,7 +332,7 @@ private slots:
         view.setRows(rows);
         QCoreApplication::processEvents();
         QCOMPARE(tableOf(view)->verticalScrollBar()->value(), 20);
-        QCOMPARE(view.selectedKey(), QStringLiteral("99"));
+        QCOMPARE(selectedKey(view), QStringLiteral("99"));
     }
 
     void columnsHideByPriorityAsTheWidthFalls()
@@ -412,59 +403,6 @@ private slots:
         QVERIFY(table->isColumnHidden(AuthorColumn));
     }
 
-    void previewHidesAndReturns()
-    {
-        ItemListView view;
-        view.setColumns(fourColumns(), UpdatedColumn);
-        view.setRows({makeRow(QStringLiteral("a"), 2), makeRow(QStringLiteral("b"), 1)});
-        view.resize(800, 600);
-        view.show();
-        QVERIFY(QTest::qWaitForWindowExposed(&view));
-
-        QVERIFY(!view.preview());
-        QVERIFY(!closeButton(view)->isVisible());
-
-        auto *first = new QLabel(QStringLiteral("First"));
-        view.setPreview(first);
-        QCOMPARE(view.preview(), first);
-        QVERIFY(first->isVisible());
-        QVERIFY(closeButton(view)->isVisible());
-
-        // Replacing deletes the old one.
-        QPointer<QLabel> old = first;
-        auto *second = new QLabel(QStringLiteral("Second"));
-        view.setPreview(second);
-        QCOMPARE(view.preview(), second);
-        QVERIFY(old && !old->parent());
-        QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
-        QVERIFY(!old);
-
-        // Null hides it.
-        view.setPreview(nullptr);
-        QVERIFY(!view.preview());
-        QVERIFY(!closeButton(view)->isVisible());
-
-        view.setPreview(new QLabel(QStringLiteral("Third")));
-        QVERIFY(view.preview()->isVisible());
-        QVERIFY(closeButton(view)->isVisible());
-    }
-
-    void firstPreviewGetsItsShareOfTheHeight()
-    {
-        ItemListView view;
-        view.setColumns(fourColumns(), UpdatedColumn);
-        view.setRows({makeRow(QStringLiteral("a"), 2)});
-        view.resize(800, 700);
-        view.show();
-        QVERIFY(QTest::qWaitForWindowExposed(&view));
-
-        view.setPreview(new QLabel(QStringLiteral("Preview")));
-        const QList<int> sizes = view.findChild<QSplitter *>()->sizes();
-        QCOMPARE(sizes.size(), 2);
-        QVERIFY2(sizes.at(1) >= 200, qPrintable(QString::number(sizes.at(1))));
-        QVERIFY(sizes.at(0) > sizes.at(1));
-    }
-
     // A tooltip must not read server text as markup.
     void tooltipIsPlainText()
     {
@@ -478,34 +416,6 @@ private slots:
         QTextDocument shown;
         shown.setHtml(title.data(Qt::ToolTipRole).toString());
         QCOMPARE(shown.toPlainText(), QStringLiteral("<b>bold</b>"));
-    }
-
-    void closingThePreviewLetsTheSameRowBringItBack()
-    {
-        ItemListView view;
-        view.setColumns(fourColumns(), UpdatedColumn);
-        view.setRows({makeRow(QStringLiteral("a"), 2), makeRow(QStringLiteral("b"), 1)});
-        view.resize(800, 600);
-        view.show();
-        QVERIFY(QTest::qWaitForWindowExposed(&view));
-
-        connect(&view, &ItemListView::rowSelected, &view,
-                [&view](const QString &key) { view.setPreview(new QLabel(key)); });
-        QSignalSpy selected(&view, &ItemListView::rowSelected);
-
-        clickRow(view, 0);
-        QVERIFY(view.preview());
-        QCOMPARE(selected.size(), 1);
-
-        closeButton(view)->click();
-        QVERIFY(!view.preview());
-        QVERIFY(view.selectedKey().isEmpty());
-        QCOMPARE(selected.size(), 1);
-
-        clickRow(view, 0);
-        QVERIFY(view.preview());
-        QCOMPARE(selected.size(), 2);
-        QCOMPARE(selected.last().first().toString(), QStringLiteral("a"));
     }
 
     void rowMenuIsAskedForOnARowOnly()
@@ -528,7 +438,7 @@ private slots:
         emit table->customContextMenuRequested(QPoint(5, table->viewport()->height() - 2));
         QCOMPARE(menu.size(), 1);
         // A menu does not select the row.
-        QVERIFY(view.selectedKey().isEmpty());
+        QVERIFY(selectedKey(view).isEmpty());
     }
 
     void webLinkIsInAThinRowAboveTheTable()
@@ -707,6 +617,27 @@ private slots:
         QCOMPARE(activated.size(), 1);
         QCOMPARE(activated.last().at(0).toString(), QStringLiteral("a"));
         QCOMPARE(activated.last().at(1).toString(), QStringLiteral("web"));
+    }
+
+    // A poll can change which row sits at a source position while the user is on it.
+    void returnActivatesTheSameRowAfterNewRows()
+    {
+        ItemListView view;
+        view.setColumns(linkColumns(), LinkTitleColumn);
+        view.setRows({linkRow(QStringLiteral("a")), linkRow(QStringLiteral("b"))});
+        view.resize(600, 300);
+        view.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&view));
+
+        // Descending, so "a" is second.
+        QTableView *table = tableOf(view);
+        table->setCurrentIndex(table->model()->index(1, LinkTitleColumn));
+        view.setRows({linkRow(QStringLiteral("b")), linkRow(QStringLiteral("a"))});
+
+        QSignalSpy activated(&view, &ItemListView::rowLinkActivated);
+        QTest::keyClick(table, Qt::Key_Return);
+        QCOMPARE(activated.size(), 1);
+        QCOMPARE(activated.last().at(0).toString(), QStringLiteral("a"));
     }
 
     void aLinkColumnFitsItsLinksAndStaysInANarrowCell()
@@ -908,14 +839,12 @@ private slots:
         view.show();
         QVERIFY(QTest::qWaitForWindowExposed(&view));
         clickRow(view, 0);
-        QCOMPARE(view.selectedKey(), QStringLiteral("4"));
+        QCOMPARE(selectedKey(view), QStringLiteral("4"));
 
-        QSignalSpy selected(&view, &ItemListView::rowSelected);
         nextButton(view)->click();
-        QCOMPARE(view.selectedKey(), QStringLiteral("4"));
+        QCOMPARE(selectedKey(view), QStringLiteral("4"));
         previousButton(view)->click();
-        QCOMPARE(view.selectedKey(), QStringLiteral("4"));
-        QCOMPARE(selected.size(), 0);
+        QCOMPARE(selectedKey(view), QStringLiteral("4"));
     }
 
     void visibleKeysChangedFollowsTheKeys()
@@ -1054,7 +983,7 @@ private slots:
         QCOMPARE(pageLine(view), QStringLiteral("1-3 of 9"));
     }
 
-    void aFilteredOutSelectionEndsWithoutASignal()
+    void aFilteredOutSelectionEnds()
     {
         ItemListView view;
         view.setColumns(fourColumns(), UpdatedColumn);
@@ -1066,13 +995,11 @@ private slots:
         QVERIFY(QTest::qWaitForWindowExposed(&view));
 
         clickRow(view, 0);
-        QCOMPARE(view.selectedKey(), QStringLiteral("a"));
-        QSignalSpy selected(&view, &ItemListView::rowSelected);
+        QCOMPARE(selectedKey(view), QStringLiteral("a"));
 
         QComboBox *box = authorFilter(view);
         box->setCurrentIndex(box->findText(QStringLiteral("bob")));
-        QVERIFY(view.selectedKey().isEmpty());
-        QCOMPARE(selected.size(), 0);
+        QVERIFY(selectedKey(view).isEmpty());
     }
 
     void setCellKeepsTheFilterInStep()
