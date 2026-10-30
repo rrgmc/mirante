@@ -4,11 +4,13 @@
 #include "layout/LayoutView.h"
 #include "layout/LockState.h"
 #include "ui/DashboardPage.h"
+#include "ui/Shortcuts.h"
 
 #include <QCloseEvent>
 #include <QHBoxLayout>
 #include <QIcon>
 #include <QPointer>
+#include <QShortcut>
 #include <QToolButton>
 #include <QVBoxLayout>
 
@@ -32,13 +34,15 @@ struct DetachedWindow::Private
     QToolButton *lock = nullptr;
 
     // Shows the lock's state as the main window's lock does: the icon shows
-    // the state, and the text is the button's accessible name.
+    // the state, the text is the button's accessible name, and the tooltip
+    // names the lock key.
     void showLockState(bool unlocked)
     {
+        const QString key = lockShortcut().toString(QKeySequence::NativeText);
         lock->setIcon(QIcon(unlocked ? QStringLiteral(":/icons/lock-open.svg") : QStringLiteral(":/icons/lock-closed.svg")));
         lock->setText(unlocked ? DetachedWindow::tr("Editing") : DetachedWindow::tr("Locked"));
-        lock->setToolTip(unlocked ? DetachedWindow::tr("Lock this dashboard")
-                                  : DetachedWindow::tr("Unlock this dashboard for editing"));
+        lock->setToolTip(unlocked ? DetachedWindow::tr("Lock this dashboard (%1)").arg(key)
+                                  : DetachedWindow::tr("Unlock this dashboard for editing (%1)").arg(key));
     }
 
     // The page is in edit mode while its dashboard is unlocked.
@@ -70,6 +74,12 @@ DetachedWindow::DetachedWindow(DashboardPage *page, LockState *locks, DeviceSett
         if (d->locks)
             d->locks->setUnlocked(d->dashboardId, !d->locks->isUnlocked(d->dashboardId));
     });
+
+    // The lock key works as the button does. The main window's shortcuts
+    // act in the main window only.
+    auto *lockKey = new QShortcut(lockShortcut(), this);
+    lockKey->setContext(Qt::WindowShortcut);
+    connect(lockKey, &QShortcut::activated, d->lock, &QToolButton::click);
 
     auto *toolbar = new QHBoxLayout;
     toolbar->setContentsMargins(4, 4, 4, 0);

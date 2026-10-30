@@ -1,14 +1,17 @@
 // Tests Shortcuts on the fixtures: the focused cell, moving between cells,
-// changing tabs and root tabs, maximising and closing.
+// changing tabs and root tabs, maximising, closing and the lock key.
 #include "core/DeviceSettings.h"
 #include "core/Model.h"
 #include "core/Store.h"
 #include "items/ItemTypeRegistry.h"
 #include "layout/CellFrame.h"
 #include "layout/LayoutView.h"
+#include "ui/DashboardPage.h"
+#include "ui/DetachedWindow.h"
 #include "ui/MainWindow.h"
 #include "ui/RootTabBar.h"
 #include "ui/Shortcuts.h"
+#include "ui/Sidebar.h"
 #include "ui/SlotTabBar.h"
 
 #include <QApplication>
@@ -16,6 +19,8 @@
 #include <QTabWidget>
 #include <QTemporaryDir>
 #include <QTest>
+#include <QToolButton>
+#include <QTreeView>
 
 #include <algorithm>
 #include <memory>
@@ -85,6 +90,16 @@ struct Fixture
         return !cells.empty() && std::all_of(cells.begin(), cells.end(), [](const QWidget *cell) {
             return cell->isVisible() && cell->width() > 20 && cell->height() > 20;
         });
+    }
+
+    // The lock at the end of the tab bar row.
+    QToolButton *rootLock() const
+    {
+        for (QToolButton *button : window->findChildren<QToolButton *>(QStringLiteral("lockButton"))) {
+            if (button->window() == window.get())
+                return button;
+        }
+        return nullptr;
     }
 
     QString focusedItem() const
@@ -370,6 +385,108 @@ private slots:
         f.key(Qt::Key_W, Qt::ControlModifier);
         QCOMPARE(f.bar()->count(), 2);
         QCOMPARE(f.slotBar()->currentSlot(), int(SlotTabBar::FocusSlot));
+    }
+
+    // F2 locks or unlocks the current dashboard, as its lock button does: the
+    // root dashboard's, or the task dashboard preview's. Focus and an item
+    // page have no lock, so it does nothing there.
+    void lockKey()
+    {
+        Fixture f;
+        SHOW_ACTIVE(f);
+        LayoutView *root = f.window->currentLayoutView();
+        QVERIFY(root);
+        QVERIFY(!root->editMode());
+        QToolButton *rootLock = f.rootLock();
+        QVERIFY(rootLock);
+        QCOMPARE(rootLock->toolTip(), QStringLiteral("Unlock this dashboard for editing (F2)"));
+
+        f.key(Qt::Key_F2, Qt::NoModifier);
+        QVERIFY(root->editMode());
+        QCOMPARE(rootLock->text(), QStringLiteral("Editing"));
+        QCOMPARE(rootLock->toolTip(), QStringLiteral("Lock this dashboard (F2)"));
+        f.key(Qt::Key_F2, Qt::NoModifier);
+        QVERIFY(!root->editMode());
+
+        // The task dashboard preview has its own lock.
+        f.window->openTaskPreview(kFixLoginTask);
+        LayoutView *preview = f.window->currentLayoutView();
+        QVERIFY(preview && preview != root);
+        auto *taskLock = preview->parentWidget()->findChild<QToolButton *>(QStringLiteral("taskLockButton"));
+        QVERIFY(taskLock);
+        QCOMPARE(taskLock->toolTip(), QStringLiteral("Unlock this dashboard for editing (F2)"));
+        f.key(Qt::Key_F2, Qt::NoModifier);
+        QVERIFY(preview->editMode());
+        QVERIFY(!root->editMode());
+        QCOMPARE(taskLock->toolTip(), QStringLiteral("Lock this dashboard (F2)"));
+        f.key(Qt::Key_F2, Qt::NoModifier);
+        QVERIFY(!preview->editMode());
+
+        // Focus has no lock.
+        f.window->openFocus();
+        f.key(Qt::Key_F2, Qt::NoModifier);
+        QVERIFY(!root->editMode());
+        QVERIFY(!preview->editMode());
+
+        // Nor has an item shown alone.
+        f.window->openItem(kFixLoginTask, kSession);
+        LayoutView *item = f.window->currentLayoutView();
+        QVERIFY(item);
+        f.key(Qt::Key_F2, Qt::NoModifier);
+        QVERIFY(!item->editMode());
+        QVERIFY(!root->editMode());
+    }
+
+    // An item view takes F2 to edit its current row. The sidebar's tree is not
+    // editable, so the lock key still works while it has the focus.
+    void lockKeyFromSidebar()
+    {
+        Fixture f;
+        SHOW_ACTIVE(f);
+        LayoutView *root = f.window->currentLayoutView();
+        QVERIFY(root);
+        auto *tree = f.window->findChild<Sidebar *>()->findChild<QTreeView *>();
+        QVERIFY(tree);
+        tree->setFocus(Qt::OtherFocusReason);
+        tree->setCurrentIndex(tree->model()->index(0, 0));
+        QTRY_COMPARE(QApplication::focusWidget(), tree);
+
+        QTest::keyClick(tree, Qt::Key_F2);
+        QVERIFY(root->editMode());
+        QCOMPARE(QApplication::focusWidget(), tree);
+        QTest::keyClick(tree, Qt::Key_F2);
+        QVERIFY(!root->editMode());
+    }
+
+    // In a detached window, F2 locks or unlocks that window's dashboard.
+    void lockKeyInDetachedWindow()
+    {
+        Fixture f;
+        SHOW_ACTIVE(f);
+        emit f.bar()->detachRequested(0);
+        DetachedWindow *window = nullptr;
+        for (QWidget *widget : QApplication::topLevelWidgets()) {
+            if (auto *detached = qobject_cast<DetachedWindow *>(widget); detached && detached->page())
+                window = detached;
+        }
+        QVERIFY(window);
+        window->activateWindow();
+        if (!QTest::qWaitForWindowActive(window))
+            QSKIP("The detached window cannot be activated on this platform.");
+        LayoutView *view = window->page()->view;
+        auto *lock = window->findChild<QToolButton *>(QStringLiteral("lockButton"));
+        QVERIFY(view && lock);
+        QCOMPARE(lock->toolTip(), QStringLiteral("Unlock this dashboard for editing (F2)"));
+        LayoutView *mainView = f.window->currentLayoutView();
+        QVERIFY(mainView && mainView != view);
+
+        QTest::keyClick(window, Qt::Key_F2);
+        QVERIFY(view->editMode());
+        QVERIFY(!mainView->editMode());
+        QCOMPARE(lock->toolTip(), QStringLiteral("Lock this dashboard (F2)"));
+        QTest::keyClick(window, Qt::Key_F2);
+        QVERIFY(!view->editMode());
+        window->close();
     }
 };
 

@@ -113,6 +113,10 @@ public:
     void showQuickSwitcher();
     // Closes the preview or the current tab. Focus cannot be closed.
     void closeCurrentTab();
+    // Locks or unlocks the current dashboard, as a click on its lock button
+    // does. Focus and an item page have no lock, so nothing happens there.
+    // The lock key, F2, calls it.
+    void toggleCurrentLock();
     // Makes the Focus slot current.
     void openFocus();
     // The next (step 1) or previous (step -1) page, wrapping: the tabs of the
