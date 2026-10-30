@@ -1,20 +1,58 @@
 // Tests SettingsDialog: it shows the device settings, saves each change at
-// once and reports it, and groups its options under section headings.
+// once and reports it, and groups its options under section headings, with
+// the terminal and the modules' device settings.
 #include "core/DeviceSettings.h"
+#include "items/ItemTypeRegistry.h"
+#include "ui/FieldForm.h"
 #include "ui/SettingsDialog.h"
 
 #include <QCheckBox>
 #include <QDialogButtonBox>
+#include <QGroupBox>
 #include <QKeySequenceEdit>
 #include <QLabel>
+#include <QLineEdit>
 #include <QPushButton>
 #include <QSettings>
 #include <QSignalSpy>
 #include <QSpinBox>
+#include <QSysInfo>
 #include <QTemporaryDir>
 #include <QTest>
 
 using namespace mirante;
+
+namespace {
+
+// The module "tools", with a text and a boolean device setting, and the
+// module "plain", with none.
+void registerTools(ModuleRegistrar &registrar)
+{
+    registrar.setModuleName(QStringLiteral("Tools"));
+    Field editor;
+    editor.key = QStringLiteral("editor");
+    editor.label = QStringLiteral("Editor");
+    editor.defaultValue = QStringLiteral("code");
+    registrar.addDeviceSetting(editor);
+    Field fresh;
+    fresh.key = QStringLiteral("newWindow");
+    fresh.label = QStringLiteral("New window");
+    fresh.type = Field::Type::Bool;
+    fresh.defaultValue = false;
+    registrar.addDeviceSetting(fresh);
+}
+
+void registerPlain(ModuleRegistrar &) {}
+
+QStringList labelTexts(const QWidget &widget)
+{
+    QStringList texts;
+    for (const QLabel *label : widget.findChildren<QLabel *>())
+        texts << label->text();
+    return texts;
+}
+
+} // namespace
 
 class TestSettingsDialog : public QObject
 {
@@ -165,6 +203,91 @@ private slots:
         QVERIFY(QTest::qWaitForWindowExposed(&dialog));
         buttons->button(QDialogButtonBox::Close)->click();
         QVERIFY(!dialog.isVisible());
+    }
+    // The terminal command and the device name are saved as typed. The name
+    // shows the host name as its placeholder until one is set.
+    void terminalSection()
+    {
+        QTemporaryDir dir;
+        QSettings ini(dir.filePath(QStringLiteral("settings.ini")), QSettings::IniFormat);
+        DeviceSettings settings(&ini);
+        SettingsDialog dialog(settings);
+        QVERIFY(labelTexts(dialog).contains(QStringLiteral("Terminal")));
+        QSignalSpy changed(&dialog, &SettingsDialog::changed);
+
+        auto *command = dialog.findChild<QLineEdit *>(QStringLiteral("terminalCommand"));
+        QVERIFY(command);
+        QVERIFY(command->text().isEmpty());
+        QVERIFY(command->placeholderText().contains(QStringLiteral("{dir}")));
+        QVERIFY(command->placeholderText().contains(QStringLiteral("{command}")));
+        command->setText(QStringLiteral("alacritty --working-directory {dir} -e {command}"));
+        QCOMPARE(settings.terminalCommand(), QStringLiteral("alacritty --working-directory {dir} -e {command}"));
+        QVERIFY(changed.count() >= 1);
+
+        auto *name = dialog.findChild<QLineEdit *>(QStringLiteral("deviceName"));
+        QVERIFY(name);
+        QVERIFY(name->text().isEmpty());
+        QCOMPARE(name->placeholderText(), QSysInfo::machineHostName());
+        name->setText(QStringLiteral("Desk"));
+        QCOMPARE(settings.deviceName(), QStringLiteral("Desk"));
+
+        SettingsDialog again(settings);
+        QCOMPARE(again.findChild<QLineEdit *>(QStringLiteral("terminalCommand"))->text(),
+                 QStringLiteral("alacritty --working-directory {dir} -e {command}"));
+        auto *againName = again.findChild<QLineEdit *>(QStringLiteral("deviceName"));
+        QCOMPARE(againName->text(), QStringLiteral("Desk"));
+        againName->clear();
+        QCOMPARE(settings.deviceName(), QSysInfo::machineHostName());
+    }
+
+    // One group per module with device settings, showing the stored value or
+    // the default. Only a value the user changes is stored, at once.
+    void modulesSection()
+    {
+        QTemporaryDir dir;
+        QSettings ini(dir.filePath(QStringLiteral("settings.ini")), QSettings::IniFormat);
+        DeviceSettings settings(&ini);
+        settings.setModuleSetting(QStringLiteral("tools"), QStringLiteral("newWindow"), true);
+        ItemTypeRegistry types;
+        types.registerModule(QStringLiteral("tools"), &registerTools);
+        types.registerModule(QStringLiteral("plain"), &registerPlain);
+
+        SettingsDialog dialog(settings);
+        QVERIFY(!labelTexts(dialog).contains(QStringLiteral("Modules")));
+        dialog.setModules(types);
+        dialog.setModules(types);
+        QVERIFY(labelTexts(dialog).contains(QStringLiteral("Modules")));
+        QCOMPARE(dialog.findChildren<QGroupBox *>().size(), 1);
+        auto *box = dialog.findChild<QGroupBox *>(QStringLiteral("deviceSettings.tools"));
+        QVERIFY(box);
+        QCOMPARE(box->title(), QStringLiteral("Tools"));
+        auto *form = box->findChild<FieldForm *>();
+        QVERIFY(form);
+        auto *editor = qobject_cast<QLineEdit *>(form->editorFor(QStringLiteral("editor")));
+        auto *newWindow = qobject_cast<QCheckBox *>(form->editorFor(QStringLiteral("newWindow")));
+        QVERIFY(editor && newWindow);
+        QCOMPARE(editor->text(), QStringLiteral("code"));
+        QVERIFY(newWindow->isChecked());
+        QVERIFY(settings.moduleSetting(QStringLiteral("tools"), QStringLiteral("editor")).isUndefined());
+
+        QSignalSpy changed(&dialog, &SettingsDialog::changed);
+        editor->setText(QStringLiteral("subl"));
+        QCOMPARE(settings.moduleSetting(QStringLiteral("tools"), QStringLiteral("editor")),
+                 QJsonValue(QStringLiteral("subl")));
+        QVERIFY(changed.count() >= 1);
+        newWindow->setChecked(false);
+        QCOMPARE(settings.moduleSetting(QStringLiteral("tools"), QStringLiteral("newWindow")), QJsonValue(false));
+
+        // Empty text removes the value, so the default applies again.
+        editor->clear();
+        QVERIFY(settings.moduleSetting(QStringLiteral("tools"), QStringLiteral("editor")).isUndefined());
+        SettingsDialog again(settings);
+        again.setModules(types);
+        auto *againForm = again.findChild<FieldForm *>(QStringLiteral("deviceSettingsForm.tools"));
+        QVERIFY(againForm);
+        QCOMPARE(qobject_cast<QLineEdit *>(againForm->editorFor(QStringLiteral("editor")))->text(),
+                 QStringLiteral("code"));
+        QVERIFY(!qobject_cast<QCheckBox *>(againForm->editorFor(QStringLiteral("newWindow")))->isChecked());
     }
 };
 
