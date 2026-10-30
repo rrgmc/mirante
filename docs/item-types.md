@@ -78,18 +78,31 @@ Anything else uses the "Open page" button. It opens the matching page type in th
 
 Module `gitlab`. All GitLab types talk to the GitLab server of the item's profile, set in its GitLab General Configuration: a base URL, `https://gitlab.com` by default, and a token. In the item dialog, every `project` field offers the project paths of that screen in an editable list, so a path is chosen instead of typed. Another path can still be typed. See [settings screens](modules.md#settings-screens).
 
+The summaries have fixed layouts, as in [decision 0066](decisions/0066-fixed-native-layouts-with-sections.md). The title, the state and the actions always show, and scroll with the rest. Each other section has a field in the item's configuration, which is on when absent. These rules hold for all of them:
+
+- With no data yet, a summary shows "Loading…" or the status's message. With old data and an error, it keeps the data, and the cell header shows the problem.
+- After an action succeeds, the status is fetched again. A failed action shows its message in the action row. A `403` says that the token cannot do this, and names the `api` scope.
+- Only cancelling a pipeline asks first.
+- "Open page" shows the page in the same cell, as in [decision 0069](decisions/0069-open-page-in-the-placement.md), or in the external browser if the user holds `Shift`.
+- **The Web link** is a "Web" button at the end of the actions. It opens the same address in the external browser, and it hides without a web address. The address is `web_url` in the data. Without one, for a merge request or an issue, it is built from the base URL and the configuration, as for the page types. A link to a job's log also opens in the external browser.
+- Dates are local and short. Text from the server is plain text, so it is never read as markup.
+
 ### GitLab MR (summary)
 
 `gitlab.mr.summary`, native.
 
 - **Configuration:** `project`, the project path, which defaults to the project's `gitlab.project` setting when empty; `iid`, the merge request number, required. Pasting a merge request URL fills both.
-- **Shows:**
-  - title, state, draft flag;
-  - source and target branches;
-  - author, assignees, reviewers, labels;
-  - latest pipeline status, with the failed jobs listed;
-  - approvals: the count required and who has approved.
-- **Actions:** approve, retry pipeline, add comment.
+- **Top:** the title; pills for the state and for a draft; the source and target branches.
+- **Sections and fields,** in this order:
+  - Pipeline (`showPipeline`): the head pipeline's status and id, and its failed jobs, each with its duration and a link to its log. A job that is allowed to fail says so.
+  - Approvals (`showApprovals`): the count, and who has approved.
+  - People (`showPeople`): the author, assignees and reviewers.
+  - Labels (`showLabels`).
+- **Actions:**
+  - "Approve", while the merge request is open and you have not approved it;
+  - "Retry pipeline", when the head pipeline failed or was canceled;
+  - "Comment";
+  - "Open page" and "Web".
 - **Status:** a summary such as "Open · 2 of 3 approvals · pipeline failed". The item is closed when the merge request is merged or closed.
 - **Attention,** only while the merge request is open. "You" is the owner of the profile's token.
   - "Pipeline failed" when the head pipeline failed, with a desktop notification;
@@ -126,11 +139,13 @@ Module `gitlab`. All GitLab types talk to the GitLab server of the item's profil
 - **Configuration:**
   - `project`, the project path, empty for the `gitlab.project` setting;
   - `branchSource`, with three choices: `fixed` (the branch in `branch`), `mainFolder` ("current branch of the main folder"), or `mergeRequest` ("branch of a linked merge request", the merge request numbered `iid`).
-- **Shows:** the latest pipeline for that branch:
-  - stages, each with its jobs;
-  - job status and duration;
-  - a link to the log of each failed job.
-- **Actions:** retry the pipeline, retry a job, cancel.
+- **Top:** the latest pipeline for that branch: its id; a pill for its status; the branch and the duration.
+- **Sections:** one for each stage, in the order of the jobs, without fields. Each lists its jobs, with their status and duration. A failed job also has a link to its log and a "Retry" button.
+- **Actions:**
+  - "Retry pipeline", when the pipeline failed or was canceled;
+  - "Cancel pipeline", while it can still be cancelled, after a confirmation;
+  - "Open page" and "Web", on the pipeline's own page.
+- **Messages:** a branch without pipelines shows "No pipeline on <branch>", and a pipeline that follows the main folder shows its status's message, in place of everything else, so there is no Web link.
 - **Status:** a summary such as "Failed · main · 1 failed job", or "No pipeline on main" for a branch without pipelines. The item is never closed. Until M7, a pipeline that follows the main folder reports no status.
 - **Attention:** the pipeline failed. Each failed pipeline is a new reason, so a retry that fails again counts again. Together with the merge request's failed pipeline, this is the only event that sends a [desktop notification](ui.md#tray-and-notifications).
 
@@ -140,11 +155,15 @@ Module `gitlab`. All GitLab types talk to the GitLab server of the item's profil
 
 `gitlab.issue.summary`, `gitlab.issue.page` and `gitlab.issue.list` follow the merge request pattern:
 
-- **The summary shows:** title, state, assignees, labels, milestone, due date and the latest comments.
+- **The summary's top:** the title and a pill for the state.
+- **The summary's sections and fields,** in this order:
+  - Details (`showDetails`): the assignees, milestone and due date.
+  - Labels (`showLabels`).
+  - Comments (`showComments`): the latest five, newest first, with their author and date, as plain text. It says "No comments" when there are none, and "The comments could not be read." when the request failed.
 - **Configuration:** the summary and the page have `project` and `iid`, the issue number. The list has `scope`, `project`, `group`, `preset` and `filter`, as for merge requests.
 - **The list presets are:** `assignedToMe` ("Assigned to me"), `createdByMe` ("Created by me") and `allOpen` ("All open"). Custom filters work the same way as for merge requests.
 - **The page's address** is `<baseUrl>/<project>/-/issues/<iid>`. Its messages are those of the merge request page.
-- **Actions:** add comment, close and reopen.
+- **The summary's actions:** "Comment"; "Close" while the issue is open, or "Reopen" when it is closed; "Open page" and "Web".
 - **Status:** the summary and the page report a summary such as "Open · assigned to Ana", and are closed when the issue is closed. They report no attention. The list reports no status in M5.
 
 ## Jira
