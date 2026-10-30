@@ -482,6 +482,6 @@ The global hotkey uses the QHotkey library. It works on Windows, macOS and X11, 
 - On macOS Mirante leaves the Dock while it is hidden.
 - Clicking the tray icon brings Mirante to the front. On macOS, a click opens the menu instead.
 - The tray menu has "Show Mirante", "Settings…" and "Quit". File > Quit also exits. Under an open modal dialog, "Quit" brings the dialog to the front instead.
-- The tray icon shows the number of tasks that need attention. This is not built yet; see the [roadmap](roadmap.md#m8-tray-notifications-and-keyboard).
+- The tray icon shows the number of tasks that need attention through a [watched item](#watched-items): active tasks, not in the trash, with at least one watched item that needs attention. A task with two such items counts once. On Windows and Linux the number is a red badge with a white rim at the icon's lower right, "99+" above 99. On macOS it is the status item's title, next to the icon, so it follows the menu bar's light or dark look. With no such task the icon is plain. The tooltip says "Mirante: 2 tasks need attention", or "Mirante" alone.
 - If the platform has no system tray, for example GNOME without an extension, closing the window quits the app, and the global hotkey minimizes the window instead of hiding it. At start, Mirante looks for a tray for one minute, because at sign-in the taskbar may not be there yet.
 - A desktop notification appears only when a pipeline linked to a task fails. Clicking it opens the task.

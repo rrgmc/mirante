@@ -6,6 +6,8 @@
 
 #include <QTimer>
 
+#include <algorithm>
+
 namespace mirante {
 
 namespace {
@@ -70,6 +72,15 @@ struct Attention::Private
                 ++count;
         }
         return count;
+    }
+
+    // Whether the task counts on the tray.
+    bool trayCounts(const Task &task) const
+    {
+        if (task.state != TaskState::Active || model->taskInTrash(task))
+            return false;
+        return std::any_of(task.items.begin(), task.items.end(),
+                           [this](const Item &item) { return item.watch && q->needsAttention(item.id); });
     }
 
     int projectCount(const Project &project) const
@@ -145,6 +156,20 @@ int Attention::groupCount(const QString &groupId) const
     int count = 0;
     for (const Project *project : d->model->projectsOfGroup(groupId))
         count += d->projectCount(*project);
+    return count;
+}
+
+int Attention::trayCount() const
+{
+    int count = 0;
+    for (const Group *group : d->model->groups()) {
+        for (const Project *project : d->model->projectsOfGroup(group->id)) {
+            for (const Task *task : d->model->tasksOfProject(project->id)) {
+                if (d->trayCounts(*task))
+                    ++count;
+            }
+        }
+    }
     return count;
 }
 

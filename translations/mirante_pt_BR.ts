@@ -2645,6 +2645,13 @@
         <source>New dashboard</source>
         <translation>Novo painel</translation>
     </message>
+    <message numerus="yes">
+        <source>%1: %n task(s) need attention</source>
+        <translation>
+            <numerusform>%1: %n tarefa precisa de atenção</numerusform>
+            <numerusform>%1: %n tarefas precisam de atenção</numerusform>
+        </translation>
+    </message>
 </context>
 <context>
     <name>mirante::ModuleSettingsDialog</name>
