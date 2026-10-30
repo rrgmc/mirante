@@ -3,17 +3,21 @@
 #include "api/ModuleDirectory.h"
 #include "api/ServerClient.h"
 #include "core/DeviceSettings.h"
+#include "core/GitHead.h"
 #include "core/Model.h"
 #include "core/Profiles.h"
 
 #include <mirante/ApiClient.h>
 #include <mirante/ItemType.h>
 
+#include <QFileInfo>
+#include <QFileSystemWatcher>
 #include <QPointer>
 #include <QTimer>
 
 #include <algorithm>
 #include <map>
+#include <set>
 #include <vector>
 
 namespace mirante {
@@ -130,6 +134,7 @@ public:
     std::vector<Subscriber> subscribers;
     StatusJobImpl *job = nullptr;
     QDateTime jobStarted;
+    std::set<QString> heads;        // the Git head files the last finished job read
 };
 
 // One fetch. It is the job's owner too, so requests made with owner() as the
@@ -139,12 +144,15 @@ class StatusJobImpl : public QObject, public StatusJob
 public:
     using Done = std::function<void(StatusJobImpl *, const ItemStatus &)>;
 
+    // folders holds the local path of each of the project's folders, by id,
+    // and of the main folder under an empty id.
     StatusJobImpl(QJsonObject config, QJsonObject projectSettings, QString profileId, QString moduleId,
-                  const Model &model, ApiClient &server, Done done)
+                  std::map<QString, QString> folders, const Model &model, ApiClient &server, Done done)
         : m_config(std::move(config))
         , m_projectSettings(std::move(projectSettings))
         , m_profileId(std::move(profileId))
         , m_moduleId(std::move(moduleId))
+        , m_folders(std::move(folders))
         , m_model(model)
         , m_server(server)
         , m_done(std::move(done))
@@ -159,6 +167,25 @@ public:
     }
     ApiClient &server() override { return m_server; }
     QObject *owner() override { return this; }
+
+    QString folderPath(const QString &folderId) const override
+    {
+        const auto it = m_folders.find(folderId);
+        return it == m_folders.end() ? QString() : it->second;
+    }
+
+    QString gitHead(const QString &path) override
+    {
+        if (path.isEmpty())
+            return {};
+        const QString file = git::headFile(path);
+        if (!file.isEmpty())
+            m_heads.insert(file);
+        return git::branchAt(path);
+    }
+
+    // The head files gitHead() read, for the cache to watch.
+    const std::set<QString> &heads() const { return m_heads; }
 
     void finish(const ItemStatus &status) override
     {
@@ -184,6 +211,8 @@ private:
     QJsonObject m_projectSettings;
     QString m_profileId;
     QString m_moduleId;
+    std::map<QString, QString> m_folders;
+    std::set<QString> m_heads;
     const Model &m_model;
     ApiClient &m_server;
     Done m_done;
@@ -202,6 +231,8 @@ struct StatusCache::Private
     Clock clock;
     QTimer timer;
     NoServerClient noServer;
+    // Watches the Git head files that jobs read. See decision 0080.
+    QFileSystemWatcher headWatcher;
 
     std::map<QString, std::unique_ptr<StatusEntry>> entries;
     // When each task was last opened.
@@ -243,9 +274,35 @@ struct StatusCache::Private
         }
     }
 
+    // The local paths of a project's folders on this device, by folder id,
+    // and the main folder's under an empty id.
+    std::map<QString, QString> foldersOf(const QString &projectId) const
+    {
+        std::map<QString, QString> paths;
+        const Project *project = model->project(projectId);
+        if (!project)
+            return paths;
+        for (const Folder &folder : project->folders) {
+            const QString path = settings->folderPath(folder.id);
+            paths[folder.id] = path;
+            if (folder.main)
+                paths[QString()] = path;
+        }
+        return paths;
+    }
+
+    static QJsonObject toJson(const std::map<QString, QString> &paths)
+    {
+        QJsonObject json;
+        for (const auto &[id, path] : paths)
+            json.insert(id, path);
+        return json;
+    }
+
     // What a fetch of the item depends on: its type and configuration, its
-    // profile, and its module's settings in the profile and the project.
-    QJsonObject inputsOf(const Task &task, const Item &item) const
+    // profile, its module's settings in the profile and the project, and the
+    // local paths of the project's folders.
+    QJsonObject inputsOf(const Task &task, const Item &item, const QJsonObject &folders) const
     {
         const QString moduleId = moduleOf(item.type);
         const QString profileId = profiles::effective(*model, task.id, item.id);
@@ -257,6 +314,7 @@ struct StatusCache::Private
             inputs.insert(QStringLiteral("profileSettings"), profile->moduleSettings.value(moduleId));
         if (const Project *project = model->project(task.projectId))
             inputs.insert(QStringLiteral("projectSettings"), project->moduleSettings.value(moduleId));
+        inputs.insert(QStringLiteral("folders"), folders);
         return inputs;
     }
 
@@ -267,9 +325,13 @@ struct StatusCache::Private
     void sync(bool forgetSeen)
     {
         std::map<QString, Known> now;
+        std::map<QString, QJsonObject> folders;   // by project id
         forEachTask([&](const Task &task) {
+            auto it = folders.find(task.projectId);
+            if (it == folders.end())
+                it = folders.emplace(task.projectId, toJson(foldersOf(task.projectId))).first;
             for (const Item &item : task.items)
-                now[item.id] = Known{task.id, inputsOf(task, item)};
+                now[item.id] = Known{task.id, inputsOf(task, item, it->second)};
         });
 
         std::vector<QString> removed;
@@ -288,14 +350,64 @@ struct StatusCache::Private
                 settings->removeSeenAttention(model->workspaceId(), itemId);
             empty(itemId);
         }
-        for (const QString &itemId : changed) {
-            if (StatusEntry *e = findEntry(itemId)) {
-                // The job running fetches with the old inputs.
-                dropJob(*e);
-                e->fetchedAt = QDateTime();
-            }
-            fetchIfDue(itemId, true);
+        for (const QString &itemId : changed)
+            fetchAgain(itemId);
+    }
+
+    // Fetches an item whose inputs changed at once, if it is due.
+    void fetchAgain(const QString &itemId)
+    {
+        if (StatusEntry *e = findEntry(itemId)) {
+            // The job running fetches with the old inputs.
+            dropJob(*e);
+            e->fetchedAt = QDateTime();
         }
+        fetchIfDue(itemId, true);
+    }
+
+    // Records the head files an item's job read, and watches them.
+    void setHeads(StatusEntry &e, std::set<QString> heads)
+    {
+        e.heads = std::move(heads);
+        watchHeads();
+    }
+
+    // Watches the head files that some entry read, and no others. A file Git
+    // replaced is dropped by the watcher, so it is added again here.
+    void watchHeads()
+    {
+        std::set<QString> wanted;
+        for (const auto &[itemId, e] : entries)
+            wanted.insert(e->heads.begin(), e->heads.end());
+        const QStringList watched = headWatcher.files();
+        QStringList stale;
+        for (const QString &file : watched) {
+            if (!wanted.count(file))
+                stale << file;
+        }
+        if (!stale.isEmpty())
+            headWatcher.removePaths(stale);
+        QStringList missing;
+        for (const QString &file : wanted) {
+            if (!watched.contains(file) && QFileInfo::exists(file))
+                missing << file;
+        }
+        if (!missing.isEmpty())
+            headWatcher.addPaths(missing);
+    }
+
+    // A head file changed, as when a branch is checked out: the items whose
+    // jobs read it are fetched again.
+    void headChanged(const QString &file)
+    {
+        std::vector<QString> itemIds;
+        for (const auto &[itemId, e] : entries) {
+            if (e->heads.count(file))
+                itemIds.push_back(itemId);
+        }
+        for (const QString &itemId : itemIds)
+            fetchAgain(itemId);
+        watchHeads();
     }
 
     // Empties an item's entry, keeping its subscribers and visibility.
@@ -305,6 +417,10 @@ struct StatusCache::Private
         if (!e)
             return;
         dropJob(*e);
+        if (!e->heads.empty()) {
+            e->heads.clear();
+            watchHeads();
+        }
         const bool had = e->status.state != ItemStatus::State::None || e->status.updatedAt.isValid();
         e->status = ItemStatus();
         e->fetchedAt = QDateTime();
@@ -389,7 +505,8 @@ struct StatusCache::Private
             client = &noServer;
 
         const QString itemId = item.id;
-        auto *job = new StatusJobImpl(item.config, projectSettings, profileId, moduleId, *model, *client,
+        auto *job = new StatusJobImpl(item.config, projectSettings, profileId, moduleId, foldersOf(task.projectId),
+                                      *model, *client,
                                       [this, itemId](StatusJobImpl *done, const ItemStatus &status) {
                                           finished(itemId, done, status);
                                       });
@@ -404,6 +521,7 @@ struct StatusCache::Private
         if (!e || e->job != job)
             return;
         e->job = nullptr;
+        setHeads(*e, job->heads());
         store(*e, status);
     }
 
@@ -480,6 +598,8 @@ StatusCache::StatusCache(Model &model, const ModuleDirectory &modules, ServerCli
     d->settings = &settings;
     d->timer.setInterval(tickMs);
     connect(&d->timer, &QTimer::timeout, this, &StatusCache::poll);
+    connect(&d->headWatcher, &QFileSystemWatcher::fileChanged, this,
+            [this](const QString &file) { d->headChanged(file); });
 
     d->sync(false);
     connect(&model, &Model::modelReset, this, [this] { d->sync(false); });

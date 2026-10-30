@@ -10,6 +10,7 @@ class QFormLayout;
 namespace mirante {
 
 class DeviceSettings;
+class ItemTypeRegistry;
 
 // The application's settings window: Settings… in the application menu on
 // macOS, Tools > Settings… elsewhere. It holds settings of this device, kept
@@ -33,6 +34,10 @@ public:
     // Without a tray, "keep running in the tray" is off and cannot be changed.
     // The stored choice stays, for when a tray appears.
     void setTrayAvailable(bool available);
+    // Adds the Modules section: a group for each module with device settings,
+    // built from their fields. Without any, there is no section. Call it once.
+    // See decision 0079.
+    void setModules(const ItemTypeRegistry &types);
 
 signals:
     // An option changed, and is already saved in the device settings.

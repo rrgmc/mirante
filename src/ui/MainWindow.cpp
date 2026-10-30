@@ -2577,6 +2577,7 @@ void MainWindow::showSettings()
         d->settingsDialog->setAttribute(Qt::WA_DeleteOnClose);
         d->settingsDialog->setHotkeyError(d->hotkeyError);
         d->settingsDialog->setTrayAvailable(d->trayPresent);
+        d->settingsDialog->setModules(*d->types);
         connect(d->settingsDialog, &SettingsDialog::changed, this, [this] { d->applyDeviceSettings(); });
     }
     d->settingsDialog->show();

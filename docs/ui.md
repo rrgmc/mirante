@@ -160,6 +160,10 @@ The settings window holds settings of this device. They are kept in the [device 
 - **Window:**
   - "Global hotkey", the [keys](#keyboard) that show or hide Mirante from any application. "Clear" turns it off. Below it, a message says if the keys could not be registered.
   - "Closing the window keeps Mirante running in the tray", on by default. See [tray and notifications](#tray-and-notifications). Without a tray it is off and disabled.
+- **Terminal:**
+  - "Terminal command", the command that opens a terminal, with `{dir}` for the folder and `{command}` for the program to run. Empty, the default, uses the system's terminal; the grey placeholder says so and shows an example. See [terminal launch](integrations.md#terminal-launch).
+  - "Device name", shown on items that only work on one device, such as a local Claude session. Empty, it is the computer's host name, which the placeholder shows.
+- **Modules:** a group for each module that declares device settings, titled with the module's name, with one field per setting, such as the `folder` module's editor. Each field shows the stored value, else the module's default. Only a value the user changes is stored; emptying a text field removes it, so the default applies again. Without such modules, as in a build without modules, the section is left out. See [decision 0079](decisions/0079-module-device-settings.md).
 
 ## Window
 

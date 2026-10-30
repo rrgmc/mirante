@@ -1,8 +1,9 @@
 // Tests Placement and its ItemContext with test item types: when the view is
 // made, unloading by the ViewPool, making the view again after a change, the
 // header widget, what the context reads from the model, the page of showPage(),
-// adding an item to the task, and the item's status in the cell header. No test
-// uses the network or the keychain.
+// adding an item to the task, the item's status in the cell header, view keys,
+// folder mappings, and the context's device settings and files. No test uses
+// the network or the keychain.
 #include "api/Attention.h"
 #include "api/SecretBackend.h"
 #include "api/SecretStore.h"
@@ -11,6 +12,7 @@
 #include "core/DeviceSettings.h"
 #include "core/Model.h"
 #include "core/Profiles.h"
+#include "core/Store.h"
 #include "items/ItemContextImpl.h"
 #include "items/ItemTypeRegistry.h"
 #include "items/Placement.h"
@@ -36,6 +38,7 @@
 #include <QPushButton>
 #include <QSettings>
 #include <QSignalSpy>
+#include <QSysInfo>
 #include <QTemporaryDir>
 #include <QTest>
 #include <QTimer>
@@ -50,6 +53,9 @@ namespace {
 
 // How many views each test type made. Reset before each test.
 int viewsMade = 0;
+// The configurations that onConfigChanged() reported to test.keys views.
+// Reset before each test.
+QList<QJsonObject> configsReported;
 // The context of the view made last, for a test to act as the view. Reset
 // before each test.
 ItemContext *lastContext = nullptr;
@@ -67,7 +73,8 @@ public:
 };
 
 // test.native: a cheap view. test.web: a fake heavy view. test.none: no view.
-// test.page: a real web page of the item's "url".
+// test.page: a real web page of the item's "url". test.keys: a cheap view
+// that writes the key "note" itself, as a Notes view would.
 class TestType : public ItemType
 {
 public:
@@ -82,8 +89,15 @@ public:
 
     Rendering rendering() const override
     {
-        return m_id == QStringLiteral("test.native") || m_id == QStringLiteral("test.none") ? Rendering::Native
-                                                                                          : Rendering::Web;
+        return m_id == QStringLiteral("test.native") || m_id == QStringLiteral("test.none")
+                       || m_id == QStringLiteral("test.keys")
+                   ? Rendering::Native
+                   : Rendering::Web;
+    }
+
+    QStringList viewKeys() const override
+    {
+        return m_id == QStringLiteral("test.keys") ? QStringList{QStringLiteral("note")} : QStringList();
     }
 
     QWidget *createView(ItemContext &context, QWidget *parent) const override
@@ -94,7 +108,10 @@ public:
         lastContext = &context;
         if (m_id == QStringLiteral("test.page"))
             return context.createWebView(QUrl(context.config().value(QStringLiteral("url")).toString()), parent);
-        return new FakeView(context.config().value(QStringLiteral("text")).toString(), parent);
+        auto *view = new FakeView(context.config().value(QStringLiteral("text")).toString(), parent);
+        if (m_id == QStringLiteral("test.keys"))
+            context.onConfigChanged(view, [](const QJsonObject &config) { configsReported << config; });
+        return view;
     }
 
 private:
@@ -103,8 +120,18 @@ private:
 
 void registerTest(ModuleRegistrar &registrar)
 {
-    for (const char *id : {"test.native", "test.web", "test.none", "test.page"})
+    for (const char *id : {"test.native", "test.web", "test.none", "test.page", "test.keys"})
         registrar.addItemType(std::make_unique<TestType>(QString::fromLatin1(id)));
+    Field editor;
+    editor.key = QStringLiteral("editor");
+    editor.label = QStringLiteral("Editor");
+    editor.defaultValue = QStringLiteral("code");
+    registrar.addDeviceSetting(editor);
+    Field lines;
+    lines.key = QStringLiteral("lines");
+    lines.label = QStringLiteral("Lines");
+    lines.type = Field::Type::Integer;
+    registrar.addDeviceSetting(lines);
 }
 
 // How stat.thing ends each fetch: with the status given for the item, found
@@ -286,6 +313,8 @@ void fill(Model &model)
     task.items.push_back(makeItem(QStringLiteral("p1"), QStringLiteral("test.page"),
                                   {{QStringLiteral("url"), QStringLiteral("data:text/plain,first")}}));
     task.items.push_back(makeItem(QStringLiteral("s1"), QStringLiteral("stat.thing"), {{QStringLiteral("id"), QStringLiteral("s1")}}));
+    task.items.push_back(makeItem(QStringLiteral("k1"), QStringLiteral("test.keys"),
+                                  {{QStringLiteral("text"), QStringLiteral("keys")}, {QStringLiteral("note"), QStringLiteral("a")}}));
 
     model.reset({group}, {project}, {task}, {});
     model.setProfiles({standard});
@@ -410,6 +439,7 @@ private slots:
     void init()
     {
         viewsMade = 0;
+        configsReported.clear();
         lastContext = nullptr;
         nextStatus.clear();
         statusFromServer = false;
@@ -1366,6 +1396,202 @@ private slots:
         QVERIFY(!placement->hasStatus());
         QCOMPARE(placement->cellStatus(), CellStatus());
         QVERIFY(changed.count() >= 1);
+    }
+    // A change to only the type's view keys keeps the view and tells it. Any
+    // other change makes it again. See decision 0081.
+    void viewKeyChangeKeepsTheView()
+    {
+        auto placement = make(QStringLiteral("k1"));
+        placement->show();
+        QPointer<QWidget> view = placement->view();
+        QCOMPARE(viewsMade, 1);
+
+        changeItem(*model, QStringLiteral("k1"), [](Item &item) { item.config[QStringLiteral("note")] = QStringLiteral("b"); });
+        QCOMPARE(viewsMade, 1);
+        QCOMPARE(placement->view(), view.data());
+        QCOMPARE(configsReported.size(), 1);
+        QCOMPARE(configsReported.last().value(QStringLiteral("note")).toString(), QStringLiteral("b"));
+
+        // The record follows, so a change back is a change too.
+        changeItem(*model, QStringLiteral("k1"), [](Item &item) { item.config[QStringLiteral("note")] = QStringLiteral("a"); });
+        QCOMPARE(configsReported.size(), 2);
+        QCOMPARE(placement->view(), view.data());
+
+        // Removing the key is a change of the key.
+        changeItem(*model, QStringLiteral("k1"), [](Item &item) { item.config.remove(QStringLiteral("note")); });
+        QCOMPARE(configsReported.size(), 3);
+        QCOMPARE(placement->view(), view.data());
+
+        // Another key makes the view again, and does not report.
+        changeItem(*model, QStringLiteral("k1"), [](Item &item) {
+            item.config[QStringLiteral("text")] = QStringLiteral("other");
+            item.config[QStringLiteral("note")] = QStringLiteral("c");
+        });
+        QCOMPARE(viewsMade, 2);
+        QCOMPARE(configsReported.size(), 3);
+        QCOMPARE(viewText(*placement), QStringLiteral("other"));
+        QTRY_VERIFY(view.isNull());
+
+        // The old view's receiver is gone; the new view's hears the next change.
+        changeItem(*model, QStringLiteral("k1"), [](Item &item) { item.config[QStringLiteral("note")] = QStringLiteral("d"); });
+        QCOMPARE(configsReported.size(), 4);
+        QCOMPARE(viewsMade, 2);
+    }
+
+    // A type without view keys makes the view again for any key.
+    void otherTypesHaveNoViewKeys()
+    {
+        auto placement = make(QStringLiteral("n1"));
+        placement->show();
+        changeItem(*model, QStringLiteral("n1"), [](Item &item) { item.config[QStringLiteral("note")] = QStringLiteral("x"); });
+        QCOMPARE(viewsMade, 2);
+        QVERIFY(configsReported.isEmpty());
+    }
+
+    // The view writes its own key through the context: the view stays.
+    void viewWritesItsOwnKey()
+    {
+        auto placement = make(QStringLiteral("k1"));
+        placement->show();
+        QPointer<QWidget> view = placement->view();
+        QJsonObject config = lastContext->config();
+        config[QStringLiteral("note")] = QStringLiteral("typed");
+        lastContext->updateConfig(config);
+        QCOMPARE(placement->view(), view.data());
+        QCOMPARE(viewsMade, 1);
+        QCOMPARE(configsReported.size(), 1);
+    }
+
+    // Receivers are called until they are destroyed.
+    void configReceiversEndWithTheirObject()
+    {
+        ItemContextImpl context(services, QStringLiteral("t1"), QStringLiteral("k1"));
+        int calls = 0;
+        auto receiver = std::make_unique<QObject>();
+        context.onConfigChanged(receiver.get(), [&calls](const QJsonObject &) { ++calls; });
+        context.onConfigChanged(nullptr, [&calls](const QJsonObject &) { ++calls; });
+        context.notifyConfigChanged({});
+        QCOMPARE(calls, 1);
+        receiver.reset();
+        context.notifyConfigChanged({});
+        QCOMPARE(calls, 1);
+    }
+
+    // A native view is made again when a folder of its project is mapped, at
+    // once when the project changes, else when it is shown. A web view keeps
+    // its page.
+    void folderMappingMakesNativeViewsAgain()
+    {
+        QTemporaryDir dir;
+        QSettings ini(dir.filePath(QStringLiteral("settings.ini")), QSettings::IniFormat);
+        DeviceSettings device(&ini);
+        services.settings = &device;
+        Project project = *model->project(QStringLiteral("p1"));
+        Folder folder;
+        folder.id = QStringLiteral("f1");
+        folder.name = QStringLiteral("app");
+        folder.main = true;
+        project.folders.push_back(folder);
+        model->setProject(project);
+
+        auto native = make(QStringLiteral("n1"));
+        auto web = make(QStringLiteral("w1"));
+        native->show();
+        web->show();
+        QCOMPARE(viewsMade, 2);
+
+        // Mapped as by the project dialog, which also changes the project.
+        device.setFolderPath(QStringLiteral("f1"), QStringLiteral("C:/src/app"));
+        project.name = QStringLiteral("Renamed");
+        model->setProject(project);
+        QCOMPARE(viewsMade, 3);
+
+        // Mapped while hidden, as by another item's mapFolder().
+        native->hide();
+        device.setFolderPath(QStringLiteral("f1"), QStringLiteral("D:/app"));
+        native->show();
+        QCOMPARE(viewsMade, 4);
+        native->hide();
+        native->show();
+        QCOMPARE(viewsMade, 4);
+        services.settings = nullptr;
+    }
+
+    // The context's M7 members that read this device: the main folder,
+    // device settings, the device name and files.
+    void contextReadsTheDevice()
+    {
+        QTemporaryDir dir;
+        QSettings ini(dir.filePath(QStringLiteral("settings.ini")), QSettings::IniFormat);
+        DeviceSettings device(&ini);
+        services.settings = &device;
+        ItemContextImpl context(services, QStringLiteral("t1"), QStringLiteral("n1"));
+
+        // The main folder, for an empty id.
+        QVERIFY(context.folderPath(QString()).isEmpty());
+        Project project = *model->project(QStringLiteral("p1"));
+        Folder other;
+        other.id = QStringLiteral("f1");
+        Folder main;
+        main.id = QStringLiteral("f2");
+        main.main = true;
+        project.folders = {other, main};
+        model->setProject(project);
+        device.setFolderPath(QStringLiteral("f1"), QStringLiteral("C:/one"));
+        QVERIFY(context.folderPath(QString()).isEmpty());
+        device.setFolderPath(QStringLiteral("f2"), QStringLiteral("C:/two"));
+        QCOMPARE(context.folderPath(QString()), QStringLiteral("C:/two"));
+        QCOMPARE(context.folderPath(QStringLiteral("f1")), QStringLiteral("C:/one"));
+
+        // A device setting of the item's module, else the field's default.
+        QCOMPARE(context.deviceSetting(QStringLiteral("editor")), QJsonValue(QStringLiteral("code")));
+        QVERIFY(context.deviceSetting(QStringLiteral("lines")).isNull());
+        QVERIFY(context.deviceSetting(QStringLiteral("undeclared")).isUndefined());
+        device.setModuleSetting(QStringLiteral("test"), QStringLiteral("editor"), QStringLiteral("subl"));
+        device.setModuleSetting(QStringLiteral("test"), QStringLiteral("lines"), 4);
+        device.setModuleSetting(QStringLiteral("test"), QStringLiteral("undeclared"), 1);
+        QCOMPARE(context.deviceSetting(QStringLiteral("editor")), QJsonValue(QStringLiteral("subl")));
+        QCOMPARE(context.deviceSetting(QStringLiteral("lines")), QJsonValue(4));
+        QVERIFY(context.deviceSetting(QStringLiteral("undeclared")).isUndefined());
+        // Another module's item does not see them.
+        ItemContextImpl stat(services, QStringLiteral("t1"), QStringLiteral("s1"));
+        QVERIFY(stat.deviceSetting(QStringLiteral("editor")).isUndefined());
+
+        QCOMPARE(context.deviceName(), QSysInfo::machineHostName());
+        device.setDeviceName(QStringLiteral("Desk"));
+        QCOMPARE(context.deviceName(), QStringLiteral("Desk"));
+
+        // Files: only an existing plain name in files/.
+        QVERIFY(context.filePath(QStringLiteral("a.png")).isEmpty());
+        Model storeModel;
+        Store store(storeModel);
+        QTemporaryDir data;
+        store.open(data.path());
+        const QString name = store.saveFile("png", QStringLiteral("png"));
+        QVERIFY(!name.isEmpty());
+        services.store = &store;
+        ItemContextImpl withFiles(services, QStringLiteral("t1"), QStringLiteral("n1"));
+        QCOMPARE(withFiles.filePath(name), QFileInfo(store.filePath(name)).absoluteFilePath());
+        QVERIFY(withFiles.filePath(QStringLiteral("missing.png")).isEmpty());
+        QVERIFY(withFiles.filePath(QString()).isEmpty());
+        QVERIFY(withFiles.filePath(QStringLiteral("../") + name).isEmpty());
+        QVERIFY(withFiles.filePath(QStringLiteral("..")).isEmpty());
+        QVERIFY(withFiles.filePath(QStringLiteral("sub\\") + name).isEmpty());
+        store.close();
+        services.store = nullptr;
+        services.settings = nullptr;
+    }
+
+    // Without a Git reader, gitStatus() never answers; an empty path has no head.
+    void gitWithoutReader()
+    {
+        ItemContextImpl context(services, QStringLiteral("t1"), QStringLiteral("n1"));
+        QObject receiver;
+        bool called = false;
+        context.gitStatus(QDir::tempPath(), &receiver, [&called](const GitState &) { called = true; });
+        QCoreApplication::processEvents();
+        QVERIFY(!called);
+        QVERIFY(context.gitHead(QString()).isEmpty());
     }
 };
 
