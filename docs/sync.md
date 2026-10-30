@@ -8,7 +8,7 @@ The user chooses the data folder on each device. It does not have to be at the s
 
 ```
 <data folder>/
-  workspace.mirante           marks the folder as a workspace; holds its name and profiles, with their module settings
+  workspace.mirante           marks the folder as a workspace; holds its id, name and profiles, with their module settings
   groups/<uuid>.json
   projects/<uuid>.json
   tasks/<uuid>.json
@@ -105,7 +105,7 @@ Started with `--settings <file>`, the app keeps these settings in that INI file 
   - Windows Credential Manager;
   - macOS Keychain;
   - Secret Service (libsecret) on Linux.
-- A token is entered on the module's settings screen, in a field of type `Secret`. It is stored under service `mirante` and key `<profileId>/<moduleId>/<fieldKey>`, such as `default/gitlab/token`. The key contains no secret, so it can be derived from synced data.
+- A token is entered on the module's settings screen, in a field of type `Secret`. It is stored under service `mirante` and key `<workspaceId>/<profileId>/<moduleId>/<fieldKey>`, such as `5a3e…/default/gitlab/token`, so each workspace keeps its own ([decision 0059](decisions/0059-logins-per-workspace.md)). The key contains no secret, so it can be derived from synced data.
 - Tokens are never written to the data folder and never synced. Each device asks for each token once. See [decision 0054](decisions/0054-module-settings-replace-connections.md).
 - Storing tokens comes in M5. Until then a token typed into the screen is dropped, and the log says so without the value. No earlier version stored a token, so there are no old keys to move.
 - Web logins are not synced either. The list of profiles is synced, in `workspace.mirante`, but the user logs in once per profile on each device. See [web views](web-views.md#profiles).

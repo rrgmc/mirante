@@ -12,7 +12,7 @@ Mirante creates these `QWebEngineProfile`s:
 
 | Profile | Storage name | Used for |
 |---|---|---|
-| One per profile | `p-<id>`, such as `p-default` for the profile with the id `default` | The web items that use that profile |
+| One per profile of the open workspace | `<workspace id>_p-<profile id>`, such as `…_p-default` for the profile with the id `default` | The web items that use that profile |
 | App | `app` | [Built-in panels](#built-in-panels) only |
 
 **Which profile an item uses.** Each group can choose a profile, in the [group dialog](ui.md#group-dialog). Each item of a type that uses a profile can choose its own in its properties. An item uses the first of these that exists:
@@ -34,7 +34,8 @@ Rules:
 - **A change of profile.** When an item's profile changes, through the item, its group, or the list, its web views are made again in the new profile. A change of the module settings of its profile also makes them again, since a view may have read them. A new name does not.
 - **Deleting a profile.** Deleting a profile in the profiles dialog deletes its logins on this device: cookies and HTTP cache are cleared, the profile is released, and its data folder is removed once the profile is gone. Chromium may hold a file open for a moment after a profile goes, so removal is tried again for a few seconds. Groups and items that named the profile are not changed; they fall back by the order above. A profile that disappears through a sync keeps its folder. Deleting a group deletes no logins. See [decision 0039](decisions/0039-profiles-deleted-only-by-local-delete.md).
 - **Clearing a profile.** "Clear Data…" in the profiles dialog deletes a profile's logins and site data on this device and keeps the profile, with its settings. Qt WebEngine cannot clear the site storage of a loaded profile, so clearing works as deleting does: `ProfileManager::clearProfile()` first emits `profileClearing`, so every placement in that profile drops its view and shows a short message; then the profile is released and its folder removed; then it emits `profileCleared`, and the placements make their views again in a new, empty profile with the same name and folder. While the clearing runs, `profile()` gives a temporary profile that keeps nothing, so a page made meanwhile cannot write into the folder being removed.
-- **Location.** Profile data lives in the app's local data folder, under `profiles/<storage name>`, with the HTTP cache in its `cache` subfolder. It is never synced, so the user logs in once per profile on each device.
+- **Location.** Profile data lives in the app's local data folder, under `profiles/<workspace id>/p-<profile id>`, with the HTTP cache in its `cache` subfolder. Each workspace keeps its own logins: two workspaces with a profile of the same id do not share them. The workspace id is kept in `workspace.mirante`, so moving or renaming the workspace keeps its logins. The app profile is in `profiles/app`. Profile data is never synced, so the user logs in once per profile on each device. See [decision 0059](decisions/0059-logins-per-workspace.md).
+- **Logins from before 0059.** They were kept in `profiles/p-<profile id>`, for all workspaces. The first workspace from before decision 0059 that is opened on the device takes them, so the user stays logged in there.
 - **Logins from before 0042.** The folders of the earlier profiles, `g-<groupId>-<moduleId>` and `shared-<moduleId>`, are deleted at start. The user logs in again once per profile.
 
 Profiles isolate storage only. All pages run in the same Chromium processes, so this is account separation, not a security sandbox.

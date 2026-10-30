@@ -39,6 +39,7 @@
 #include "ui/Shortcuts.h"
 #include "ui/Sidebar.h"
 #include "ui/SlotTabBar.h"
+#include "web/ProfileManager.h"
 
 #include <QAbstractSpinBox>
 #include <QAction>
@@ -945,6 +946,17 @@ struct MainWindow::Private
         closeDetachedWindows();
         ownProblems.clear();
         store->open(dir);
+        // Each workspace keeps its own web logins, under its id, before the
+        // tabs make pages that use them. A workspace that just got its id is
+        // from before decision 0059, and takes the logins kept for all.
+        if (profiles) {
+            const QString id = model->workspaceId();
+            profiles->setWorkspace(id.isEmpty() ? QDir(dir).absolutePath() : id);
+            if (store->assignedWorkspaceId()) {
+                if (const int moved = profiles->adoptRootProfiles())
+                    qInfo().noquote() << "Moved the web logins of" << moved << "profiles into this workspace";
+            }
+        }
         restoreOpenTabs();
         updateWarnings();
     }
