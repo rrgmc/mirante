@@ -228,7 +228,9 @@ ProfilesDialog::ProfilesDialog(Model &model, QWidget *parent)
     connect(d->defaultButton, &QPushButton::clicked, this, &ProfilesDialog::makeSelectedDefault);
     connect(d->clearButton, &QPushButton::clicked, this, &ProfilesDialog::clearSelected);
     connect(d->list, &QListWidget::currentRowChanged, this, [this] { d->updateButtons(); });
-    connect(d->list, &QListWidget::itemDoubleClicked, this, &ProfilesDialog::renameSelected);
+    // Queued: the rename fills the list again, which deletes the entry the
+    // list is still handling the double-click on.
+    connect(d->list, &QListWidget::itemDoubleClicked, this, &ProfilesDialog::renameSelected, Qt::QueuedConnection);
     // A reload or another device may change the list while the dialog is open.
     connect(&model, &Model::profilesChanged, this, [this] { d->refresh(); });
     connect(&model, &Model::modelReset, this, [this] { d->refresh(); });
