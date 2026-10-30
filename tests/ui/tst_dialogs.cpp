@@ -213,6 +213,7 @@ private slots:
     void itemProfile();
     void itemFieldsOfTheProfile();
     void profilesDialog();
+    void profilesDialogDoubleClickRenames();
     void dashboard();
 };
 
@@ -462,6 +463,31 @@ void TestDialogs::itemFieldsOfTheProfile()
     auto *newCombo = qobject_cast<QComboBox *>(newForm->editorFor(QStringLiteral("project")));
     QVERIFY(newCombo);
     QCOMPARE(newCombo->itemText(0), QStringLiteral("work/app"));
+}
+
+// A double-click renames. The rename rebuilds the list, so it runs after the
+// double-click is handled, not while the clicked entry is still in use.
+void TestDialogs::profilesDialogDoubleClickRenames()
+{
+    Model local;
+    local.setProfiles({profile(kDefaultProfile, QStringLiteral("Default"))});
+    ProfilesDialog dialog(local);
+    bool asked = false;
+    dialog.setAskName([&asked](const QString &, const QString &) {
+        asked = true;
+        return QStringLiteral("Work");
+    });
+    dialog.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&dialog));
+    auto *list = dialog.findChild<QListWidget *>(QStringLiteral("profileList"));
+    QVERIFY(list);
+    const QPoint centre = list->visualItemRect(list->item(0)).center();
+    // The view handles a double click only on the row of the press before it.
+    QTest::mouseClick(list->viewport(), Qt::LeftButton, Qt::NoModifier, centre);
+    QTest::mouseDClick(list->viewport(), Qt::LeftButton, Qt::NoModifier, centre);
+    QVERIFY(!asked);
+    QTRY_COMPARE(local.profile(kDefaultProfile)->name, QStringLiteral("Work"));
+    QCOMPARE(list->item(0)->text(), QStringLiteral("Work (default)"));
 }
 
 void TestDialogs::profilesDialog()
