@@ -42,25 +42,33 @@ The attention rules are in [item types](item-types.md#gitlab).
 
 ## Jira
 
-Jira Cloud and Data Center differ. The server is `jira.general.baseUrl` of the item's profile, with its token on the same screen. Since [decision 0054](decisions/0054-module-settings-replace-connections.md) there is no connection kind to tell them apart; M5 tells them apart by the site, such as an `atlassian.net` address, or by a setting on the Jira screen.
+Jira Cloud and Data Center differ. The server is `jira.general.baseUrl` of the item's profile, with its token on the same screen. The **Deployment** setting on that screen, `jira.general.deployment`, tells them apart ([decision 0060](decisions/0060-jira-cloud-or-data-center-by-setting.md)):
 
-| | Jira Cloud (`jira.cloud`) | Jira Data Center (`jira.dc`) |
+- `auto`, the default, means Jira Cloud when the base URL's host ends in `.atlassian.net` or `.jira.com`, and Jira Data Center otherwise;
+- `cloud` and `dc` choose one, such as for a Jira Cloud site on its own domain.
+
+| | Jira Cloud | Jira Data Center |
 |---|---|---|
 | API | REST v3 at `<baseUrl>/rest/api/3` | REST v2 at `<baseUrl>/rest/api/2` |
-| Authentication | Basic, with the account email and an API token | `Authorization: Bearer <personal access token>` |
+| Authentication | `Authorization: Basic`, with `jira.general.email` and an API token as `email:token` | `Authorization: Bearer <personal access token>` |
 | Text format | ADF (JSON) | Wiki markup |
+| Search paging | `nextPageToken`, until `isLast` | `startAt`, until `total` |
 
-To avoid parsing either text format, every issue request adds `expand=renderedFields`. Jira then also returns the description and comments as HTML, which the summary shows in a `QTextBrowser`.
+On Jira Cloud without an email, every request fails before it is sent, and the item shows "Set the email for Jira Cloud in the profile's Jira settings."
 
-Main endpoints:
+To avoid parsing either text format, every issue request adds `expand=renderedFields`. Jira then also returns the description and comments as HTML, which the summary shows in a `QTextBrowser`. A comment is written as plain text: the module turns it into an ADF document on Cloud, with a paragraph for each block between blank lines, and sends it as it is on Data Center.
+
+Main endpoints, below the API root:
 
 | Purpose | Endpoint |
 |---|---|
-| Issue | `GET /issue/:key?expand=renderedFields` |
-| Search | `GET /search/jql` on Cloud, `GET /search` on Data Center, with the JQL query |
+| Issue | `GET /issue/:key?expand=renderedFields`, with `fields` to limit the answer |
+| Search | `GET /search/jql` on Cloud, `GET /search` on Data Center, with the JQL query, up to 100 rows |
 | Transitions | `GET /issue/:key/transitions`, `POST /issue/:key/transitions` |
 | Comment | `POST /issue/:key/comment` |
 | Current user | `GET /myself` |
+
+The status of an issue item asks for the issue with only `summary`, `status`, `assignee`, `priority`, `issuetype` and `updated`. See [item types](item-types.md#jira-issue-summary).
 
 Development information, meaning linked branches and merge requests, comes from a separate, less stable API. It is shown when available and left out quietly when not.
 

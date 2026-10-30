@@ -76,6 +76,25 @@ private:
 // The same grey label as the placements' placeholders.
 QLabel *centredLabel(const QString &text, QWidget *parent) { return createMessageLabel(text, parent); }
 
+// The attention badge: white text on a strong red, as in the sidebar's
+// badges (SidebarDelegate.cpp).
+const QColor attentionColour(0xd9, 0x48, 0x3b);
+
+// The problem pill: dark text on amber, readable in light and dark themes.
+const QColor problemFill(0xf2, 0xb8, 0x3a);
+const QColor problemText(0x3d, 0x2a, 0x00);
+
+// A rounded style sheet for a badge or a pill of the given height.
+QString pillStyle(const QString &selector, const QColor &fill, const QColor &text, int height, bool bold)
+{
+    return QStringLiteral("%1 { background: %2; color: %3; border: none; border-radius: %4px;"
+                          " padding: 0px %5px; font-weight: %6; }")
+        .arg(selector, fill.name(), text.name())
+        .arg(height / 2)
+        .arg(qMax(3, height / 3))
+        .arg(bold ? QStringLiteral("bold") : QStringLiteral("normal"));
+}
+
 } // namespace
 
 struct CellFrame::Private
@@ -95,7 +114,49 @@ struct CellFrame::Private
     QStackedWidget *body = nullptr;
     QWidget *elsewhere = nullptr;       // the "Shown in another cell" page
     CellFrameSingleView *singleView = nullptr;
+
+    // The status area, before the refresh and menu buttons. One of its
+    // widgets shows at a time, by the status's kind.
+    CellStatus status;
+    QLabel *attentionBadge = nullptr;
+    QLabel *problemLabel = nullptr;         // a problem without a fix here, such as "Not found"
+    QToolButton *problemButton = nullptr;   // a problem with a fix, such as "Token not set"
+    QLabel *staleText = nullptr;
+    QToolButton *refreshButton = nullptr;
+
+    void showStatus();
 };
+
+void CellFrame::Private::showStatus()
+{
+    using Kind = CellStatus::Kind;
+    const int height = header->fontMetrics().height() + 2;
+
+    attentionBadge->setVisible(status.kind == Kind::Attention);
+    if (status.kind == Kind::Attention) {
+        attentionBadge->setText(status.count > 99 ? QStringLiteral("99+") : QString::number(status.count));
+        attentionBadge->setToolTip(status.tooltip);
+        attentionBadge->setFixedHeight(height);
+        attentionBadge->setMinimumWidth(height);
+    }
+
+    const bool problem = status.kind == Kind::Problem;
+    problemLabel->setVisible(problem && !status.canFix);
+    problemButton->setVisible(problem && status.canFix);
+    if (problem) {
+        QWidget *pill = status.canFix ? static_cast<QWidget *>(problemButton) : problemLabel;
+        problemLabel->setText(status.text);
+        problemButton->setText(status.text);
+        pill->setToolTip(status.tooltip);
+        pill->setFixedHeight(height);
+    }
+
+    staleText->setVisible(status.kind == Kind::Stale);
+    if (status.kind == Kind::Stale) {
+        staleText->setText(status.text);
+        staleText->setToolTip(status.tooltip);
+    }
+}
 
 CellFrame::CellFrame(const std::optional<CellRef> &ref, bool removed, const ItemType *type, const QString &itemName,
                      QWidget *parent)
@@ -153,6 +214,45 @@ CellFrame::CellFrame(const std::optional<CellRef> &ref, bool removed, const Item
     d->row->setParts({typePill, name, d->context});
     d->row->setShrinkOrder({d->context, name, typePill});
     headerLayout->addWidget(d->row, 1);
+
+    // The status area and the refresh button. A header widget, such as a web
+    // toolbar, goes between the row and these.
+    const int pillHeight = d->header->fontMetrics().height() + 2;
+    d->attentionBadge = new QLabel(d->header);
+    d->attentionBadge->setObjectName(QStringLiteral("attentionBadge"));
+    d->attentionBadge->setAlignment(Qt::AlignCenter);
+    d->attentionBadge->setStyleSheet(pillStyle(QStringLiteral("QLabel"), attentionColour, Qt::white, pillHeight, true));
+    headerLayout->addWidget(d->attentionBadge);
+
+    d->problemLabel = new QLabel(d->header);
+    d->problemLabel->setObjectName(QStringLiteral("problemPill"));
+    d->problemLabel->setStyleSheet(pillStyle(QStringLiteral("QLabel"), problemFill, problemText, pillHeight, false));
+    headerLayout->addWidget(d->problemLabel);
+
+    d->problemButton = new QToolButton(d->header);
+    d->problemButton->setObjectName(QStringLiteral("problemButton"));
+    d->problemButton->setCursor(Qt::PointingHandCursor);
+    d->problemButton->setStyleSheet(
+        pillStyle(QStringLiteral("QToolButton"), problemFill, problemText, pillHeight, false)
+        + QStringLiteral(" QToolButton:hover { background: %1; }").arg(problemFill.darker(112).name()));
+    connect(d->problemButton, &QToolButton::clicked, this, &CellFrame::fixRequested);
+    headerLayout->addWidget(d->problemButton);
+
+    d->staleText = new QLabel(d->header);
+    d->staleText->setObjectName(QStringLiteral("staleText"));
+    d->staleText->setForegroundRole(QPalette::PlaceholderText);
+    headerLayout->addWidget(d->staleText);
+
+    d->refreshButton = new QToolButton(d->header);
+    d->refreshButton->setObjectName(QStringLiteral("refreshButton"));
+    d->refreshButton->setAutoRaise(true);
+    d->refreshButton->setIcon(QIcon(QStringLiteral(":/icons/reload.svg")));
+    d->refreshButton->setToolTip(tr("Refresh"));
+    d->refreshButton->setVisible(false);
+    connect(d->refreshButton, &QToolButton::clicked, this, &CellFrame::refreshRequested);
+    headerLayout->addWidget(d->refreshButton);
+
+    d->showStatus();
 
     auto *menuButton = new QToolButton(d->header);
     menuButton->setAutoRaise(true);
@@ -393,21 +493,16 @@ void CellFrame::setMaximised(bool maximised)
     d->maximiseButton->setToolTip(maximised ? tr("Restore (%1)").arg(shortcut) : tr("Maximise (%1)").arg(shortcut));
 }
 
-// Stubs of T0. Task T7 of the M5 plan implements them.
-
 void CellFrame::setStatus(const CellStatus &status)
 {
-    Q_UNUSED(status)
+    if (status == d->status)
+        return;
+    d->status = status;
+    d->showStatus();
 }
 
-CellStatus CellFrame::status() const
-{
-    return {};
-}
+CellStatus CellFrame::status() const { return d->status; }
 
-void CellFrame::setRefreshVisible(bool visible)
-{
-    Q_UNUSED(visible)
-}
+void CellFrame::setRefreshVisible(bool visible) { d->refreshButton->setVisible(visible); }
 
 } // namespace mirante

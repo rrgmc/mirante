@@ -1,5 +1,6 @@
 // Tests SidebarDelegate's priority marker: projects get a rounded square,
-// tasks a circle, in the same colour for the same priority.
+// tasks a circle, in the same colour for the same priority. Rows with an
+// attention count get a badge at their right.
 #include "core/Entities.h"
 #include "ui/SidebarDelegate.h"
 #include "ui/SidebarModel.h"
@@ -80,6 +81,56 @@ private slots:
     void otherRowsHaveNoMarker()
     {
         QVERIFY(marker(SidebarModel::Kind::Group, Priority::Urgent).isNull());
+    }
+
+    // A row with an attention count gets a red badge at its right. The text
+    // keeps clear of it, and the row asks for its width.
+    void attentionBadge()
+    {
+        const QRgb attention = QColor(0xd9, 0x48, 0x3b).rgb();
+        for (const auto kind : {SidebarModel::Kind::Group, SidebarModel::Kind::Project, SidebarModel::Kind::Task}) {
+            QStandardItemModel model;
+            auto *plain = new QStandardItem(QStringLiteral("row"));
+            plain->setData(int(kind), SidebarModel::KindRole);
+            plain->setData(int(Priority::Normal), SidebarModel::PriorityRole);
+            auto *badged = plain->clone();
+            badged->setData(3, SidebarModel::AttentionRole);
+            model.appendRow(plain);
+            model.appendRow(badged);
+
+            Delegate delegate;
+            const QRect rect(0, 0, 200, 24);
+            const auto paint = [&](const QModelIndex &index) {
+                QImage image(rect.size(), QImage::Format_ARGB32);
+                image.fill(Qt::white);
+                QStyleOptionViewItem option;
+                option.rect = rect;
+                QPainter painter(&image);
+                delegate.paint(&painter, option, index);
+                painter.end();
+                return image;
+            };
+            const auto attentionPixels = [attention](const QImage &image, int from, int to) {
+                int pixels = 0;
+                for (int y = 0; y < image.height(); ++y) {
+                    for (int x = from; x < to; ++x)
+                        pixels += image.pixel(x, y) == attention ? 1 : 0;
+                }
+                return pixels;
+            };
+
+            const QImage withBadge = paint(model.index(1, 0));
+            QVERIFY(attentionPixels(withBadge, 160, 200) > 40);
+            QCOMPARE(attentionPixels(withBadge, 0, 160), 0);
+            QCOMPARE(attentionPixels(paint(model.index(0, 0)), 0, 200), 0);
+
+            QStyleOptionViewItem option;
+            option.rect = rect;
+            delegate.initStyleOption(&option, model.index(1, 0));
+            QVERIFY(option.rect.right() < 180);
+            QVERIFY(delegate.sizeHint(option, model.index(1, 0)).width()
+                    > delegate.sizeHint(option, model.index(0, 0)).width());
+        }
     }
 };
 

@@ -6,6 +6,7 @@
 #include <QDialogButtonBox>
 #include <QFormLayout>
 #include <QLabel>
+#include <QSpinBox>
 #include <QVBoxLayout>
 
 namespace mirante {
@@ -52,6 +53,22 @@ SettingsDialog::SettingsDialog(DeviceSettings &settings, QWidget *parent)
         emit changed();
     });
     sidebar->addRow(d->sidebarHoverTint);
+
+    // Status. The device setting is in seconds; the window shows whole
+    // minutes.
+    QFormLayout *status = addSection(tr("Status"));
+    auto *pollInterval = new QSpinBox(this);
+    pollInterval->setObjectName(QStringLiteral("pollInterval"));
+    pollInterval->setRange(1, 60);
+    pollInterval->setSuffix(tr(" min"));
+    pollInterval->setToolTip(
+        tr("How often Mirante asks servers, such as GitLab and Jira, for the status of items."));
+    pollInterval->setValue(qBound(1, (settings.pollInterval() + 30) / 60, 60));
+    connect(pollInterval, &QSpinBox::valueChanged, this, [this](int minutes) {
+        d->settings->setPollInterval(minutes * 60);
+        emit changed();
+    });
+    status->addRow(tr("Check servers every"), pollInterval);
 
     resize(480, sizeHint().height());
 }

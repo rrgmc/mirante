@@ -1,4 +1,7 @@
-// Tests SidebarModel on the fixtures: structure, order, filters, roles and resets.
+// Tests SidebarModel on the fixtures: structure, order, filters, roles and
+// resets. Attention counts use a small workspace of their own.
+#include "AttentionTestSupport.h"
+
 #include "core/GroupColours.h"
 #include "core/Model.h"
 #include "core/Store.h"
@@ -108,6 +111,7 @@ private slots:
     void emptyProjects();
     void trashList();
     void trashTab();
+    void attentionRole();
 };
 
 void TestSidebarModel::structure()
@@ -726,6 +730,68 @@ void TestSidebarModel::trashTab()
     stateTabs->setCurrentIndex(0);
     QVERIFY(emptyTrash->isHidden());
     QVERIFY(tree->dragEnabled());
+}
+
+// AttentionRole gives the counts of Attention for tasks, and their sums for
+// projects and groups. A change repaints only the rows whose count changed.
+void TestSidebarModel::attentionRole()
+{
+    attentiontest::Fixture f;
+    ItemTypeRegistry types;
+    SidebarModel sidebar(f.model, types);
+    QAbstractItemModelTester tester(&sidebar, QAbstractItemModelTester::FailureReportingMode::Fatal);
+    const auto count = [&sidebar](const char *id) {
+        return sidebar.indexOf(QLatin1String(id)).data(SidebarModel::AttentionRole);
+    };
+
+    // Without Attention every count is 0, and items have none.
+    QCOMPARE(count("g1"), QVariant(0));
+    QCOMPARE(count("p1"), QVariant(0));
+    QCOMPARE(count("t1"), QVariant(0));
+    QVERIFY(!count("i1").isValid());
+
+    sidebar.setAttention(f.attention.get());
+    QSignalSpy changed(&sidebar, &QAbstractItemModel::dataChanged);
+    // Two reasons on one item count once for its task.
+    f.setReasons(QStringLiteral("i1"), {QStringLiteral("pipeline-failed"), QStringLiteral("conflicts")});
+    f.setReasons(QStringLiteral("i3"), {QStringLiteral("pipeline-failed")});
+    f.setReasons(QStringLiteral("i6"), {});
+    // Attention reports the change on the next pass of the event loop.
+    QTRY_COMPARE(changed.count(), 4);
+    QCOMPARE(count("t1").toInt(), 1);
+    QCOMPARE(count("t2").toInt(), 1);
+    QCOMPARE(count("t3").toInt(), 0);
+    QCOMPARE(count("t5").toInt(), 0);
+    QCOMPARE(count("p1").toInt(), 2);
+    QCOMPARE(count("p2").toInt(), 0);
+    QCOMPARE(count("g1").toInt(), 2);
+    QCOMPARE(count("g2").toInt(), 0);
+    QVERIFY(sidebar.indexOf(QStringLiteral("t1")).data(Qt::ToolTipRole).toString().contains(
+        QStringLiteral("need attention: 1")));
+
+    QStringList repainted;
+    for (const QList<QVariant> &args : changed) {
+        QCOMPARE(args.at(0), args.at(1));
+        QVERIFY(args.at(2).value<QList<int>>().contains(SidebarModel::AttentionRole));
+        repainted << args.at(0).toModelIndex().data(SidebarModel::IdRole).toString();
+    }
+    repainted.sort();
+    QCOMPARE(repainted, (QStringList{QStringLiteral("g1"), QStringLiteral("p1"), QStringLiteral("t1"),
+                                     QStringLiteral("t2")}));
+
+    // A count that drops repaints its rows again.
+    changed.clear();
+    f.setReasons(QStringLiteral("i3"), {});
+    QTRY_COMPARE(changed.count(), 3);
+    QCOMPARE(count("t2").toInt(), 0);
+    QCOMPARE(count("p1").toInt(), 1);
+
+    // Without Attention again, the counts go.
+    changed.clear();
+    sidebar.setAttention(nullptr);
+    QCOMPARE(count("t1").toInt(), 0);
+    QCOMPARE(count("g1").toInt(), 0);
+    QCOMPARE(changed.count(), 3);
 }
 
 QTEST_MAIN(TestSidebarModel)
