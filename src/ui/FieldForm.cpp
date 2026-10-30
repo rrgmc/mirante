@@ -1,11 +1,16 @@
 #include "ui/FieldForm.h"
 
 #include "items/FieldValidation.h"
+#include "ui/ImagePaste.h"
 #include "ui/ImagePasteDialog.h"
 
 #include <QCheckBox>
 #include <QClipboard>
 #include <QComboBox>
+#include <QDragEnterEvent>
+#include <QDragLeaveEvent>
+#include <QDragMoveEvent>
+#include <QDropEvent>
 #include <QFileDialog>
 #include <QFormLayout>
 #include <QGuiApplication>
@@ -20,6 +25,7 @@
 #include <QPlainTextEdit>
 #include <QPushButton>
 #include <QSpinBox>
+#include <QTimer>
 #include <QVBoxLayout>
 
 #include <limits>
@@ -30,6 +36,52 @@ namespace mirante {
 namespace {
 
 const QSize thumbnailSize(96, 72);
+
+// The editor of an image field. It takes an image dropped from another app,
+// as ImagePaste::imageFromMime() reads it, and passes it to onDrop once the
+// drop is over, so the drag's source is not kept waiting while the paste
+// dialog is open. The drag is copied, never moved. See
+// docs/decisions/0085-drop-images-from-other-apps.md.
+class ImageBox : public QWidget
+{
+public:
+    using QWidget::QWidget;
+
+    std::function<void(const QImage &image)> onDrop;
+
+protected:
+    void dragEnterEvent(QDragEnterEvent *event) override
+    {
+        m_image = onDrop && (event->possibleActions() & Qt::CopyAction) ? ImagePaste::imageFromMime(event->mimeData())
+                                                                         : QImage();
+        accept(event);
+    }
+    void dragMoveEvent(QDragMoveEvent *event) override { accept(event); }
+    void dragLeaveEvent(QDragLeaveEvent * /*event*/) override { m_image = QImage(); }
+    void dropEvent(QDropEvent *event) override
+    {
+        const QImage image = m_image;
+        m_image = QImage();
+        if (!accept(event, image))
+            return;
+        QTimer::singleShot(0, this, [this, image] { onDrop(image); });
+    }
+
+private:
+    bool accept(QDropEvent *event) { return accept(event, m_image); }
+    static bool accept(QDropEvent *event, const QImage &image)
+    {
+        if (image.isNull()) {
+            event->ignore();
+            return false;
+        }
+        event->setDropAction(Qt::CopyAction);
+        event->accept();
+        return true;
+    }
+
+    QImage m_image;     // the image being dragged over the field, if any
+};
 
 } // namespace
 
@@ -257,7 +309,7 @@ FieldForm::FieldForm(std::vector<Field> fields, EditorContext context, QWidget *
             break;
         case Field::Type::Secret: {
             // The line, and a Remove button for a token set on this device.
-            auto *box = new QWidget(this);
+            auto *box = new ImageBox(this);
             auto *layout = new QHBoxLayout(box);
             layout->setContentsMargins(0, 0, 0, 0);
             row.line = new QLineEdit(box);
@@ -314,7 +366,7 @@ FieldForm::FieldForm(std::vector<Field> fields, EditorContext context, QWidget *
             row.editor = row.combo;
             break;
         case Field::Type::Image: {
-            auto *box = new QWidget(this);
+            auto *box = new ImageBox(this);
             auto *layout = new QHBoxLayout(box);
             layout->setContentsMargins(0, 0, 0, 0);
             row.thumbnail = new QLabel(box);
@@ -363,6 +415,13 @@ FieldForm::FieldForm(std::vector<Field> fields, EditorContext context, QWidget *
                 if (!image.isNull())
                     useImage(ImagePasteDialog::ask(image, this, d->exec));
             });
+            // A dropped image too, as the Paste button.
+            if (canSave) {
+                box->setAcceptDrops(true);
+                box->onDrop = [this, useImage](const QImage &image) {
+                    useImage(ImagePasteDialog::ask(image, this, d->exec));
+                };
+            }
             connect(choose, &QPushButton::clicked, this, [this, useImage] {
                 QStringList patterns;
                 for (const QByteArray &format : QImageReader::supportedImageFormats())
