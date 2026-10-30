@@ -175,6 +175,17 @@ void AppStyle::drawPrimitive(PrimitiveElement element, const QStyleOption *optio
         painter->restore();
         return;
     }
+    case PE_PanelItemViewRow:
+    case PE_PanelItemViewItem:
+        // The sidebar tree paints its rows itself: the project tint, the tint
+        // of the hovered cell's row and the selection. The Windows 11 style
+        // would paint its own background over them. Only its highlight of the
+        // row under the mouse stays.
+        if (widget && widget->inherits("mirante::SidebarTree")
+            && !(element == PE_PanelItemViewItem && (option->state & State_MouseOver)
+                 && !(option->state & State_Selected)))
+            return;
+        break;
     default:
         break;
     }
