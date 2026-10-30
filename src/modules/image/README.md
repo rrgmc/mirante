@@ -12,7 +12,18 @@ The module calls itself "Image" and describes itself as: "Images, such as screen
 
 The image is a file in the data folder's `files/` folder. The item's configuration holds its file name, the link and the memo.
 
-Since M3 the type declares its configuration fields, so items can be created and edited. Its view arrives in a later milestone. Until then the cell shows the core's placeholder.
+Since M3 the type declares its configuration fields, so items can be created and edited. Since M7 it has a view.
+
+## View
+
+`ImageView.cpp` makes the view, from the file that `ItemContext::filePath()` gives for `file`.
+
+- The image is scaled to fit the cell, with its aspect ratio kept and smooth scaling, and centred. The file is read once, when the view is made. The scaled copy is made again only when the size changes.
+- The memo is shown under the image as plain text, wrapped and selectable. It is hidden when empty.
+- With a `link` that is an `http` or `https` address, the pointer is a hand over the image, the tooltip is the link, and a click opens it in the external browser. Any other link is ignored.
+- A missing file shows "The image file is missing." A file that is not an image shows "The image file cannot be read." Both use `ItemContext::createMessageView()`.
+
+A change of `file`, such as a new image pasted with `Ctrl+V`, makes the view again, so it shows the new image.
 
 ## Configuration
 
