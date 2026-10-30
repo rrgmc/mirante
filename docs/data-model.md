@@ -127,7 +127,7 @@ A profile groups what belongs to one account or context, such as "Work" or "Pers
 - the values of the modules' [settings screens](#module-settings), such as the [server](#servers-and-tokens) each module talks to;
 - the token for each such server, kept in the keychain of each device.
 
-The list belongs to the workspace and is kept in `workspace.mirante`, under `profiles`. One profile is the default, named by `defaultProfile`. See decisions [0050](decisions/0050-profiles-hold-logins-connections-and-settings.md), [0054](decisions/0054-module-settings-replace-connections.md) and [0057](decisions/0057-any-profile-can-be-the-default.md), which extend [decision 0042](decisions/0042-user-managed-web-profiles.md).
+The list belongs to the workspace and is kept in `workspace.mirante`, under `profiles`. One profile is the default, named by `defaultProfile`. The file also holds the workspace's `id`, a UUID under which each device keeps the workspace's logins and tokens; see [decision 0059](decisions/0059-logins-per-workspace.md). See decisions [0050](decisions/0050-profiles-hold-logins-connections-and-settings.md), [0054](decisions/0054-module-settings-replace-connections.md) and [0057](decisions/0057-any-profile-can-be-the-default.md), which extend [decision 0042](decisions/0042-user-managed-web-profiles.md).
 
 | Field | Description |
 |---|---|

@@ -51,7 +51,8 @@ QByteArray toBytes(const QJsonObject &json);
 // docs/decisions/0027-workspace-needs-its-file.md.
 QString workspaceFileName();                // "workspace.mirante"
 bool isWorkspace(const QString &dir);
-// Makes the folder a workspace by writing its workspace.mirante, with the name.
+// Makes the folder a workspace by writing its workspace.mirante, with the
+// name and a new id (decision 0059).
 bool createWorkspace(const QString &dir, const QString &name, QString *error = nullptr);
 // Moves a workspace's folder, with everything in it, to the folder to. to
 // must not exist yet, or be empty, and must not be inside from. The caller
@@ -93,6 +94,10 @@ public:
     void close();
     QString dir() const;
     bool readOnly() const;
+    // Whether the last open() gave the workspace its id, because its
+    // workspace.mirante had none: it is from before decision 0059. The id is
+    // written at once.
+    bool assignedWorkspaceId() const;
     // Writes pending changes now. Called before quitting.
     void flush();
 

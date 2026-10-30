@@ -30,6 +30,7 @@ Profile firstProfile()
 struct Model::Private
 {
     QString workspaceName;
+    QString workspaceId;
     std::vector<Profile> profiles = {firstProfile()};
     QString defaultProfile = kDefaultProfile;   // as stored; see Model::defaultProfile()
     std::map<QString, Group> groups;
@@ -451,6 +452,10 @@ void Model::removeTask(const QString &taskId)
 }
 
 QString Model::workspaceName() const { return d->workspaceName; }
+
+QString Model::workspaceId() const { return d->workspaceId; }
+
+void Model::setWorkspaceId(const QString &id) { d->workspaceId = id; }
 
 void Model::setWorkspaceName(const QString &name)
 {

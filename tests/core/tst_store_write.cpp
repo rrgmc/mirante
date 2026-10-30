@@ -91,6 +91,7 @@ private slots:
     void removalsDeleteFiles();
     void trashSurvivesReload();
     void readOnly();
+    void workspaceId();
     void imageFiles();
     void saveFile();
     void closeFlushes();
@@ -487,6 +488,64 @@ void TestStoreWrite::closeFlushes()
 
 // The whole folder moves, hidden files and subfolders too, into a new
 // folder or an empty one.
+// Decision 0059: a workspace keeps an id in workspace.mirante. One from
+// before it gets one when opened, written at once; a new workspace has one
+// from the start; a read-only one keeps what it has.
+void TestStoreWrite::workspaceId()
+{
+    writeFile(path(QStringLiteral("workspace.mirante")), R"({ "schemaVersion": 1, "name": "Old" })");
+    Model model;
+    {
+        Store store(model);
+        QVERIFY(store.open(m_dir->path()).empty());
+        QVERIFY(store.assignedWorkspaceId());
+    }
+    const QString id = model.workspaceId();
+    QVERIFY(!id.isEmpty());
+    QCOMPARE(json(QStringLiteral("workspace.mirante")).value(QStringLiteral("id")).toString(), id);
+    QCOMPARE(json(QStringLiteral("workspace.mirante")).value(QStringLiteral("name")).toString(), QStringLiteral("Old"));
+
+    // Opened again: the same id, nothing assigned.
+    Model again;
+    Store store(again);
+    QVERIFY(store.open(m_dir->path()).empty());
+    QVERIFY(!store.assignedWorkspaceId());
+    QCOMPARE(again.workspaceId(), id);
+    // A rename keeps it.
+    again.setWorkspaceName(QStringLiteral("New"));
+    store.flush();
+    QCOMPARE(json(QStringLiteral("workspace.mirante")).value(QStringLiteral("id")).toString(), id);
+    store.close();
+
+    // A new workspace has its id before it is opened.
+    QTemporaryDir fresh;
+    QVERIFY(fresh.isValid());
+    QVERIFY(store::createWorkspace(fresh.path(), QStringLiteral("Fresh")));
+    QFile file(fresh.filePath(QStringLiteral("workspace.mirante")));
+    QVERIFY(file.open(QIODevice::ReadOnly));
+    const QString freshId = QJsonDocument::fromJson(file.readAll()).object().value(QStringLiteral("id")).toString();
+    QVERIFY(!freshId.isEmpty());
+    QVERIFY(freshId != id);
+    Model created;
+    Store createdStore(created);
+    QVERIFY(createdStore.open(fresh.path()).empty());
+    QVERIFY(!createdStore.assignedWorkspaceId());
+    QCOMPARE(created.workspaceId(), freshId);
+    createdStore.close();
+
+    // The sample data has its own, so it never takes the logins of others.
+    Model sample;
+    QVERIFY(store::load(QStringLiteral(MIRANTE_FIXTURES_DIR), sample).empty());
+    QCOMPARE(sample.workspaceId(), QStringLiteral("5a3e9c1d-7b2f-5e48-a6d0-3c8f1b2e4d97"));
+
+    // A read-only folder without an id gets none.
+    Model readOnly;
+    Store readOnlyStore(readOnly);
+    readOnlyStore.open(QStringLiteral(":/no-such-folder"));
+    QVERIFY(!readOnlyStore.assignedWorkspaceId());
+    QVERIFY(readOnly.workspaceId().isEmpty());
+}
+
 void TestStoreWrite::moveWorkspace()
 {
     QTemporaryDir root;

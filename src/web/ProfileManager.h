@@ -11,8 +11,10 @@ class QWebEngineProfile;
 namespace mirante {
 
 // Creates and owns the QWebEngineProfiles that keep web logins: one for each
-// profile of the workspace, by its id, and the app profile. See
-// docs/web-views.md#profiles and decisions 0042 and 0050 in docs/decisions/.
+// profile of the open workspace, by its id, and the app profile. Each
+// workspace keeps its own, in a folder of its own. See
+// docs/web-views.md#profiles and decisions 0042, 0050 and 0059 in
+// docs/decisions/.
 // Implemented in ProfileManager.cpp.
 //
 // A profile must outlive every page that uses it, so the manager is destroyed
@@ -24,6 +26,7 @@ class ProfileManager : public QObject
 public:
     // root is the folder that holds every profile's data. main.cpp passes
     // QStandardPaths::AppLocalDataLocation + "/profiles"; tests a temporary folder.
+    // Until setWorkspace() is called, profiles are kept directly in root.
     explicit ProfileManager(const QString &root, QObject *parent = nullptr);
     ~ProfileManager() override;
 
@@ -59,17 +62,33 @@ public:
     // start. Once they are gone, it finds nothing.
     void removeOldProfiles();
 
-    // The data folder of a profile, by its storage name.
+    // The data folder of a profile of the open workspace, by its storage
+    // name: root/<workspace>/<storageName>.
     QString storagePath(const QString &storageName) const;
+
+    // Chooses the workspace whose profiles profile() gives, by its id. The
+    // main window calls it when a workspace opens, before any view asks for a
+    // profile. A key that is not a plain name, such as a folder path for a
+    // workspace without an id, is hashed. Profiles of the workspace before
+    // stay loaded until the manager goes, since pages of it may still close.
+    void setWorkspace(const QString &key);
+    // The folder name under root for the open workspace; empty before setWorkspace().
+    QString workspace() const;
+
+    // Moves the profile folders kept directly in root, from before decision
+    // 0059, into the open workspace's folder. The main window calls it when
+    // a workspace has just received its id. A folder the workspace already
+    // has is left. Returns how many were moved.
+    int adoptRootProfiles();
 
 signals:
     void profileClearing(const QString &profileId);
     void profileCleared(const QString &profileId);
 
 private:
-    // Removes the profile with this storage name, loaded or not, and its
+    // Removes the profile kept in this folder, loaded or not, and the
     // folder. done runs once the folder is gone, or the attempts ran out.
-    void removeStorage(const QString &storageName, std::function<void()> done = {});
+    void removeFolder(const QString &path, std::function<void()> done = {});
 
     struct Private;
     std::unique_ptr<Private> d;

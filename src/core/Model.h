@@ -65,6 +65,13 @@ public:
     QString workspaceName() const;
     void setWorkspaceName(const QString &name);
 
+    // The workspace's id, from workspace.mirante: a UUID that stays when the
+    // folder moves. This device keeps the workspace's web logins under it.
+    // Empty for a workspace from before decision 0059 until the Store gives
+    // it one. reset() clears it. See docs/decisions/0059-logins-per-workspace.md.
+    QString workspaceId() const;
+    void setWorkspaceId(const QString &id);
+
     // The workspace's profiles, from workspace.mirante, in their stored
     // order. There is always at least one. See core/Profiles.h for lookups by
     // the resolution order. reset() leaves one empty profile called
