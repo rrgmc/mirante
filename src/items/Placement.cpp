@@ -77,6 +77,12 @@ QString ageText(const QDateTime &time)
     return Placement::tr("%n day(s) ago", nullptr, int(minutes / (24 * 60)));
 }
 
+} // namespace
+
+QString statusAge(const QDateTime &time) { return ageText(time); }
+
+namespace {
+
 QString reasonTexts(const QList<AttentionReason> &reasons)
 {
     QStringList texts;

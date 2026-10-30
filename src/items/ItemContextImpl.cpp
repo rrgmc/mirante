@@ -14,6 +14,7 @@
 #include "platform/Launcher.h"
 #include "web/PageKeys.h"
 #include "web/ProfileManager.h"
+#include "items/DashBridge.h"
 #include "web/DashView.h"
 #include "web/WebPanel.h"
 
@@ -196,7 +197,13 @@ QWidget *ItemContextImpl::createDashPanel(const QString &panel, QWidget *parent)
         return createMessageView(QCoreApplication::translate("ItemContext", "Web pages are not available here."),
                                  parent);
     const QUrl url(QStringLiteral("dash://panels/%1/index.html").arg(panel));
-    return new DashView(m_services.profiles->appProfile(), url, nullptr, parent);
+    // The view owns the bridge. Its page, made first, goes first, so the
+    // channel never outlives the bridge.
+    auto *bridge = new DashBridge(m_services, m_taskId);
+    auto *view = new DashView(m_services.profiles->appProfile(), url, bridge, parent);
+    bridge->setParent(view);
+    bridge->followPalette(view);
+    return view;
 }
 
 QWebEngineProfile *ItemContextImpl::profile()

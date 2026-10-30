@@ -31,14 +31,15 @@ Smaller choices made here:
                       items: [ { id, name, type, typeName, hasStatus } ] }
   itemStatus(id)    { state, summary, message, closed, updated, attention: [ text ],
                       needsAttention }
-  groupTasks(id)    [ { id, title, project, priority, priorityName, attention } ]
+  groupTasks(id)    [ { id, title, project, priority, priorityName, attention, attentionText, current } ]
   texts()           { key: text }
-  palette()         { window, base, text, muted, accent, link, attention,
-                      priorityUrgent, priorityHigh, priorityNormal, priorityLow }
+  palette()         { window, base, alternateBase, text, muted, border, accent, highlight, link,
+                      attention, priorityUrgent, priorityHigh, priorityNormal, priorityLow,
+                      fontFamily, fontSize }
   ```
 
   `state` is the `ItemStatus::State` in lowercase, such as `ok` or `notoken`. `updated` is "5 minutes ago", or empty. `groupTasks` lists active tasks not in the trash, by priority, then in sidebar order. `attention` there is `Attention::taskCount()`. Nothing returned holds a token, a server address or a profile.
-- **`changed`.** One signal, emitted at most once per pass of the event loop, after any of: a `Model` change to the task, its project or group, or any task of the group; `StatusCache::statusChanged` for an item of the task; `Attention::countsChanged`; a palette change. Panels fetch everything again on `changed`. The data is small.
+- **`changed`.** One signal, emitted at most once per pass of the event loop, after any of: a `Model` change to the task, its project or group, or any task of the group; `StatusCache::statusChanged` for an item of the task; `Attention::countsChanged` when the attention the panel shows differs, since counts change for the whole workspace; a palette change of the view. Panels fetch everything again on `changed`. The data is small.
 - **Opening.** `openItem(id)` opens the item alone in the preview, as `MainWindow::openItem()` does. `openTask(id)` opens the task's default dashboard in the preview, as the quick switcher does. Both work only for ids the panel may see.
 - **The panels' look.** Plain HTML, CSS and JavaScript, with no framework and no build step. Each panel has `index.html`, `panel.js` and `panel.css`, and shares `common/dash.js`, which connects the channel, fetches the texts and colours, sets the CSS custom properties and calls the panel's `render()` on start and on `changed`. Text uses the system UI font at the app's size.
 
@@ -47,7 +48,7 @@ Smaller choices made here:
 - **New `web::DashSchemeHandler`**, a `QWebEngineUrlSchemeHandler`, with a pure function `dash::resourceFor(const QUrl &)` that maps an address to a resource path or nothing. Also `dash::registerScheme()`, which `main.cpp` calls first.
 - **`ProfileManager::appProfile()`** installs the handler when it makes the profile.
 - **New `web::DashPage` and `web::DashView`**, in the web library, since they need no status.
-- **New `items::DashBridge`**, a `QObject` with the members above. It sits in the items library, not in web as [architecture](../architecture.md#web) says today, because it needs the status cache and attention from `api`, and `web` does not depend on `api`. The architecture table moves it.
+- **New `items::DashBridge`**, a `QObject` with the members above. It sits in the items library, not in web as [architecture](../architecture.md#web) said before M9, because it needs the status cache and attention from `api`, and `web` does not depend on `api`. The architecture table moves it.
 - **New `items::DashPanelType`**, the `dash.panel` item type, and `registerDashModule()`, which `main.cpp` calls before `registerEnabledModules()`.
 - **`ItemTypeRegistry`** gains `registerBuiltInModule()` and `isBuiltIn(moduleId)`.
 - **`ItemContextImpl`** gains `createDashPanel(panel, parent)`, which `DashPanelType::createView()` reaches with a `dynamic_cast`. Without the services it needs, it returns a message view.

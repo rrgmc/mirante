@@ -138,16 +138,35 @@ Built-in panels are HTML pages shipped with the app. They show data from the [st
   ```
 
   Panel pages cannot load remote code, run inline scripts or call the network. `no-store` makes a panel changed in a new build load fresh.
-- **The bridge.** Panels talk to the app through `QWebChannel`, using one object named `dash`:
+- **Navigation.** A panel's page, `DashPage`, goes only to `dash:` addresses, makes no new windows, and denies every permission. So no page but a panel ever holds the bridge.
+- **The bridge.** Panels talk to the app through `QWebChannel`, using one object named `dash`, a `DashBridge`. Each panel has its own, for the task that holds it. It sees only that task and the task's group; any other id gives an empty answer and opens nothing. See [decision 0094](decisions/0094-built-in-panels-as-a-core-item-type.md).
 
 | Member | Description |
 |---|---|
 | `currentTask()` | The task the panel belongs to, with its items |
-| `itemStatus(itemId)` | Cached status of one item |
-| `groupTasks(groupId)` | Active tasks of a group, with priority and attention |
-| `openItem(itemId)` | Opens an item in the app |
-| `changed` (signal) | Emitted when relevant cached data changes |
+| `itemStatus(itemId)` | Cached status of one item of the task |
+| `groupTasks(groupId)` | Active tasks of the task's group, not in the trash, by priority, then in the sidebar's order, with their attention counts |
+| `openItem(itemId)` | Opens an item of the task alone in the preview |
+| `openTask(taskId)` | Opens a task of the group in the preview, unless it is in the trash |
+| `texts()` | The panels' fixed texts, translated |
+| `palette()` | The app's colours as CSS colours, and its font |
+| `changed` (signal) | Emitted, at most once per pass of the event loop, when something a panel shows may have changed |
 
-The bridge never exposes tokens, server settings or raw API calls.
+The data comes ready to show, as [decision 0095](decisions/0095-the-bridge-gives-texts-and-colours.md) says. Texts are translated, a status's age reads "12 min ago" as in cell headers, and priorities have their names:
+
+```text
+currentTask()     { id, title, project, group, groupId, priority, priorityName, state,
+                    items: [ { id, name, type, typeName, hasStatus } ] }
+itemStatus(id)    { state, summary, message, closed, updated, attention: [ text ], needsAttention }
+groupTasks(id)    [ { id, title, project, priority, priorityName, attention, attentionText, current } ]
+texts()           { noStatusItems, noActiveTasks, notFetched, closed, thisTask, taskGone }
+palette()         { window, base, alternateBase, text, muted, border, accent, highlight, link,
+                    attention, priorityUrgent, priorityHigh, priorityNormal, priorityLow,
+                    fontFamily, fontSize }
+```
+
+`state` of a task is `active`, `done` or `archived`. `state` of a status is `none`, `ok`, `noserver`, `notoken`, `refused`, `notfound` or `error`. `priority` is 0 for Urgent to 3 for Low. `closed` is true, false or null when the type does not say. `changed` follows the task, the tasks, projects and name of its group, the status of the task's items, the attention the panel shows, and the palette.
+
+The bridge never exposes tokens, server settings, profiles or raw API calls.
 
 There are two panels in the first version: task summary and group overview. They are described in [item types](item-types.md#built-in-panels).

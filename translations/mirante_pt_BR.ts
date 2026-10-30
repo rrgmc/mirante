@@ -1653,6 +1653,56 @@
     </message>
 </context>
 <context>
+    <name>mirante::DashBridge</name>
+    <message>
+        <source>Urgent</source>
+        <translation>Urgente</translation>
+    </message>
+    <message>
+        <source>High</source>
+        <translation>Alta</translation>
+    </message>
+    <message>
+        <source>Normal</source>
+        <translation>Normal</translation>
+    </message>
+    <message>
+        <source>Low</source>
+        <translation>Baixa</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n item(s) need attention</source>
+        <translation>
+            <numerusform>%n item precisa de atenção</numerusform>
+            <numerusform>%n itens precisam de atenção</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>No items in this task report a status.</source>
+        <translation>Nenhum item desta tarefa informa um status.</translation>
+    </message>
+    <message>
+        <source>No active tasks in this group.</source>
+        <translation>Nenhuma tarefa ativa neste grupo.</translation>
+    </message>
+    <message>
+        <source>Not fetched yet</source>
+        <translation>Ainda não buscado</translation>
+    </message>
+    <message>
+        <source>Closed</source>
+        <translation>Fechado</translation>
+    </message>
+    <message>
+        <source>This task</source>
+        <translation>Esta tarefa</translation>
+    </message>
+    <message>
+        <source>This panel&apos;s task no longer exists.</source>
+        <translation>A tarefa deste quadro não existe mais.</translation>
+    </message>
+</context>
+<context>
     <name>mirante::DashboardDialog</name>
     <message>
         <source>New dashboard</source>
