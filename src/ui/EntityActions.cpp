@@ -776,6 +776,18 @@ void EntityActions::moveTask(const QString &id, int index)
         d->model.setTask(changed);
 }
 
+void EntityActions::moveItem(const QString &taskId, const QString &itemId, int index)
+{
+    if (const Task *task = d->model.task(taskId))
+        d->model.setTask(edits::moveItem(*task, itemId, index));
+}
+
+void EntityActions::moveDashboard(const QString &taskId, const QString &dashboardId, int index)
+{
+    if (const Task *task = d->model.task(taskId))
+        d->model.setTask(edits::moveDashboard(*task, dashboardId, index));
+}
+
 // Menus.
 
 namespace {

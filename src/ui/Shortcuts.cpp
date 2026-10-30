@@ -106,6 +106,8 @@ void collectCells(const LayoutView *view, std::vector<QWidget *> &cells)
 
 } // namespace
 
+QKeySequence lockShortcut() { return QKeySequence(Qt::Key_F2); }
+
 struct Shortcuts::Private
 {
     Shortcuts *q = nullptr;
@@ -407,6 +409,7 @@ Shortcuts::Shortcuts(MainWindow *window)
             d->restore(false);
         d->window->closeCurrentTab();
     });
+    d->add(lockShortcut(), [this] { d->window->toggleCurrentLock(); });
 }
 
 Shortcuts::~Shortcuts()

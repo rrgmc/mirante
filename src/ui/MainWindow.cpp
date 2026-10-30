@@ -101,12 +101,14 @@ namespace {
 
 // Shows a lock's state on its button. The icon shows the state, so the button
 // is not checkable: a checked button's accent fill would hide the icon. The
-// text is its accessible name.
+// text is its accessible name. The tooltip names the lock key.
 void showLockState(QToolButton *button, bool unlocked)
 {
+    const QString key = lockShortcut().toString(QKeySequence::NativeText);
     button->setIcon(QIcon(unlocked ? QStringLiteral(":/icons/lock-open.svg") : QStringLiteral(":/icons/lock-closed.svg")));
     button->setText(unlocked ? MainWindow::tr("Editing") : MainWindow::tr("Locked"));
-    button->setToolTip(unlocked ? MainWindow::tr("Lock this dashboard") : MainWindow::tr("Unlock this dashboard for editing"));
+    button->setToolTip(unlocked ? MainWindow::tr("Lock this dashboard (%1)").arg(key)
+                                : MainWindow::tr("Unlock this dashboard for editing (%1)").arg(key));
 }
 
 // The visible cell that shows the item, looking inside task cells too.
@@ -1110,7 +1112,7 @@ struct MainWindow::Private
             sidebar->reveal(id);
     }
 
-    void onMoveRequested(SidebarModel::Kind kind, const QString &id, int index)
+    void onMoveRequested(SidebarModel::Kind kind, const QString &id, int index, const QString &taskId)
     {
         switch (kind) {
         case SidebarModel::Kind::Group:
@@ -1121,6 +1123,12 @@ struct MainWindow::Private
             break;
         case SidebarModel::Kind::Task:
             actions->moveTask(id, index);
+            break;
+        case SidebarModel::Kind::Item:
+            actions->moveItem(taskId, id, index);
+            break;
+        case SidebarModel::Kind::Dashboard:
+            actions->moveDashboard(taskId, id, index);
             break;
         default:
             break;
@@ -1841,7 +1849,9 @@ MainWindow::MainWindow(Model &model, const ItemTypeRegistry &types, Store &store
         });
     connect(d->sidebar, &Sidebar::emptyTrashRequested, d->actions, &EntityActions::emptyTrash);
     connect(d->sidebar->model(), &SidebarModel::moveRequested, this,
-            [this](SidebarModel::Kind kind, const QString &id, int index) { d->onMoveRequested(kind, id, index); });
+            [this](SidebarModel::Kind kind, const QString &id, int index, const QString &taskId) {
+                d->onMoveRequested(kind, id, index, taskId);
+            });
     d->sidebar->addHeaderWidget(d->buildNewButton());
     connect(&model, &Model::workspaceNameChanged, this, [this] { d->updateTitle(); });
     connect(d->showSidebarButton, &QToolButton::clicked, this, [this] { d->showSidebar(true); });
@@ -2246,6 +2256,20 @@ void MainWindow::closeCurrentTab()
     DashboardPage *page = d->currentPage();
     if (page && !page->isFocus())
         d->closePage(page);
+}
+
+void MainWindow::toggleCurrentLock()
+{
+    // The current page's lock button: the one at the end of the tab row for a
+    // root dashboard, or the title bar's for a task dashboard preview. Focus
+    // and an item page have none.
+    DashboardPage *page = d->currentPage();
+    if (!page)
+        return;
+    if (page->isRoot())
+        d->lockButton->click();
+    else if (page->lock)
+        page->lock->click();
 }
 
 void MainWindow::openFocus() { d->setCurrent(d->focusPage()); }

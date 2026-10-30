@@ -93,6 +93,7 @@ Each device maps a folder id to a local path in its own settings. A device witho
 Rules:
 
 - A new task gets one dashboard with a single empty cell.
+- The order of `items` and of `dashboards` is their order in the sidebar. The user changes it by dragging. A new item or dashboard goes last.
 - The user sets the state. The app suggests "done" when all linked merge requests are merged and all linked Jira issues are closed. It never changes the state on its own.
 
 ## Trash

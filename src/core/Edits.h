@@ -30,6 +30,11 @@ Task addDashboard(Task task, const Dashboard &dashboard);
 // remaining dashboard becomes the default.
 Task removeDashboard(Task task, const QString &dashboardId);
 Task setDefaultDashboard(Task task, const QString &dashboardId);
+// Moves an item or a task dashboard to index within the task's list, which
+// keeps them in sidebar order. The index counts the other entries of the
+// list and is clamped. An unknown id leaves the task unchanged.
+Task moveItem(Task task, const QString &itemId, int index);
+Task moveDashboard(Task task, const QString &dashboardId, int index);
 
 // Moves a project or task to index within the list of its siblings, and
 // renumbers order in that list from 0. Priority is not changed. siblings are
