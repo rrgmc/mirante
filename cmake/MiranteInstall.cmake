@@ -38,13 +38,18 @@ function(mirante_add_install target)
         NO_TRANSLATIONS
         NO_UNSUPPORTED_PLATFORM_ERROR
         DEPLOY_TOOL_OPTIONS ${deploy_options})
+    # Qt's deploy script copies into the install prefix. On Linux the app's
+    # folder is below it, so the prefix points there while the script runs.
     if(NOT app_dir STREQUAL ".")
-        # Qt's deploy script copies into the install prefix unless it is given
-        # another folder.
-        install(CODE "set(QT_DEPLOY_PREFIX \"\$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}/${app_dir}\")"
-            COMPONENT Mirante)
+        install(CODE "
+            set(mirante_install_prefix \"\${CMAKE_INSTALL_PREFIX}\")
+            set(CMAKE_INSTALL_PREFIX \"\${CMAKE_INSTALL_PREFIX}/${app_dir}\")
+        " COMPONENT Mirante)
     endif()
     install(SCRIPT "${deploy_script}" COMPONENT Mirante)
+    if(NOT app_dir STREQUAL ".")
+        install(CODE "set(CMAKE_INSTALL_PREFIX \"\${mirante_install_prefix}\")" COMPONENT Mirante)
+    endif()
 
     # Qt's own texts in Portuguese, such as the buttons of standard dialogs.
     # main.cpp loads them from QLibraryInfo::TranslationsPath: translations/
