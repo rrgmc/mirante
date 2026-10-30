@@ -92,7 +92,7 @@ The item dialog offers a profile for items of types that use one; see [the type 
 
 The Profiles menu, between View and Help, lists what can be done with profiles. See [decision 0054](decisions/0054-module-settings-replace-connections.md).
 
-- **Manage Profiles…** comes first. It opens the [profiles dialog](#profiles).
+- **Manage Profiles…** (`Ctrl+P`) comes first. It opens the [profiles dialog](#profiles).
 - A separator line follows.
 - Then a submenu for each profile, named after it: the default first, with "(default)" after its name, then the others by name.
 - Each profile's submenu holds what can be done with that profile. Its first entry is **Modules**, with a submenu for each module that has [settings screens](#modules), named after the module. That submenu lists the module's screens by their names, such as Profiles > Work (default) > Modules > GitLab > General Configuration…. When no module has screens, Modules is disabled and says "No module settings".
@@ -176,7 +176,7 @@ Standard controls, such as buttons, menus, lists and dialogs, keep the platform'
 The menu bar has File, View, Profiles, Tools and Help. On macOS there is no Tools menu: its one entry, Settings…, is in the application menu.
 
 - **File:** New Workspace… (`Ctrl+N`), Open Workspace… (`Ctrl+O`), Open Recent with the last ten workspaces and Clear Recent, Rename Workspace…, Move Workspace…, Show Workspace Folder, Open Sample Data, Reload Workspace (`F5`), New Group…, and Quit (`Ctrl+Q`). A workspace is a data folder with a `workspace.mirante` file at its top. Open Workspace… chooses that file. New Workspace… chooses a folder and a name and writes the file. A new workspace starts with one empty root dashboard, "Main", open as a tab with editing on, so the content area is not empty. It is an ordinary root dashboard: it can be renamed, closed or deleted. Opening an existing workspace never adds one. A folder without the file is not opened; from the menus the app offers to make it a workspace. At start the app opens the workspace given with `--data`, otherwise the last one used on this device if it still has its file, otherwise the sample data. The window title and the sidebar header show the workspace's name: the name in its `workspace.mirante`, else the folder's name. Rename Workspace…, or a double click on the name in the sidebar header, renames it, and the Store writes `workspace.mirante`. The sample data cannot be renamed. Move Workspace… moves the workspace's folder to an empty folder, or into a new folder with the same name inside a folder that is not empty, and opens it there. The device settings that name the folder, such as the recent list and the open tabs, follow it. Logins and tokens are kept by profile id, so they keep working. A folder that another program holds open is not moved, and the warning bar says so; see [decision 0055](decisions/0055-move-workspace.md). Show Workspace Folder opens the workspace's folder in Explorer, Finder or the desktop's file manager; it is disabled for the sample data, which has no folder. Reload Workspace opens the workspace again from its files. See decisions [0025](decisions/0025-workspace-file.md) and [0027](decisions/0027-workspace-needs-its-file.md).
-- **View:** Sidebar (show or hide), Expand All Tasks, Collapse All Tasks, Full Screen (`F11`, `Ctrl+Cmd+F` on macOS; leaving it brings back the maximized or normal window, and a window closed in full screen opens as it was before; in full screen the menu bar hides and shows while the mouse is at the top edge or a menu is open, and every shortcut keeps working, while macOS shows its own menu bar), Go To… (`Ctrl+K`, the [quick switcher](#keyboard)), All Dashboards…, and New Dashboard.
+- **View:** Sidebar (show or hide, `Ctrl+B`), Focus Sidebar (`Ctrl+Shift+E`; shows the sidebar and puts the keyboard focus in its tree, on its selected row or else its first), Expand All Tasks, Collapse All Tasks, Full Screen (`F11`, `Ctrl+Cmd+F` on macOS; leaving it brings back the maximized or normal window, and a window closed in full screen opens as it was before; in full screen the menu bar hides and shows while the mouse is at the top edge or a menu is open, and every shortcut keeps working, while macOS shows its own menu bar), Go To… (`Ctrl+K`, the [quick switcher](#keyboard)), All Dashboards… (`Ctrl+D`), and New Dashboard (`Ctrl+Shift+D`).
 - **Profiles:** Manage Profiles…, then a submenu for each profile with its Modules submenu. See [Profiles menu](#profiles-menu).
 - **Tools:** Settings…, which opens the [settings window](#settings). Windows and Linux only.
 - **Help:** Modules…, which opens the [Modules window](#modules-window), then About Mirante, with the version, the author and the project's address, and About Qt. Debug builds, and release builds started with `--log`, also have Show Log (`Ctrl+Shift+L`), a window that lists the app's Qt log messages as they arrive, including the JavaScript console of web pages, with a level and a text filter. Chromium's own messages go to the console only.
@@ -365,6 +365,11 @@ The project is chosen by matching the merge request's GitLab project or the issu
 |---|---|
 | `Ctrl+K` | Quick switcher: fuzzy search over groups, projects, tasks, items and dashboards. Entries in the [trash](#trash) are left out. |
 | `Ctrl+Shift+N` | Quick add |
+| `Ctrl+B` | Show or hide the sidebar |
+| `Ctrl+Shift+E` | Focus the sidebar's tree, showing the sidebar if it is hidden |
+| `Ctrl+D` | All Dashboards… |
+| `Ctrl+Shift+D` | New Dashboard |
+| `Ctrl+P` | Manage Profiles… |
 | `Ctrl+Alt+Arrow` | Move focus to the cell in that direction |
 | `Ctrl+Tab`, `Ctrl+Shift+Tab` | Next or previous tab in the focused tab group |
 | `Ctrl+PgDown`, `Ctrl+PgUp` | Next or previous tab of the tab row: the tabs in order, then Focus, then the preview, wrapping around |

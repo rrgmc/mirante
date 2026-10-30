@@ -1227,6 +1227,7 @@ struct MainWindow::Private
         profilesShown = profileIdsAndNames();
         QAction *manage = profilesMenu->addAction(MainWindow::tr("&Manage Profiles…"));
         manage->setObjectName(QStringLiteral("manageProfiles"));
+        manage->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_P));
         QObject::connect(manage, &QAction::triggered, q, [this] { actions->editProfiles(); });
         profilesMenu->addSeparator();
         for (const Profile &profile : profiles::all(*model)) {
@@ -1352,9 +1353,20 @@ struct MainWindow::Private
 
         QMenu *view = bar->addMenu(MainWindow::tr("&View"));
         showSidebarAction = view->addAction(MainWindow::tr("&Sidebar"));
+        showSidebarAction->setObjectName(QStringLiteral("showSidebar"));
         showSidebarAction->setCheckable(true);
         showSidebarAction->setChecked(true);
+        // Ctrl+B, as in VS Code, Sublime Text and Firefox.
+        showSidebarAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_B));
         QObject::connect(showSidebarAction, &QAction::triggered, q, [this](bool on) { showSidebar(on); });
+        // Ctrl+Shift+E, as VS Code focuses its explorer tree.
+        QAction *focusSidebar = view->addAction(MainWindow::tr("F&ocus Sidebar"));
+        focusSidebar->setObjectName(QStringLiteral("focusSidebar"));
+        focusSidebar->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_E));
+        QObject::connect(focusSidebar, &QAction::triggered, q, [this] {
+            showSidebar(true);
+            sidebar->focusTree();
+        });
         QAction *expand = view->addAction(MainWindow::tr("&Expand All Tasks"));
         QObject::connect(expand, &QAction::triggered, sidebar, &Sidebar::expandAllTasks);
         QAction *collapse = view->addAction(MainWindow::tr("&Collapse All Tasks"));
@@ -1371,8 +1383,12 @@ struct MainWindow::Private
         switcherAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_K));
         QObject::connect(switcherAction, &QAction::triggered, q, &MainWindow::showQuickSwitcher);
         QAction *list = view->addAction(MainWindow::tr("&All Dashboards…"));
+        list->setObjectName(QStringLiteral("allDashboards"));
+        list->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_D));
         QObject::connect(list, &QAction::triggered, q, &MainWindow::showDashboardList);
         QAction *add = view->addAction(MainWindow::tr("&New Dashboard"));
+        add->setObjectName(QStringLiteral("newDashboard"));
+        add->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_D));
         QObject::connect(add, &QAction::triggered, q, &MainWindow::newRootDashboard);
 
         buildProfilesMenu(bar);

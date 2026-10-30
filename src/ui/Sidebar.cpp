@@ -460,6 +460,13 @@ void Sidebar::setTrashMenuFiller(MenuFiller filler) { d->trashMenuFiller = std::
 
 bool Sidebar::showsTrash() const { return d->stateTabs->currentIndex() == TrashList; }
 
+void Sidebar::focusTree()
+{
+    if (!d->tree->currentIndex().isValid() && d->tree->model()->rowCount() > 0)
+        d->tree->setCurrentIndex(d->tree->model()->index(0, 0));
+    d->tree->setFocus(Qt::ShortcutFocusReason);
+}
+
 // SidebarTree paints the tint. See SidebarDelegate::isHoverTinted().
 void Sidebar::setHoverHighlight(const QString &id)
 {
