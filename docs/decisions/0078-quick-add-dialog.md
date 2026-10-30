@@ -1,6 +1,6 @@
 # 0078. Quick add is a dialog that reads text through the modules
 
-- Status: Accepted
+- Status: Accepted; in part superseded by [0083](0083-quick-add-into-a-task.md)
 - Date: 2026-10-30
 
 ## Context

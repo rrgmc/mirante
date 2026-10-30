@@ -13,7 +13,7 @@ Each file records one design decision: what was decided, what else was considere
 | [0005](0005-profiles-per-group.md) | One web login profile per group, with a shared option | Superseded by 0042 |
 | [0006](0006-connections-per-group.md) | API connections per group, tokens in the keychain | Superseded by 0054 |
 | [0007](0007-separate-item-types-per-rendering.md) | Separate item types for summary and page | Accepted |
-| [0008](0008-claude-sessions.md) | Claude sessions through web views and the terminal only | Accepted |
+| [0008](0008-claude-sessions.md) | Claude sessions through web views and the terminal only | Accepted; local sessions superseded by 0084 |
 | [0009](0009-priority-and-attention.md) | Four priority levels; attention as badges | Accepted; sorting superseded by 0034 |
 | [0010](0010-folder-identity.md) | Folders stored as identities, mapped to paths per device | Accepted |
 | [0011](0011-root-cells-reference-task-dashboards.md) | Root dashboard cells refer to task dashboards | Accepted |
@@ -82,11 +82,15 @@ Each file records one design decision: what was decided, what else was considere
 | [0075](0075-hide-to-tray-and-show-hide-hotkey.md) | Closing hides to the tray, and a global hotkey shows or hides the app | Accepted; the default hotkey by 0076 |
 | [0076](0076-left-hand-default-hotkey.md) | The default global hotkey is pressed with the left hand | Accepted |
 | [0077](0077-no-macos-in-ci-during-development.md) | No macOS in CI during development | Accepted |
-| [0078](0078-quick-add-dialog.md) | Quick add is a dialog that reads text through the modules | Accepted |
+| [0078](0078-quick-add-dialog.md) | Quick add is a dialog that reads text through the modules | Accepted; in part superseded by 0083 |
 | [0079](0079-module-device-settings.md) | Modules declare device settings as fields | Accepted |
 | [0080](0080-git-read-by-the-core.md) | The core reads Git state for modules | Accepted |
 | [0081](0081-views-that-keep-their-own-keys.md) | A view can keep configuration keys it writes itself | Accepted |
 | [0082](0082-commands-as-argument-lists.md) | Commands are passed as a program and its arguments | Accepted |
+| [0083](0083-quick-add-into-a-task.md) | Quick add can add items to an existing task, and says which it does | Accepted |
+| [0084](0084-no-local-claude-sessions.md) | No Claude session (local) item | Accepted |
+| [0085](0085-drop-images-from-other-apps.md) | Images can be dropped from other apps | Accepted |
+| [0086](0086-english-and-brazilian-portuguese.md) | The app speaks English and Brazilian Portuguese | Accepted |
 
 ## Template
 
