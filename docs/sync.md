@@ -108,7 +108,7 @@ Started with `--settings <file>`, the app keeps these settings in that INI file 
   - Windows Credential Manager;
   - macOS Keychain;
   - Secret Service (libsecret) on Linux.
-- A token is entered on the module's settings screen, in a field of type `Secret`. It is stored under service `mirante` and key `<workspaceId>/<profileId>/<moduleId>/<fieldKey>`, such as `5a3e…/default/gitlab/token`, so each workspace keeps its own ([decision 0059](decisions/0059-logins-per-workspace.md)). The key contains no secret, so it can be derived from synced data.
+- A token is entered on the module's settings screen, in a field of type `Secret`. It is stored under service `mirante` and key `<workspaceId>/<profileId>/<moduleId>/<fieldKey>`, such as `5a3e…/default/gitlab/token`, so each workspace keeps its own ([decision 0059](decisions/0059-logins-per-workspace.md)). The key contains no secret, so it can be derived from synced data. The screen says whether the token is set on this device, and its **Remove** button removes it. See [ui](ui.md#modules).
 - Tokens are never written to the data folder and never synced. Each device asks for each token once. See [decision 0054](decisions/0054-module-settings-replace-connections.md).
 - Tokens are stored from M5. No earlier version stored a token, so there are no old keys to move. The log never holds a token's value.
 - The app keeps each token in memory after the first read, so it asks the keychain once per key in a session.
