@@ -1,12 +1,17 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
   <defs>
-    <clipPath id="sky"><rect x="8" y="8" width="240" height="104"/></clipPath>
+    <clipPath id="arches">
+      <path d="M36 204 V100 A26 26 0 0 1 88 100 V204 Z"/>
+      <path d="M102 204 V100 A26 26 0 0 1 154 100 V204 Z"/>
+      <path d="M168 204 V100 A26 26 0 0 1 220 100 V204 Z"/>
+    </clipPath>
   </defs>
-  <rect x="8" y="8" width="240" height="240" rx="52" fill="#1e3a8a"/>
-  <circle cx="128" cy="112" r="40" fill="#fbbf24" clip-path="url(#sky)"/>
-  <rect x="36" y="110" width="184" height="5" rx="2.5" fill="#fbbf24"/>
-  <path d="M97.5 128 H123 V156 H76 Z" fill="#ffffff" fill-opacity="0.75"/>
-  <path d="M133 128 H158.5 L180 156 H133 Z" fill="#ffffff" fill-opacity="0.75"/>
-  <path d="M68 166 H123 V214 H32 Z" fill="#ffffff"/>
-  <path d="M133 166 H188 L224 214 H133 Z" fill="#ffffff"/>
+  <rect x="8" y="8" width="240" height="240" rx="52" fill="#1d4ed8"/>
+  <g clip-path="url(#arches)">
+    <rect x="30" y="60" width="196" height="150" fill="#e0ecff"/>
+    <circle cx="128" cy="126" r="17" fill="#fbbf24"/>
+    <path d="M30 168 C64 148 96 156 128 164 C162 172 192 146 226 154 V210 H30 Z" fill="#60a5fa"/>
+    <path d="M30 188 C72 176 108 198 148 190 C184 183 206 186 226 182 V210 H30 Z" fill="#1e40af"/>
+  </g>
+  <rect x="26" y="200" width="204" height="16" rx="4" fill="#ffffff"/>
 </svg>

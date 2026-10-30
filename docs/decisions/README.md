@@ -96,8 +96,9 @@ Each file records one design decision: what was decided, what else was considere
 | [0089](0089-module-identity.md) | Modules give a UUID, a version, an author and a homepage | Accepted |
 | [0090](0090-sign-the-macos-bundle.md) | Sign the macOS bundle with a certificate when one is set | Accepted; extended by 0091 |
 | [0091](0091-default-macos-sign-identity.md) | The macOS build signs with the maintainer's certificate when the keychain has it | Accepted |
-| [0092](0092-app-icon-vista.md) | The app icon is a sunrise over dashboard tiles | Accepted; the running Dock icon by 0093 |
+| [0092](0092-app-icon-vista.md) | The app icon is a sunrise over dashboard tiles | Superseded by 0094 |
 | [0093](0093-dock-shows-the-bundle-icon.md) | The macOS Dock shows the bundle's icon | Accepted |
+| [0094](0094-app-icon-arcada.md) | The app icon is a landscape seen through three arches | Accepted |
 
 ## Template
 
