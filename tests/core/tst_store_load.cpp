@@ -34,6 +34,7 @@ class TestStoreLoad : public QObject
 private slots:
     void loadsFixtures();
     void fixtureDetails();
+    void loadsMissingModuleItems();
     void reportsProblems();
     void emptyFolder();
     void replacesModel();
@@ -90,12 +91,21 @@ void TestStoreLoad::fixtureDetails()
     QCOMPARE(model.rootDashboard(QStringLiteral("5247a9e5-ee54-5552-8831-0b2ff361afba"))->name,
              QStringLiteral("Release"));
 
-    // The item of the missing timetrack module is loaded like any other.
-    const QString timetrackTask = QStringLiteral("d71bd575-6d1b-5088-9da0-7d2cebf0d59e");
-    const Item *entry = model.item(timetrackTask, QStringLiteral("627898f1-6342-5d8c-ac0e-ba08fa35b24c"));
-    QVERIFY(entry);
-    QCOMPARE(entry->type, QStringLiteral("timetrack.entry"));
-    QCOMPARE(model.taskOfItem(entry->id), model.task(timetrackTask));
+    // Every item works in a build with all modules, since new users see these
+    // first. See decision 0105.
+    const QStringList modules{QStringLiteral("claude"), QStringLiteral("dash"),   QStringLiteral("folder"),
+                              QStringLiteral("github"), QStringLiteral("gitlab"), QStringLiteral("image"),
+                              QStringLiteral("jira"),   QStringLiteral("notes"),  QStringLiteral("web")};
+    for (const Group *group : model.groups()) {
+        for (const Project *project : model.projectsOfGroup(group->id)) {
+            for (const Task *task : model.tasksOfProject(project->id)) {
+                for (const Item &item : task->items) {
+                    QVERIFY2(modules.contains(item.type.section(QLatin1Char('.'), 0, 0)), qPrintable(item.type));
+                    QVERIFY2(item.type != QStringLiteral("claude.session.local"), qPrintable(item.id));
+                }
+            }
+        }
+    }
 
     // Every reference in the fixture layouts refers to something.
     const auto checkCells = [&model](const LayoutNode &node, const auto &self) -> void {
@@ -109,6 +119,21 @@ void TestStoreLoad::fixtureDetails()
     };
     for (const RootDashboard *dashboard : model.rootDashboards())
         checkCells(dashboard->layout, checkCells);
+}
+
+void TestStoreLoad::loadsMissingModuleItems()
+{
+    Model model;
+    QVERIFY(store::load(QStringLiteral(MIRANTE_FIXTURES_DIR) + QStringLiteral("/../../tests/core/fixtures/missing-module"),
+                        model)
+                .empty());
+
+    // The item of the missing timetrack module is loaded like any other.
+    const QString task = QStringLiteral("task");
+    const Item *entry = model.item(task, QStringLiteral("627898f1-6342-5d8c-ac0e-ba08fa35b24c"));
+    QVERIFY(entry);
+    QCOMPARE(entry->type, QStringLiteral("timetrack.entry"));
+    QCOMPARE(model.taskOfItem(entry->id), model.task(task));
 }
 
 void TestStoreLoad::reportsProblems()

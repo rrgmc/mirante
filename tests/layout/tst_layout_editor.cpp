@@ -44,7 +44,7 @@ const QString notesItem = QStringLiteral("11039501-ba22-5677-86da-ea27842bf0b1")
 const QString rateTask = QStringLiteral("d71bd575-6d1b-5088-9da0-7d2cebf0d59e");
 const DashboardRef rateMain{rateTask, QStringLiteral("4eeaa216-cc9a-5055-bca2-5d504578d4e1")};
 const QString rateIssueItem = QStringLiteral("e1fe6fb5-34ad-5838-9e03-bec6ea410351");
-const QString rateTimeItem = QStringLiteral("627898f1-6342-5d8c-ac0e-ba08fa35b24c");
+const QString rateRolloutItem = QStringLiteral("627898f1-6342-5d8c-ac0e-ba08fa35b24c");
 
 // A task with one dashboard.
 const QString flakyTask = QStringLiteral("02fc9a52-653c-562f-a3a2-6d5a4ca98623");
@@ -765,11 +765,11 @@ private slots:
 
     void moveFromARootDashboardIntoTheItemsTask()
     {
-        // Release holds "Time: rate limiting" at {1, 1}, an item of the rate task.
-        QCOMPARE(refAt(release, {1, 1}), itemRef(rateTimeItem, rateTask));
+        // Release holds "Rollout" at {1, 1}, an item of the rate task.
+        QCOMPARE(refAt(release, {1, 1}), itemRef(rateRolloutItem, rateTask));
         QVERIFY(editor->drop(rateMain, edge({0}, Edge::Bottom),
-                             moved(itemRef(rateTimeItem, rateTask), release, {1, 1})));
-        QCOMPARE(refAt(rateMain, {0, 1}), itemRef(rateTimeItem));
+                             moved(itemRef(rateRolloutItem, rateTask), release, {1, 1})));
+        QCOMPARE(refAt(rateMain, {0, 1}), itemRef(rateRolloutItem));
         QCOMPARE(node(release, {1}).kind, Kind::Cell);
     }
 

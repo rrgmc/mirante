@@ -27,14 +27,6 @@
         },
         "jira": {
             "projectKey": "ACME"
-        },
-        "timetrack": {
-            "billable": true,
-            "client": "Acme",
-            "rate": {
-                "currency": "EUR",
-                "hourly": 95
-            }
         }
     },
     "name": "backend",

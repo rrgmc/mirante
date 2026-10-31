@@ -51,13 +51,11 @@
     "items": [
         {
             "config": {
-                "device": "desk-pc",
-                "folderId": "b7c2c1e5-2687-5bdd-ba31-7fc7fbe22590",
-                "sessionId": "a41d09"
+                "text": "- The layout tree works for nested tabs\n- Keep the sidebar narrow"
             },
             "id": "a61424ad-8593-5f3c-9942-15f73be982e7",
-            "name": "Claude (local)",
-            "type": "claude.session.local"
+            "name": "Findings",
+            "type": "notes"
         },
         {
             "config": {
