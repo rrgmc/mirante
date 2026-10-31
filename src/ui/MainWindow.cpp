@@ -1152,6 +1152,8 @@ struct MainWindow::Private
     {
         auto *button = new QToolButton;
         button->setObjectName(QStringLiteral("quickAddButton"));
+        // An icon only, so the button does not widen the sidebar's narrowest size.
+        button->setIcon(QIcon(QStringLiteral(":/icons/new-from-link.svg")));
         button->setText(MainWindow::tr("New Task from Link…"));
         button->setToolTip(MainWindow::tr("Make a task from a link or a key (%1)")
                                .arg(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_N).toString(QKeySequence::NativeText)));

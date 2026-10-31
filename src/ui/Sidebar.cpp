@@ -193,6 +193,9 @@ Sidebar::Sidebar(const Model &model, const ItemTypeRegistry &types, QWidget *par
     QFont titleFont = title->font();
     titleFont.setBold(true);
     title->setFont(titleFont);
+    // A long name does not widen the sidebar; the label cuts it off instead.
+    title->setMinimumWidth(0);
+    title->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
 
     auto *collapse = new QToolButton(this);
     collapse->setText(QStringLiteral("«"));
