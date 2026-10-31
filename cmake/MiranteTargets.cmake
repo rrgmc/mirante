@@ -110,7 +110,11 @@ function(mirante_add_test name)
         mirante_precompile_headers(${name})
     endif()
     add_test(NAME ${name} COMMAND ${name})
-    set_tests_properties(${name} PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+    # On Windows, without a console, Qt Test writes its report to the
+    # debugger instead of standard output, so CTest would show nothing of a
+    # failed test. QT_FORCE_STDERR_LOGGING makes it write to the output.
+    set_tests_properties(${name} PROPERTIES ENVIRONMENT
+        "QT_QPA_PLATFORM=offscreen;QT_FORCE_STDERR_LOGGING=1")
 endfunction()
 
 # mirante_add_tests(<folder> LIBS <targets...>)
