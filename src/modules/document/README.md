@@ -7,7 +7,7 @@ A Markdown, plain text or PDF file, from a web address, from the workspace or fr
 | Id | Name | Rendering | Description |
 |---|---|---|---|
 | `document.url` | Document (web address) | native | A Markdown, text or PDF file at a public web address, such as a README on GitHub, downloaded again on Reload or on a timer. |
-| `document.file` | Document (workspace file) | native | A Markdown, text or PDF file kept in the workspace, so it syncs to your other devices. |
+| `document.file` | Document (workspace file) | native | A copy of a Markdown, text or PDF file, kept in the workspace so it syncs to your other devices. Choosing or dropping a file copies it. |
 | `document.project` | Document (project file) | native | A Markdown, text or PDF file in one of the project's folders, shown again when it changes on disk. |
 
 All three have the short name "Doc". The module calls itself "Documents" and describes itself as: "Markdown, text and PDF files, from a web address, the workspace or a project folder." Help > Modules shows the names and descriptions. See [decision 0056](../../../docs/decisions/0056-modules-window.md).
@@ -68,7 +68,7 @@ The module links Qt Network, Qt PDF and Qt PDF Widgets with `QT_LIBS`.
 | `document.project` | `folder` | folder, required | One of the project's folders |
 | `document.project` | `path` | text, required | The file's path in the folder, with `/` between its parts |
 
-`document.file` has its own editor, `DocumentEditor`: **Choose file…** copies a file through `EditorContext::saveFile`, which asks above 20 MB and refuses above 50 MB, and a choice of format. Its `fields()` holds only `format`, for the defaults of a dropped file.
+`document.file` has its own editor, `DocumentEditor`: a notice with an information icon that the chosen file is copied into the workspace and that later changes to the original are not shown, **Choose file…**, which copies a file through `EditorContext::saveFile`, and a choice of format. `saveFile` asks above 20 MB, refuses above 50 MB, and uses a file already in `files/` as it is. The editor shows the file as "<name> (a copy in the workspace)". Its `fields()` holds only `format`, for the defaults of a dropped file.
 
 ## Links and drops
 

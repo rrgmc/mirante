@@ -539,10 +539,6 @@
         <translation>Documento (arquivo do espaço de trabalho)</translation>
     </message>
     <message>
-        <source>A Markdown, text or PDF file kept in the workspace, so it syncs to your other devices.</source>
-        <translation>Um arquivo Markdown, de texto ou PDF guardado no espaço de trabalho, para que seja sincronizado com seus outros dispositivos.</translation>
-    </message>
-    <message>
         <source>Choose the file in the item&apos;s settings.</source>
         <translation>Escolha o arquivo nas configurações do item.</translation>
     </message>
@@ -637,6 +633,18 @@
     <message>
         <source>Choose folder…</source>
         <translation>Escolher pasta…</translation>
+    </message>
+    <message>
+        <source>The chosen file is copied into the workspace, so it syncs to all your devices. Later changes to the original file are not shown here. To show a file that changes, such as one in a repository, use Document (project file).</source>
+        <translation>O arquivo escolhido é copiado para o espaço de trabalho, para que seja sincronizado com todos os seus dispositivos. Mudanças posteriores no arquivo original não aparecem aqui. Para mostrar um arquivo que muda, como um de um repositório, use Documento (arquivo do projeto).</translation>
+    </message>
+    <message>
+        <source>%1 (a copy in the workspace)</source>
+        <translation>%1 (uma cópia no espaço de trabalho)</translation>
+    </message>
+    <message>
+        <source>A copy of a Markdown, text or PDF file, kept in the workspace so it syncs to your other devices. Choosing or dropping a file copies it.</source>
+        <translation>Uma cópia de um arquivo Markdown, de texto ou PDF, guardada no espaço de trabalho para que seja sincronizada com seus outros dispositivos. Escolher ou soltar um arquivo o copia.</translation>
     </message>
 </context>
 <context>
@@ -2936,6 +2944,10 @@
     <message>
         <source>No item type can show this file.</source>
         <translation>Nenhum tipo de item pode mostrar este arquivo.</translation>
+    </message>
+    <message>
+        <source>%1 was copied into the workspace.</source>
+        <translation>%1 foi copiado para o espaço de trabalho.</translation>
     </message>
 </context>
 <context>

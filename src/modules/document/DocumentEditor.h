@@ -11,8 +11,9 @@ class QLabel;
 
 namespace mirante::modules::document {
 
-// The editor of Document (workspace file): Choose file… copies a file into
-// files/ through EditorContext::saveFile, and a choice of format. See
+// The editor of Document (workspace file): a notice that the file is copied
+// into the workspace, Choose file…, which copies a file into files/ through
+// EditorContext::saveFile, and a choice of format. See
 // docs/item-types.md#documents.
 class DocumentEditor : public ItemEditor
 {

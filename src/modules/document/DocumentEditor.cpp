@@ -7,9 +7,11 @@
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QFormLayout>
+#include <QFrame>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QPushButton>
+#include <QStyle>
 
 namespace mirante::modules::document {
 
@@ -26,6 +28,30 @@ DocumentEditor::DocumentEditor(const EditorContext &context, QWidget *parent)
 {
     auto *form = new QFormLayout(this);
     form->setContentsMargins(0, 0, 0, 0);
+
+    // The copy is the point of this type, and easy to miss, so it is said
+    // above the fields, in a box with an icon.
+    auto *notice = new QFrame(this);
+    notice->setObjectName(QStringLiteral("copyNotice"));
+    notice->setFrameShape(QFrame::StyledPanel);
+    notice->setAutoFillBackground(true);
+    notice->setBackgroundRole(QPalette::AlternateBase);
+    auto *noticeLayout = new QHBoxLayout(notice);
+    auto *icon = new QLabel(notice);
+    const int iconSize = style()->pixelMetric(QStyle::PM_SmallIconSize) * 2;
+    icon->setPixmap(style()->standardIcon(QStyle::SP_MessageBoxInformation).pixmap(iconSize, iconSize));
+    icon->setAlignment(Qt::AlignTop);
+    auto *text = new QLabel(QCoreApplication::translate(
+                                "document",
+                                "The chosen file is copied into the workspace, so it syncs to all your devices. "
+                                "Later changes to the original file are not shown here. To show a file that "
+                                "changes, such as one in a repository, use Document (project file)."),
+                            notice);
+    text->setObjectName(QStringLiteral("copyNoticeText"));
+    text->setWordWrap(true);
+    noticeLayout->addWidget(icon);
+    noticeLayout->addWidget(text, 1);
+    form->addRow(notice);
 
     auto *fileRow = new QHBoxLayout;
     m_file = new QLabel(this);
@@ -98,7 +124,8 @@ void DocumentEditor::showFile()
     if (file.isEmpty())
         m_file->setText(QCoreApplication::translate("document", "No file chosen"));
     else
-        m_file->setText(original.isEmpty() ? file : original);
+        m_file->setText(QCoreApplication::translate("document", "%1 (a copy in the workspace)")
+                            .arg(original.isEmpty() ? file : original));
 }
 
 } // namespace mirante::modules::document

@@ -111,8 +111,9 @@ public:
         : DocumentType(QStringLiteral("document.file"),
                        QCoreApplication::translate("document", "Document (workspace file)"),
                        QCoreApplication::translate("document",
-                                                   "A Markdown, text or PDF file kept in the workspace, so it syncs "
-                                                   "to your other devices."),
+                                                   "A copy of a Markdown, text or PDF file, kept in the workspace "
+                                                   "so it syncs to your other devices. Choosing or dropping a file "
+                                                   "copies it."),
                        QStringLiteral("document-file.svg"))
     {
     }

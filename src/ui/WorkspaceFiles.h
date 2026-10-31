@@ -21,7 +21,8 @@ constexpr qint64 kAskAbove = 20LL * 1024 * 1024;
 constexpr qint64 kRefuseAbove = 50LL * 1024 * 1024;
 
 // Copies the file at path into the store's files/, with the file's suffix,
-// and returns the new file name. ask(question) says whether to copy a large
+// and returns the new file name. A file that is already in files/ is not
+// copied again; its own name is returned. ask(question) says whether to copy a large
 // file. tell(text) shows why the file was not copied. Returns an empty
 // string if the file was not copied, after tell() for any reason but a "no"
 // to ask().

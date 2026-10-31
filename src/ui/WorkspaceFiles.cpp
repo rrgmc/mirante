@@ -18,6 +18,12 @@ QString copyIn(Store &store, const QString &path, const std::function<bool(const
         tell(QCoreApplication::translate("WorkspaceFiles", "%1 is not a file.").arg(name));
         return {};
     }
+    // A file already in files/ is used as it is, not copied again.
+    if (!store.readOnly()) {
+        const QFileInfo inFiles(store.filePath(name));
+        if (inFiles.exists() && inFiles.canonicalFilePath() == info.canonicalFilePath())
+            return name;
+    }
     if (store.readOnly()) {
         tell(QCoreApplication::translate("WorkspaceFiles", "This workspace is read-only, so the file cannot be kept in it."));
         return {};
