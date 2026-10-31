@@ -4,7 +4,7 @@
 
 Mirante is a personal desktop dashboard for all of one person's work. It collects everything a piece of work needs in one place, as items on dashboards.
 
-Mirante is a dashboard of generic items, not a dashboard for particular services. The core knows groups, projects, tasks, items and layouts. It does not know what an item shows. Each item type comes from a [module](modules.md). The first modules cover Claude sessions, GitLab merge requests and pipelines, Jira issues, web pages, notes and project folders. Other modules can add any other kind of item.
+Mirante is a dashboard of generic items, not a dashboard for particular services. The core knows groups, projects, tasks, items and layouts. It does not know what an item shows. Each item type comes from a [module](modules.md). The first modules cover Claude sessions, GitLab merge requests and pipelines, GitHub pull requests and Actions runs, Jira issues, web pages, notes and project folders. Other modules can add any other kind of item.
 
 Work is organised in four levels:
 
@@ -38,8 +38,8 @@ The reasons for choosing Qt are in [decision 0001](decisions/0001-qt6-widgets.md
 - The full hierarchy: groups, projects, tasks and items, with priorities and task states.
 - Task dashboards and root dashboards with freely nested splits and tabs.
 - Root dashboards can be detached into separate operating system windows.
-- Profiles that the user names and assigns to groups and items. Each holds web logins and module settings, such as the GitLab and Jira servers with their tokens.
-- The first modules: native views of GitLab and Jira data with light actions, web pages, Claude sessions, notes and project folders.
+- Profiles that the user names and assigns to groups and items. Each holds web logins and module settings, such as the GitLab, GitHub and Jira servers with their tokens.
+- The first modules: native views of GitLab, GitHub and Jira data with light actions, web pages, Claude sessions, notes and project folders.
 - Claude sessions on claude.ai in a web view.
 - Sync between devices through a folder that an external tool syncs.
 - System tray, notifications for failed pipelines, keyboard navigation and a global hotkey.
@@ -59,7 +59,7 @@ The order of work is in the [roadmap](roadmap.md).
 - [Data model](data-model.md): entities, fields, layout trees.
 - [User interface](ui.md): navigation, dashboards, editing, keyboard.
 - [Item types](item-types.md): every type of panel.
-- [Integrations](integrations.md): GitLab, Jira, Claude, polling.
+- [Integrations](integrations.md): GitLab, GitHub, Jira, Claude, polling.
 - [Web views](web-views.md): profiles, memory, built-in panels.
 - [Sync](sync.md): synced folder, device settings, secrets.
 - [Architecture](architecture.md): modules, classes, build.

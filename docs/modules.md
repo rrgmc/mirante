@@ -7,6 +7,7 @@ A module is one folder of item types and the code they share. Modules are compil
 | Module | Item types | Settings screens | Project settings |
 |---|---|---|---|
 | `gitlab` | `gitlab.mr.summary`, `gitlab.mr.page`, `gitlab.mr.list`, `gitlab.pipeline`, `gitlab.pipeline.list`, `gitlab.issue.summary`, `gitlab.issue.page`, `gitlab.issue.list` | General Configuration: base URL, token, project paths | `project` |
+| `github` | `github.pr.summary`, `github.pr.page`, `github.pr.list`, `github.run`, `github.run.list`, `github.issue.summary`, `github.issue.page`, `github.issue.list` | General Configuration: base URL, token, repositories | `repository` |
 | `jira` | `jira.issue.summary`, `jira.issue.page`, `jira.list` | General Configuration: base URL, token | `projectKey` |
 | `claude` | `claude.session.web` | none | none |
 | `web` | `web.page` | none | none |
@@ -14,7 +15,7 @@ A module is one folder of item types and the code they share. Modules are compil
 | `folder` | `folder` | none | none |
 | `image` | `image` | none | none |
 
-All modules are enabled by default. The item types are described in [item types](item-types.md). The gitlab and jira modules keep the server they talk to in their [settings screens](#settings-screens), one per profile; see [decision 0054](decisions/0054-module-settings-replace-connections.md).
+All modules are enabled by default. The item types are described in [item types](item-types.md). The gitlab, github and jira modules keep the server they talk to in their [settings screens](#settings-screens), one per profile; see [decision 0054](decisions/0054-module-settings-replace-connections.md).
 
 Built-in panels (`dash.panel`) belong to the core, not to a module in `src/modules/`, because the `dash://` scheme and its bridge are core code. The core registers them as its own module, `dash`, named "Built in", with `ItemTypeRegistry::registerBuiltInModule()` before the enabled modules. It is part of every build, and the item dialog offers its types no profile, since panels use the app profile. See [web views](web-views.md#built-in-panels) and [decision 0094](decisions/0094-built-in-panels-as-a-core-item-type.md).
 

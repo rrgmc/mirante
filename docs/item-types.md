@@ -224,6 +224,110 @@ The summaries have fixed layouts, as in [decision 0066](decisions/0066-fixed-nat
 - **The summary's actions:** "Open page" and "Web".
 - **Status:** the summary and the page report a summary such as "Open · assigned to Ana", and are closed when the issue is closed. They report no attention. The list reports as the merge request list does, with a summary such as "12 issues" or "100+ issues". See [decision 0067](decisions/0067-lists-report-status.md).
 
+## GitHub
+
+Module `github`. All GitHub types talk to the GitHub server of the item's profile, set in its GitHub General Configuration: a web address, `https://github.com` by default, and a token. For any other host, such as GitHub Enterprise Server, the API is at `<web address>/api/v3`. In the item dialog, every `repository` field offers the repositories of that screen in an editable list. Another repository can still be typed. See [decision 0102](decisions/0102-github-module.md) and the [module's README](../src/modules/github/README.md).
+
+The types follow the GitLab types. A pull request is GitLab's merge request, an Actions run is GitLab's pipeline, and the summaries, pages and lists have the same rules: fixed layouts with sections, "Loading…", plain text, local dates, "Open page" and the Web link. These rules differ:
+
+- A repository is `owner/repo`, in the `repository` field, or the project's `github.repository` setting when empty. A pull request or issue has a `number`.
+- A failed action with a `403` says that the token needs write access to Actions.
+- Only cancelling a run asks first. There is no "trigger": GitHub starts a run by hand only for a workflow with `workflow_dispatch`.
+- **The Web link** is `html_url` in the data, or for a pull request or an issue the address built from the web address and the configuration.
+
+### GitHub PR (summary)
+
+`github.pr.summary`, native.
+
+- **Configuration:** `repository`; `number`, the pull request number, required. Pasting a pull request URL fills both.
+- **Top:** the title; pills for the state and for a draft; the head and base branches, as `head` → `base`.
+- **Sections and fields,** in this order:
+  - Checks (`showChecks`): a pill for the checks of the head commit, and each check run and commit status that did not pass, with its name, a pill and a "Details" link, which opens in the external browser. When all passed, the count, such as "12 checks passed".
+  - Reviews (`showReviews`): each reviewer's latest review, with a pill (Approved, Changes requested, Commented), and the requested reviewers who have not reviewed yet, as "Waiting".
+  - People (`showPeople`): the author and the assignees.
+  - Labels (`showLabels`).
+- **Actions:** "Open page" and "Web". There is no re-run, because a check run can be re-run only by the GitHub App that made it.
+- **Status:** a summary such as "Open · 2 approvals · checks failed". The item is closed when the pull request is closed or merged.
+- **Attention,** only while the pull request is open. "You" is the owner of the profile's token.
+  - "Checks failed" when a check of the head commit failed, with a desktop notification;
+  - "Review requested" when you are a requested reviewer;
+  - "Approved" when you are the author, at least one reviewer's latest review approves and none requests changes. It clears once you have seen the item;
+  - "Changes requested" when you are the author and a reviewer's latest review requests changes;
+  - "Has conflicts" when you are the author and GitHub says the pull request cannot be merged.
+
+### GitHub PR (page)
+
+`github.pr.page`, web. The pull request's web page, in the item's [profile](web-views.md#profiles). Its configuration is the summary's: `repository` and `number`.
+
+- **Address:** `<web address>/<repository>/pull/<number>`.
+- **With a base URL that is not a web address,** the cell says "Set the GitHub base URL in this profile's Modules > GitHub > General Configuration, in the Profiles menu."
+- **Without a repository or a number,** the cell says "Set the repository and number in the item's settings."
+- **Status and attention** are the summary's.
+
+### GitHub PR List
+
+`github.pr.list`, native.
+
+- **Configuration:**
+  - `scope`: `repository` ("One repository"), `owner` ("One owner": all repositories of a user or organisation) or `all` ("All");
+  - `repository`, empty for the `github.repository` setting; `owner`, the user or organisation;
+  - `preset`: `createdByMe` ("Created by me"), `reviewRequested` ("Review requested from me"), `assignedToMe` ("Assigned to me") or `allOpen` ("All open");
+  - `filter`: extra search qualifiers, such as `label:bug base:main`;
+  - `limit`, `pageSize`, `showChecks` and `showReviews`, as for GitLab's merge request list.
+- **The list is a search.** Its query holds `is:pr is:open`, then `repo:<repository>` or `user:<owner>` for the scope, then `author:@me`, `review-requested:@me` or `assignee:@me` for the preset, then the filter. "All open" with the scope "All" means `involves:@me`, because all of GitHub is not a useful list.
+- **Shows:** a sortable table, sorted on Updated, newest first, with the columns Ref (such as `backend#42`, with the repository's name), Title, Author, Checks (a pill), Reviews (such as "2 approved", "changes requested" or a dash), Updated and the links. A narrow cell hides Author, Reviews, Updated, Checks and Ref, in that order.
+- **Checks and Reviews** are filled by the view for the first 25 rows of the current page, as GitLab's Pipeline and Approvals.
+- **Links of a row:** "Web", "Open" and "Add", which adds a GitHub PR (summary) named such as `owner/repo#42`. The row menu is GitLab's.
+- **The Web link** opens the same search on the site: `<web address>/<repository>/pulls?q=<query>`, or `<web address>/pulls?q=<query>` for the other scopes.
+- **Messages:** as for GitLab's lists, with the line "No pull requests".
+- **Status:** a summary such as "12 pull requests", or "100+ pull requests" at the `limit`. No attention, and neither closed nor open. A scope without its repository or owner reports no status, with a message such as "Set the owner in the item's settings."
+
+### GitHub Actions Run
+
+`github.run`, native.
+
+- **Configuration:**
+  - `repository`;
+  - `branchSource`: `fixed` ("Fixed branch", the default), `mainFolder` ("Current branch of the main folder") or `pullRequest` ("Branch of a linked pull request", the pull request numbered `number`);
+  - `branch`, for `fixed`. Empty means the repository's default branch, and the placeholder says so;
+  - `workflow`, a workflow file such as `ci.yml`. Empty means all workflows.
+- **The group.** One push starts one run of each workflow that matches it. The group is the runs of the branch's newest commit, or of the pull request's head commit. The newest run of the group leads.
+- **Top:** the run shown, at first the lead: its workflow's name and run number; a pill for its status; the branch, the duration and when it started. With more than one run in the group, a row of pills, one per workflow, switches between them. "Previous" and "Next" step through all of the latest 20 runs, also those of older commits.
+- **Jobs:** one table of the shown run's jobs, each with a pill, the name, the duration and links: "Log", on a job that started, in the external browser; "Re-run", on a completed job.
+- **Actions:**
+  - "Re-run failed jobs", when the shown run failed;
+  - "Re-run", when it is completed;
+  - "Cancel run", while it is queued or running, after a confirmation;
+  - "Pull request", which opens the linked pull request, or the run's own pull request for a fixed or main-folder branch, in the external browser. It hides when there is none;
+  - "Open page" and "Web", on the page of the run shown.
+- **Pills:** queued and waiting runs are "Queued" or "Waiting", running ones "Running". A completed run shows its conclusion: "Passed", "Failed", "Timed out", "Cancelled", "Skipped", "Neutral", "Action required" or "Stale".
+- **Refresh:** every 15 seconds while the run shown is not completed and the view is visible.
+- **Status:** a summary such as "Failed · main · 1 of 3 runs failed", "Passed · main · 3 runs", or "Passed · main · CI" for one run. A branch without runs reports "No runs on <branch>". The item is never closed. The main folder works as for GitLab's pipeline.
+- **Attention:** a run of the group failed, with a desktop notification. Each failed run and attempt is a new reason, so a re-run that fails again counts again.
+
+### GitHub Actions Run List
+
+`github.run.list`, native. The runs of one repository.
+
+- **Configuration:** `repository`; `source`: `all` ("All runs", the default), `mine` ("Started by me"), `branch` ("Of a branch") or `pullRequest` ("Of a pull request"); `branch`, for `branch`, empty for the default branch; `number`, the pull request, for `pullRequest`; `workflow`, to show one workflow's runs; `limit` and `pageSize`.
+- **Shows:** a sortable table, sorted on Run, newest first, with the columns Run (such as `#318`), Workflow, Status (a pill), Branch (which takes the free width), Actor, Started and the links. A narrow cell hides Actor, Started, Workflow, Run and Status, in that order. Filters: Status and Workflow.
+- **Links of a row:** "Web", "Open" and "Add". "Add" adds a GitHub Actions Run: for a run of a pull request, one that follows that pull request, named such as `owner/repo#42 CI`; otherwise one that follows the run's branch, named such as `owner/repo main CI`. The item's `workflow` is kept.
+- **The Web link** opens `<web address>/<repository>/actions`, or the workflow's page.
+- **Messages:** as for GitLab's lists, with the line "No runs".
+- **Status:** a summary such as "12 runs", or "100+ runs" at the `limit`. No attention, and neither closed nor open.
+
+### GitHub Issue (summary), GitHub Issue (page), GitHub Issue List
+
+`github.issue.summary`, `github.issue.page` and `github.issue.list` follow the pull request pattern and GitLab's issue types:
+
+- **The summary's top:** the title and a pill for the state. An issue closed as completed or as not planned reads "Closed" either way.
+- **The summary's sections and fields:** Details (`showDetails`: the assignees and the milestone), Labels (`showLabels`) and Comments (`showComments`: the latest five, newest first, as plain text, "No comments", or "The comments could not be read.").
+- **Configuration:** the summary and the page have `repository` and `number`. The list has `scope`, `repository`, `owner`, `preset`, `filter`, `limit` and `pageSize`, as for pull requests, with the presets `assignedToMe` (the default), `createdByMe` and `allOpen`, and `is:issue` in its search.
+- **The list shows** the columns Ref, Title, Assignees, Labels, Updated and the links, and makes no further requests. "Add" adds a GitHub Issue (summary) named such as `owner/repo#7`. The empty line is "No issues".
+- **The page's address** is `<web address>/<repository>/issues/<number>`. Its messages are those of the pull request page.
+- **The summary's actions:** "Open page" and "Web".
+- **Status:** a summary such as "Open · assigned to ana", closed when the issue is closed, and no attention. The list reports "12 issues" or "100+ issues".
+
 ## Jira
 
 Module `jira`. Jira types talk to the Jira site of the item's profile, set in its Jira General Configuration: a base URL, without a default, the deployment, the email for Jira Cloud, a token, and any extra fields. See [integrations](integrations.md#jira).
