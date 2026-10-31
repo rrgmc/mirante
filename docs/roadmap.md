@@ -158,13 +158,16 @@ See [the M12 plan](plans/m12-document-items.md), [decision 0104](decisions/0104-
 
 ## Future: Custom builds
 
-Not scheduled. It needs the packaging from M10. Anyone can build their own Mirante with the modules they choose, including modules from other people's repositories, and get its executables from CI. Modules stay compiled in, as in [decision 0013](decisions/0013-compiled-in-modules.md). Decision records and a code plan are written when this work starts.
+Not scheduled. It builds on the packaging from M10 ([decision 0098](decisions/0098-packages-from-cmake-install.md)). Anyone can build their own Mirante with the modules they choose, including modules from other people's repositories, and get its executables from CI. Modules stay compiled in, as in [decision 0013](decisions/0013-compiled-in-modules.md). Decision records and a code plan are written when this work starts. [The custom builds research](research/custom-builds.md) checks this entry against M10 and the work after it.
 
 **Direction:**
 
-- **App repository.** A repository made from a GitHub template holds a manifest and a short workflow. The manifest pins the core and each module repository to a commit, and lists the modules to build one by one, each with its repository and folder. All selected modules from one repository share one commit.
+- **App repository.** A repository made from a GitHub template holds a manifest and a short workflow. The manifest pins the core and each module repository to a commit, and lists the modules to build one by one, each with its repository and folder. All selected modules from one repository share one commit. The manifest maps onto `MIRANTE_MODULES`, and the app repository's tags set `MIRANTE_VERSION`.
 - **Fetching.** The core reads the manifest and fetches the modules with CMake's FetchContent, because it must know them before it generates their registration. Git submodules, ExternalProject, package managers and a prebuilt core were considered and not chosen.
 - **Repositories.** The core and the first-party modules stay in one repository while the module interface changes every milestone, so a change to the interface and to the modules that use it stays one commit. They can be split later, with `git subtree split`, if the modules need their own releases. Manifests then change only a URL.
+- **Qt.** The pinned core commit decides the Qt version.
+
+**Open question:** whether a custom build replaces Mirante, sharing its settings, workspace and tokens, or is an app of its own beside it. See [app identity](research/custom-builds.md#app-identity). It is decided before the plan is written.
 
 **Acceptance criteria:**
 
@@ -173,9 +176,11 @@ Not scheduled. It needs the packaging from M10. Anyone can build their own Miran
 - [ ] Module tests use only the module interface and its testing library, not `items/ItemTypeRegistry.h` or `mirante_items`.
 - [ ] An app repository can build without the core's own tests, and still runs the tests of its modules.
 - [ ] `DEPENDS` works across repositories: it links the other module and makes its headers available.
-- [ ] A module can use further Qt components, and CI installs and deploys them.
-- [ ] The module include check also covers external modules.
+- [ ] A module can use further Qt components. The modules' `QT_LIBS` or the manifest give one list of Qt modules, and the Qt setup scripts, the CI cache keys, `find_package` and the package check follow from it.
+- [ ] The module include check also covers external modules. The modules are also built with `MIRANTE_PCH=OFF`, so a missing include is found.
+- [ ] Each module carries its own translation files, and the core loads them for the enabled modules. CI checks each module's translations.
+- [ ] The bundle identifier, organisation and application name, keychain service, package name and install folder follow the answer to the open question above.
 - [ ] The About dialog shows each module's source and commit.
-- [ ] The core publishes a reusable workflow that builds, tests and packages an app repository. Signing secrets are not available while module code is configured or built.
-- [ ] A scheduled job in the app repository opens a pull request when a pinned repository has newer commits. CI builds it, and merging it publishes a release. A failed update leaves the last release in place.
-- [ ] The documentation tells module authors how to choose an id that will not clash, and tells people who build what a third-party module can reach: it runs in the app process and can read tokens and web logins. It also says that the licence of each module applies to the binary, and that builds are unsigned without the builder's own certificates.
+- [ ] The core publishes a reusable workflow that builds, tests and packages an app repository. The build job has no signing secrets. On macOS, a separate job signs, notarises and staples the finished bundle and runs no code from the build. Mirante's own release uses the same jobs.
+- [ ] A scheduled job in the app repository opens a pull request when a pinned repository has newer commits. CI builds it, and merging it publishes a release. A failed update leaves the last release in place. The job uses a GitHub App token or a personal access token, because a pull request opened with the workflow's own token starts no CI.
+- [ ] The documentation tells module authors how to choose an id that will not clash, and tells people who build what a third-party module can reach: it runs in the app process and can read tokens and web logins, and its web pages share the `qrc:` origin with every other module's pages. It also says that the licence of each module applies to the binary, and that builds are unsigned without the builder's own certificates.
