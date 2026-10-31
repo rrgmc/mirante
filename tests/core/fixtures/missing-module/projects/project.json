@@ -1,0 +1,20 @@
+{
+    "connectionOverrides": {},
+    "folders": [],
+    "groupId": "group",
+    "id": "project",
+    "moduleSettings": {
+        "timetrack": {
+            "billable": true,
+            "client": "Acme",
+            "rate": {
+                "currency": "EUR",
+                "hourly": 95
+            }
+        }
+    },
+    "name": "backend",
+    "order": 0,
+    "priority": 2,
+    "schemaVersion": 1
+}

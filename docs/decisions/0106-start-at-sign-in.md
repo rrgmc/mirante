@@ -1,4 +1,4 @@
-# 0105. Mirante can start at sign-in, hidden in the tray
+# 0106. Mirante can start at sign-in, hidden in the tray
 
 - Status: Accepted
 - Date: 2026-10-31

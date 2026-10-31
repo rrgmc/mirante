@@ -147,7 +147,7 @@ public:
     void startTrayAndHotkey();
     // Started at sign-in: main() leaves the window hidden in the tray until it
     // is called. With no tray after the wait for one, the window shows
-    // minimized. See docs/decisions/0105-start-at-sign-in.md.
+    // minimized. See docs/decisions/0106-start-at-sign-in.md.
     void startHidden();
     // Whether a tray exists to hide into. With one, the app no longer quits with
     // its last window, so it quits through QApplication::quit(). Tests set it

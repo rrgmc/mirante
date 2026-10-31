@@ -109,7 +109,8 @@ Each file records one design decision: what was decided, what else was considere
 | [0102](0102-github-module.md) | A GitHub module, shaped like the GitLab module | Accepted |
 | [0103](0103-bundle-identifier-rrgmc.md) | The macOS bundle identifier is `com.rrgmc.mirante` | Accepted |
 | [0104](0104-document-items.md) | Document items show a file from a web address, the workspace or a project folder | Accepted |
-| [0105](0105-start-at-sign-in.md) | Mirante can start at sign-in, hidden in the tray | Accepted |
+| [0105](0105-sample-data-holds-available-items.md) | The sample data holds only items that work | Accepted |
+| [0106](0106-start-at-sign-in.md) | Mirante can start at sign-in, hidden in the tray | Accepted |
 
 ## Template
 

@@ -37,22 +37,12 @@
             "id": "90d3f914-a970-57dc-ab52-a7fb83e824fc",
             "kind": "jira.dc",
             "name": "Ops Jira (Data Center)"
-        },
-        {
-            "baseUrl": "https://time.acme.example",
-            "fields": {
-                "workspace": "acme-dev"
-            },
-            "id": "e4977249-d87d-5c68-9a67-55ecadcf9381",
-            "kind": "timetrack",
-            "name": "Acme time tracking"
         }
     ],
     "defaultConnections": {
         "gitlab": "8ef145f6-9585-55de-a438-70969ec1bad0",
         "jira.cloud": "4a4110cf-dc32-5070-b993-1f27604765b1",
-        "jira.dc": "90d3f914-a970-57dc-ab52-a7fb83e824fc",
-        "timetrack": "e4977249-d87d-5c68-9a67-55ecadcf9381"
+        "jira.dc": "90d3f914-a970-57dc-ab52-a7fb83e824fc"
     },
     "futureField": {
         "color": "#3a7bd5",

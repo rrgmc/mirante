@@ -1,0 +1,71 @@
+{
+    "dashboards": [
+        {
+            "id": "dashboard",
+            "layout": {
+                "children": [
+                    {
+                        "ref": {
+                            "item": "627898f1-6342-5d8c-ac0e-ba08fa35b24c"
+                        },
+                        "type": "cell"
+                    },
+                    {
+                        "ref": {
+                            "item": "b85ef73b-3fc3-516e-800f-327adea55eab"
+                        },
+                        "type": "cell"
+                    }
+                ],
+                "dir": "h",
+                "sizes": [
+                    1,
+                    1
+                ],
+                "type": "split"
+            },
+            "name": "Main"
+        }
+    ],
+    "defaultDashboardId": "dashboard",
+    "id": "task",
+    "items": [
+        {
+            "config": {
+                "activity": "Development",
+                "budgetMinutes": 480,
+                "entries": [
+                    {
+                        "date": "2026-10-21",
+                        "minutes": 95
+                    },
+                    {
+                        "date": "2026-10-22",
+                        "minutes": 140
+                    }
+                ],
+                "ticket": "ACME-398"
+            },
+            "connectionId": "e4977249-d87d-5c68-9a67-55ecadcf9381",
+            "id": "627898f1-6342-5d8c-ac0e-ba08fa35b24c",
+            "name": "Time: rate limiting",
+            "type": "timetrack.entry"
+        },
+        {
+            "config": {
+                "device": "desk-pc",
+                "folderId": "622f4d51-b29b-5213-82cf-6a85939c8b06",
+                "sessionId": "8f2c1e"
+            },
+            "id": "b85ef73b-3fc3-516e-800f-327adea55eab",
+            "name": "Claude (local)",
+            "type": "claude.session.local"
+        }
+    ],
+    "order": 0,
+    "priority": 0,
+    "projectId": "project",
+    "schemaVersion": 1,
+    "state": "active",
+    "title": "Add rate limiting"
+}

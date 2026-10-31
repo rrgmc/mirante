@@ -10,7 +10,7 @@ namespace mirante::platform::loginitem {
 // per-user Run key, macOS 13 and later SMAppService.mainAppService, and Linux
 // an XDG autostart file. The state lives in the system, so a change made in
 // System Settings, in the autostart folder or by the Windows setup shows here.
-// See docs/decisions/0105-start-at-sign-in.md.
+// See docs/decisions/0106-start-at-sign-in.md.
 
 // False before macOS 13.
 bool isSupported();

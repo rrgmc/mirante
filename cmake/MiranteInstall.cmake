@@ -168,7 +168,7 @@ function(mirante_add_package)
 endfunction()
 
 # The setup's icons, and two checkboxes on its last page: "Run Mirante", and
-# "Start Mirante when I sign in". See docs/decisions/0105-start-at-sign-in.md.
+# "Start Mirante when I sign in". See docs/decisions/0106-start-at-sign-in.md.
 # CPack has no hook for finish page options, so they go in with the icon code,
 # which comes right before the pages; CPack then ignores CPACK_NSIS_MUI_ICON.
 # The sign-in value goes in the per-user Run key, as the app's own settings

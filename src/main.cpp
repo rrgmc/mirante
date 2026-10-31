@@ -212,7 +212,7 @@ int main(int argc, char *argv[])
         window.openSampleData();
     // Started at sign-in, the window waits in the tray until it is called.
     // Windows and Linux pass --hidden; a macOS login item gets no arguments,
-    // so the launch event tells. See docs/decisions/0105-start-at-sign-in.md.
+    // so the launch event tells. See docs/decisions/0106-start-at-sign-in.md.
     const bool hidden = parser.isSet(hiddenOption);
     mirante::platform::loginitem::whenLaunched([&window, hidden](bool atSignIn) {
         if (hidden || atSignIn)

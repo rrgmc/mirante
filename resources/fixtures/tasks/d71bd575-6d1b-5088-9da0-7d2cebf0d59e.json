@@ -77,34 +77,19 @@
         },
         {
             "config": {
-                "device": "desk-pc",
-                "folderId": "622f4d51-b29b-5213-82cf-6a85939c8b06",
-                "sessionId": "8f2c1e"
+                "text": "- One token bucket per client\n- Allow 100 requests a minute\n- Answer 429 with Retry-After"
             },
             "id": "b85ef73b-3fc3-516e-800f-327adea55eab",
-            "name": "Claude (local)",
-            "type": "claude.session.local"
+            "name": "Design notes",
+            "type": "notes"
         },
         {
             "config": {
-                "activity": "Development",
-                "budgetMinutes": 480,
-                "entries": [
-                    {
-                        "date": "2026-10-21",
-                        "minutes": 95
-                    },
-                    {
-                        "date": "2026-10-22",
-                        "minutes": 140
-                    }
-                ],
-                "ticket": "ACME-398"
+                "text": "- Only log at first\n- Turn it on for internal clients\n- Then turn it on for everyone"
             },
-            "connectionId": "e4977249-d87d-5c68-9a67-55ecadcf9381",
             "id": "627898f1-6342-5d8c-ac0e-ba08fa35b24c",
-            "name": "Time: rate limiting",
-            "type": "timetrack.entry"
+            "name": "Rollout",
+            "type": "notes"
         }
     ],
     "order": 1,

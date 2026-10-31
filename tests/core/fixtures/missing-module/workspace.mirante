@@ -1,0 +1,26 @@
+{
+    "defaultProfile": "default",
+    "id": "5f0c3a1e-8c44-5d0f-9e0a-2b7d6c1f4a10",
+    "name": "Missing module",
+    "profiles": [
+        {
+            "connections": [
+                {
+                    "baseUrl": "https://time.acme.example",
+                    "fields": {
+                        "workspace": "acme-dev"
+                    },
+                    "id": "e4977249-d87d-5c68-9a67-55ecadcf9381",
+                    "kind": "timetrack",
+                    "name": "Acme time tracking"
+                }
+            ],
+            "defaultConnections": {
+                "timetrack": "e4977249-d87d-5c68-9a67-55ecadcf9381"
+            },
+            "id": "default",
+            "name": "Default"
+        }
+    ],
+    "schemaVersion": 1
+}
