@@ -123,12 +123,12 @@ See [the M9 plan](plans/m9-built-in-panels.md). Checked by hand with [the M9 che
 
 See [the M10 plan](plans/m10-packaging.md). Checked by hand with [the M10 checklist](plans/m10-checks.md).
 
-- [ ] CI builds and tests on macOS again.
-- [ ] CI builds the Windows package and the macOS app bundle.
-- [ ] Pushing a version tag `vX.Y.Z` publishes a GitHub release. A release workflow builds and tests the tag on Windows, macOS and Linux, and attaches a Windows setup, a macOS disk image and an Ubuntu `.deb` package to the release. The app version comes from the tag. The workflow can also run by hand for an existing tag. This follows favdir's `release.yml`.
-- [ ] The macOS disk image is signed and notarised. The signing secrets live in a GitHub environment that admits only version tags.
-- [ ] Windows package with `windeployqt`, macOS app bundle with `macdeployqt`. Both include Qt's `qtbase` translations, which the app loads from `QLibraryInfo::TranslationsPath`, and the WebP image plugin.
-- [ ] A short install and first-run guide in the root `README.md`.
+- [x] CI builds and tests on macOS again.
+- [x] CI builds the Windows package and the macOS app bundle.
+- [x] Pushing a version tag `vX.Y.Z` publishes a GitHub release. A release workflow builds and tests the tag on Windows, macOS and Linux, and attaches a Windows setup, a macOS disk image and an Ubuntu `.deb` package to the release. The app version comes from the tag. The workflow can also run by hand for an existing tag. This follows favdir's `release.yml`.
+- [x] The macOS disk image is signed and notarised. The signing secrets live in a GitHub environment that admits only version tags.
+- [x] Windows package with `windeployqt`, macOS app bundle with `macdeployqt`. Both include Qt's `qtbase` translations, which the app loads from `QLibraryInfo::TranslationsPath`, and the WebP image plugin.
+- [x] A short install and first-run guide in the root `README.md`.
 
 ## M11: GitHub module
 
