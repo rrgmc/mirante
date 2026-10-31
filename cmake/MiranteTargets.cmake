@@ -54,17 +54,43 @@ function(mirante_add_library name)
         "${PROJECT_BINARY_DIR}/generated")
     target_link_libraries(${name} PUBLIC ${ARG_LIBS})
     mirante_set_warnings(${name})
+    mirante_precompile_headers(${name})
     mirante_autogen_tracks_sources(${name})
 endfunction()
 
-# mirante_add_test(<name> SOURCES <files...> LIBS <targets...>)
+# mirante_precompile_headers(<target> [REUSE_FROM <other target>])
+#
+# Compiles <target> with cmake/MirantePrecompiled.h precompiled, unless
+# MIRANTE_PCH is off. With REUSE_FROM, <target> uses the precompiled header of
+# <other target> instead of making its own. Both must then have the same
+# compile definitions and options, as the tests of one folder have.
+function(mirante_precompile_headers target)
+    if(NOT MIRANTE_PCH)
+        return()
+    endif()
+    cmake_parse_arguments(ARG "" "REUSE_FROM" "" ${ARGN})
+    if(ARG_REUSE_FROM)
+        target_precompile_headers(${target} REUSE_FROM ${ARG_REUSE_FROM})
+    else()
+        target_precompile_headers(${target} PRIVATE "${PROJECT_SOURCE_DIR}/cmake/MirantePrecompiled.h")
+    endif()
+endfunction()
+
+# mirante_add_test(<name> SOURCES <files...> LIBS <targets...> [PCH_FROM <test>])
 #
 # Adds one Qt Test executable as a CTest test. Tests run with the offscreen
 # platform, so they need no display and open no windows, also when started by
-# hand.
+# hand. With PCH_FROM, the test uses the precompiled header of that test, which
+# must link the same libraries; otherwise it makes its own.
 function(mirante_add_test name)
-    cmake_parse_arguments(ARG "" "" "SOURCES;LIBS" ${ARGN})
-    add_executable(${name} ${ARG_SOURCES} "${PROJECT_SOURCE_DIR}/tests/support/OffscreenByDefault.cpp")
+    cmake_parse_arguments(ARG "" "PCH_FROM" "SOURCES;LIBS" ${ARGN})
+    # Every test links the same OffscreenByDefault.cpp, so it is compiled once.
+    if(NOT TARGET mirante_test_support)
+        add_library(mirante_test_support OBJECT "${PROJECT_SOURCE_DIR}/tests/support/OffscreenByDefault.cpp")
+        target_link_libraries(mirante_test_support PRIVATE Qt6::Core)
+        mirante_set_warnings(mirante_test_support)
+    endif()
+    add_executable(${name} ${ARG_SOURCES} $<TARGET_OBJECTS:mirante_test_support>)
     target_link_libraries(${name} PRIVATE Qt6::Test ${ARG_LIBS})
     # Qt6::Test defines QT_TESTCASE_SOURCEDIR as the folder of the CMakeLists.txt,
     # so QFINDTESTDATA takes a path below that, such as "tests/data/x.json". A path
@@ -78,6 +104,11 @@ function(mirante_add_test name)
     if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
         target_compile_options(${name} PRIVATE -Wno-gnu-zero-variadic-macro-arguments)
     endif()
+    if(ARG_PCH_FROM)
+        mirante_precompile_headers(${name} REUSE_FROM ${ARG_PCH_FROM})
+    else()
+        mirante_precompile_headers(${name})
+    endif()
     add_test(NAME ${name} COMMAND ${name})
     set_tests_properties(${name} PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 endfunction()
@@ -85,11 +116,18 @@ endfunction()
 # mirante_add_tests(<folder> LIBS <targets...>)
 #
 # Adds every tst_*.cpp file in <folder> as its own test, named <folder>_<file>.
+# They link the same libraries, so they share the first test's precompiled
+# header.
 function(mirante_add_tests folder)
     cmake_parse_arguments(ARG "" "" "LIBS" ${ARGN})
     file(GLOB tests CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/${folder}/tst_*.cpp")
+    set(pch_from "")
     foreach(test_source IN LISTS tests)
         get_filename_component(test_name "${test_source}" NAME_WE)
-        mirante_add_test("${folder}_${test_name}" SOURCES "${test_source}" LIBS ${ARG_LIBS})
+        mirante_add_test("${folder}_${test_name}" SOURCES "${test_source}" LIBS ${ARG_LIBS}
+            PCH_FROM ${pch_from})
+        if(NOT pch_from)
+            set(pch_from "${folder}_${test_name}")
+        endif()
     endforeach()
 endfunction()
