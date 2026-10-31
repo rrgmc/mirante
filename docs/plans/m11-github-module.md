@@ -65,15 +65,15 @@ struct GetOptions
 | Id | Name | Short name | Description |
 |---|---|---|---|
 | `github.pr.summary` | GitHub PR (summary) | PR | A summary of one pull request: its state, branches, checks, reviews and people. |
-| `github.pr.page` | GitHub PR (page) | PR page | The web page of one pull request, on the GitHub server of the item's profile. |
+| `github.pr.page` | GitHub PR (page) | PR | The web page of one pull request, on the GitHub server of the item's profile. |
 | `github.pr.list` | GitHub PR List | PRs | A table of pull requests in a repository, an owner or everywhere, such as those that wait for your review. |
 | `github.run` | GitHub Actions Run | Run | The Actions runs of a branch's newest commit, one per workflow, with their jobs. The branch is a fixed one, the main folder's current branch or a pull request's branch. |
 | `github.run.list` | GitHub Actions Run List | Runs | A table of a repository's Actions runs: all of them, those you started, or those of a branch or a pull request. |
 | `github.issue.summary` | GitHub Issue (summary) | Issue | A summary of one issue: its state, assignees, labels, milestone and latest comments. |
-| `github.issue.page` | GitHub Issue (page) | Issue page | The web page of one issue, on the GitHub server of the item's profile. |
+| `github.issue.page` | GitHub Issue (page) | Issue | The web page of one issue, on the GitHub server of the item's profile. |
 | `github.issue.list` | GitHub Issue List | Issues | A table of issues in a repository, an owner or everywhere, such as those assigned to you. |
 
-The short names follow those of the GitLab types; where the GitLab module uses a different pattern, follow the GitLab module.
+The short names follow those of the GitLab types: a page and its summary share one.
 
 **Configuration.**
 
@@ -297,7 +297,7 @@ As [decision 0017](../decisions/0017-parallel-tasks-with-fixed-interfaces.md) sa
 |---|---|---|---|---|
 | T0 | `m11-interfaces` | `GetOptions::arrayKey` in `ApiClient.h`. The module folder: `CMakeLists.txt` with every source and test named below, the icon, `GitHubModule.cpp` registering identity, types, fields, settings screen, project setting and server type, wired to stub functions. Every header of the module with its declarations: `GitHubClient.h`, `GitHubSettings.h`, `GitHubUrls.h`, `GitHubStatus.h`, `GitHubLists.h`, `GitHubQuickAdd.h`, `GitHubViewSupport.h`, `GitHubListSupport.h`, the six view headers. `GitHubClient.cpp` implemented in full, with `tst_client.cpp`, because every other task calls it. Stubs for every other `.cpp`, and an empty test case in each test file. The README with Part 2's tables. The documents of Part 8, except translations. | everything it creates; after merging, the headers belong to the orchestrator | none |
 | T1 | `m11-core` | Part 1. | `src/api/ServerClient.cpp` and its tests | T0 |
-| T2 | `m11-github-basics` | Part 2: settings, server type, URLs, `fromUrl()`, page views. | `GitHubSettings.cpp`, `GitHubUrls.cpp`, `tst_register.cpp`, `tst_settings.cpp`, `tst_urls.cpp`, `tst_from_url.cpp`, `GitHubModule.cpp` | T0 |
+| T2 | `m11-github-basics` | Part 2: `matchUrl()` and `fromUrl()`, and tests of the rest. T0 implemented the settings, the server type, the page addresses and `readPageAddress()`, because T3, T4 and T7 call them. | `GitHubSettings.cpp`, `GitHubUrls.cpp`, `tst_register.cpp`, `tst_settings.cpp`, `tst_urls.cpp`, `tst_from_url.cpp`, `GitHubModule.cpp` | T0 |
 | T3 | `m11-github-status` | Part 3. | `GitHubStatus.cpp`, `tst_status.cpp`, `tests/data/` except the list files | T0 |
 | T4 | `m11-github-lists` | Part 4. | `GitHubLists.cpp`, `tst_list_query.cpp`, `tests/data/pr_search.json`, `issue_search.json`, `run_list.json` | T0 |
 | T5 | `m11-github-summaries` | Part 5. | `GitHubViewSupport.cpp`, the three summary views, `tst_summary_views.cpp` | T3 |

@@ -1,8 +1,8 @@
 # Integrations
 
-This document describes how Mirante talks to GitLab, Jira and Claude, and how it starts terminals. Which server an item talks to is defined in the [data model](data-model.md#servers-and-tokens): the GitLab or Jira server in the module settings of the item's [profile](data-model.md#profile).
+This document describes how Mirante talks to GitLab, GitHub, Jira and Claude, and how it starts terminals. Which server an item talks to is defined in the [data model](data-model.md#servers-and-tokens): the GitLab, GitHub or Jira server in the module settings of the item's [profile](data-model.md#profile).
 
-The GitLab, Jira and Claude code lives in the `gitlab`, `jira` and `claude` [modules](modules.md). Polling, caching, errors and terminal launch are core services that all modules use.
+The GitLab, GitHub, Jira and Claude code lives in the `gitlab`, `github`, `jira` and `claude` [modules](modules.md). Polling, caching, errors and terminal launch are core services that all modules use.
 
 ## GitLab
 
@@ -44,6 +44,45 @@ What each item type asks for its status:
 - **A CI pipeline list:** the pipelines of the project, up to its `limit`, newest first, all of them or those of a branch; those of a merge request; or, for "started by me", the current user and then that user's pipelines. GitLab's list answers leave out each pipeline's `user` and `started_at`, so the view's Author and Started columns usually show a dash. It makes no further requests for them.
 
 The attention rules are in [item types](item-types.md#gitlab).
+
+## GitHub
+
+- **API:** REST, version `2022-11-28`. It works with github.com and GitHub Enterprise Server. See [decision 0102](decisions/0102-github-module.md).
+- **Server:** `github.general.baseUrl` of the item's profile is the web address, `https://github.com` by default. The API address comes from it: `https://api.github.com/` for github.com, and `<baseUrl>/api/v3/` for any other host. Pages and pasted links use the web address. The token is entered on the same screen and kept in the keychain.
+- **Authentication:** a personal access token in `Authorization: Bearer <token>`. Every request also sends `Accept: application/vnd.github+json`, `X-GitHub-Api-Version: 2022-11-28` and `User-Agent: Mirante`, because GitHub refuses a request without a user agent.
+- **Token:** a fine-grained token needs read access to Metadata, Pull requests, Issues, Checks, Commit statuses and Actions, and write access to Actions for re-run and cancel. A classic token needs `repo`, or `public_repo` alone for public repositories. Without Actions write, the actions fail with a clear message.
+- **Caching:** requests send `If-None-Match` with the last ETag, as for GitLab. GitHub does not count a `304` against the rate limit.
+- **Paging:** lists follow the `Link` header, up to the item's `limit` field (100 rows by default). Search, workflow runs, jobs and check runs answer with an object that holds the rows under a key, such as `{"total_count": 3, "items": [...]}`. The module names that key in `GetOptions::arrayKey`, and the client joins the rows of every page under it.
+- **Rate limits:** GitHub answers `403` or `429` with `x-ratelimit-remaining: 0` when the hourly limit is used up. The client then waits until `x-ratelimit-reset`, at least 1 second and at most 1 hour, and sends again. A `403` with `Retry-After`, for GitHub's secondary limits, waits that many seconds. Neither pauses the server. The search API has its own limit of 30 requests a minute, which the pull request and issue lists count against.
+
+Main endpoints:
+
+| Purpose | Endpoint |
+|---|---|
+| Current user | `GET /user`, to resolve "me" in attention, quick add and the run list |
+| Repository | `GET /repos/:owner/:repo`, for its `default_branch` |
+| Pull request | `GET /repos/:owner/:repo/pulls/:number` |
+| Reviews | `GET /repos/:owner/:repo/pulls/:number/reviews` |
+| Pull requests of a repository | `GET /repos/:owner/:repo/pulls?state=open&sort=updated&direction=desc` |
+| Checks of a commit | `GET /repos/:owner/:repo/commits/:sha/check-runs`, `GET /repos/:owner/:repo/commits/:sha/status` |
+| Issue | `GET /repos/:owner/:repo/issues/:number` |
+| Issue comments | `GET /repos/:owner/:repo/issues/:number/comments?per_page=20&page=<p>` |
+| Pull request and issue lists | `GET /search/issues?q=<query>&sort=updated&order=desc` |
+| Workflow runs | `GET /repos/:owner/:repo/actions/runs`, `GET /repos/:owner/:repo/actions/workflows/:file/runs`, with `branch`, `actor` or `event` |
+| Jobs of a run | `GET /repos/:owner/:repo/actions/runs/:id/jobs?filter=latest` |
+| Re-run or cancel | `POST /repos/:owner/:repo/actions/runs/:id/rerun`, `.../rerun-failed-jobs`, `.../cancel`, `POST /repos/:owner/:repo/actions/jobs/:id/rerun` |
+
+The owner and the repository's name are URL-encoded each on its own. A branch in a query and the search query are URL-encoded too. `GitHubClient` in the module has one method per endpoint; see the [module's README](../src/modules/github/README.md#the-client).
+
+What each item type asks for its status:
+
+- **A pull request** (summary or page): the pull request, its reviews and the current user, at once; then, at once, the check runs and the combined status of its head commit. If one of the last two fails, the checks are read from the other.
+- **An issue** (summary or page): the issue. A summary then asks for the last page of comments, 20 per page, and the page before it when the last holds fewer than 5. GitHub gives comments oldest first and cannot sort them. If that request fails, the status stands without the comments.
+- **An Actions run:** for a linked pull request, the pull request first, for its head branch and commit. For an empty branch, the repository, for its default branch. Then the latest 20 runs of the branch, of one workflow if the item names one. Then, at once, the jobs of each run of the newest commit, or of the pull request's head commit. A failed request for a sibling's jobs keeps the status of the lead run.
+- **A pull request or issue list:** one search, up to its `limit`, most recently updated first. The query holds `is:pr` or `is:issue`, `is:open`, the scope, the preset and the filter. See [decision 0102](decisions/0102-github-module.md).
+- **An Actions run list:** the runs of the repository, up to its `limit`, newest first: all of them; those of a branch; those of a pull request's head branch, after the pull request; or, for "started by me", the current user and then that user's runs.
+
+The attention rules are in [item types](item-types.md#github).
 
 ## Jira
 
