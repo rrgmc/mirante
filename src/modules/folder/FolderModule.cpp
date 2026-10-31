@@ -1,4 +1,5 @@
 // The folder module: a project folder as an item. See README.md.
+#include "FileTreeView.h"
 #include "FolderView.h"
 
 #include <mirante/Fields.h>
@@ -61,19 +62,64 @@ private:
     QIcon m_icon;
 };
 
+// The File tree type. See docs/item-types.md#file-tree.
+class FileTreeItemType : public ItemType
+{
+public:
+    QString id() const override { return QStringLiteral("folder.tree"); }
+    QString name() const override { return QCoreApplication::translate("folder", "File tree"); }
+    QIcon icon() const override { return QIcon(QStringLiteral(":/modules/folder/icons/tree.svg")); }
+    QString shortName() const override { return QCoreApplication::translate("folder", "Files"); }
+    QString description() const override
+    {
+        return QCoreApplication::translate("folder",
+                                           "The files under one of the project's folders, as a tree. It follows "
+                                           "changes on disk and opens files in their programs or in an editor.");
+    }
+    Rendering rendering() const override { return Rendering::Native; }
+
+    std::vector<Field> fields() const override
+    {
+        Field folder;
+        folder.key = QStringLiteral("folder");
+        folder.label = QCoreApplication::translate("folder", "Folder");
+        folder.type = Field::Type::Folder;
+        folder.required = true;
+
+        Field path;
+        path.key = QStringLiteral("path");
+        path.label = QCoreApplication::translate("folder", "Subfolder");
+        path.placeholder = QCoreApplication::translate("folder", "The whole folder");
+
+        Field hidden;
+        hidden.key = QStringLiteral("showHidden");
+        hidden.label = QCoreApplication::translate("folder", "Show hidden files");
+        hidden.type = Field::Type::Bool;
+        hidden.defaultValue = false;
+        return {folder, path, hidden};
+    }
+
+    QWidget *createView(ItemContext &context, QWidget *parent) const override
+    {
+        return createFileTreeView(context, parent);
+    }
+};
+
 } // namespace
 
 void registerModule(ModuleRegistrar &registrar)
 {
     registrar.setModuleName(QCoreApplication::translate("folder", "Folder"));
     registrar.setModuleDescription(QCoreApplication::translate(
-        "folder", "A project's folder as an item, with its Git state and shortcuts to a terminal and an editor."));
+        "folder",
+        "A project's folder as an item, with its Git state, its file tree and shortcuts to a terminal and an editor."));
     registrar.setModuleUuid(QUuid(QStringLiteral("f28b2ac0-3992-4a4c-8e77-40b891218bbc")));
     registrar.setModuleVersion(QStringLiteral("0.1.0"));
     registrar.setModuleAuthor(QStringLiteral("Rangel Reale"));
     registrar.setModuleHomepage(QUrl(QStringLiteral("https://github.com/rrgmc/mirante/tree/master/src/modules/folder")));
     registrar.addItemType(std::make_unique<FolderItemType>(
         QStringLiteral("folder"), QCoreApplication::translate("folder", "Folder / terminal")));
+    registrar.addItemType(std::make_unique<FileTreeItemType>());
 
     // The editor that opens a folder, kept on each device. The folder's path
     // is its last argument. See decision 0079.

@@ -1,5 +1,7 @@
 #include "FolderView.h"
 
+#include "StartEditor.h"
+
 #include <mirante/GitState.h>
 #include <mirante/ItemContext.h>
 #include <mirante/widgets/ActionRow.h>
@@ -9,7 +11,6 @@
 #include <QDir>
 #include <QJsonObject>
 #include <QLabel>
-#include <QProcess>
 #include <QStringList>
 #include <QTimer>
 #include <QVBoxLayout>
@@ -95,7 +96,9 @@ public:
             actions()->showError(m_context.launchTerminal(m_localPath, QString(), {}));
         });
         actions()->addAction(kEditor, QCoreApplication::translate("folder", "Editor"),
-                             QCoreApplication::translate("folder", "Editor"), [this] { openEditor(); });
+                             QCoreApplication::translate("folder", "Editor"), [this] {
+            actions()->showError(startEditor(m_context, m_localPath, m_localPath));
+        });
         actions()->addAction(kFileManager, QCoreApplication::translate("folder", "File manager"),
                              QCoreApplication::translate("folder", "Files"),
                              [this] { m_context.showFolder(m_localPath); });
@@ -225,18 +228,6 @@ private:
         m_branch->setVisible(!branch.isEmpty());
         m_status->setText(status);
         m_status->setVisible(!status.isEmpty());
-    }
-
-    // The editor device setting is a command line, such as "code -n": its
-    // first part is the program, and the folder's path is its last argument.
-    void openEditor()
-    {
-        QStringList parts = QProcess::splitCommand(m_context.deviceSetting(kEditor).toString().trimmed());
-        if (parts.isEmpty())
-            parts << QStringLiteral("code");
-        const QString program = parts.takeFirst();
-        parts << m_localPath;
-        actions()->showError(m_context.startProgram(m_localPath, program, parts));
     }
 
     ItemContext &m_context;

@@ -156,6 +156,7 @@ struct EntityActions::Private
         context.saveFile = [this](const QString &path) {
             return workspacefiles::copyIn(store, path, askFile, tellFile);
         };
+        context.folderPath = [this](const QString &folderId) { return settings.folderPath(folderId); };
         return context;
     }
 
