@@ -28,6 +28,9 @@ struct EditorContext
     // than 20 MB and refuses one larger than 50 MB, and says why it did not
     // copy. See decision 0104.
     std::function<QString(const QString &path)> saveFile;
+    // The local path of one of the project's folders on this device, or empty
+    // if it has none.
+    std::function<QString(const QString &folderId)> folderPath;
 };
 
 // The editor of an item's configuration, shown in the item dialog. An item
