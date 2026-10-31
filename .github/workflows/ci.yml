@@ -11,6 +11,9 @@
 # docs/decisions/0113-ci-skips-documentation-only-changes.md.
 
 name: CI
+# Pull request runs lead with the number. Other runs keep GitHub's default
+# title, because an empty run-name means the default.
+run-name: ${{ github.event_name == 'pull_request' && format('#{0} {1}', github.event.pull_request.number, github.event.pull_request.title) || '' }}
 
 on:
   # Work branches are checked by their pull request, so a push to one does not
