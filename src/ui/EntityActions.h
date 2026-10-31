@@ -100,6 +100,18 @@ public:
     // Reads the clipboard's image for pasteImage() and its menu entry. The
     // default reads the system clipboard; tests set their own.
     void setClipboardImage(std::function<QImage()> clipboardImage);
+    // A local file other than an image, dropped on a task or its Items row
+    // in the sidebar: adds an item of the first type whose fromFile() takes
+    // it, named as the match says, on no dashboard. A match with a copyKey
+    // copies the file into files/ first, with the workspace's size limits.
+    // Returns the new item's id, or an empty string after saying why. See
+    // docs/decisions/0104-document-items.md.
+    QString addFile(const QString &taskId, const QString &path);
+    // Asks whether to keep a large file in the workspace, and says why a
+    // file was not kept, for addFile() and for item editors that copy a
+    // file. The defaults show message boxes; tests set their own.
+    void setFileMessages(std::function<bool(const QString &question)> ask,
+                         std::function<void(const QString &text)> tell);
 
     // Editing, through the entity's dialog.
     void editGroup(const QString &id);

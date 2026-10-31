@@ -238,6 +238,8 @@ Sidebar::Sidebar(const Model &model, const ItemTypeRegistry &types, QWidget *par
     d->tree->setContextMenuPolicy(Qt::CustomContextMenu);
     // Images dropped from other apps. See docs/decisions/0085-drop-images-from-other-apps.md.
     connect(tree, &SidebarTree::imageDropped, this, &Sidebar::imageDropped);
+    // Other files dropped from other apps. See docs/decisions/0104-document-items.md.
+    connect(tree, &SidebarTree::fileDropped, this, &Sidebar::fileDropped);
 
     // Footer: four task lists over the same groups: active tasks under every
     // project, active tasks only under projects that have some, done and

@@ -7,6 +7,7 @@
 #include "core/Model.h"
 #include "core/Profiles.h"
 #include "core/Store.h"
+#include "items/FieldValidation.h"
 #include "items/ItemTypeRegistry.h"
 #include "items/UrlMatches.h"
 #include "layout/Presets.h"
@@ -20,13 +21,16 @@
 #include "ui/ProfilesDialog.h"
 #include "ui/ProjectDialog.h"
 #include "ui/TaskDialog.h"
+#include "ui/WorkspaceFiles.h"
 #include "web/ProfileManager.h"
 
 #include <QActionGroup>
 #include <QBuffer>
 #include <QClipboard>
 #include <QDateTime>
+#include <QApplication>
 #include <QDialog>
+#include <QFileInfo>
 #include <QGuiApplication>
 #include <QImage>
 #include <QMenu>
@@ -111,6 +115,8 @@ struct EntityActions::Private
     ProfileManager *profiles = nullptr;
     std::function<void(ProfilesDialog &)> editProfiles;
     std::function<QImage()> clipboardImage;
+    std::function<bool(const QString &)> askFile;
+    std::function<void(const QString &)> tellFile;
     SecretStore *secrets = nullptr;
     ImagePaste imagePaste{model, store, types};
 
@@ -147,6 +153,9 @@ struct EntityActions::Private
             return s->saveFile(bytes, QStringLiteral("png"));
         };
         context.loadImage = [s](const QString &name) { return QImage(s->filePath(name)); };
+        context.saveFile = [this](const QString &path) {
+            return workspacefiles::copyIn(store, path, askFile, tellFile);
+        };
         return context;
     }
 
@@ -194,6 +203,17 @@ EntityActions::EntityActions(Model &model, Store &store, const ItemTypeRegistry 
         const QClipboard *clipboard = QGuiApplication::clipboard();
         return clipboard ? clipboard->image() : QImage();
     };
+    // In front of the item dialog when its editor copies a file.
+    const auto messageParent = [this]() -> QWidget * {
+        QWidget *active = QApplication::activeWindow();
+        return active ? active : d->dialogParent;
+    };
+    d->askFile = [this, messageParent](const QString &question) {
+        return QMessageBox::question(messageParent(), tr("Keep File"), question) == QMessageBox::Yes;
+    };
+    d->tellFile = [this, messageParent](const QString &text) {
+        QMessageBox::warning(messageParent(), tr("Keep File"), text);
+    };
 }
 
 EntityActions::~EntityActions() = default;
@@ -210,6 +230,13 @@ void EntityActions::setModifiers(std::function<Qt::KeyboardModifiers()> modifier
 void EntityActions::setClipboardImage(std::function<QImage()> clipboardImage)
 {
     d->clipboardImage = std::move(clipboardImage);
+}
+
+void EntityActions::setFileMessages(std::function<bool(const QString &)> ask,
+                                    std::function<void(const QString &)> tell)
+{
+    d->askFile = std::move(ask);
+    d->tellFile = std::move(tell);
 }
 
 void EntityActions::setProfileManager(ProfileManager *manager) { d->profiles = manager; }
@@ -463,6 +490,54 @@ QString EntityActions::addImage(const QString &taskId, const QImage &image)
     const QString text = ImagePaste::message(result);
     if (!text.isEmpty())
         emit message(text);
+    return {};
+}
+
+QString EntityActions::addFile(const QString &taskId, const QString &path)
+{
+    const Task *task = d->model.task(taskId);
+    if (!task)
+        return {};
+    if (d->store.readOnly()) {
+        emit message(tr("This workspace is read-only, so no item can be added."));
+        return {};
+    }
+
+    FileDrop drop;
+    drop.path = QFileInfo(path).absoluteFilePath();
+    if (const Project *project = d->model.project(task->projectId)) {
+        for (const Folder &folder : project->folders) {
+            const QString local = d->settings.folderPath(folder.id);
+            if (!local.isEmpty())
+                drop.folders.emplace_back(folder.id, local);
+        }
+    }
+
+    for (const ItemType *type : d->types.types()) {
+        const std::optional<FileMatch> match = type->fromFile(drop);
+        if (!match)
+            continue;
+        Item item;
+        item.id = edits::newId();
+        item.type = type->id();
+        item.name = match->name.isEmpty() ? type->name() : match->name;
+        item.config = defaultConfig(type->fields());
+        for (auto it = match->config.constBegin(); it != match->config.constEnd(); ++it)
+            item.config.insert(it.key(), it.value());
+        if (!match->copyKey.isEmpty()) {
+            const QString name = workspacefiles::copyIn(d->store, drop.path, d->askFile, d->tellFile);
+            if (name.isEmpty())
+                return {};
+            item.config.insert(match->copyKey, name);
+        }
+        // A question above may have let the task change.
+        const Task *current = d->model.task(taskId);
+        if (!current)
+            return {};
+        d->model.setTask(edits::addItem(*current, item));
+        return item.id;
+    }
+    emit message(tr("No item type can show this file."));
     return {};
 }
 

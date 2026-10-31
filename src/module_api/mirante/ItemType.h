@@ -1,6 +1,7 @@
 #pragma once
 
 #include <mirante/Fields.h>
+#include <mirante/FileMatch.h>
 #include <mirante/Status.h>
 #include <mirante/UrlMatch.h>
 
@@ -93,6 +94,17 @@ public:
     {
         Q_UNUSED(url)
         Q_UNUSED(profileId)
+        return std::nullopt;
+    }
+
+    // Recognises a local file that the user dropped on a task, such as a
+    // PDF, and returns the configuration that shows it. Null if the type
+    // does not take the file, the default. The core asks the types in the
+    // registry's order and takes the first match. Images go to the type with
+    // a pastedImageField() first. See decision 0104.
+    virtual std::optional<FileMatch> fromFile(const FileDrop &drop) const
+    {
+        Q_UNUSED(drop)
         return std::nullopt;
     }
 

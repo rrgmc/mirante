@@ -35,7 +35,7 @@ jobs:
         with:
           path: ${{ runner.temp }}/qt
           # Change the last part when setup-qt installs other archives.
-          key: qt-${{ runner.os }}-${{ env.QT_VERSION }}-qtbase-qtsvg-qtdeclarative-qttools-qttranslations-icu-webengine-imageformats
+          key: qt-${{ runner.os }}-${{ env.QT_VERSION }}-qtbase-qtsvg-qtdeclarative-qttools-qttranslations-icu-webengine-imageformats-pdf
 
       - name: Install Linux packages
         if: runner.os == 'Linux'
@@ -109,7 +109,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ runner.temp }}/qt
-          key: qt-${{ runner.os }}-${{ env.QT_VERSION }}-qtbase-qtsvg-qtdeclarative-qttools-qttranslations-icu-webengine-imageformats
+          key: qt-${{ runner.os }}-${{ env.QT_VERSION }}-qtbase-qtsvg-qtdeclarative-qttools-qttranslations-icu-webengine-imageformats-pdf
 
       - name: Install Linux packages
         run: |
