@@ -20,7 +20,7 @@ The type has an id, a name and an icon, and declares that it is native. Since M7
 
 - A thin bar holds an **Edit** and a **Preview** button, with a stack of the two modes below. The view opens in Preview when the note has text, else in Edit. `Ctrl+E` switches between them. The shortcut works only while the keyboard's focus is in the view, so two notes on screen each switch alone.
 - Edit is a plain text editor with the system's fixed-width font.
-- Preview shows the text as Markdown. It loads nothing: a remote image or a local file named in the text shows as nothing. A click on a web or mail link opens it in the external program.
+- Preview shows the text as Markdown, in the view kit's `MarkdownView`, with no fetcher. It loads nothing: a remote image or a local file named in the text shows as nothing. A click on a web or mail link opens it in the external program.
 
 ### Saving
 

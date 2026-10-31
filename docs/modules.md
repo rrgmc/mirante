@@ -14,6 +14,7 @@ A module is one folder of item types and the code they share. Modules are compil
 | `notes` | `notes` | none | none |
 | `folder` | `folder` | none | none |
 | `image` | `image` | none | none |
+| `document` | `document.url`, `document.file`, `document.project` | none | none |
 
 All modules are enabled by default. The item types are described in [item types](item-types.md). The gitlab, github and jira modules keep the server they talk to in their [settings screens](#settings-screens), one per profile; see [decision 0054](decisions/0054-module-settings-replace-connections.md).
 
@@ -101,8 +102,9 @@ The module interface contains the headers below. The "Since" column gives the mi
 | `ModuleSettings.h` | `SettingsScreen`, one configuration screen of a module, and `ModuleSettings`, which reads the values of the module's screens in a profile. See [settings screens](#settings-screens). | after M4 |
 | `ItemType.h` | The `ItemType` interface. See [item types](item-types.md#the-type-registry). `shortName()`, the short label in cell headers, was added after M3; see [decision 0033](decisions/0033-cell-header-pills.md). M4 adds `rendering()` and `createView()`; its `connectionKinds()` was removed by [decision 0054](decisions/0054-module-settings-replace-connections.md). `fromUrl()` was added after M4; see [items from a link](#items-from-a-link). So was `fieldsForProfile()`; see [decision 0050](decisions/0050-profiles-hold-logins-connections-and-settings.md). `description()` was added after M4; see [decision 0056](decisions/0056-modules-window.md). M5 adds `hasStatus()` and `fetchStatus()`; see [status](#status). M7 adds `viewKeys()`; see [decision 0081](decisions/0081-views-that-keep-their-own-keys.md). | M2 |
 | `UrlMatch.h` | `UrlMatch`, what an item type makes of a pasted web address, and `pathBelow()`, which reads an address below a server's base URL. See [items from a link](#items-from-a-link). | after M4 |
+| `FileMatch.h` | `FileDrop`, a local file dropped on a task with the project's local folders, and `FileMatch`, what an item type makes of it. See [items from a dropped file](#items-from-a-dropped-file). | M12 |
 | `Fields.h` | `Field`: a key, a label, a type, a default value, a required flag, and for a choice its values and labels. The types are text, multi-line text, URL, integer, boolean, choice, folder, image, text list and secret. A text field can offer `suggestions` in an editable drop-down list. A secret, such as a token, is for settings screens only; its value is never stored with the others. Used for item configuration and settings screens, and from M5 for project settings. See decisions [0028](decisions/0028-item-fields-in-m3.md), [0044](decisions/0044-module-settings-in-the-workspace.md) and [0054](decisions/0054-module-settings-replace-connections.md). | M3 |
-| `ItemEditor.h` | `ItemEditor`, the base of an item type's own configuration editor, and `EditorContext`, what an editor can reach: the project's folders and a way to save an image into `files/` | M3 |
+| `ItemEditor.h` | `ItemEditor`, the base of an item type's own configuration editor, and `EditorContext`, what an editor can reach: the project's folders and a way to save an image into `files/`. M12 adds `saveFile`, which copies any file into `files/` with the workspace's size limits. | M3 |
 | `ItemContext.h` | `ItemContext`, everything an item's code can reach. See [below](#item-context). | M4 |
 | `ApiClient.h` | `ServerType`, how a module's server is set up and authenticated, and `ApiClient`, a module's server in one profile: requests with ETags, paging, rate limits and request limits. See [servers and tokens](#servers-and-tokens). | M5 |
 | `Status.h` | `ItemStatus`, `AttentionReason`, `StatusJob` and `ItemStatusSource`, for the [status cache](integrations.md#polling-and-caching). See [status](#status). M7 adds `StatusJob::folderPath()` and `gitHead()`. | M5 |
@@ -190,6 +192,14 @@ std::optional<UrlMatch> fromUrl(const QUrl &url, const QString &profileId) const
 
 The types that take addresses so far are listed in [item types](item-types.md#items-from-a-link).
 
+## Items from a dropped file
+
+An item type can take a local file that the user dropped on a task in the sidebar, other than an image, with `fromFile()`. The core asks the types in the registry's order and adds an item of the first that returns a match. See [decision 0104](decisions/0104-document-items.md).
+
+- **The drop.** `FileDrop::path` is the file's absolute path. `folders` holds the project's folders that have a local path on this device, as their ids and paths, so a type can tell whether the file is inside one.
+- **The match.** `config` and `name` work as in `UrlMatch`. `copyKey`, if set, has the core copy the file into `files/` and store the copy's name under that key, with the workspace's size limits: above 20 MB it asks, above 50 MB it refuses. The item is not added if the copy fails.
+- **Images** go to the type with a `pastedImageField()`, through the paste dialog, before any `fromFile()` is asked.
+
 ## Item context
 
 Each item's code gets an `ItemContext`. It gives access to the configuration the core owns, without the core's classes. The core makes one for each placement, and it outlives the placement's view. The "Since" column gives the milestone that adds each member.
@@ -274,7 +284,7 @@ Native views of different modules need the same small widgets, and modules canno
   - The object names `filter.<column>`, `previousPage`, `nextPage` and `pageLine` let tests find the controls.
   - A selected row keeps its highlight across new rows, sorts and pages, so that Return acts on the row the user chose.
 - `compactDate()`: a date for a table, in local time: `10-30 14:32` in this year, `2025-10-30` otherwise.
-- `MarkdownView`, planned: a read-only `QTextBrowser` that shows Markdown with GitHub's extensions. Web and mail links open in the external programs. Loading images is off by default, as the Notes preview needs. A view that turns it on gives a base location for relative images and a way to fetch remote ones. The Notes preview moves to it when the Document items are built. See [decision 0104](decisions/0104-document-items.md).
+- `MarkdownView`: a read-only `QTextBrowser` that shows Markdown with GitHub's extensions. Web and mail links open in the external programs. Loading images is off by default, as the Notes preview needs. `setResourceFetcher()` turns it on: the view asks the fetcher for each image, resolved against the base given to `setMarkdownText()`, and lays the document out again when it arrives. The Notes preview and the document items use it. See [decision 0104](decisions/0104-document-items.md).
 
 ### Testing
 
