@@ -75,6 +75,7 @@ function(mirante_add_module id)
         target_link_libraries(${target} PUBLIC Qt6::${qt_lib})
     endforeach()
     mirante_set_warnings(${target})
+    mirante_autogen_tracks_sources(${target})
 
     # Qt 6 links the resources of a static library as object files, so no
     # Q_INIT_RESOURCE call is needed.
