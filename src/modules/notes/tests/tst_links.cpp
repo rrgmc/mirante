@@ -128,8 +128,9 @@ mirante::EditorContext editorContext()
 {
     mirante::EditorContext context;
     context.folders = {{QStringLiteral("f1"), QStringLiteral("Backend")}, {QStringLiteral("f2"), QStringLiteral("Docs")}};
+    // A folder's path is absolute on every platform, and nothing reads it here.
     context.folderPath = [](const QString &id) {
-        return id == QLatin1String("f1") ? QStringLiteral("C:/work/backend") : QString();
+        return id == QLatin1String("f1") ? QDir::tempPath() + QStringLiteral("/work/backend") : QString();
     };
     context.saveFile = [](const QString &path) {
         return path.contains(QLatin1String("refused")) ? QString() : QStringLiteral("abc.pdf");
@@ -331,7 +332,7 @@ private slots:
         QVERIFY(!link.contains(notes::kLinkUrl));
 
         // A file outside the folder is refused.
-        editor.setProjectChooser([](const QString &) { return QStringLiteral("D:/elsewhere/b.md"); });
+        editor.setProjectChooser([](const QString &) { return QDir::tempPath() + QStringLiteral("/elsewhere/b.md"); });
         click(&editor, "browse");
         QCOMPARE(field<QLineEdit>(&editor, "path")->text(), QStringLiteral("docs/a.md"));
         QVERIFY(!field<QLabel>(&editor, "pathNote")->text().isEmpty());
