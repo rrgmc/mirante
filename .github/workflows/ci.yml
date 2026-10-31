@@ -158,7 +158,9 @@ jobs:
           QTWEBENGINE_DISABLE_SANDBOX: 1
         run: |
           QT_DIR=$(sh tools/setup-qt.sh)
-          cmake --preset ci-no-modules -DCMAKE_PREFIX_PATH="$QT_DIR"
+          # Without precompiled headers, a file that misses an include fails.
+          # This job ends before the Windows build, so it costs no time.
+          cmake --preset ci-no-modules -DCMAKE_PREFIX_PATH="$QT_DIR" -DMIRANTE_PCH=OFF
           cmake --build --preset ci-no-modules
           ctest --preset ci-no-modules
 
