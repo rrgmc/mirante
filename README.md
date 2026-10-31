@@ -1,12 +1,28 @@
 # <img src="resources/icons/mirante.svg" alt="" width="40" height="40"> Mirante
 
-Mirante is a personal desktop dashboard for all of one person's work. Work is organised in groups, projects and tasks. Each task collects its items on dashboards that the user can arrange freely. An item can be anything a module provides. The first modules cover Claude sessions, GitLab merge requests and pipelines, Jira issues, web pages, notes and project folders. It is built with Qt 6 for Windows, macOS and Linux.
+Mirante is a personal desktop dashboard for all of one person's work. Work is organised in groups, projects and tasks. Each task collects its items on dashboards that the user can arrange freely. An item can be anything a module provides; the [modules](#modules) below are included. It is built with Qt 6 for Windows, macOS and Linux.
 
 A workspace is stored as ordinary files and folders in the filesystem. This makes it compatible with file syncing apps such as Dropbox or Google Drive, so the same workspace can be used on several computers without a server.
 
 The design is in [docs/README.md](docs/README.md).
 
 ![Mirante's main window. The sidebar lists groups, projects and tasks. A root dashboard shows a task's web page and notes above tabs from other tasks.](docs/images/root-dashboard.png)
+
+## Modules
+
+Mirante includes these modules. Each one provides one or more item types. [Item types](docs/item-types.md) describes them in detail, and Help > Modules lists them in the app.
+
+| Module | Item types |
+|---|---|
+| [Claude](src/modules/claude/README.md): Claude sessions on claude.ai | Claude session (web) |
+| [Documents](src/modules/document/README.md): Markdown, text and PDF files | Document (web address), Document (workspace file), Document (project file) |
+| [Folder](src/modules/folder/README.md): a project's folder, with its Git state and shortcuts to a terminal and an editor | Folder / terminal |
+| [GitHub](src/modules/github/README.md): github.com or GitHub Enterprise Server | GitHub PR (summary), GitHub PR (page), GitHub PR List, GitHub Actions Run, GitHub Actions Run List, GitHub Issue (summary), GitHub Issue (page), GitHub Issue List |
+| [GitLab](src/modules/gitlab/README.md): a GitLab server | GitLab MR (summary), GitLab MR (page), GitLab MR List, GitLab CI Pipeline, GitLab CI Pipeline List, GitLab Issue (summary), GitLab Issue (page), GitLab Issue List |
+| [Image](src/modules/image/README.md): screenshots or diagrams, with an optional link and memo | Image |
+| [Jira](src/modules/jira/README.md): a Jira site | Jira Issue (summary), Jira Issue (page), Jira List |
+| [Notes](src/modules/notes/README.md): Markdown notes, kept in the task's file | Notes |
+| [Web](src/modules/web/README.md): any web page | Web page |
 
 ## Installing
 
