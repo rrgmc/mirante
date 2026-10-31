@@ -274,6 +274,7 @@ Native views of different modules need the same small widgets, and modules canno
   - The object names `filter.<column>`, `previousPage`, `nextPage` and `pageLine` let tests find the controls.
   - A selected row keeps its highlight across new rows, sorts and pages, so that Return acts on the row the user chose.
 - `compactDate()`: a date for a table, in local time: `10-30 14:32` in this year, `2025-10-30` otherwise.
+- `MarkdownView`, planned: a read-only `QTextBrowser` that shows Markdown with GitHub's extensions. Web and mail links open in the external programs. Loading images is off by default, as the Notes preview needs. A view that turns it on gives a base location for relative images and a way to fetch remote ones. The Notes preview moves to it when the Document items are built. See [decision 0104](decisions/0104-document-items.md).
 
 ### Testing
 
