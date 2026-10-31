@@ -1,6 +1,6 @@
 # 0017. Parallel tasks with fixed interfaces and globbed sources
 
-- Status: Accepted; merging superseded by 0109
+- Status: Accepted; merging superseded by 0109 and 0111
 - Date: 2026-10-28
 
 ## Context
