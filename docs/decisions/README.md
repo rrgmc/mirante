@@ -108,7 +108,7 @@ Each file records one design decision: what was decided, what else was considere
 | [0101](0101-macos-release-signing.md) | The macOS release is a universal bundle, signed with a Developer ID and notarised | Accepted; bundle identifier superseded by 0103 |
 | [0102](0102-github-module.md) | A GitHub module, shaped like the GitLab module | Accepted |
 | [0103](0103-bundle-identifier-rrgmc.md) | The macOS bundle identifier is `com.rrgmc.mirante` | Accepted |
-| [0104](0104-document-items.md) | Document items show a file from a web address, the workspace or a project folder | Proposed |
+| [0104](0104-document-items.md) | Document items show a file from a web address, the workspace or a project folder | Accepted |
 
 ## Template
 

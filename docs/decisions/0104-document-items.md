@@ -1,6 +1,6 @@
 # 0104. Document items show a file from a web address, the workspace or a project folder
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-10-31
 
 ## Context
