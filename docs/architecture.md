@@ -104,6 +104,7 @@ Native views are ordinary widgets. Lists use `QTableView` with a model fed from 
 | `AddressField` | The elided, selectable address in the web toolbar |
 | `DashSchemeHandler` | Serves `dash://` from resources with the security headers. Only the app profile installs it. |
 | `DashPage`, `DashView` | The page and view of a built-in panel: only `dash:` addresses, no new windows, no permissions, and the bridge on a `QWebChannel` as `dash` |
+| `PageFreezer` | Freezes the pages of the windows hidden to the tray, and makes them active again when the windows show. See the [memory policy](web-views.md#memory-policy). |
 
 ## api
 

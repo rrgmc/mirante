@@ -1932,11 +1932,12 @@ private slots:
         QCOMPARE(detachedWindows().size(), 1);
     }
 
-    // With a tray, closing hides the window and the windows beside it. Bringing
-    // it back shows them again, still detached.
+    // With a tray and the setting on, closing hides the window and the windows
+    // beside it. Bringing it back shows them again, still detached.
     void closeHidesToTray()
     {
         Fixture f;
+        f.settings.setCloseToTray(true);
         f.window->setTrayPresent(true);
         const auto noTray = qScopeGuard([&f] { f.window->setTrayPresent(false); });
         f.window->show();
@@ -1956,11 +1957,11 @@ private slots:
         QVERIFY(detached->isVisible());
     }
 
-    // With the setting off, closing with a tray does not hide the window.
+    // With the setting off, the default, closing with a tray does not hide the
+    // window.
     void closeToTrayOff()
     {
         Fixture f;
-        f.settings.setCloseToTray(false);
         f.window->setTrayPresent(true);
         const auto noTray = qScopeGuard([&f] { f.window->setTrayPresent(false); });
         f.window->show();

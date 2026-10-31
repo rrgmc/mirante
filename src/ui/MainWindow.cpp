@@ -53,6 +53,7 @@
 #include "ui/Shortcuts.h"
 #include "ui/Sidebar.h"
 #include "ui/SlotTabBar.h"
+#include "web/PageFreezer.h"
 #include "web/ProfileManager.h"
 
 #include <mirante/ApiClient.h>
@@ -215,6 +216,8 @@ struct MainWindow::Private
 
     // Hiding to the tray. See docs/ui.md#tray-and-notifications.
     platform::Tray *tray = nullptr;
+    // Freezes the web pages while the app is hidden to the tray.
+    PageFreezer pageFreezer;
     platform::Notifier *notifier = nullptr;
     // Notifications due in this pass of the event loop: task id and text.
     struct DueNotification
@@ -2350,6 +2353,7 @@ void MainWindow::showAndRaise()
 {
     if (d->tray)
         d->tray->setDockIconVisible(true);
+    d->pageFreezer.thaw();
     const QList<QPointer<QWidget>> others = std::exchange(d->hiddenWithWindow, {});
     for (const QPointer<QWidget> &other : others) {
         if (other)
@@ -2383,6 +2387,10 @@ void MainWindow::hideToTray()
     hide();
     if (d->tray)
         d->tray->setDockIconVisible(false);
+    QList<QWidget *> hidden{this};
+    for (const QPointer<QWidget> &window : std::as_const(d->hiddenWithWindow))
+        hidden << window.data();
+    d->pageFreezer.freeze(hidden);
 }
 
 void MainWindow::toggleVisible()

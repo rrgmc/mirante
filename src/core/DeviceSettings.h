@@ -131,7 +131,7 @@ public:
     void setGlobalHotkey(const QString &sequence);
 
     // Whether closing the main window hides it to the tray instead of quitting.
-    // On if not set. See docs/ui.md#tray-and-notifications.
+    // Off if not set, so closing quits. See docs/ui.md#tray-and-notifications.
     bool closeToTray() const;
     void setCloseToTray(bool on);
 

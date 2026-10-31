@@ -543,12 +543,12 @@ private slots:
     {
         {
             DeviceSettings device(settings.get());
-            QVERIFY(device.closeToTray());
-            device.setCloseToTray(false);
+            QVERIFY(!device.closeToTray());
+            device.setCloseToTray(true);
         }
         reopen();
         DeviceSettings device(settings.get());
-        QVERIFY(!device.closeToTray());
+        QVERIFY(device.closeToTray());
     }
     // Empty means the platform's terminal, and is not kept.
     void terminalCommand()
