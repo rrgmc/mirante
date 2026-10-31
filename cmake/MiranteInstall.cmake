@@ -40,15 +40,22 @@ function(mirante_add_install target)
         DEPLOY_TOOL_OPTIONS ${deploy_options})
     # Qt's deploy script copies into the install prefix. On Linux the app's
     # folder is below it, so the prefix points there while the script runs.
+    # Qt WebEngine's part of the script adds DESTDIR twice, which CPack sets
+    # for the .deb, so DESTDIR goes into the prefix for that time.
     if(NOT app_dir STREQUAL ".")
         install(CODE "
             set(mirante_install_prefix \"\${CMAKE_INSTALL_PREFIX}\")
-            set(CMAKE_INSTALL_PREFIX \"\${CMAKE_INSTALL_PREFIX}/${app_dir}\")
+            set(mirante_destdir \"\$ENV{DESTDIR}\")
+            set(CMAKE_INSTALL_PREFIX \"\$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}/${app_dir}\")
+            set(ENV{DESTDIR} \"\")
         " COMPONENT Mirante)
     endif()
     install(SCRIPT "${deploy_script}" COMPONENT Mirante)
     if(NOT app_dir STREQUAL ".")
-        install(CODE "set(CMAKE_INSTALL_PREFIX \"\${mirante_install_prefix}\")" COMPONENT Mirante)
+        install(CODE "
+            set(ENV{DESTDIR} \"\${mirante_destdir}\")
+            set(CMAKE_INSTALL_PREFIX \"\${mirante_install_prefix}\")
+        " COMPONENT Mirante)
     endif()
 
     # Qt's own texts in Portuguese, such as the buttons of standard dialogs.
