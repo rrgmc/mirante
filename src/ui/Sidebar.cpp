@@ -5,10 +5,8 @@
 #include "ui/SidebarTree.h"
 
 #include <QAction>
-#include <QEvent>
 #include <QHBoxLayout>
 #include <QIcon>
-#include <QLabel>
 #include <QMenu>
 #include <QPalette>
 #include <QPushButton>
@@ -29,30 +27,6 @@ namespace {
 // The task lists, in the order of their tabs.
 enum TaskList { ProjectsList, ActiveList, DoneList, TrashList };
 
-// Reports double clicks on the title label.
-class TitleClicks : public QObject
-{
-public:
-    TitleClicks(QObject *parent, std::function<void()> onDoubleClick)
-        : QObject(parent)
-        , m_onDoubleClick(std::move(onDoubleClick))
-    {
-    }
-
-protected:
-    bool eventFilter(QObject *watched, QEvent *event) override
-    {
-        if (event->type() == QEvent::MouseButtonDblClick && m_onDoubleClick) {
-            m_onDoubleClick();
-            return true;
-        }
-        return QObject::eventFilter(watched, event);
-    }
-
-private:
-    std::function<void()> m_onDoubleClick;
-};
-
 } // namespace
 
 struct Sidebar::Private
@@ -61,7 +35,6 @@ struct Sidebar::Private
     QTreeView *tree = nullptr;
     QToolButton *priorityFilter = nullptr;          // its menu shows or hides each priority
     std::vector<std::pair<Priority, QAction *>> shownPriorities;
-    QLabel *title = nullptr;
     QTabBar *stateTabs = nullptr;       // the task lists: "Projects", "Active", "Done" and "Trash"
     QPushButton *emptyTrash = nullptr;  // shown while the Trash list is current
     QHBoxLayout *header = nullptr;
@@ -184,19 +157,8 @@ Sidebar::Sidebar(const Model &model, const ItemTypeRegistry &types, QWidget *par
 
     d->model = new SidebarModel(model, types, this);
 
-    // Header: title and the collapse button.
-    auto *title = new QLabel(QStringLiteral("Mirante"), this);
-    title->setObjectName(QStringLiteral("workspaceTitle"));
-    title->setToolTip(tr("The workspace. Double-click to rename it."));
-    title->installEventFilter(new TitleClicks(this, [this] { emit titleDoubleClicked(); }));
-    d->title = title;
-    QFont titleFont = title->font();
-    titleFont.setBold(true);
-    title->setFont(titleFont);
-    // A long name does not widen the sidebar; the label cuts it off instead.
-    title->setMinimumWidth(0);
-    title->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
-
+    // Header: the buttons, and the collapse button at the right. The
+    // workspace's name is in the window title.
     auto *collapse = new QToolButton(this);
     collapse->setText(QStringLiteral("«"));
     collapse->setToolTip(tr("Hide sidebar"));
@@ -246,10 +208,10 @@ Sidebar::Sidebar(const Model &model, const ItemTypeRegistry &types, QWidget *par
 
     auto *header = new QHBoxLayout;
     header->setContentsMargins(8, 4, 4, 4);
-    header->addWidget(title, 1);
     header->addWidget(d->priorityFilter);
     header->addWidget(expandTasks);
     header->addWidget(collapseTasks);
+    header->addStretch(1);
     header->addWidget(collapse);
     d->header = header;
 
@@ -435,8 +397,6 @@ void Sidebar::reveal(const QString &id)
     d->tree->scrollTo(index);
 }
 
-void Sidebar::setTitle(const QString &title) { d->title->setText(title); }
-
 void Sidebar::expandAllTasks()
 {
     d->forEachTask({}, [this](const QModelIndex &task) {
@@ -458,8 +418,8 @@ QModelIndex Sidebar::currentIndex() const { return d->tree->currentIndex(); }
 
 void Sidebar::addHeaderWidget(QWidget *widget)
 {
-    // After the title, which is first.
-    d->header->insertWidget(1, widget);
+    // First, before the filter.
+    d->header->insertWidget(0, widget);
 }
 
 void Sidebar::setMenuFiller(MenuFiller filler) { d->menuFiller = std::move(filler); }

@@ -1082,7 +1082,7 @@ private slots:
     }
 
     // A workspace's name lives in its workspace.mirante. Renaming writes it, and
-    // the sidebar title and the window title show it.
+    // the window title shows it.
     void renameWorkspace()
     {
         QTemporaryDir dir;
@@ -1091,12 +1091,9 @@ private slots:
 
         Fixture f;
         f.window->openWorkspace(dir.path());
-        auto *title = f.window->findChild<QLabel *>(QStringLiteral("workspaceTitle"));
-        QVERIFY(title);
-        QCOMPARE(title->text(), QStringLiteral("Sample data"));
+        QVERIFY(f.window->windowTitle().startsWith(QStringLiteral("Sample data")));
 
         QVERIFY(f.window->renameWorkspace(QStringLiteral("Work stuff")));
-        QCOMPARE(title->text(), QStringLiteral("Work stuff"));
         QVERIFY(f.window->windowTitle().startsWith(QStringLiteral("Work stuff")));
 
         // The Store writes the name into workspace.mirante.
@@ -1110,7 +1107,7 @@ private slots:
         // Opening it again reads the name back.
         f.window->openSampleData();
         f.window->openWorkspace(dir.path());
-        QCOMPARE(title->text(), QStringLiteral("Work stuff"));
+        QVERIFY(f.window->windowTitle().startsWith(QStringLiteral("Work stuff")));
 
         // The sample data cannot be renamed.
         f.window->openSampleData();

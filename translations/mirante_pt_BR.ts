@@ -214,6 +214,25 @@
     </message>
 </context>
 <context>
+    <name>LoginItem</name>
+    <message>
+        <source>The registry could not be written.</source>
+        <translation>Não foi possível gravar no registro.</translation>
+    </message>
+    <message>
+        <source>%1 could not be removed.</source>
+        <translation>Não foi possível remover %1.</translation>
+    </message>
+    <message>
+        <source>%1 could not be written.</source>
+        <translation>Não foi possível gravar %1.</translation>
+    </message>
+    <message>
+        <source>Starting at sign-in needs macOS 13.</source>
+        <translation>Iniciar ao entrar na sessão requer o macOS 13.</translation>
+    </message>
+</context>
+<context>
     <name>Migrations</name>
     <message>
         <source>missing schemaVersion</source>
@@ -3745,6 +3764,18 @@
         <source>Re&amp;load</source>
         <translation>Re&amp;carregar</translation>
     </message>
+    <message>
+        <source>Settings</source>
+        <translation>Configurações</translation>
+    </message>
+    <message>
+        <source>Mirante could not change whether it starts at sign-in. %1</source>
+        <translation>O Mirante não conseguiu mudar se inicia ao entrar na sessão. %1</translation>
+    </message>
+    <message>
+        <source>macOS starts Mirante at sign-in only after you allow it in System Settings &gt; General &gt; Login Items. Open System Settings now?</source>
+        <translation>O macOS só inicia o Mirante ao entrar na sessão depois que você o permitir em Ajustes do Sistema &gt; Geral &gt; Itens de Início. Abrir os Ajustes do Sistema agora?</translation>
+    </message>
 </context>
 <context>
     <name>mirante::ModuleSettingsDialog</name>
@@ -4480,13 +4511,17 @@ Os dados são de %2.</translation>
         <source>Language</source>
         <translation>Idioma</translation>
     </message>
+    <message>
+        <source>Start Mirante when I sign in</source>
+        <translation>Iniciar o Mirante quando eu entrar na sessão</translation>
+    </message>
+    <message>
+        <source>Mirante starts hidden in the tray.</source>
+        <translation>O Mirante inicia oculto na bandeja.</translation>
+    </message>
 </context>
 <context>
     <name>mirante::Sidebar</name>
-    <message>
-        <source>The workspace. Double-click to rename it.</source>
-        <translation>O espaço de trabalho. Clique duas vezes para renomeá-lo.</translation>
-    </message>
     <message>
         <source>Hide sidebar</source>
         <translation>Ocultar barra lateral</translation>
