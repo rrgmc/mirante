@@ -524,10 +524,6 @@
 <context>
     <name>github</name>
     <message>
-        <source>This view is not ready yet.</source>
-        <translation>Esta visualização ainda não está pronta.</translation>
-    </message>
-    <message>
         <source>Set the repository in the item&apos;s settings.</source>
         <translation>Defina o repositório nas configurações do item.</translation>
     </message>
@@ -1030,6 +1026,261 @@
     <message>
         <source>Loading…</source>
         <translation>Carregando…</translation>
+    </message>
+    <message>
+        <source>No issues</source>
+        <translation>Nenhuma issue</translation>
+    </message>
+    <message>
+        <source>Ref</source>
+        <translation>Ref</translation>
+    </message>
+    <message>
+        <source>Title</source>
+        <translation>Título</translation>
+    </message>
+    <message>
+        <source>Assignees</source>
+        <translation>Responsáveis</translation>
+    </message>
+    <message>
+        <source>Labels</source>
+        <translation>Etiquetas</translation>
+    </message>
+    <message>
+        <source>Updated</source>
+        <translation>Atualizado</translation>
+    </message>
+    <message>
+        <source>Links</source>
+        <translation>Links</translation>
+    </message>
+    <message>
+        <source>Details</source>
+        <translation>Detalhes</translation>
+    </message>
+    <message>
+        <source>Comments</source>
+        <translation>Comentários</translation>
+    </message>
+    <message>
+        <source>Assignees: %1</source>
+        <translation>Responsáveis: %1</translation>
+    </message>
+    <message>
+        <source>none</source>
+        <translation>nenhum</translation>
+    </message>
+    <message>
+        <source>Milestone: %1</source>
+        <translation>Marco: %1</translation>
+    </message>
+    <message>
+        <source>No comments</source>
+        <translation>Nenhum comentário</translation>
+    </message>
+    <message>
+        <source>The comments could not be read.</source>
+        <translation>Não foi possível ler os comentários.</translation>
+    </message>
+    <message>
+        <source>Web</source>
+        <translation>Web</translation>
+    </message>
+    <message>
+        <source>Open</source>
+        <comment>link that opens a row</comment>
+        <translation>Abrir</translation>
+    </message>
+    <message>
+        <source>Add</source>
+        <translation>Adicionar</translation>
+    </message>
+    <message>
+        <source>Open page</source>
+        <translation>Abrir página</translation>
+    </message>
+    <message>
+        <source>Add to task as item</source>
+        <translation>Adicionar à tarefa como item</translation>
+    </message>
+    <message>
+        <source>Copy link</source>
+        <translation>Copiar link</translation>
+    </message>
+    <message>
+        <source>No pull requests</source>
+        <translation>Nenhum pull request</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n approved</source>
+        <translation>
+            <numerusform>%n aprovou</numerusform>
+            <numerusform>%n aprovaram</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Author</source>
+        <translation>Autor</translation>
+    </message>
+    <message>
+        <source>Checks</source>
+        <translation>Verificações</translation>
+    </message>
+    <message>
+        <source>Reviews</source>
+        <translation>Revisões</translation>
+    </message>
+    <message>
+        <source>People</source>
+        <translation>Pessoas</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n check(s) passed</source>
+        <translation>
+            <numerusform>%n verificação bem-sucedida</numerusform>
+            <numerusform>%n verificações bem-sucedidas</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>No reviews</source>
+        <translation>Nenhuma revisão</translation>
+    </message>
+    <message>
+        <source>Author: %1</source>
+        <translation>Autor: %1</translation>
+    </message>
+    <message>
+        <source>No runs</source>
+        <translation>Nenhuma execução</translation>
+    </message>
+    <message>
+        <source>Workflow</source>
+        <translation>Workflow</translation>
+    </message>
+    <message>
+        <source>Status</source>
+        <translation>Status</translation>
+    </message>
+    <message>
+        <source>Actor</source>
+        <translation>Autor</translation>
+    </message>
+    <message>
+        <source>Started</source>
+        <translation>Iniciada</translation>
+    </message>
+    <message>
+        <source>Re-run failed jobs</source>
+        <translation>Executar de novo os jobs que falharam</translation>
+    </message>
+    <message>
+        <source>Re-run failed</source>
+        <translation>Executar de novo os que falharam</translation>
+    </message>
+    <message>
+        <source>Re-run</source>
+        <translation>Executar de novo</translation>
+    </message>
+    <message>
+        <source>Cancel run</source>
+        <translation>Cancelar execução</translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation>Cancelar</translation>
+    </message>
+    <message>
+        <source>Pull request</source>
+        <translation>Pull request</translation>
+    </message>
+    <message>
+        <source>Previous</source>
+        <translation>Anterior</translation>
+    </message>
+    <message>
+        <source>Next</source>
+        <translation>Próxima</translation>
+    </message>
+    <message>
+        <source>%1 #%2</source>
+        <translation>%1 #%2</translation>
+    </message>
+    <message>
+        <source>The jobs could not be read.</source>
+        <translation>Não foi possível ler os jobs.</translation>
+    </message>
+    <message>
+        <source>Jobs</source>
+        <translation>Jobs</translation>
+    </message>
+    <message>
+        <source>No jobs</source>
+        <translation>Nenhum job</translation>
+    </message>
+    <message>
+        <source>Log</source>
+        <translation>Log</translation>
+    </message>
+    <message>
+        <source>Cancel %1?</source>
+        <translation>Cancelar %1?</translation>
+    </message>
+    <message>
+        <source>%1 s</source>
+        <translation>%1 s</translation>
+    </message>
+    <message>
+        <source>%1 min %2 s</source>
+        <translation>%1 min %2 s</translation>
+    </message>
+    <message>
+        <source>%1 h %2 min</source>
+        <translation>%1 h %2 min</translation>
+    </message>
+    <message>
+        <source>Error</source>
+        <translation>Erro</translation>
+    </message>
+    <message>
+        <source>Pending</source>
+        <translation>Pendente</translation>
+    </message>
+    <message>
+        <source>Checks passed</source>
+        <translation>Verificações bem-sucedidas</translation>
+    </message>
+    <message>
+        <source>Checks running</source>
+        <translation>Verificações em andamento</translation>
+    </message>
+    <message>
+        <source>No checks</source>
+        <translation>Nenhuma verificação</translation>
+    </message>
+    <message>
+        <source>Commented</source>
+        <translation>Comentou</translation>
+    </message>
+    <message>
+        <source>The token cannot do this. It needs write access to Actions.</source>
+        <translation>O token não pode fazer isto. Ele precisa de acesso de escrita ao Actions.</translation>
+    </message>
+    <message>
+        <source>The action failed.</source>
+        <translation>A ação falhou.</translation>
+    </message>
+    <message>
+        <source>No labels</source>
+        <translation>Nenhuma etiqueta</translation>
+    </message>
+    <message>
+        <source>Page</source>
+        <translation>Página</translation>
+    </message>
+    <message>
+        <source>This item has no server.</source>
+        <translation>Este item não tem servidor.</translation>
     </message>
 </context>
 <context>
