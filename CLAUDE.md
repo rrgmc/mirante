@@ -11,10 +11,12 @@ Several sessions may work on this repository at the same time, so each piece of 
 - Commit as work progresses, one focused commit per finished piece.
 - `master` is protected on GitHub. Changes reach it only through a pull request whose required CI checks pass. Never merge into `master` locally and never push `master`. See [decision 0109](docs/decisions/0109-pull-requests-into-master.md).
 - When the piece is finished and its build and tests pass, including `tools/build.ps1 -Preset ci`, push the branch and open a pull request with `gh pr create`.
-- Once the checks pass, merge the pull request with a merge commit (`gh pr merge --merge --delete-branch`), then pull `master` in the main checkout, remove the worktree and delete the local branch. During rapid initial development this merge does not need the user's approval. This overrides the global rule that merging waits for the user.
+- Once the checks pass, stop and tell the user that the pull request is ready. Never merge a pull request on your own. Only the user merges, by merging it on GitHub, by asking for the merge, or by typing `/mmp`. See [decision 0111](docs/decisions/0111-only-the-user-merges.md).
+- When the user asks for the merge, use a merge commit (`gh pr merge <number> --merge`). Do not pass `--delete-branch`: from a worktree it fails, because it tries to check out `master`, which the main checkout already has. GitHub deletes the remote branch after the merge. Then leave the worktree, pull `master` in the main checkout, remove the worktree and delete the local branch.
+- When the user types `/mmp`, the [`mmp` skill](.claude/skills/mmp/SKILL.md) does all of the steps above, from the pull request to the cleanup.
 - If `master` moved since the branch started, merge `master` into the branch, resolve conflicts there and push again. The pull request cannot merge until the branch is up to date.
 - Split parallel work so that two worktrees rarely change the same files. For example, give each milestone part its own module.
-- When agents implement a milestone in parallel, follow [decision 0017](docs/decisions/0017-parallel-tasks-with-fixed-interfaces.md) and the task table in the milestone's plan. Each agent commits on its own branch and does not merge. The orchestrating session merges the branches into `master` one at a time, each through its own pull request.
+- When agents implement a milestone in parallel, follow [decision 0017](docs/decisions/0017-parallel-tasks-with-fixed-interfaces.md) and the task table in the milestone's plan. Each agent commits on its own branch and does not merge. The orchestrating session opens one pull request per branch and tells the user which order to merge them in.
 
 ## Documentation
 

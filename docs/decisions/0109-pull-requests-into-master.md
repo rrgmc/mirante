@@ -1,6 +1,6 @@
 # 0109. Changes reach `master` only through pull requests
 
-- Status: Accepted
+- Status: Accepted; merging by sessions superseded by 0111
 - Date: 2026-10-31
 
 ## Context
