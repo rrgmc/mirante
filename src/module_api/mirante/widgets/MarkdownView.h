@@ -57,6 +57,7 @@ private:
     QImage fitted(const QImage &image) const;
 
     QString m_text;
+    QString m_prepared;                     // m_text as given to Qt
     QUrl m_base;
     Fetcher m_fetcher;
     bool m_openLocalLinks = false;

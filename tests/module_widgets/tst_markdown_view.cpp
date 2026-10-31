@@ -81,6 +81,26 @@ private slots:
         QCOMPARE(view.markdownText().left(7), QStringLiteral("# Title"));
     }
 
+    // Qt's Markdown importer counts HTML tags to find the end of inline
+    // HTML, so a void element such as <img> without "/>" would swallow all
+    // the text after it. Code keeps such tags as written.
+    void textAfterVoidHtmlElementsShows()
+    {
+        MarkdownView view;
+        view.setMarkdownText(QStringLiteral("# <img src=\"a.svg\" width=\"40\"> Title\n\n"
+                                            "Hello world.\n\n"
+                                            "- An item with `code` and more text.\n\n"
+                                            "Line one<br>line two.\n\n"
+                                            "Inline `<br>` code.\n\n"
+                                            "```\n<img src=\"x.png\">\n```\n\n"
+                                            "The end."));
+        const QString text = view.toPlainText();
+        for (const char *expected : {"Title", "Hello world.", "An item with", "and more text.", "line two.",
+                                     "Inline <br> code.", "<img src=\"x.png\">", "The end."})
+            QVERIFY2(text.contains(QString::fromUtf8(expected)), expected);
+        QCOMPARE(view.markdownText().left(9), QStringLiteral("# <img sr"));
+    }
+
     void withoutFetcherLoadsNothing()
     {
         MarkdownView view;

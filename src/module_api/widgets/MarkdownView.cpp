@@ -1,9 +1,16 @@
 #include <mirante/widgets/MarkdownView.h>
 
 #include <QDesktopServices>
+#include <QList>
 #include <QPointer>
+#include <QRegularExpression>
 #include <QScrollBar>
+#include <QStringList>
+#include <QTextBlock>
+#include <QTextCursor>
 #include <QTextDocument>
+
+#include <utility>
 
 namespace mirante::widgets {
 
@@ -20,6 +27,122 @@ QImage blankImage()
 bool isAnchorOnly(const QUrl &link)
 {
     return link.isRelative() && link.path().isEmpty() && link.hasFragment();
+}
+
+// Qt's Markdown importer counts HTML tags to find where inline HTML ends, so
+// a void element written without "/>", such as GitHub's common
+// <img src="..." width="40">, never ends, and all the text after it is lost.
+// This writes such elements as self-closing, outside fenced code blocks and
+// code spans, which keep the text as written.
+QString closeVoidElements(const QString &markdown)
+{
+    static const QRegularExpression voidElement(
+        QStringLiteral("<(?:area|br|col|embed|hr|img|input|link|meta|param|source|track|wbr)\\b[^<>]*>"),
+        QRegularExpression::CaseInsensitiveOption);
+
+    QStringList lines = markdown.split(QLatin1Char('\n'));
+    QString fence;      // the fence of the open code block, such as "```", or empty
+    for (QString &line : lines) {
+        const QString trimmed = line.trimmed();
+        if (!fence.isEmpty()) {
+            if (trimmed.startsWith(fence))
+                fence.clear();
+            continue;
+        }
+        if (trimmed.startsWith(QLatin1String("```")) || trimmed.startsWith(QLatin1String("~~~"))) {
+            fence = trimmed.left(3);
+            continue;
+        }
+        if (!line.contains(QLatin1Char('<')))
+            continue;
+
+        QString result;
+        int i = 0;
+        while (i < line.size()) {
+            if (line.at(i) == QLatin1Char('`')) {
+                // A code span: the same number of backticks closes it.
+                int ticks = 0;
+                while (i + ticks < line.size() && line.at(i + ticks) == QLatin1Char('`'))
+                    ++ticks;
+                const QString run(ticks, QLatin1Char('`'));
+                const int close = line.indexOf(run, i + ticks);
+                const int end = close < 0 ? i + ticks : close + ticks;
+                result += line.mid(i, end - i);
+                i = end;
+                continue;
+            }
+            if (line.at(i) == QLatin1Char('<')) {
+                const QRegularExpressionMatch match
+                    = voidElement.match(line, i, QRegularExpression::NormalMatch,
+                                        QRegularExpression::AnchorAtOffsetMatchOption);
+                if (match.hasMatch()) {
+                    QString tag = match.captured();
+                    if (!tag.endsWith(QLatin1String("/>"))) {
+                        tag.chop(1);
+                        tag += QLatin1String(" />");
+                    }
+                    result += tag;
+                    i += match.capturedLength();
+                    continue;
+                }
+            }
+            result += line.at(i);
+            ++i;
+        }
+        line = result;
+    }
+    return lines.join(QLatin1Char('\n'));
+}
+
+// A light shade of the text colour over the base colour, for the background
+// of code, in light and dark palettes alike.
+QColor codeBackground(const QPalette &palette)
+{
+    const QColor base = palette.color(QPalette::Base);
+    const QColor text = palette.color(QPalette::Text);
+    constexpr float amount = 0.07f;
+    return QColor::fromRgbF(base.redF() + (text.redF() - base.redF()) * amount,
+                            base.greenF() + (text.greenF() - base.greenF()) * amount,
+                            base.blueF() + (text.blueF() - base.blueF()) * amount);
+}
+
+// Gives code blocks and code spans a background, which Qt's Markdown
+// importer does not.
+void shadeCode(QTextDocument *document, const QColor &background)
+{
+    // The ranges are gathered first: changing a format splits fragments.
+    QList<QTextBlock> codeBlocks;
+    QList<std::pair<int, int>> codeSpans;     // position, length
+    for (QTextBlock block = document->begin(); block.isValid(); block = block.next()) {
+        if (block.blockFormat().hasProperty(QTextFormat::BlockCodeFence)) {
+            codeBlocks << block;
+            continue;
+        }
+        for (auto it = block.begin(); !it.atEnd(); ++it) {
+            const QTextFragment fragment = it.fragment();
+            if (fragment.charFormat().fontFixedPitch())
+                codeSpans.append({fragment.position(), fragment.length()});
+        }
+    }
+    if (codeBlocks.isEmpty() && codeSpans.isEmpty())
+        return;
+
+    QTextCursor cursor(document);
+    cursor.beginEditBlock();
+    QTextBlockFormat blockFormat;
+    blockFormat.setBackground(background);
+    for (const QTextBlock &block : codeBlocks) {
+        cursor.setPosition(block.position());
+        cursor.mergeBlockFormat(blockFormat);
+    }
+    QTextCharFormat charFormat;
+    charFormat.setBackground(background);
+    for (const auto &[position, length] : codeSpans) {
+        cursor.setPosition(position);
+        cursor.setPosition(position + length, QTextCursor::KeepAnchor);
+        cursor.mergeCharFormat(charFormat);
+    }
+    cursor.endEditBlock();
 }
 
 } // namespace
@@ -47,6 +170,7 @@ void MarkdownView::setMarkdownText(const QString &markdown, const QUrl &base)
         m_pending.clear();
     }
     m_text = markdown;
+    m_prepared = closeVoidElements(markdown);
     m_base = base;
     render();
     if (!same)
@@ -68,7 +192,10 @@ void MarkdownView::render()
         for (const QUrl &name : m_namesOf.value(it.key()))
             document()->addResource(QTextDocument::ImageResource, name, image);
     }
-    setMarkdown(m_text);
+    setMarkdown(m_prepared);
+    // Some room between the text and the cell's edges.
+    document()->setDocumentMargin(10);
+    shadeCode(document(), codeBackground(palette()));
     verticalScrollBar()->setValue(scroll);
 }
 
