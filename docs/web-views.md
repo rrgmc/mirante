@@ -63,6 +63,7 @@ A heavy page such as claude.ai uses a few hundred MB.
 - Only types whose `rendering()` is `Web` count, and pages of `showPage()`. Each placement of such a type joins the `ViewPool` when it makes its view, and reports to the pool when it is shown or hidden. An unloaded placement leaves the pool until it loads again, and a deleted one leaves it at once.
 - A placement with a page of `showPage()` has one entry in the pool. When the pool unloads the page, the placement goes back to its view instead of showing "Reload".
 - Native items, such as summaries and lists, are cheap and are never unloaded.
+- While the app is hidden to the tray, `PageFreezer` freezes the pages of every hidden window, so they run no scripts and load nothing. A page is frozen only when Chromium recommends it, so a page that plays sound or has its developer tools open stays active until that ends. Pages are frozen, never discarded, so a page keeps what the user typed. They become active again before the windows show. A cell that shows the age of old data stops counting while it is hidden. See [decision 0108](decisions/0108-freeze-web-pages-in-the-tray.md).
 
 ## Page behaviour
 

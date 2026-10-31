@@ -79,7 +79,7 @@ Each file records one design decision: what was decided, what else was considere
 | [0072](0072-pipelines-started-together.md) | A pipeline item shows the pipelines started together | Accepted |
 | [0073](0073-jira-extra-fields.md) | Jira's extra fields are named in the profile's settings | Accepted |
 | [0074](0074-refuse-workspaces-from-newer-versions.md) | A workspace from a newer version is not opened | Accepted |
-| [0075](0075-hide-to-tray-and-show-hide-hotkey.md) | Closing hides to the tray, and a global hotkey shows or hides the app | Accepted; the default hotkey by 0076 |
+| [0075](0075-hide-to-tray-and-show-hide-hotkey.md) | Closing hides to the tray, and a global hotkey shows or hides the app | Accepted; the default hotkey by 0076; closing by default by 0107 |
 | [0076](0076-left-hand-default-hotkey.md) | The default global hotkey is pressed with the left hand | Accepted |
 | [0077](0077-no-macos-in-ci-during-development.md) | No macOS in CI during development | Accepted; macOS back in CI in M10 |
 | [0078](0078-quick-add-dialog.md) | Quick add is a dialog that reads text through the modules | Accepted; in part superseded by 0083 |
@@ -111,6 +111,8 @@ Each file records one design decision: what was decided, what else was considere
 | [0104](0104-document-items.md) | Document items show a file from a web address, the workspace or a project folder | Accepted |
 | [0105](0105-sample-data-holds-available-items.md) | The sample data holds only items that work | Accepted |
 | [0106](0106-start-at-sign-in.md) | Mirante can start at sign-in, hidden in the tray | Accepted |
+| [0107](0107-closing-quits-by-default.md) | Closing the window quits by default | Accepted |
+| [0108](0108-freeze-web-pages-in-the-tray.md) | Web pages freeze while the app is hidden to the tray | Accepted |
 
 ## Template
 
