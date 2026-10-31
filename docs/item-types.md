@@ -243,7 +243,7 @@ The types follow the GitLab types. A pull request is GitLab's merge request, an 
 - **Top:** the title; pills for the state and for a draft; the head and base branches, as `head` → `base`.
 - **Sections and fields,** in this order:
   - Checks (`showChecks`): a pill for the checks of the head commit, and each check run and commit status that did not pass, with its name, a pill and a "Details" link, which opens in the external browser. When all passed, the count, such as "12 checks passed".
-  - Reviews (`showReviews`): each reviewer's latest review, with a pill (Approved, Changes requested, Commented), and the requested reviewers who have not reviewed yet, as "Waiting".
+  - Reviews (`showReviews`): each reviewer's latest review, with a pill (Approved, Changes requested, Commented), and the requested reviewers and teams who have not reviewed yet, as "Waiting".
   - People (`showPeople`): the author and the assignees.
   - Labels (`showLabels`).
 - **Actions:** "Open page" and "Web". There is no re-run, because a check run can be re-run only by the GitHub App that made it.
@@ -292,7 +292,7 @@ The types follow the GitLab types. A pull request is GitLab's merge request, an 
   - `branch`, for `fixed`. Empty means the repository's default branch, and the placeholder says so;
   - `workflow`, a workflow file such as `ci.yml`. Empty means all workflows.
 - **The group.** One push starts one run of each workflow that matches it. The group is the runs of the branch's newest commit, or of the pull request's head commit. The newest run of the group leads.
-- **Top:** the run shown, at first the lead: its workflow's name and run number; a pill for its status; the branch, the duration and when it started. With more than one run in the group, a row of pills, one per workflow, switches between them. "Previous" and "Next" step through all of the latest 20 runs, also those of older commits.
+- **Top:** the run shown, at first the lead: its workflow's name and run number; a pill for its status; the branch, the duration and when it started. With more than one run in the group, a row of pills, one per workflow, switches between them. "Previous" and "Next" step through all of the latest 20 runs, also those of older commits, newest first. The jobs of an older run are read when it shows.
 - **Jobs:** one table of the shown run's jobs, each with a pill, the name, the duration and links: "Log", on a job that started, in the external browser; "Re-run", on a completed job.
 - **Actions:**
   - "Re-run failed jobs", when the shown run failed;
