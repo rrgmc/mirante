@@ -117,7 +117,8 @@ Each file records one design decision: what was decided, what else was considere
 | [0110](0110-ci-runs-once-per-change-and-caches-compiling.md) | CI runs once per change and caches compiling | Accepted |
 | [0111](0111-only-the-user-merges.md) | Only the user merges pull requests | Accepted |
 | [0112](0112-precompiled-headers.md) | Precompiled headers, with ccache | Accepted |
-| [0113](0113-links-and-file-tree-items.md) | Links lists and file trees join the Notes and Folder modules | Accepted |
+| [0113](0113-ci-skips-documentation-only-changes.md) | CI skips pull requests that change only documentation | Accepted |
+| [0114](0114-links-and-file-tree-items.md) | Links lists and file trees join the Notes and Folder modules | Accepted |
 
 ## Template
 

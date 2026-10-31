@@ -39,7 +39,7 @@ The type declares no fields, so the item dialog edits only the name, and keeps `
 
 ## Links
 
-`Links.cpp` reads and checks links, `LinksEditor.cpp` is the type's editor in the item dialog, and `LinksView.cpp` shows them. See [decision 0113](../../../docs/decisions/0113-links-and-file-tree-items.md).
+`Links.cpp` reads and checks links, `LinksEditor.cpp` is the type's editor in the item dialog, and `LinksView.cpp` shows them. See [decision 0114](../../../docs/decisions/0114-links-and-file-tree-items.md).
 
 The view only reads, and has no `viewKeys()`, so a change to the configuration makes it again. A list with no links is a message from `createMessageView()`. The view checks a link with `linkProblem()` again before it opens it, because the stored data syncs and can be edited by hand.
 

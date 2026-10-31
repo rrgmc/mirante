@@ -37,7 +37,7 @@ The tests are in `tests/tst_views.cpp`, with a fake context that records the pro
 
 ## File tree
 
-`FileTreeView.cpp` shows a `QFileSystemModel` in a `QTreeView`, through a small proxy model that hides `.git` below the root and sorts folders first. The model is made when the view first shows. A change to the configuration makes the view again, as for any type without `viewKeys()`. See [decision 0113](../../../docs/decisions/0113-links-and-file-tree-items.md).
+`FileTreeView.cpp` shows a `QFileSystemModel` in a `QTreeView`, through a small proxy model that hides `.git` below the root and sorts folders first. The model is made when the view first shows. A change to the configuration makes the view again, as for any type without `viewKeys()`. See [decision 0114](../../../docs/decisions/0114-links-and-file-tree-items.md).
 
 The tests are in `tests/tst_file_tree.cpp`, on a temporary folder, with a fake context that records the programs and a handler that records the files opened.
 

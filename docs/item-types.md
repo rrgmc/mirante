@@ -420,7 +420,7 @@ M7 added `claude.session.local`, a Claude Code session resumed in a terminal. [D
 
 ### Links
 
-`notes.links`, native, module `notes`. See [decision 0113](decisions/0113-links-and-file-tree-items.md).
+`notes.links`, native, module `notes`. See [decision 0114](decisions/0114-links-and-file-tree-items.md).
 
 - **Configuration:** `links`, a list in the task file. Each link has an optional `title` and `description`, and a `kind`, which says where it leads:
   - `url`: `url`, an `http`, `https` or `mailto` address;
@@ -506,7 +506,7 @@ The editor command is a device setting of the `folder` module, default `code`. I
 
 ### File tree
 
-`folder.tree`, native, module `folder`. See [decision 0113](decisions/0113-links-and-file-tree-items.md).
+`folder.tree`, native, module `folder`. See [decision 0114](decisions/0114-links-and-file-tree-items.md).
 
 - **Configuration:** `folder`, one of the project's folders, required; `path`, a subfolder to show instead of the whole folder, relative to it; `showHidden`, whether to show hidden files, off by default. Hidden files are those the system marks as hidden, which on macOS and Linux includes names that start with a dot.
 - **Shows:** the files and folders as a tree, by name only, with folders first. `.git` never shows. `.gitignore` is not read. The view reads nothing until it first shows, and a folder is read when it is expanded. The tree follows changes on disk. Expanded folders last as long as the view, and are not stored.
