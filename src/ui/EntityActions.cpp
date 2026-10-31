@@ -208,11 +208,11 @@ EntityActions::EntityActions(Model &model, Store &store, const ItemTypeRegistry 
         QWidget *active = QApplication::activeWindow();
         return active ? active : d->dialogParent;
     };
-    d->askFile = [this, messageParent](const QString &question) {
-        return QMessageBox::question(messageParent(), tr("Keep File"), question) == QMessageBox::Yes;
+    d->askFile = [messageParent](const QString &question) {
+        return QMessageBox::question(messageParent(), EntityActions::tr("Keep File"), question) == QMessageBox::Yes;
     };
-    d->tellFile = [this, messageParent](const QString &text) {
-        QMessageBox::warning(messageParent(), tr("Keep File"), text);
+    d->tellFile = [messageParent](const QString &text) {
+        QMessageBox::warning(messageParent(), EntityActions::tr("Keep File"), text);
     };
 }
 

@@ -21,10 +21,12 @@ namespace mirante::widgets {
 // By default it loads nothing: an image shows as nothing, so a note cannot
 // call out or read a local file. A view that shows a document gives a
 // fetcher, which reads images on the view's behalf.
+//
+// It has no Q_OBJECT, since it adds no signals or slots: a header that gains
+// Q_OBJECT later is not always picked up by AUTOMOC in an existing build
+// folder. Use dynamic_cast, not qobject_cast, to find it.
 class MarkdownView : public QTextBrowser
 {
-    Q_OBJECT
-
 public:
     // Reads the resource at url, which is already resolved against the
     // base, and calls done once with its bytes, or with empty bytes if it
