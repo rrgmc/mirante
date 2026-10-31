@@ -19,7 +19,8 @@ class SecretStore;
 // The modules' servers of the open workspace: one ApiClient for each profile
 // and module with a ServerType, made on first use, sharing one
 // QNetworkAccessManager. Each client queues at most four requests at once,
-// keeps ETags, follows Link pages, waits on 429, and pauses while its token
+// keeps ETags, follows Link pages, waits on 429 and on GitHub's rate-limited
+// 403, and pauses while its token
 // is refused. See the M5 plan, part 3, and docs/integrations.md.
 // Implemented in ServerClient.cpp.
 class ServerClients : public QObject

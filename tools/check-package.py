@@ -7,8 +7,8 @@ The folder is the prefix given to `cmake --install --component Mirante`. The
 script finds the layout from what is there: a Mirante.app bundle on macOS,
 bin/mirante.exe on Windows, or opt/mirante on Linux. It fails, naming each
 missing file, if the app lacks its executable, Qt's Portuguese translation
-where QLibraryInfo::TranslationsPath points, the WebP image plugin, or Qt
-WebEngine's helper and resources. See docs/plans/m10-packaging.md.
+where QLibraryInfo::TranslationsPath points, the WebP image plugin, the SVG
+plugins for the icons, or Qt WebEngine's helper and resources. See docs/plans/m10-packaging.md.
 """
 
 import sys
@@ -28,6 +28,7 @@ def windows(root: Path) -> list[str]:
         "plugins/platforms/qwindows.dll",
         "plugins/imageformats/qwebp.dll",
         "plugins/imageformats/qsvg.dll",
+        "plugins/iconengines/qsvgicon.dll",
         "resources/qtwebengine_resources.pak",
         "resources/icudtl.dat",
         "translations/qtwebengine_locales/en-US.pak",
@@ -47,6 +48,7 @@ def macos(root: Path) -> list[str]:
         f"{contents}/PlugIns/platforms/libqcocoa.dylib",
         f"{contents}/PlugIns/imageformats/libqwebp.dylib",
         f"{contents}/PlugIns/imageformats/libqsvg.dylib",
+        f"{contents}/PlugIns/iconengines/libqsvgicon.dylib",
         f"{webengine}/Helpers/QtWebEngineProcess.app/Contents/MacOS/QtWebEngineProcess",
         f"{webengine}/Resources/qtwebengine_resources.pak",
         *[f"{contents}/translations/qtbase_{language}.qm" for language in LANGUAGES],
@@ -65,6 +67,7 @@ def linux(root: Path) -> list[str]:
         f"{app}/plugins/platforms/libqxcb.so",
         f"{app}/plugins/imageformats/libqwebp.so",
         f"{app}/plugins/imageformats/libqsvg.so",
+        f"{app}/plugins/iconengines/libqsvgicon.so",
         f"{app}/resources/qtwebengine_resources.pak",
         f"{app}/translations/qtwebengine_locales/en-US.pak",
         *[f"{app}/translations/qtbase_{language}.qm" for language in LANGUAGES],
