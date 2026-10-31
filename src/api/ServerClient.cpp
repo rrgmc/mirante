@@ -9,7 +9,9 @@
 #include <mirante/ApiClient.h>
 #include <mirante/ModuleSettings.h>
 
+#include <QDateTime>
 #include <QJsonArray>
+#include <QJsonObject>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QNetworkRequest>
@@ -31,6 +33,7 @@ constexpr int kMaxKeptUrls = 500;
 constexpr int kMaxRetries = 3;
 constexpr int kDefaultRetryAfterSeconds = 30;
 constexpr int kTransferTimeoutMs = 30000;
+constexpr qint64 kMaxRateLimitWaitSeconds = 3600;
 
 // The "next" URL of a Link header, or an invalid URL.
 QUrl nextLink(const QList<QPair<QByteArray, QByteArray>> &headers)
@@ -66,6 +69,26 @@ int retryAfterSeconds(const QByteArray &value)
     bool ok = false;
     const int seconds = value.trimmed().toInt(&ok);
     return ok && seconds >= 0 ? seconds : kDefaultRetryAfterSeconds;
+}
+
+// Seconds to wait for a rate limit, or -1 if the reply is not rate limited.
+// GitHub answers 403 or 429 with x-ratelimit-remaining: 0 and the Unix time
+// of x-ratelimit-reset when its hourly limit is spent, and 403 with
+// Retry-After for its secondary limits. A 429 is always rate limited.
+qint64 rateLimitWaitSeconds(int status, const QList<QPair<QByteArray, QByteArray>> &headers)
+{
+    if (status != 403 && status != 429)
+        return -1;
+    if (headerValue(headers, "x-ratelimit-remaining").trimmed() == "0") {
+        bool ok = false;
+        const qint64 reset = headerValue(headers, "x-ratelimit-reset").trimmed().toLongLong(&ok);
+        if (ok)
+            return std::clamp<qint64>(reset - QDateTime::currentSecsSinceEpoch(), 1, kMaxRateLimitWaitSeconds);
+    }
+    const QByteArray retryAfter = headerValue(headers, "Retry-After");
+    if (status == 429 || !retryAfter.isEmpty())
+        return retryAfterSeconds(retryAfter);
+    return -1;
 }
 
 bool sameOrigin(const QUrl &a, const QUrl &b)
@@ -120,7 +143,9 @@ private:
         QPointer<QObject> receiver;
         std::function<void(const ApiReply &)> done;
         int retries = 0;
-        QJsonArray rows;   // the pages so far, with followLinks
+        QJsonArray rows;         // the rows of the pages so far, with followLinks
+        QJsonObject firstPage;   // the first page's object, with an arrayKey
+        int pages = 0;           // the pages joined so far
     };
     using RequestPtr = std::shared_ptr<Request>;
 
@@ -395,15 +420,19 @@ void ServerClient::finished(QNetworkReply *reply, const RequestPtr &request)
         return;
     }
 
-    if (result.httpStatus == 429) {
+    // A rate limit holds the queue, then sends again. It is not a refused
+    // token, so it never pauses the server.
+    const qint64 rateLimitWait = rateLimitWaitSeconds(result.httpStatus, result.headers);
+    if (rateLimitWait >= 0) {
         if (request->retries < kMaxRetries) {
             ++request->retries;
             m_queue.push_front(request);
-            m_retryTimer.start(retryAfterSeconds(headerValue(result.headers, "Retry-After")) * 1000);
+            m_retryTimer.start(static_cast<int>(rateLimitWait * 1000));
             return;
         }
         result.error = ApiReply::Error::Http;
-        result.message = ServerClients::tr("Too many requests (429)");
+        result.message = result.httpStatus == 429 ? ServerClients::tr("Too many requests (429)")
+                                                  : ServerClients::tr("Rate limited (403)");
         answer(request, result);
         pump();
         return;
@@ -444,8 +473,31 @@ void ServerClient::finished(QNetworkReply *reply, const RequestPtr &request)
     if (result.ok())
         result.json = QJsonDocument::fromJson(result.body);
 
-    if (result.ok() && isGet && request->options.followLinks && result.json.isArray()) {
-        const QJsonArray page = result.json.array();
+    // With an arrayKey, the rows are an array in an object, such as GitHub's
+    // {"total_count": 3, "items": [...]}, and the answer is the first page's
+    // object holding all the rows.
+    const QString arrayKey = request->options.arrayKey;
+    const auto joinedAnswer = [&] {
+        if (arrayKey.isEmpty())
+            return QJsonDocument(request->rows);
+        QJsonObject joined = request->firstPage;
+        joined.insert(arrayKey, request->rows);
+        return QJsonDocument(joined);
+    };
+    const bool paging = result.ok() && isGet && request->options.followLinks;
+    const bool pageHasRows = arrayKey.isEmpty()
+                                 ? result.json.isArray()
+                                 : result.json.isObject() && result.json.object().value(arrayKey).isArray();
+    if (paging && !pageHasRows && !arrayKey.isEmpty() && request->pages > 0) {
+        // An object without the key ends the paging. After the first page,
+        // the answer keeps the rows joined so far.
+        result.json = joinedAnswer();
+        result.body = result.json.toJson(QJsonDocument::Compact);
+    } else if (paging && pageHasRows) {
+        const QJsonArray page = arrayKey.isEmpty() ? result.json.array() : result.json.object().value(arrayKey).toArray();
+        if (!arrayKey.isEmpty() && request->pages == 0)
+            request->firstPage = result.json.object();
+        ++request->pages;
         for (const QJsonValue &row : page) {
             if (request->rows.size() >= request->options.maxRows)
                 break;
@@ -460,7 +512,7 @@ void ServerClient::finished(QNetworkReply *reply, const RequestPtr &request)
             pump();
             return;
         }
-        result.json = QJsonDocument(request->rows);
+        result.json = joinedAnswer();
         result.body = result.json.toJson(QJsonDocument::Compact);
     }
 

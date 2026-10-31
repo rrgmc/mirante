@@ -1,7 +1,8 @@
 // Tests ServerClients and its ApiClients against a QNetworkAccessManager that
 // answers from the test instead of the network: joining paths to the base
 // URL, the errors given without a request, the limit of four requests, ETags,
-// Link paging, 429 retries, the failing state and dropped callbacks.
+// Link paging, 429 and rate-limited 403 retries, the failing state and
+// dropped callbacks.
 // No test uses the network or the keychain.
 #include "api/ModuleDirectory.h"
 #include "api/SecretBackend.h"
@@ -12,7 +13,10 @@
 #include <mirante/ApiClient.h>
 #include <mirante/ModuleSettings.h>
 
+#include <QDateTime>
+#include <QElapsedTimer>
 #include <QJsonArray>
+#include <QJsonObject>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QNetworkRequest>
@@ -189,6 +193,13 @@ QByteArray json(const QJsonArray &array)
     return QJsonDocument(array).toJson(QJsonDocument::Compact);
 }
 
+// A GitHub search page: {"total_count": total, "items": rows}.
+QByteArray searchPage(int total, const QJsonArray &rows)
+{
+    return QJsonDocument(QJsonObject{{QStringLiteral("total_count"), total}, {QStringLiteral("items"), rows}})
+        .toJson(QJsonDocument::Compact);
+}
+
 } // namespace
 
 class TestServerClient : public QObject
@@ -211,9 +222,15 @@ private slots:
     void pagingJoinsArrays();
     void pagingStopsAtMaxRows();
     void pagingStaysOnTheServer();
+    void pagingJoinsObjects();
+    void pagingObjectWithoutKey();
+    void pagingObjectsFromKeptPages();
     void retriesAfter429();
     void otherRequestsWaitOn429();
     void givesUpAfterThree429();
+    void rateLimited403WaitsForReset();
+    void rateLimited403WaitsForRetryAfter();
+    void givesUpAfterThreeRateLimited403();
     void refusedPausesUntilTokenChanges();
     void settingsChangeResumes();
     void forbiddenGetPauses();
@@ -471,6 +488,68 @@ void TestServerClient::pagingStaysOnTheServer()
     QCOMPARE(m_network->sent.size(), 1);
 }
 
+void TestServerClient::pagingJoinsObjects()
+{
+    m_network->handler = [](const FakeNetwork::Sent &sent) {
+        const int page = QUrlQuery(sent.request.url()).queryItemValue(QStringLiteral("page")).toInt();
+        const QByteArray next = "<https://git.example/search?page=" + QByteArray::number(page + 1) + R"(>; rel="next")";
+        // Only the first page's total is kept.
+        return Answer{200, searchPage(page == 0 ? 100 : -1, numbers(page * 10, 10)), {{"Link", next}}};
+    };
+    GetOptions options;
+    options.followLinks = true;
+    options.maxRows = 25;
+    options.arrayKey = QStringLiteral("items");
+    const ApiReply reply = getAndWait(QStringLiteral("search?page=0"), options);
+    QVERIFY(reply.ok());
+    QVERIFY(reply.json.isObject());
+    QCOMPARE(reply.json.object().value(QStringLiteral("total_count")).toInt(), 100);
+    QCOMPARE(reply.json.object().value(QStringLiteral("items")).toArray(), numbers(0, 25));
+    QCOMPARE(QJsonDocument::fromJson(reply.body), reply.json);
+    QCOMPARE(m_network->sent.size(), 3);
+}
+
+void TestServerClient::pagingObjectWithoutKey()
+{
+    m_network->handler = [](const FakeNetwork::Sent &) {
+        return Answer{200, R"({"message":"no rows"})", {{"Link", R"(<https://git.example/search?page=2>; rel="next")"}}};
+    };
+    GetOptions options;
+    options.followLinks = true;
+    options.arrayKey = QStringLiteral("items");
+    const ApiReply reply = getAndWait(QStringLiteral("search"), options);
+    QVERIFY(reply.ok());
+    QCOMPARE(reply.json.object(), (QJsonObject{{QStringLiteral("message"), QStringLiteral("no rows")}}));
+    QCOMPARE(m_network->sent.size(), 1);
+}
+
+void TestServerClient::pagingObjectsFromKeptPages()
+{
+    m_network->handler = [](const FakeNetwork::Sent &sent) {
+        const QString page = QUrlQuery(sent.request.url()).queryItemValue(QStringLiteral("page"));
+        if (!sent.request.rawHeader("If-None-Match").isEmpty())
+            return Answer{304, {}, {}};
+        if (page == QLatin1String("2"))
+            return Answer{200, searchPage(-1, numbers(3, 2)), {{"ETag", "\"p2\""}}};
+        return Answer{200, searchPage(5, numbers(0, 3)),
+                      {{"ETag", "\"p1\""}, {"Link", R"(<https://git.example/search?page=2>; rel="next")"}}};
+    };
+    GetOptions options;
+    options.followLinks = true;
+    options.arrayKey = QStringLiteral("items");
+    const ApiReply first = getAndWait(QStringLiteral("search"), options);
+    QVERIFY(first.ok());
+    QCOMPARE(first.json.object().value(QStringLiteral("items")).toArray(), numbers(0, 5));
+
+    // Both pages answer 304: their kept bodies take their place.
+    const ApiReply second = getAndWait(QStringLiteral("search"), options);
+    QVERIFY(second.ok());
+    QCOMPARE(m_network->sent.size(), 4);
+    QCOMPARE(header(m_network->sent.at(3), "If-None-Match"), QByteArray("\"p2\""));
+    QCOMPARE(second.json, first.json);
+    QCOMPARE(second.json.object().value(QStringLiteral("total_count")).toInt(), 5);
+}
+
 void TestServerClient::retriesAfter429()
 {
     int calls = 0;
@@ -507,6 +586,50 @@ void TestServerClient::givesUpAfterThree429()
     QCOMPARE(reply.error, ApiReply::Error::Http);
     QCOMPARE(reply.httpStatus, 429);
     QCOMPARE(m_network->sent.size(), 4);
+}
+
+void TestServerClient::rateLimited403WaitsForReset()
+{
+    int calls = 0;
+    m_network->handler = [&calls](const FakeNetwork::Sent &) {
+        // A reset that has passed waits the shortest time, one second. The
+        // header names are matched without regard to case.
+        const QByteArray reset = QByteArray::number(QDateTime::currentSecsSinceEpoch() - 10);
+        return ++calls == 1 ? Answer{403, {}, {{"X-RateLimit-Remaining", "0"}, {"X-RateLimit-Reset", reset}}}
+                            : Answer{200, "{}", {}};
+    };
+    QSignalSpy changed(m_clients.get(), &ServerClients::failingChanged);
+    QElapsedTimer timer;
+    timer.start();
+    const ApiReply reply = getAndWait(QStringLiteral("r"));
+    QVERIFY(reply.ok());
+    QVERIFY(timer.elapsed() >= 900);
+    QCOMPARE(m_network->sent.size(), 2);
+    QVERIFY(!m_clients->failing(kProfile, kModule));
+    QVERIFY(changed.isEmpty());
+}
+
+void TestServerClient::rateLimited403WaitsForRetryAfter()
+{
+    int calls = 0;
+    m_network->handler = [&calls](const FakeNetwork::Sent &) {
+        return ++calls == 1 ? Answer{403, {}, {{"retry-after", "0"}}} : Answer{200, "{}", {}};
+    };
+    const ApiReply reply = getAndWait(QStringLiteral("r"));
+    QVERIFY(reply.ok());
+    QCOMPARE(m_network->sent.size(), 2);
+    QVERIFY(!m_clients->failing(kProfile, kModule));
+}
+
+void TestServerClient::givesUpAfterThreeRateLimited403()
+{
+    m_network->handler = [](const FakeNetwork::Sent &) { return Answer{403, {}, {{"Retry-After", "0"}}}; };
+    const ApiReply reply = getAndWait(QStringLiteral("r"));
+    QCOMPARE(reply.error, ApiReply::Error::Http);
+    QCOMPARE(reply.httpStatus, 403);
+    QVERIFY(!reply.message.isEmpty());
+    QCOMPARE(m_network->sent.size(), 4);
+    QVERIFY(!m_clients->failing(kProfile, kModule));
 }
 
 void TestServerClient::refusedPausesUntilTokenChanges()
@@ -553,9 +676,13 @@ void TestServerClient::settingsChangeResumes()
 
 void TestServerClient::forbiddenGetPauses()
 {
-    m_network->handler = [](const FakeNetwork::Sent &) { return Answer{403, {}, {}}; };
+    // A 403 with requests left is no rate limit: it is not sent again.
+    m_network->handler = [](const FakeNetwork::Sent &) {
+        return Answer{403, {}, {{"x-ratelimit-remaining", "4999"}, {"x-ratelimit-reset", "1"}}};
+    };
     QCOMPARE(getAndWait(QStringLiteral("x")).error, ApiReply::Error::Refused);
     QVERIFY(m_clients->failing(kProfile, kModule));
+    QCOMPARE(m_network->sent.size(), 1);
 }
 
 void TestServerClient::forbiddenPostDoesNotPause()
