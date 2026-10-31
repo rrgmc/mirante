@@ -98,14 +98,16 @@ n=$1
 for i in $(seq 1 110); do
   state=$(gh pr view "$n" --json mergeStateStatus --jq .mergeStateStatus)
   failed=$(gh pr checks "$n" --required 2>&1 | grep -c fail)
-  if [ "$state" != BLOCKED ] || [ "$failed" != 0 ]; then break; fi
+  case "$state" in BLOCKED|UNKNOWN) ;; *) break ;; esac
+  if [ "$failed" != 0 ]; then break; fi
   sleep 30
 done
 echo "state=$state"
 gh pr checks "$n"
 ```
 
-Start it only after the last push, so it does not read the state of an earlier run.
+Start it only after the last push, so it does not read the state of an earlier run. `UNKNOWN`
+means GitHub is still computing the state, so the loop keeps waiting through it.
 
 - **`CLEAN`, or `UNSTABLE` with only `build (macos-15)` pending or failed**, goes on to step 6. A
   failed macOS build is still reported in step 8.
