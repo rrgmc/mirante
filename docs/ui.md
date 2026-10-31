@@ -253,7 +253,7 @@ A task dashboard has the same layout engine as a root dashboard. Its cells hold 
 
 Each cell has a small header containing:
 
-- a **type pill**: a small rounded label with the type's icon and short name, such as "MR", "Issue", "Jira", "Claude", "Folder", "Image", "Notes" or "Web". Its colour depends on the module, so items of one module look alike. A type whose module is not in the build gets a grey pill with the module id;
+- a **type pill**: a small rounded label with the type's icon and short name, such as "MR", "Issue", "Jira", "Claude", "Folder", "Files", "Image", "Notes", "Links" or "Web". Its colour depends on the module, so items of one module look alike. A type whose module is not in the build gets a grey pill with the module id;
 - the item name, in normal weight;
 - in a root dashboard, where an item can come from any task, a grey **place pill** with its project and task after the name, such as "backend › Overview";
 - the item's [status](#attention): an attention badge, a problem pill, or the data's age;
