@@ -490,11 +490,12 @@ struct Placement::Private
         return built;
     }
 
-    // Builds the cell status again, and tells the frame if it changed.
+    // Builds the cell status again, and tells the frame if it changed. The age
+    // of old data counts on only while the placement is visible.
     void updateStatus()
     {
         const CellStatus built = buildStatus();
-        if (built.kind != CellStatus::Kind::Stale)
+        if (built.kind != CellStatus::Kind::Stale || !q->isVisible())
             ageTimer.stop();
         else if (!ageTimer.isActive())
             ageTimer.start();
@@ -546,6 +547,10 @@ struct Placement::Private
             services.status->setVisible(itemId, shown);
         }
         updateSeenTimer();
+        if (shown)
+            updateStatus();
+        else
+            ageTimer.stop();
 
         // The first show makes the view, and so does a show after unloading
         // or after a change made while hidden.
