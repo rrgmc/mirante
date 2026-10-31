@@ -137,12 +137,11 @@ function(mirante_add_package)
         set(CPACK_PACKAGE_FILE_NAME "mirante-${PROJECT_VERSION}-win64")
         set(CPACK_NSIS_PACKAGE_NAME Mirante)
         set(CPACK_NSIS_DISPLAY_NAME Mirante)
-        set(CPACK_NSIS_MUI_ICON "${PROJECT_SOURCE_DIR}/resources/app/mirante.ico")
-        set(CPACK_NSIS_MUI_UNIICON "${PROJECT_SOURCE_DIR}/resources/app/mirante.ico")
         set(CPACK_NSIS_INSTALLED_ICON_NAME [=[bin\mirante.exe]=])
         set(CPACK_NSIS_ENABLE_UNINSTALL_BEFORE_INSTALL ON)
         set(CPACK_NSIS_URL_INFO_ABOUT "${PROJECT_HOMEPAGE_URL}")
         set(CPACK_NSIS_CONTACT "realerangel@gmail.com")
+        mirante_add_nsis_finish_options()
     elseif(APPLE)
         set(CPACK_GENERATOR DragNDrop)
         set(CPACK_PACKAGE_FILE_NAME "mirante-${PROJECT_VERSION}-macos")
@@ -167,3 +166,88 @@ function(mirante_add_package)
 
     include(CPack)
 endfunction()
+
+# The setup's icons, and two checkboxes on its last page: "Run Mirante", and
+# "Start Mirante when I sign in". See docs/decisions/0105-start-at-sign-in.md.
+# CPack has no hook for finish page options, so they go in with the icon code,
+# which comes right before the pages; CPack then ignores CPACK_NSIS_MUI_ICON.
+# The sign-in value goes in the per-user Run key, as the app's own settings
+# write it in src/platform/LoginItem.cpp; --hidden starts Mirante in the tray.
+#
+# The sign-in checkbox starts ticked on a first install and keeps the installed
+# version's choice on an upgrade. The old version's uninstaller removes the Run
+# value before the new files go in, so MiranteReadStartAtSignIn reads it first,
+# at the start of .onInit. A macro, so the variables reach include(CPack) in
+# the caller's scope.
+macro(mirante_add_nsis_finish_options)
+    file(TO_NATIVE_PATH "${PROJECT_SOURCE_DIR}/resources/app/mirante.ico" _mirante_ico)
+    set(_mirante_nsis_code [=[
+!define MUI_ICON "@ICO@"
+!define MUI_UNICON "@ICO@"
+!define MUI_FINISHPAGE_RUN ""
+!define MUI_FINISHPAGE_RUN_TEXT "Run Mirante"
+!define MUI_FINISHPAGE_RUN_FUNCTION MiranteRun
+!define MUI_FINISHPAGE_SHOWREADME ""
+!define MUI_FINISHPAGE_SHOWREADME_TEXT "Start Mirante when I sign in"
+!define MUI_FINISHPAGE_SHOWREADME_FUNCTION MiranteAutostart
+Var MiranteStartAtSignIn
+Function MiranteReadStartAtSignIn
+  Push $0
+  StrCpy $MiranteStartAtSignIn 1
+  ReadRegStr $0 HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Mirante" "UninstallString"
+  StrCmp $0 "" done
+  ClearErrors
+  ReadRegStr $0 HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "Mirante"
+  IfErrors 0 done
+  StrCpy $MiranteStartAtSignIn 0
+done:
+  Pop $0
+FunctionEnd
+Function MiranteAutostart
+  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "Mirante" '"$INSTDIR\bin\mirante.exe" --hidden'
+FunctionEnd
+; The setup runs elevated; Explorer starts Mirante as the signed-in user instead.
+Function MiranteRun
+  Exec '"$WINDIR\explorer.exe" "$INSTDIR\bin\mirante.exe"'
+FunctionEnd
+]=])
+    string(REPLACE "@ICO@" "${_mirante_ico}" CPACK_NSIS_INSTALLER_MUI_ICON_CODE "${_mirante_nsis_code}")
+    # The Run value may point at an old folder, so it goes before the files.
+    # The finish page writes it again; a silent install has no finish page, so
+    # it writes the value here.
+    set(CPACK_NSIS_EXTRA_PREINSTALL_COMMANDS [=[
+  DeleteRegValue HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "Mirante"
+  ${If} ${Silent}
+  ${AndIf} $MiranteStartAtSignIn == 1
+    Call MiranteAutostart
+  ${EndIf}
+]=])
+    set(CPACK_NSIS_EXTRA_UNINSTALL_COMMANDS [=[
+  DeleteRegValue HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "Mirante"
+]=])
+    # CPack's NSIS template has no hook in .onInit or on the finish page, so
+    # CPack gets a copy that calls MiranteReadStartAtSignIn and clears the
+    # sign-in checkbox when needed.
+    file(READ "${CMAKE_ROOT}/Modules/Internal/CPack/NSIS.template.in" _mirante_template)
+    set(_mirante_oninit "Function .onInit\n")
+    set(_mirante_finish "!insertmacro MUI_PAGE_FINISH\n")
+    foreach(_anchor IN ITEMS _mirante_oninit _mirante_finish)
+        string(FIND "${_mirante_template}" "${${_anchor}}" _pos)
+        if(_pos EQUAL -1)
+            message(FATAL_ERROR "CPack's NSIS template has no \"${${_anchor}}\"; update cmake/MiranteInstall.cmake.")
+        endif()
+    endforeach()
+    string(REPLACE "${_mirante_oninit}" "${_mirante_oninit}  Call MiranteReadStartAtSignIn\n"
+        _mirante_template "${_mirante_template}")
+    string(REPLACE "${_mirante_finish}" [=[!define MUI_PAGE_CUSTOMFUNCTION_SHOW MiranteFinishShow
+  !insertmacro MUI_PAGE_FINISH
+  Function MiranteFinishShow
+    StrCmp $MiranteStartAtSignIn 1 +2
+      SendMessage $mui.FinishPage.ShowReadme ${BM_SETCHECK} ${BST_UNCHECKED} 0
+  FunctionEnd
+]=] _mirante_template "${_mirante_template}")
+    file(WRITE "${PROJECT_BINARY_DIR}/cpack/NSIS.template.in" "${_mirante_template}")
+    list(PREPEND CMAKE_MODULE_PATH "${PROJECT_BINARY_DIR}/cpack")
+    # Pass the NSIS code above through unchanged; without this CPack strips its quotes.
+    set(CPACK_VERBATIM_VARIABLES ON)
+endmacro()

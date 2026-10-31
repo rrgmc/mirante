@@ -16,6 +16,7 @@
 #include "items/ViewPool.h"
 #include "platform/AttachedDialogs.h"
 #include "platform/Foreground.h"
+#include "platform/LoginItem.h"
 #include "platform/Platform.h"
 #include "ui/AppStyle.h"
 #include "ui/MainWindow.h"
@@ -85,6 +86,10 @@ int main(int argc, char *argv[])
         QStringLiteral("no-keychain"),
         QStringLiteral("Keep tokens in memory only, lost at exit, instead of the keychain, for test runs."));
     parser.addOption(noKeychainOption);
+    const QCommandLineOption hiddenOption(
+        QStringLiteral("hidden"),
+        QStringLiteral("Start hidden in the tray, as at sign-in. Starting Mirante again shows the window."));
+    parser.addOption(hiddenOption);
     parser.process(app);
 #ifdef NDEBUG
     // Without the buffer, Help has no Show Log and Qt's own handler is back.
@@ -205,7 +210,16 @@ int main(int argc, char *argv[])
         window.openWorkspace(last);
     else
         window.openSampleData();
-    window.show();
+    // Started at sign-in, the window waits in the tray until it is called.
+    // Windows and Linux pass --hidden; a macOS login item gets no arguments,
+    // so the launch event tells. See docs/decisions/0105-start-at-sign-in.md.
+    const bool hidden = parser.isSet(hiddenOption);
+    mirante::platform::loginitem::whenLaunched([&window, hidden](bool atSignIn) {
+        if (hidden || atSignIn)
+            window.startHidden();
+        else
+            window.show();
+    });
     window.startTrayAndHotkey();
 
     // A later start handed over: open its workspace, if it gave one, and come
