@@ -435,13 +435,13 @@ M7 added `claude.session.local`, a Claude Code session resumed in a terminal. [D
 
 Planned, not built yet. `document.url`, `document.file` and `document.project`, native, module `document` ("Documents"). See [decision 0104](decisions/0104-document-items.md).
 
-Each type shows one file: a Markdown document, a plain text file or a PDF. The three types differ only in where the file comes from, so they share one view and these rules.
+Each type shows one file: a Markdown document, a plain text file or a PDF. The three types differ only in where the file comes from, so they share one view and these rules. They are a module of their own, not part of Notes; the decision says why.
 
 - **Format:** every type has a `format` field, a choice of Automatic (the default), Markdown, Plain text and PDF. Automatic decides in this order:
   1. the extension: `.md` and `.markdown` are Markdown, `.txt` and `.log` are plain text, and `.pdf` is PDF;
   2. the `Content-Type` of a downloaded file: `text/markdown` is Markdown, `application/pdf` is PDF, and any other `text/*` is plain text;
   3. otherwise the cell says "This file's format is not known. Choose one in the item's settings."
-- **Markdown:** rendered by `QTextBrowser` as in the Notes preview, with GitHub's tables, task lists, strikethrough and autolinks. Unlike the preview, it loads images. A relative image is read from next to the document: below the same address, in the same folder of the project, or not at all for a workspace file. An `http` or `https` image is downloaded. Web and mail links open in the external programs. A relative link opens the linked file in the external program, as a web address or a local file.
+- **Markdown:** rendered by the view kit's `MarkdownView`, the same widget as the Notes preview, with GitHub's tables, task lists, strikethrough and autolinks. Unlike the Notes preview, a document turns on image loading. A relative image is read from next to the document: below the same address, in the same folder of the project, or not at all for a workspace file. An `http` or `https` image is downloaded. Web and mail links open in the external programs. A relative link opens the linked file in the external program, as a web address or a local file.
 - **Plain text:** a read-only `QPlainTextEdit` in a fixed-width font, with lines wrapped. Text is read as UTF-8, or as UTF-16 when it starts with a byte order mark.
 - **PDF:** a `QPdfView` that shows the pages one under another, fitted to the cell's width. `Ctrl` with the mouse wheel zooms. The zoom is not stored.
 - **Size:** a file larger than 50 MB is not shown. The cell says "This file is too large to show." Text and Markdown are rendered in the background, so a long file does not hold up the window.
@@ -461,9 +461,9 @@ Each type shows one file: a Markdown document, a plain text file or a PDF. The t
 `document.file`.
 
 - **Configuration:** `file`, the file in the data folder's `files/`, required; `format`; `originalName`, the file's name when it was added, such as `datasheet.pdf`, for Open and for Automatic, since the stored file is named by a UUID.
-- **Editor:** its own, as `createEditor`. A **Choose file…** button picks a file, which is copied to `files/<uuid>.<ext>`. A file larger than 20 MB asks first, because it syncs to every device. Choosing another file replaces the old one, which is deleted when no item refers to it any more ([decision 0030](decisions/0030-deleting-image-files.md)).
+- **Editor:** its own, as `createEditor`. A **Choose file…** button picks a file, which is copied to `files/<uuid>.<ext>`. Because the file syncs to every device, a file larger than 20 MB asks first, and a file larger than 50 MB is refused with "This file is too large to keep in the workspace. Put it in a project folder instead." Choosing another file replaces the old one, which is deleted when no item refers to it any more ([decision 0030](decisions/0030-deleting-image-files.md)).
 - **Reading:** the view watches the file, so a copy that sync replaces is shown again. A missing file says "The file is missing. It may not have synced to this device yet."
-- **Drop:** a file of a known format, other than an image, dropped on a task or its Items row in the sidebar, and not inside one of the project's folders, adds an item of this type to the task, named after the file.
+- **Drop:** a file of a known format, other than an image, dropped on a task or its Items row in the sidebar, and not inside one of the project's folders, adds an item of this type to the task, named after the file. The size limits of the editor apply.
 
 #### Document (project file)
 
