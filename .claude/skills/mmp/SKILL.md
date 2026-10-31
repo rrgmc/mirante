@@ -77,6 +77,9 @@ gh pr create --base master --title "<the commit's subject>" --body-file <file>
 - **The body says what the change does and why**, in plain sentences, then which local checks ran
   and which did not. The session's pull request attribution ends it.
 - **Several commits take a title of their own**, which states what the whole branch changes.
+- **To change the title or body later, use the REST API.** `gh pr edit` fails, because the token
+  lacks the `read:org` scope that its query needs:
+  `gh api -X PATCH repos/rrgmc/mirante/pulls/<n> -f title="<title>" -F body=@<file>`.
 
 ## 5. Wait for the required checks
 
@@ -85,18 +88,24 @@ gh pr create --base master --title "<the commit's subject>" --body-file <file>
 with `master`.
 
 **`gh pr checks --watch` can return before the checks exist.** It watches the checks GitHub has
-listed at that moment, and right after a push there may be none. So poll the merge state instead,
-in the background:
+listed at that moment, and right after a push there may be none. So poll the merge state instead.
+The harness refuses a loop typed as a command in a worktree session, so write it to
+`wait-pr.sh` in the scratchpad and run `sh <scratchpad>/wait-pr.sh <n>` in the background:
 
 ```sh
+#!/bin/sh
+n=$1
 for i in $(seq 1 110); do
-  state=$(gh pr view <n> --json mergeStateStatus --jq .mergeStateStatus)
-  failed=$(gh pr checks <n> --required 2>&1 | grep -c fail)
-  [ "$state" != BLOCKED ] || [ "$failed" != 0 ] && break
+  state=$(gh pr view "$n" --json mergeStateStatus --jq .mergeStateStatus)
+  failed=$(gh pr checks "$n" --required 2>&1 | grep -c fail)
+  if [ "$state" != BLOCKED ] || [ "$failed" != 0 ]; then break; fi
   sleep 30
 done
-gh pr checks <n>
+echo "state=$state"
+gh pr checks "$n"
 ```
+
+Start it only after the last push, so it does not read the state of an earlier run.
 
 - **`CLEAN`, or `UNSTABLE` with only `build (macos-15)` pending or failed**, goes on to step 6. A
   failed macOS build is still reported in step 8.
