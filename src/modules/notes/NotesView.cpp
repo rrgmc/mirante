@@ -1,24 +1,20 @@
 #include "NotesView.h"
 
 #include <mirante/ItemContext.h>
+#include <mirante/widgets/MarkdownView.h>
 
 #include <QButtonGroup>
 #include <QCoreApplication>
-#include <QDesktopServices>
 #include <QFocusEvent>
 #include <QFontDatabase>
 #include <QHBoxLayout>
-#include <QImage>
 #include <QJsonObject>
 #include <QKeySequence>
 #include <QPlainTextEdit>
 #include <QShortcut>
 #include <QStackedWidget>
-#include <QTextBrowser>
-#include <QTextDocument>
 #include <QTimer>
 #include <QToolButton>
-#include <QUrl>
 #include <QVBoxLayout>
 
 #include <functional>
@@ -55,39 +51,6 @@ protected:
     }
 };
 
-// The preview. It loads nothing, so a note cannot call out or read a local
-// file, and it opens web and mail links in the external programs.
-class Preview : public QTextBrowser
-{
-public:
-    explicit Preview(QWidget *parent)
-        : QTextBrowser(parent)
-    {
-        setFrameShape(QFrame::NoFrame);
-        setOpenLinks(false);
-        setOpenExternalLinks(false);
-        connect(this, &QTextBrowser::anchorClicked, this, [](const QUrl &link) {
-            const QString scheme = link.scheme();
-            if (scheme == QLatin1String("http") || scheme == QLatin1String("https")
-                || scheme == QLatin1String("mailto"))
-                QDesktopServices::openUrl(link);
-        });
-    }
-
-    // Never answers with nothing, because the document would then read a file
-    // or network path in the Markdown itself.
-    QVariant loadResource(int type, const QUrl &name) override
-    {
-        Q_UNUSED(name)
-        if (type == QTextDocument::ImageResource) {
-            QImage blank(1, 1, QImage::Format_ARGB32);
-            blank.fill(Qt::transparent);
-            return blank;
-        }
-        return QString(QLatin1Char(' '));
-    }
-};
-
 class NotesView : public QWidget
 {
 public:
@@ -116,7 +79,9 @@ public:
 
         m_stack = new QStackedWidget(this);
         m_editor = new Editor(m_stack);
-        m_preview = new Preview(m_stack);
+        // The preview loads nothing, so a note cannot call out or read a local
+        // file, and it opens web and mail links in the external programs.
+        m_preview = new widgets::MarkdownView(m_stack);
         m_stack->addWidget(m_editor);
         m_stack->addWidget(m_preview);
         layout->addWidget(m_stack, 1);
@@ -178,7 +143,7 @@ private:
     {
         if (preview) {
             save();
-            m_preview->setMarkdown(m_editor->toPlainText());
+            m_preview->setMarkdownText(m_editor->toPlainText());
             m_stack->setCurrentWidget(m_preview);
         } else {
             m_stack->setCurrentWidget(m_editor);
@@ -223,7 +188,7 @@ private:
         m_editor->setPlainText(text);
         m_loading = false;
         if (m_stack->currentWidget() == m_preview)
-            m_preview->setMarkdown(text);
+            m_preview->setMarkdownText(text);
     }
 
     ItemContext &m_context;
@@ -231,7 +196,7 @@ private:
     QToolButton *m_previewButton = nullptr;
     QStackedWidget *m_stack = nullptr;
     Editor *m_editor = nullptr;
-    Preview *m_preview = nullptr;
+    widgets::MarkdownView *m_preview = nullptr;
     QTimer m_saveTimer;
     bool m_unsaved = false;
     bool m_loading = false;
