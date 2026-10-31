@@ -6,6 +6,8 @@
 #   tools/build.ps1 -Target <name>   build one target only, without tests,
 #                                    such as update_translations
 #   tools/build.ps1 -Version 1.2.0   build that version, as the release does
+#   tools/build.ps1 -NoPch           compile without precompiled headers, as CI
+#                                    does, so a missing include fails
 #   tools/build.ps1 -Package         after the tests, install into
 #                                    build/<preset>/install, check the install
 #                                    and make the setup with CPack
@@ -18,6 +20,7 @@ param(
     [switch]$NoTest,
     [string]$Target,
     [string]$Version,
+    [switch]$NoPch,
     [switch]$Package
 )
 
@@ -59,6 +62,8 @@ Push-Location $Repo
 try {
     $configure = @('--preset', $Preset, "-DCMAKE_PREFIX_PATH=$QtDir")
     if ($Version) { $configure += "-DMIRANTE_VERSION=$Version" }
+    # Set each time, because the build folder keeps the value of its last run.
+    $configure += "-DMIRANTE_PCH=$(if ($NoPch) { 'OFF' } else { 'ON' })"
     Invoke-Tool cmake @configure
     if ($Target) {
         Invoke-Tool cmake --build --preset $Preset --target $Target
