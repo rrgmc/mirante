@@ -1,0 +1,149 @@
+// Registers the document module into a fresh registry and checks its types.
+#include "items/FieldValidation.h"
+#include "items/ItemTypeRegistry.h"
+
+#include <QIcon>
+#include <QMap>
+#include <QPixmap>
+#include <QTest>
+
+namespace mirante::modules::document {
+void registerModule(mirante::ModuleRegistrar &registrar);
+}
+
+class TestRegister : public QObject
+{
+    Q_OBJECT
+
+private slots:
+    void registersTypes()
+    {
+        mirante::ItemTypeRegistry registry;
+        registry.registerModule(QStringLiteral("document"), &mirante::modules::document::registerModule);
+
+        // Expected id and name of each type. QMap keeps the ids sorted.
+        QMap<QString, QString> expected;
+        expected.insert(QStringLiteral("document.file"), QStringLiteral("Document (workspace file)"));
+        expected.insert(QStringLiteral("document.project"), QStringLiteral("Document (project file)"));
+        expected.insert(QStringLiteral("document.url"), QStringLiteral("Document (web address)"));
+
+        QStringList ids;
+        for (const mirante::ItemType *type : registry.types())
+            ids << type->id();
+        ids.sort();
+        QCOMPARE(ids, QStringList(expected.keys()));
+
+        for (auto it = expected.cbegin(); it != expected.cend(); ++it) {
+            QVERIFY2(registry.contains(it.key()), qPrintable(it.key()));
+            QCOMPARE(registry.type(it.key()).name(), it.value());
+        }
+    }
+
+    void iconsRender()
+    {
+        mirante::ItemTypeRegistry registry;
+        registry.registerModule(QStringLiteral("document"), &mirante::modules::document::registerModule);
+
+        for (const mirante::ItemType *type : registry.types()) {
+            const QIcon icon = type->icon();
+            QVERIFY2(!icon.isNull(), qPrintable(type->id()));
+            QVERIFY2(!icon.pixmap(16, 16).isNull(), qPrintable(type->id()));
+        }
+    }
+    void fieldKeys()
+    {
+        mirante::ItemTypeRegistry registry;
+        registry.registerModule(QStringLiteral("document"), &mirante::modules::document::registerModule);
+
+        QMap<QString, QStringList> expected;
+        expected.insert(QStringLiteral("document.url"),
+                        {QStringLiteral("url"), QStringLiteral("format"), QStringLiteral("refresh")});
+        expected.insert(QStringLiteral("document.file"), {QStringLiteral("format")});
+        expected.insert(QStringLiteral("document.project"),
+                        {QStringLiteral("folder"), QStringLiteral("path"), QStringLiteral("format")});
+
+        for (auto it = expected.cbegin(); it != expected.cend(); ++it) {
+            const mirante::ItemType &type = registry.type(it.key());
+            QStringList keys;
+            for (const mirante::Field &field : type.fields())
+                keys << field.key;
+            QCOMPARE(keys, it.value());
+            QVERIFY(type.pastedImageField().isEmpty());
+        }
+        QCOMPARE(registry.type(QStringLiteral("document.project")).fields().front().type,
+                 mirante::Field::Type::Folder);
+    }
+
+    // Keys and labels are set and keys are unique. A new item's defaults
+    // validate, except that each required field without a default is reported.
+    void fieldsValidateTheirDefaults()
+    {
+        mirante::ItemTypeRegistry registry;
+        registry.registerModule(QStringLiteral("document"), &mirante::modules::document::registerModule);
+
+        for (const mirante::ItemType *type : registry.types()) {
+            const std::vector<mirante::Field> fields = type->fields();
+            QStringList keys;
+            QStringList missing;
+            for (const mirante::Field &field : fields) {
+                const QString where = type->id() + QLatin1Char(' ') + field.key;
+                QVERIFY2(!field.key.isEmpty(), qPrintable(type->id()));
+                QVERIFY2(!keys.contains(field.key), qPrintable(where));
+                QVERIFY2(!field.label.isEmpty(), qPrintable(where));
+                if (field.type == mirante::Field::Type::Choice) {
+                    QVERIFY2(!field.choices.isEmpty(), qPrintable(where));
+                    QVERIFY2(field.choiceLabels.size() == field.choices.size(), qPrintable(where));
+                }
+                keys << field.key;
+                if (field.required && (field.defaultValue.isNull() || field.defaultValue.isUndefined()))
+                    missing << field.key;
+            }
+
+            QStringList reported;
+            for (const mirante::FieldProblem &problem : mirante::validate(fields, mirante::defaultConfig(fields)))
+                reported << problem.key;
+            QCOMPARE(reported, missing);
+        }
+    }
+
+    // A native type that needs no connection.
+    void renderingAndConnection()
+    {
+        mirante::ItemTypeRegistry registry;
+        registry.registerModule(QStringLiteral("document"), &mirante::modules::document::registerModule);
+
+        for (const mirante::ItemType *type : registry.types()) {
+            QVERIFY2(type->rendering() == mirante::Rendering::Native, qPrintable(type->id()));
+        }
+    }
+
+    // The module has a name and a description, and so has every type, for
+    // Help > Modules. See docs/decisions/0056-modules-window.md.
+    void namesAndDescriptions()
+    {
+        mirante::ItemTypeRegistry registry;
+        registry.registerModule(QStringLiteral("document"), &mirante::modules::document::registerModule);
+
+        QCOMPARE(registry.moduleName(QStringLiteral("document")), QStringLiteral("Documents"));
+        QVERIFY(!registry.moduleDescription(QStringLiteral("document")).isEmpty());
+        for (const mirante::ItemType *type : registry.types())
+            QVERIFY2(!type->description().isEmpty(), qPrintable(type->id()));
+    }
+
+    // The module gives its UUID, version, author and homepage, for Help >
+    // Modules. See docs/decisions/0089-module-identity.md.
+    void identity()
+    {
+        mirante::ItemTypeRegistry registry;
+        registry.registerModule(QStringLiteral("document"), &mirante::modules::document::registerModule);
+
+        const QString id = QStringLiteral("document");
+        QVERIFY(!registry.moduleUuid(id).isNull());
+        QVERIFY(!registry.moduleVersion(id).isEmpty());
+        QVERIFY(!registry.moduleAuthor(id).isEmpty());
+        QVERIFY(registry.moduleHomepage(id).isValid());
+    }
+};
+
+QTEST_MAIN(TestRegister)
+#include "tst_register.moc"

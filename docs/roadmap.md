@@ -145,16 +145,16 @@ See [the M11 plan](plans/m11-github-module.md) and [decision 0102](decisions/010
 
 ## M12: Document items
 
-See [decision 0104](decisions/0104-document-items.md) and [item types](item-types.md#documents). The code plan is written when this work starts.
+See [the M12 plan](plans/m12-document-items.md), [decision 0104](decisions/0104-document-items.md) and [item types](item-types.md#documents). Checked by hand with [the M12 checklist](plans/m12-checks.md).
 
-- [ ] The `document` module, with Document (web address), Document (workspace file) and Document (project file), sharing one view.
-- [ ] `MarkdownView` in the view kit, used by the Notes preview and by documents.
-- [ ] Markdown and plain text renderers, with the format chosen automatically or by hand.
-- [ ] Qt PDF in the local install, CI, the release workflow and the packages, and a PDF renderer.
-- [ ] Web addresses download again on Reload or on a timer, with ETags. Pasting a file's address, or a GitHub `blob` address, offers Document (web address).
-- [ ] Workspace files are copied into `files/` by the editor, up to 50 MB, asking above 20 MB. Project files reload when they change on disk.
-- [ ] A dropped file of a known format adds a document item to the task.
-- [ ] Tests cover choosing the format, reading pasted links, and each type reading its file.
+- [x] The `document` module, with Document (web address), Document (workspace file) and Document (project file), sharing one view.
+- [x] `MarkdownView` in the view kit, used by the Notes preview and by documents.
+- [x] Markdown and plain text renderers, with the format chosen automatically or by hand.
+- [x] Qt PDF in the local install, CI, the release workflow and the packages, and a PDF renderer.
+- [x] Web addresses download again on Reload or on a timer, with ETags. Pasting a file's address, or a GitHub `blob` address, offers Document (web address).
+- [x] Workspace files are copied into `files/` by the editor, up to 50 MB, asking above 20 MB. Project files reload when they change on disk.
+- [x] A dropped file of a known format adds a document item to the task.
+- [x] Tests cover choosing the format, reading pasted links, and each type reading its file.
 
 ## Future: Custom builds
 

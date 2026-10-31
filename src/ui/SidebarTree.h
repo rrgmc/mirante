@@ -16,7 +16,9 @@ namespace mirante {
 // dropped from another app, as ImagePaste::imageFromMime() reads it, and
 // tints that row while the image is over it. Other rows, and every row of
 // the Trash list, refuse it. See
-// docs/decisions/0085-drop-images-from-other-apps.md.
+// docs/decisions/0085-drop-images-from-other-apps.md. The same rows take a
+// local file that is not an image, which the item types may show. See
+// docs/decisions/0104-document-items.md.
 // Implemented in SidebarTree.cpp.
 class SidebarTree : public QTreeView
 {
@@ -30,6 +32,9 @@ signals:
     // emitted once the drop is over, so the drag's source is not kept
     // waiting while a dialog is open.
     void imageDropped(const QString &taskId, const QImage &image);
+    // A local file that is not an image was dropped on the row of a task or
+    // of its Items list. Emitted once the drop is over, as imageDropped().
+    void fileDropped(const QString &taskId, const QString &path);
 
 protected:
     void drawRow(QPainter *painter, const QStyleOptionViewItem &option, const QModelIndex &index) const override;
@@ -44,11 +49,14 @@ private:
     // The row at pos that takes an image drop: a task or its Items row, not
     // in the Trash list. Otherwise an invalid index.
     QModelIndex imageDropRow(const QPoint &pos) const;
+    // Whether an image or a file from another app is being dragged.
+    bool draggingFromOutside() const { return !m_dragImage.isNull() || !m_dragFile.isEmpty(); }
     // Sets the row tinted for the dragged image, or none.
     void setImageDropRow(const QModelIndex &index);
     void endImageDrag();
 
     QImage m_dragImage;     // the image being dragged over the tree, if any
+    QString m_dragFile;     // else the local file being dragged, if any
     QPersistentModelIndex m_imageDropRow;
 };
 

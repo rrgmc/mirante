@@ -23,6 +23,11 @@ struct EditorContext
     std::function<QString(const QImage &image)> saveImage;
     // Reads an image from files/ by its file name. A null image if it is missing.
     std::function<QImage(const QString &name)> loadImage;
+    // Copies the file at path into files/ and returns its file name, or an
+    // empty string if it was not copied. It asks before copying a file larger
+    // than 20 MB and refuses one larger than 50 MB, and says why it did not
+    // copy. See decision 0104.
+    std::function<QString(const QString &path)> saveFile;
 };
 
 // The editor of an item's configuration, shown in the item dialog. An item

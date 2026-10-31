@@ -68,7 +68,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ runner.temp }}/qt
-          key: qt-${{ runner.os }}-${{ env.QT_VERSION }}-qtbase-qtsvg-qtdeclarative-qttools-qttranslations-icu-webengine-imageformats
+          key: qt-${{ runner.os }}-${{ env.QT_VERSION }}-qtbase-qtsvg-qtdeclarative-qttools-qttranslations-icu-webengine-imageformats-pdf
 
       - name: Install NSIS
         shell: pwsh
@@ -103,7 +103,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ runner.temp }}/qt
-          key: qt-${{ runner.os }}-${{ env.QT_VERSION }}-qtbase-qtsvg-qtdeclarative-qttools-qttranslations-icu-webengine-imageformats
+          key: qt-${{ runner.os }}-${{ env.QT_VERSION }}-qtbase-qtsvg-qtdeclarative-qttools-qttranslations-icu-webengine-imageformats-pdf
 
       - name: Install Linux packages
         run: |
@@ -157,7 +157,7 @@ jobs:
         uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
         with:
           path: ${{ runner.temp }}/qt
-          key: qt-${{ runner.os }}-${{ env.QT_VERSION }}-qtbase-qtsvg-qtdeclarative-qttools-qttranslations-icu-webengine-imageformats
+          key: qt-${{ runner.os }}-${{ env.QT_VERSION }}-qtbase-qtsvg-qtdeclarative-qttools-qttranslations-icu-webengine-imageformats-pdf
 
       - name: Install Ninja
         run: brew install ninja

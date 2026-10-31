@@ -50,7 +50,7 @@ A pasted web address can make an item. The new item dialog asks every type's `fr
 | `<base>/browse/<key>`, `.../issues/<key>`, or `?selectedIssue=<key>` | Jira Issue (summary), Jira Issue (page) | `key` | the key |
 | a Jira address with `?jql=<query>` | Jira List | `preset` = `jql`, `jql` | "Jira search" |
 | `https://claude.ai/...` | Claude session (web) | `url` | "Claude session" |
-| an `http` or `https` address whose path ends in `.md`, `.markdown`, `.txt`, `.log` or `.pdf` (planned, [decision 0104](decisions/0104-document-items.md)) | Document (web address), before Web page | `url`; a `github.com/.../blob/...` address becomes its `raw.githubusercontent.com` address | the file's name |
+| an `http` or `https` address whose path ends in `.md`, `.markdown`, `.txt`, `.log` or `.pdf`, [decision 0104](decisions/0104-document-items.md) | Document (web address), before Web page | `url`; a `github.com/.../blob/...` address becomes its `raw.githubusercontent.com` address | the file's name |
 | any `http` or `https` address | Web page | `url` | the host, without `www.` |
 
 - **GitLab servers.** `<base>` is the GitLab base URL of the group's profile, so a server installed at a path is read correctly. On another server, `gitlab.com` and any other server are still read, because the `/-/` in the path is GitLab's own; the base is then the server without a path.
@@ -433,7 +433,7 @@ M7 added `claude.session.local`, a Claude Code session resumed in a terminal. [D
 
 ### Documents
 
-Planned, not built yet. `document.url`, `document.file` and `document.project`, native, module `document` ("Documents"). See [decision 0104](decisions/0104-document-items.md).
+`document.url`, `document.file` and `document.project`, native, module `document` ("Documents"). See [decision 0104](decisions/0104-document-items.md).
 
 Each type shows one file: a Markdown document, a plain text file or a PDF. The three types differ only in where the file comes from, so they share one view and these rules. They are a module of their own, not part of Notes; the decision says why.
 
@@ -441,12 +441,12 @@ Each type shows one file: a Markdown document, a plain text file or a PDF. The t
   1. the extension: `.md` and `.markdown` are Markdown, `.txt` and `.log` are plain text, and `.pdf` is PDF;
   2. the `Content-Type` of a downloaded file: `text/markdown` is Markdown, `application/pdf` is PDF, and any other `text/*` is plain text;
   3. otherwise the cell says "This file's format is not known. Choose one in the item's settings."
-- **Markdown:** rendered by the view kit's `MarkdownView`, the same widget as the Notes preview, with GitHub's tables, task lists, strikethrough and autolinks. Unlike the Notes preview, a document turns on image loading. A relative image is read from next to the document: below the same address, in the same folder of the project, or not at all for a workspace file. An `http` or `https` image is downloaded. Web and mail links open in the external programs. A relative link opens the linked file in the external program, as a web address or a local file.
+- **Markdown:** rendered by the view kit's `MarkdownView`, the same widget as the Notes preview, with GitHub's tables, task lists, strikethrough and autolinks. Unlike the Notes preview, a document turns on image loading. A relative image is read from next to the document: below the same address, or inside the project folder for a project file. A workspace file loads no local images. An `http` or `https` image is downloaded. Each image stops at 10 MB. Web and mail links open in the external programs. A relative link opens the linked web address, or for a project file the linked local file, in the external program.
 - **Plain text:** a read-only `QPlainTextEdit` in a fixed-width font, with lines wrapped. Text is read as UTF-8, or as UTF-16 when it starts with a byte order mark.
 - **PDF:** a `QPdfView` that shows the pages one under another, fitted to the cell's width. `Ctrl` with the mouse wheel zooms. The zoom is not stored.
-- **Size:** a file larger than 50 MB is not shown. The cell says "This file is too large to show." Text and Markdown are rendered in the background, so a long file does not hold up the window.
+- **Size:** a Markdown or text file larger than 5 MB, or a PDF larger than 50 MB, is not shown, and the cell says "This file is too large to show." Text is laid out on the main thread, and a larger text file would hold up the window. No file larger than 50 MB is read or downloaded.
 - **Actions:** **Reload**, which reads the file again, and **Open**, which opens it in the external program: the browser for a web address, or the program the system uses for the file type.
-- **Errors:** the cell says what failed, such as "The file is missing." or "The file could not be downloaded: <reason>.", with Reload under it. A view that has shown the file keeps it after a failed reload, and says "Could not reload: <reason>." above it.
+- **Errors:** the cell says what failed, such as "The file is missing." or "The file could not be downloaded: <reason>". Reload stays in the bar above. A view that has shown the file keeps it after a failed reload, and says "Could not reload: <reason>." above it.
 
 #### Document (web address)
 
