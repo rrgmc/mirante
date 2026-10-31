@@ -114,6 +114,7 @@ Each file records one design decision: what was decided, what else was considere
 | [0107](0107-closing-quits-by-default.md) | Closing the window quits by default | Accepted |
 | [0108](0108-freeze-web-pages-in-the-tray.md) | Web pages freeze while the app is hidden to the tray | Accepted |
 | [0109](0109-pull-requests-into-master.md) | Changes reach `master` only through pull requests | Accepted |
+| [0110](0110-ci-runs-once-per-change-and-caches-compiling.md) | CI runs once per change and caches compiling | Accepted |
 
 ## Template
 

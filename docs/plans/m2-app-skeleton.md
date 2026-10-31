@@ -74,7 +74,7 @@ Each preset has a matching build and test preset. On Windows, presets are run fr
 
 **Build script.** `tools/build.ps1 [-Preset dev] [-NoTest]` runs `setup-qt.ps1`, which downloads Qt only if it is missing. It then finds Visual Studio 2022 with `vswhere`, enters its developer shell with `Enter-VsDevShell -Arch amd64`, and configures, builds and tests the preset. Agents and plain shells build with it, so nobody needs a Developer Command Prompt open. It adds Qt's `bin` folder to `PATH` for the tests.
 
-**CI.** `.github/workflows/ci.yml` runs on every push and pull request:
+**CI.** `.github/workflows/ci.yml` runs on every push and pull request (since [decision 0110](../decisions/0110-ci-runs-once-per-change-and-caches-compiling.md), on pull requests and pushes to `master`, with ccache and parallel tests):
 
 - **build** job, matrix `windows-2022`, `macos-14` and `ubuntu-24.04`:
   1. install uv with `astral-sh/setup-uv`, and restore the Qt folder from `actions/cache`, keyed on the operating system, the Qt version and the archives;
