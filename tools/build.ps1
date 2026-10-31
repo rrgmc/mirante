@@ -68,6 +68,9 @@ try {
     if (-not $NoTest) {
         # The tests load the Qt DLLs from Qt's bin folder.
         $env:PATH = "$(Join-Path $QtDir 'bin');$env:PATH"
+        # The tests use temporary folders of their own, so they run in
+        # parallel, one per core unless CTEST_PARALLEL_LEVEL says otherwise.
+        if (-not $env:CTEST_PARALLEL_LEVEL) { $env:CTEST_PARALLEL_LEVEL = [Environment]::ProcessorCount }
         Invoke-Tool ctest --preset $Preset
     }
     if ($Package) {
