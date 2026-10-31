@@ -8,6 +8,7 @@
 #include <QDragLeaveEvent>
 #include <QDragMoveEvent>
 #include <QDropEvent>
+#include <QFileInfo>
 #include <QMimeData>
 #include <QPainter>
 #include <QTimer>
@@ -20,6 +21,17 @@ namespace {
 
 constexpr int inset = 6;
 constexpr qreal radius = 5.0;
+
+// The first local file of a drag that is a file, not a folder. Empty if it
+// carries none.
+QString localFileOf(const QMimeData *mime)
+{
+    for (const QUrl &url : mime->urls()) {
+        if (url.isLocalFile() && QFileInfo(url.toLocalFile()).isFile())
+            return url.toLocalFile();
+    }
+    return {};
+}
 
 // How much of the group colour is mixed into a project row. A little more than
 // the old highlight tint, since some group colours are lighter.
@@ -120,6 +132,7 @@ void SidebarTree::setImageDropRow(const QModelIndex &index)
 void SidebarTree::endImageDrag()
 {
     m_dragImage = QImage();
+    m_dragFile.clear();
     setImageDropRow({});
 }
 
@@ -133,7 +146,9 @@ void SidebarTree::dragEnterEvent(QDragEnterEvent *event)
     if (!isOwnDrag(event->mimeData()) && (event->possibleActions() & Qt::CopyAction)
         && model() && (model()->flags(QModelIndex()) & Qt::ItemIsDropEnabled)) {
         m_dragImage = ImagePaste::imageFromMime(event->mimeData());
-        if (!m_dragImage.isNull()) {
+        if (m_dragImage.isNull())
+            m_dragFile = localFileOf(event->mimeData());
+        if (draggingFromOutside()) {
             setImageDropRow(imageDropRow(event->position().toPoint()));
             event->setDropAction(Qt::CopyAction);
             event->accept();
@@ -145,7 +160,7 @@ void SidebarTree::dragEnterEvent(QDragEnterEvent *event)
 
 void SidebarTree::dragMoveEvent(QDragMoveEvent *event)
 {
-    if (m_dragImage.isNull()) {
+    if (!draggingFromOutside()) {
         QTreeView::dragMoveEvent(event);
         return;
     }
@@ -167,11 +182,12 @@ void SidebarTree::dragLeaveEvent(QDragLeaveEvent *event)
 
 void SidebarTree::dropEvent(QDropEvent *event)
 {
-    if (m_dragImage.isNull()) {
+    if (!draggingFromOutside()) {
         QTreeView::dropEvent(event);
         return;
     }
     const QImage image = m_dragImage;
+    const QString file = m_dragFile;
     const QModelIndex row = imageDropRow(event->position().toPoint());
     endImageDrag();
     if (!row.isValid()) {
@@ -181,7 +197,10 @@ void SidebarTree::dropEvent(QDropEvent *event)
     event->setDropAction(Qt::CopyAction);
     event->accept();
     const QString taskId = row.data(SidebarModel::TaskIdRole).toString();
-    QTimer::singleShot(0, this, [this, taskId, image] { emit imageDropped(taskId, image); });
+    if (!image.isNull())
+        QTimer::singleShot(0, this, [this, taskId, image] { emit imageDropped(taskId, image); });
+    else
+        QTimer::singleShot(0, this, [this, taskId, file] { emit fileDropped(taskId, file); });
 }
 
 } // namespace mirante

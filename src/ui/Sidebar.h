@@ -88,6 +88,9 @@ signals:
     // An image from another app was dropped on a task or its Items row. See
     // SidebarTree::imageDropped().
     void imageDropped(const QString &taskId, const QImage &image);
+    // A local file that is not an image was dropped on a task or its Items
+    // row. See SidebarTree::fileDropped().
+    void fileDropped(const QString &taskId, const QString &path);
 
 private:
     struct Private;

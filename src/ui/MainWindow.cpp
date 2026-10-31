@@ -2080,6 +2080,8 @@ MainWindow::MainWindow(Model &model, const ItemTypeRegistry &types, Store &store
     // An image dropped from another app on a task or its Items row becomes a
     // new item, as Paste Image… does.
     connect(d->sidebar, &Sidebar::imageDropped, d->actions, &EntityActions::addImage);
+    // Any other file becomes an item of the first type that takes it.
+    connect(d->sidebar, &Sidebar::fileDropped, d->actions, &EntityActions::addFile);
     // The sidebar tints the row of what the hovered dashboard cell shows,
     // unless the settings window turned that off.
     connect(d->services.hover, &CellHoverTracker::hoveredChanged, d->sidebar, [this](const QString &id) {
