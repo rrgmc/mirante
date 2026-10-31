@@ -19,13 +19,13 @@ The tag must be `vX.Y.Z`. The app's version is the tag without the `v`.
 
 ## Building a tag again
 
-If a job failed, run the workflow by hand: Actions > Release > Run workflow, with the tag. The code comes from the tag, and the workflow file from the branch it runs on. The release is kept, and each file is replaced.
+If a job failed, run the workflow by hand: Actions > Release > Run workflow. Under **Use workflow from**, choose the tag, not a branch, and enter the same tag in the field. The `release` environment admits only tags, so a run from a branch cannot sign the macOS disk image. The code and the workflow file both come from the tag. The release is kept, and each file is replaced.
 
 ## The `release` environment
 
 The macOS job runs in the GitHub environment `release`, which holds the signing secrets. Set it up once in the repository's Settings > Environments:
 
-- **Deployment branches and tags:** selected only, with the tag rule `v*`.
+- **Deployment branches and tags:** selected only, with the tag rule `v*` and no branch.
 - **Required reviewers:** optional. With one, every release waits for an approval before the secrets are used.
 - **Secrets:**
 
