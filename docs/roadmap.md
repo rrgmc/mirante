@@ -132,7 +132,7 @@ See [the M10 plan](plans/m10-packaging.md). Checked by hand with [the M10 checkl
 
 ## M11: GitHub module
 
-See [the M11 plan](plans/m11-github-module.md) and [decision 0102](decisions/0102-github-module.md).
+See [the M11 plan](plans/m11-github-module.md) and [decision 0102](decisions/0102-github-module.md). Checked by hand with [the M11 checklist](plans/m11-checks.md).
 
 - [ ] The `github` module, with GitHub PR (summary), PR (page), PR List, Actions Run, Actions Run List, Issue (summary), Issue (page) and Issue List, for github.com and GitHub Enterprise Server.
 - [ ] Its General Configuration holds the web address, the token and the repositories. The API address follows from the web address.
