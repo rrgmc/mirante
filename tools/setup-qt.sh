@@ -27,10 +27,11 @@ QT_DIR=$QT_ROOT/$QT_VERSION/$QT_ARCH_DIR
 # Qt WebEngine shows web items; it needs qtdeclarative, qtwebchannel and
 # qtpositioning. qttools has lupdate and lrelease for the translations, and
 # qttranslations has Qt's own texts in other languages. qtimageformats has the
-# WebP plugin for dropped images. Each part has a file that shows it is there,
-# so an older Qt without one of them is completed.
+# WebP plugin for dropped images. qtpdf shows the PDF files of document items.
+# Each part has a file that shows it is there, so an older Qt without one of
+# them is completed.
 missing=
-for marker in lib/cmake/Qt6WebEngineWidgets bin/lupdate translations/qtbase_pt_BR.qm         "plugins/imageformats/libqwebp.$PLUGIN_SUFFIX"; do
+for marker in lib/cmake/Qt6WebEngineWidgets bin/lupdate translations/qtbase_pt_BR.qm         "plugins/imageformats/libqwebp.$PLUGIN_SUFFIX" lib/cmake/Qt6PdfWidgets; do
     [ -e "$QT_DIR/$marker" ] || missing=yes
 done
 if [ -n "$missing" ]; then
@@ -39,7 +40,7 @@ if [ -n "$missing" ]; then
         exit 1
     fi
     echo "Installing Qt $QT_VERSION into $QT_ROOT" >&2
-    uvx --from aqtinstall aqt install-qt "$QT_HOST" desktop "$QT_VERSION" "$QT_ARCH" -O "$QT_ROOT" --archives qtbase qtsvg qtdeclarative qttools qttranslations $QT_EXTRA_ARCHIVES -m qtwebengine qtwebchannel qtpositioning qtimageformats >&2
+    uvx --from aqtinstall aqt install-qt "$QT_HOST" desktop "$QT_VERSION" "$QT_ARCH" -O "$QT_ROOT" --archives qtbase qtsvg qtdeclarative qttools qttranslations $QT_EXTRA_ARCHIVES -m qtwebengine qtwebchannel qtpositioning qtimageformats qtpdf >&2
 fi
 
 echo "$QT_DIR"
