@@ -34,6 +34,12 @@ public:
     // Without a tray, "keep running in the tray" is off and cannot be changed.
     // The stored choice stays, for when a tray appears.
     void setTrayAvailable(bool available);
+    // Shows "Start Mirante when I sign in", checked as given. The system holds
+    // this choice, not DeviceSettings, so the dialog only reports a change
+    // with startAtSignInToggled(). Without a call the option is hidden, as
+    // where the system has no way to do it.
+    void setStartAtSignIn(bool on);
+    QCheckBox *startAtSignIn() const;
     // Adds the Modules section: a group for each module with device settings,
     // built from their fields. Without any, there is no section. Call it once.
     // See decision 0079.
@@ -42,6 +48,8 @@ public:
 signals:
     // An option changed, and is already saved in the device settings.
     void changed();
+    // The user ticked or cleared "Start Mirante when I sign in".
+    void startAtSignInToggled(bool on);
 
 private:
     // A heading, then an empty form for the section's options.

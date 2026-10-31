@@ -28,6 +28,7 @@ struct SettingsDialog::Private
     QCheckBox *sidebarHoverTint = nullptr;
     QLabel *hotkeyError = nullptr;
     QCheckBox *closeToTray = nullptr;
+    QCheckBox *startAtSignIn = nullptr;
     bool modulesAdded = false;
 };
 
@@ -137,6 +138,12 @@ SettingsDialog::SettingsDialog(DeviceSettings &settings, QWidget *parent)
         emit changed();
     });
     window->addRow(d->closeToTray);
+    d->startAtSignIn = new QCheckBox(tr("Start Mirante when I sign in"), this);
+    d->startAtSignIn->setObjectName(QStringLiteral("startAtSignIn"));
+    d->startAtSignIn->setToolTip(tr("Mirante starts hidden in the tray."));
+    d->startAtSignIn->hide();
+    connect(d->startAtSignIn, &QCheckBox::toggled, this, &SettingsDialog::startAtSignInToggled);
+    window->addRow(d->startAtSignIn);
 
     // Terminal. See docs/integrations.md#terminal-launch.
     QFormLayout *terminal = addSection(tr("Terminal"));
@@ -171,6 +178,15 @@ void SettingsDialog::setTrayAvailable(bool available)
     d->closeToTray->setChecked(available && d->settings->closeToTray());
     d->closeToTray->setEnabled(available);
 }
+
+void SettingsDialog::setStartAtSignIn(bool on)
+{
+    const QSignalBlocker blocker(d->startAtSignIn);
+    d->startAtSignIn->setChecked(on);
+    d->startAtSignIn->show();
+}
+
+QCheckBox *SettingsDialog::startAtSignIn() const { return d->startAtSignIn; }
 
 // Each module's fields show the stored value, else the field's default. Only
 // a value the user changes is stored, so an untouched default follows the

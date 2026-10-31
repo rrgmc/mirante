@@ -145,6 +145,10 @@ public:
     // so they touch neither. It waits for a tray that is not there yet, as at
     // sign-in. See docs/ui.md#tray-and-notifications.
     void startTrayAndHotkey();
+    // Started at sign-in: main() leaves the window hidden in the tray until it
+    // is called. With no tray after the wait for one, the window shows
+    // minimized. See docs/decisions/0106-start-at-sign-in.md.
+    void startHidden();
     // Whether a tray exists to hide into. With one, the app no longer quits with
     // its last window, so it quits through QApplication::quit(). Tests set it
     // themselves.
@@ -181,6 +185,7 @@ protected:
     // Sees the application's quit event before Qt closes the windows.
     bool eventFilter(QObject *watched, QEvent *event) override;
     // Keeps View > Full Screen checked while the window is full screen.
+    void showEvent(QShowEvent *event) override;
     void changeEvent(QEvent *event) override;
 
 private:

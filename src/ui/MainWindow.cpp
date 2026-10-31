@@ -30,6 +30,7 @@
 #include "layout/TaskCell.h"
 #include "platform/Foreground.h"
 #include "platform/GlobalHotkey.h"
+#include "platform/LoginItem.h"
 #include "platform/Platform.h"
 #include "platform/Notifier.h"
 #include "platform/Tray.h"
@@ -225,6 +226,13 @@ struct MainWindow::Private
     QList<DueNotification> dueNotifications;
     int trayAttempts = 0;
     bool trayPresent = false;
+    // Started at sign-in: the window waits in the tray until it is called.
+    bool startedHidden = false;
+    // The window has been on screen, so its place is worth saving.
+    bool shownOnce = false;
+    // The settings window offers "Start Mirante when I sign in". Only main()
+    // turns it on, so tests never change the system's sign-in items.
+    bool offersStartAtSignIn = false;
     bool quitting = false;
     bool savedForQuit = false;
     platform::GlobalHotkey *hotkey = nullptr;
@@ -1319,8 +1327,6 @@ struct MainWindow::Private
     {
         const QString name = workspaceDisplayName();
         q->setWindowTitle(MainWindow::tr("%1 - %2").arg(name, QStringLiteral(MIRANTE_APP_NAME)));
-        if (sidebar)
-            sidebar->setTitle(name);
     }
 
     // Opens a workspace from the menus. A folder that exists but is not a
@@ -1724,6 +1730,8 @@ struct MainWindow::Private
         if (!platform::Tray::isAvailable()) {
             if (++trayAttempts < 30)
                 QTimer::singleShot(2000, q, [this] { createTray(); });
+            else if (startedHidden && !q->isVisible())
+                q->showMinimized();    // no tray to wait in, so the taskbar holds it
             return;
         }
         auto *menu = new QMenu(q);
@@ -1756,7 +1764,31 @@ struct MainWindow::Private
                 q->openTaskPreview(taskId);
         });
         q->setTrayPresent(true);
+        // A hidden start shows no Dock icon on macOS.
+        if (startedHidden && !q->isVisible())
+            tray->setDockIconVisible(false);
         updateTray();
+    }
+
+    // Turns starting at sign-in on or off from the settings window, and tells
+    // the user when the system refused, or on macOS still needs their approval.
+    void setStartAtSignIn(bool on)
+    {
+        QString error;
+        if (!platform::loginitem::setEnabled(on, &error)) {
+            QMessageBox::warning(settingsDialog, MainWindow::tr("Settings"),
+                                 MainWindow::tr("Mirante could not change whether it starts at sign-in. %1").arg(error));
+            if (settingsDialog)
+                settingsDialog->setStartAtSignIn(platform::loginitem::isEnabled());
+        } else if (on && platform::loginitem::needsApproval()) {
+            const auto answer = QMessageBox::information(
+                settingsDialog, MainWindow::tr("Settings"),
+                MainWindow::tr("macOS starts Mirante at sign-in only after you allow it in System Settings > General > "
+                               "Login Items. Open System Settings now?"),
+                QMessageBox::Open | QMessageBox::Cancel, QMessageBox::Open);
+            if (answer == QMessageBox::Open)
+                platform::loginitem::openSystemSettings();
+        }
     }
 
     // Collects a notification, and sends those of one pass together. More
@@ -1807,9 +1839,12 @@ struct MainWindow::Private
     // came from.
     void saveWindowState()
     {
-        settings->setWindowSize(q->normalGeometry().size());
-        settings->setWindowGeometry(q->normalGeometry());
-        settings->setWindowMaximized(q->isFullScreen() ? maximizedBeforeFullScreen : q->isMaximized());
+        // A window started hidden and never shown has no place of its own yet.
+        if (!startedHidden || shownOnce) {
+            settings->setWindowSize(q->normalGeometry().size());
+            settings->setWindowGeometry(q->normalGeometry());
+            settings->setWindowMaximized(q->isFullScreen() ? maximizedBeforeFullScreen : q->isMaximized());
+        }
         settings->setSidebarSplitterState(splitter->saveState());
         saveOpenTabs();
     }
@@ -2076,7 +2111,6 @@ MainWindow::MainWindow(Model &model, const ItemTypeRegistry &types, Store &store
             openRootDashboard(id);
     });
     connect(d->sidebar, &Sidebar::collapseRequested, this, [this] { d->showSidebar(false); });
-    connect(d->sidebar, &Sidebar::titleDoubleClicked, this, [this] { d->promptRename(); });
     // An image dropped from another app on a task or its Items row becomes a
     // new item, as Paste Image… does.
     connect(d->sidebar, &Sidebar::imageDropped, d->actions, &EntityActions::addImage);
@@ -2286,10 +2320,18 @@ void MainWindow::prepareToQuit()
 
 void MainWindow::startTrayAndHotkey()
 {
+    d->offersStartAtSignIn = platform::loginitem::isSupported();
     d->hotkey = new platform::GlobalHotkey(this);
     connect(d->hotkey, &platform::GlobalHotkey::activated, this, &MainWindow::toggleVisible);
     d->registerHotkey();
     d->createTray();
+}
+
+void MainWindow::startHidden()
+{
+    d->startedHidden = true;
+    if (d->tray)
+        d->tray->setDockIconVisible(false);
 }
 
 void MainWindow::setTrayPresent(bool present)
@@ -2362,6 +2404,12 @@ void MainWindow::setFullScreen(bool on)
     } else {
         showNormal();
     }
+}
+
+void MainWindow::showEvent(QShowEvent *event)
+{
+    d->shownOnce = true;
+    QMainWindow::showEvent(event);
 }
 
 void MainWindow::changeEvent(QEvent *event)
@@ -2702,6 +2750,11 @@ void MainWindow::showSettings()
         d->settingsDialog->setTrayAvailable(d->trayPresent);
         d->settingsDialog->setModules(*d->types);
         connect(d->settingsDialog, &SettingsDialog::changed, this, [this] { d->applyDeviceSettings(); });
+        if (d->offersStartAtSignIn) {
+            d->settingsDialog->setStartAtSignIn(platform::loginitem::isEnabled());
+            connect(d->settingsDialog, &SettingsDialog::startAtSignInToggled, this,
+                    [this](bool on) { d->setStartAtSignIn(on); });
+        }
     }
     d->settingsDialog->show();
     d->settingsDialog->raise();
