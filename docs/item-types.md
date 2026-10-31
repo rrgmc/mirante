@@ -418,6 +418,22 @@ M7 added `claude.session.local`, a Claude Code session resumed in a terminal. [D
 - **Shows:** a Markdown editor and its preview, with an **Edit** and a **Preview** button above them. It opens in Preview when the note has text, else in Edit. `Ctrl+E` switches while the keyboard's focus is in the note. The preview loads no images or other resources, and opens web and mail links in the external programs.
 - **Saving:** the text is stored in the task file, so it syncs. It is saved 800 ms after the last change, when the editor loses the keyboard's focus, and when the view closes. Empty text removes `text`. `viewKeys` is `text`, so saving does not make the editor again. A change from another device replaces the text only when the note has no unsaved change; otherwise the local text wins when it is saved. See [decision 0081](decisions/0081-views-that-keep-their-own-keys.md).
 
+### Links
+
+`notes.links`, native, module `notes`. See [decision 0114](decisions/0114-links-and-file-tree-items.md).
+
+- **Configuration:** `links`, a list in the task file. Each link has an optional `title` and `description`, and a `kind`, which says where it leads:
+  - `url`: `url`, an `http`, `https` or `mailto` address;
+  - `project`: `folder`, one of the project's folders, and `path`, relative to the folder, with `/` between its parts. An empty `path` is the folder itself;
+  - `workspace`: `file`, a file in the data folder's `files/`, and `originalName`, the file's name when it was added.
+- **Editor:** its own, as `createEditor`. The links are listed on the left, with **Add**, **Remove**, **Up** and **Down**, and the selected link's fields are on the right. **Browse…** picks a project file, and is off for a folder with no local path on this device. **Choose file…** copies a file into `files/`, with the size limits of a [workspace document](#document-workspace-file). A file no link refers to any more is deleted as [decision 0030](decisions/0030-deleting-image-files.md) says. A link without a title shows the address or the file's name.
+- **Shows:** one row per link: an icon, the title in the link colour and the description under it, smaller. The tooltip is the address or the local path. A list with no links says "Add links in the item's settings."
+- **Actions:** a click or Return opens the link in the external program. The row menu has **Open**, **Copy address** and **Show in file manager**.
+- **Problems,** shown under the list:
+  - A project link whose folder has no local path on this device asks for it, then opens.
+  - A missing file says "The file is missing: <name>", or for a workspace file "The file is missing. It may not have synced to this device yet."
+  - A stored address or path that the editor would refuse is not opened.
+
 ### Image
 
 `image`, native, module `image`. See [decision 0021](decisions/0021-image-items-as-files.md).
@@ -487,6 +503,20 @@ Each type shows one file: a Markdown document, a plain text file or a PDF. The t
 The Git state is read when the view shows and every 10 seconds while it is visible. A folder with no local path on this device shows "Folder not set on this device" with **Choose folder…** instead of the actions.
 
 The editor command is a device setting of the `folder` module, default `code`. It is split like a command line: its first part is the program, the rest its arguments, and the folder's path the last argument. The terminal command is a core device setting. See [decision 0082](decisions/0082-commands-as-argument-lists.md).
+
+### File tree
+
+`folder.tree`, native, module `folder`. See [decision 0114](decisions/0114-links-and-file-tree-items.md).
+
+- **Configuration:** `folder`, one of the project's folders, required; `path`, a subfolder to show instead of the whole folder, relative to it; `showHidden`, whether to show hidden files, off by default. Hidden files are those the system marks as hidden, which on macOS and Linux includes names that start with a dot.
+- **Shows:** the files and folders as a tree, by name only, with folders first. `.git` never shows. `.gitignore` is not read. The view reads nothing until it first shows, and a folder is read when it is expanded. The tree follows changes on disk. Expanded folders last as long as the view, and are not stored.
+- **Actions:** a double click or Return on a file opens it in its program; on some styles a single click does. The menu acts on the selected row, or on the tree's root without one:
+  - **Open**;
+  - **Open in editor**, with the `editor` device setting and the file as its last argument;
+  - **Show in file manager** and **Open terminal here**, in the folder or in the file's folder;
+  - **Copy path**, and **Copy relative path**, which is relative to the project folder, with `/`.
+- **The view only reads.** It does not rename, delete or create files.
+- **Problems:** a folder with no local path on this device shows "Folder not set on this device" with **Choose folder…**. A subfolder that is absolute or contains `..` is refused, and a missing one says so; it shows once it exists and the view shows again. A failed action shows its message under the tree.
 
 ### Built-in panels
 

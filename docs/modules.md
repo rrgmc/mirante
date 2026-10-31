@@ -11,8 +11,8 @@ A module is one folder of item types and the code they share. Modules are compil
 | `jira` | `jira.issue.summary`, `jira.issue.page`, `jira.list` | General Configuration: base URL, token | `projectKey` |
 | `claude` | `claude.session.web` | none | none |
 | `web` | `web.page` | none | none |
-| `notes` | `notes` | none | none |
-| `folder` | `folder` | none | none |
+| `notes` | `notes`, `notes.links` | none | none |
+| `folder` | `folder`, `folder.tree` | none | none |
 | `image` | `image` | none | none |
 | `document` | `document.url`, `document.file`, `document.project` | none | none |
 
@@ -104,7 +104,7 @@ The module interface contains the headers below. The "Since" column gives the mi
 | `UrlMatch.h` | `UrlMatch`, what an item type makes of a pasted web address, and `pathBelow()`, which reads an address below a server's base URL. See [items from a link](#items-from-a-link). | after M4 |
 | `FileMatch.h` | `FileDrop`, a local file dropped on a task with the project's local folders, and `FileMatch`, what an item type makes of it. See [items from a dropped file](#items-from-a-dropped-file). | M12 |
 | `Fields.h` | `Field`: a key, a label, a type, a default value, a required flag, and for a choice its values and labels. The types are text, multi-line text, URL, integer, boolean, choice, folder, image, text list and secret. A text field can offer `suggestions` in an editable drop-down list. A secret, such as a token, is for settings screens only; its value is never stored with the others. Used for item configuration and settings screens, and from M5 for project settings. See decisions [0028](decisions/0028-item-fields-in-m3.md), [0044](decisions/0044-module-settings-in-the-workspace.md) and [0054](decisions/0054-module-settings-replace-connections.md). | M3 |
-| `ItemEditor.h` | `ItemEditor`, the base of an item type's own configuration editor, and `EditorContext`, what an editor can reach: the project's folders and a way to save an image into `files/`. M12 adds `saveFile`, which copies any file into `files/` with the workspace's size limits. | M3 |
+| `ItemEditor.h` | `ItemEditor`, the base of an item type's own configuration editor, and `EditorContext`, what an editor can reach: the project's folders and a way to save an image into `files/`. M12 adds `saveFile`, which copies any file into `files/` with the workspace's size limits. `folderPath`, a folder's local path on this device, was added after M12; see [decision 0114](decisions/0114-links-and-file-tree-items.md). | M3 |
 | `ItemContext.h` | `ItemContext`, everything an item's code can reach. See [below](#item-context). | M4 |
 | `ApiClient.h` | `ServerType`, how a module's server is set up and authenticated, and `ApiClient`, a module's server in one profile: requests with ETags, paging, rate limits and request limits. See [servers and tokens](#servers-and-tokens). | M5 |
 | `Status.h` | `ItemStatus`, `AttentionReason`, `StatusJob` and `ItemStatusSource`, for the [status cache](integrations.md#polling-and-caching). See [status](#status). M7 adds `StatusJob::folderPath()` and `gitHead()`. | M5 |

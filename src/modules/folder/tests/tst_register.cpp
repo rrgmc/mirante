@@ -24,6 +24,7 @@ private slots:
         // Expected id and name of each type. QMap keeps the ids sorted.
         QMap<QString, QString> expected;
         expected.insert(QStringLiteral("folder"), QStringLiteral("Folder / terminal"));
+        expected.insert(QStringLiteral("folder.tree"), QStringLiteral("File tree"));
 
         QStringList ids;
         for (const mirante::ItemType *type : registry.types())
@@ -55,6 +56,8 @@ private slots:
 
         QMap<QString, QStringList> expected;
         expected.insert(QStringLiteral("folder"), {QStringLiteral("folder")});
+        expected.insert(QStringLiteral("folder.tree"),
+                        {QStringLiteral("folder"), QStringLiteral("path"), QStringLiteral("showHidden")});
 
         for (auto it = expected.cbegin(); it != expected.cend(); ++it) {
             const mirante::ItemType &type = registry.type(it.key());

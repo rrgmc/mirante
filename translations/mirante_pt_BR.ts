@@ -658,10 +658,6 @@
         <translation>Uma das pastas do projeto: seu caminho local, branch e status do Git, com atalhos para um terminal, um editor e o gerenciador de arquivos.</translation>
     </message>
     <message>
-        <source>A project&apos;s folder as an item, with its Git state and shortcuts to a terminal and an editor.</source>
-        <translation>Uma pasta de projeto como item, com seu estado do Git e atalhos para um terminal e um editor.</translation>
-    </message>
-    <message>
         <source>Folder / terminal</source>
         <translation>Pasta / terminal</translation>
     </message>
@@ -748,6 +744,66 @@
     <message>
         <source>Git failed.</source>
         <translation>O Git falhou.</translation>
+    </message>
+    <message>
+        <source>Open</source>
+        <translation>Abrir</translation>
+    </message>
+    <message>
+        <source>Open in editor</source>
+        <translation>Abrir no editor</translation>
+    </message>
+    <message>
+        <source>Show in file manager</source>
+        <translation>Mostrar no gerenciador de arquivos</translation>
+    </message>
+    <message>
+        <source>Open terminal here</source>
+        <translation>Abrir terminal aqui</translation>
+    </message>
+    <message>
+        <source>Copy path</source>
+        <translation>Copiar caminho</translation>
+    </message>
+    <message>
+        <source>Copy relative path</source>
+        <translation>Copiar caminho relativo</translation>
+    </message>
+    <message>
+        <source>The path must be relative and stay inside the folder.</source>
+        <translation>O caminho deve ser relativo e ficar dentro da pasta.</translation>
+    </message>
+    <message>
+        <source>The folder is missing: %1</source>
+        <translation>A pasta não foi encontrada: %1</translation>
+    </message>
+    <message>
+        <source>The file could not be opened.</source>
+        <translation>O arquivo não pôde ser aberto.</translation>
+    </message>
+    <message>
+        <source>File tree</source>
+        <translation>Árvore de arquivos</translation>
+    </message>
+    <message>
+        <source>The files under one of the project&apos;s folders, as a tree. It follows changes on disk and opens files in their programs or in an editor.</source>
+        <translation>Os arquivos de uma das pastas do projeto, em forma de árvore. Acompanha as mudanças no disco e abre os arquivos nos seus programas ou em um editor.</translation>
+    </message>
+    <message>
+        <source>Subfolder</source>
+        <translation>Subpasta</translation>
+    </message>
+    <message>
+        <source>The whole folder</source>
+        <translation>A pasta inteira</translation>
+    </message>
+    <message>
+        <source>Show hidden files</source>
+        <translation>Mostrar arquivos ocultos</translation>
+    </message>
+    <message>
+        <source>A project&apos;s folder as an item, with its Git state, its file tree and shortcuts to a terminal and an editor.</source>
+        <translation>Uma pasta de projeto como item, com seu estado do Git, sua árvore de arquivos e atalhos para um terminal e um editor.</translation>
     </message>
 </context>
 <context>
@@ -4868,10 +4924,6 @@ Os dados são de %2.</translation>
         <translation>Uma nota em Markdown com prévia. O texto fica guardado no arquivo da tarefa.</translation>
     </message>
     <message>
-        <source>Markdown notes, kept in the task&apos;s file, so they sync with the workspace.</source>
-        <translation>Notas em Markdown, guardadas no arquivo da tarefa, para que sincronizem com o espaço de trabalho.</translation>
-    </message>
-    <message>
         <source>Edit</source>
         <translation>Editar</translation>
     </message>
@@ -4882,6 +4934,166 @@ Os dados são de %2.</translation>
     <message>
         <source>Switch between Edit and Preview (%1)</source>
         <translation>Alternar entre Editar e Prévia (%1)</translation>
+    </message>
+    <message>
+        <source>Project folder</source>
+        <translation>Pasta do projeto</translation>
+    </message>
+    <message>
+        <source>Enter the address.</source>
+        <translation>Digite o endereço.</translation>
+    </message>
+    <message>
+        <source>The address must start with http://, https:// or mailto:.</source>
+        <translation>O endereço deve começar com http://, https:// ou mailto:.</translation>
+    </message>
+    <message>
+        <source>Choose the folder.</source>
+        <translation>Escolha a pasta.</translation>
+    </message>
+    <message>
+        <source>The path must be relative and stay inside the folder.</source>
+        <translation>O caminho deve ser relativo e ficar dentro da pasta.</translation>
+    </message>
+    <message>
+        <source>Choose the file.</source>
+        <translation>Escolha o arquivo.</translation>
+    </message>
+    <message>
+        <source>New link</source>
+        <translation>Novo link</translation>
+    </message>
+    <message>
+        <source>Add</source>
+        <translation>Adicionar</translation>
+    </message>
+    <message>
+        <source>Remove</source>
+        <translation>Remover</translation>
+    </message>
+    <message>
+        <source>Up</source>
+        <translation>Subir</translation>
+    </message>
+    <message>
+        <source>Down</source>
+        <translation>Descer</translation>
+    </message>
+    <message>
+        <source>Title</source>
+        <translation>Título</translation>
+    </message>
+    <message>
+        <source>Description</source>
+        <translation>Descrição</translation>
+    </message>
+    <message>
+        <source>Web address</source>
+        <translation>Endereço web</translation>
+    </message>
+    <message>
+        <source>Project file</source>
+        <translation>Arquivo do projeto</translation>
+    </message>
+    <message>
+        <source>Workspace file</source>
+        <translation>Arquivo do espaço de trabalho</translation>
+    </message>
+    <message>
+        <source>Leads to</source>
+        <translation>Leva a</translation>
+    </message>
+    <message>
+        <source>Address</source>
+        <translation>Endereço</translation>
+    </message>
+    <message>
+        <source>Folder</source>
+        <translation>Pasta</translation>
+    </message>
+    <message>
+        <source>The folder itself</source>
+        <translation>A própria pasta</translation>
+    </message>
+    <message>
+        <source>Browse…</source>
+        <translation>Procurar…</translation>
+    </message>
+    <message>
+        <source>Path</source>
+        <translation>Caminho</translation>
+    </message>
+    <message>
+        <source>Choose file…</source>
+        <translation>Escolher arquivo…</translation>
+    </message>
+    <message>
+        <source>File</source>
+        <translation>Arquivo</translation>
+    </message>
+    <message>
+        <source>Choose a File</source>
+        <translation>Escolha um arquivo</translation>
+    </message>
+    <message>
+        <source>Link %1: %2</source>
+        <translation>Link %1: %2</translation>
+    </message>
+    <message>
+        <source>That file is not inside this folder.</source>
+        <translation>Esse arquivo não está dentro desta pasta.</translation>
+    </message>
+    <message>
+        <source>No file chosen</source>
+        <translation>Nenhum arquivo escolhido</translation>
+    </message>
+    <message>
+        <source>%1 (a copy in the workspace)</source>
+        <translation>%1 (uma cópia no espaço de trabalho)</translation>
+    </message>
+    <message>
+        <source>Folder not set on this device</source>
+        <translation>Pasta não definida neste dispositivo</translation>
+    </message>
+    <message>
+        <source>Open</source>
+        <translation>Abrir</translation>
+    </message>
+    <message>
+        <source>Copy address</source>
+        <translation>Copiar endereço</translation>
+    </message>
+    <message>
+        <source>Show in file manager</source>
+        <translation>Mostrar no gerenciador de arquivos</translation>
+    </message>
+    <message>
+        <source>The file is missing. It may not have synced to this device yet.</source>
+        <translation>O arquivo não foi encontrado. Talvez ainda não tenha sido sincronizado com este dispositivo.</translation>
+    </message>
+    <message>
+        <source>The file is missing: %1</source>
+        <translation>O arquivo não foi encontrado: %1</translation>
+    </message>
+    <message>
+        <source>The link could not be opened.</source>
+        <translation>O link não pôde ser aberto.</translation>
+    </message>
+    <message>
+        <source>Links</source>
+        <translation>Links</translation>
+    </message>
+    <message>
+        <source>A list of links with titles and short descriptions. A link leads to a web address, a file in a project folder or a file in the workspace.</source>
+        <translation>Uma lista de links com títulos e descrições curtas. Um link leva a um endereço web, a um arquivo em uma pasta do projeto ou a um arquivo no espaço de trabalho.</translation>
+    </message>
+    <message>
+        <source>Add links in the item&apos;s settings.</source>
+        <translation>Adicione links nas configurações do item.</translation>
+    </message>
+    <message>
+        <source>Markdown notes and lists of links, kept in the task&apos;s file, so they sync with the workspace.</source>
+        <translation>Notas em Markdown e listas de links, guardadas no arquivo da tarefa, para que sincronizem com o espaço de trabalho.</translation>
     </message>
 </context>
 <context>

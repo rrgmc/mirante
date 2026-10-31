@@ -9,6 +9,7 @@
 #include <QLocalServer>
 #include <QLocalSocket>
 #include <QThread>
+#include <QTimer>
 
 namespace mirante {
 
@@ -19,6 +20,8 @@ namespace {
 constexpr qsizetype kMaxMessage = 64 * 1024;
 const QByteArray kAnswer = QByteArrayLiteral("ok\n");
 const QString kDataKey = QStringLiteral("data");
+// How long the holder keeps a connection open after answering.
+constexpr int kCloseAfterMs = 10000;
 
 // The milliseconds left, at least 1, for the socket's wait functions.
 int remaining(const QDeadlineTimer &deadline)
@@ -117,8 +120,8 @@ bool SingleInstance::handOver(const QString &dataFolder, int timeoutMs) const
     if (socket.bytesToWrite() > 0 && !socket.waitForBytesWritten(remaining(deadline)))
         return false;
 
-    // The holder answers and closes the connection. Both may arrive in one
-    // wait, so what was read is checked before a failed wait counts.
+    // The holder answers and leaves closing to this side. What was read is
+    // still checked before a failed wait counts, in case the holder quit.
     QByteArray answer;
     for (;;) {
         answer += socket.readAll();
@@ -157,9 +160,15 @@ void SingleInstance::acceptConnection()
             }
             const QByteArray line = socket->readLine(kMaxMessage);
             const QJsonObject message = QJsonDocument::fromJson(line).object();
+            // One message per connection.
+            disconnect(socket, &QLocalSocket::readyRead, this, nullptr);
             socket->write(kAnswer);
             socket->flush();
-            socket->disconnectFromServer();
+            // The later start closes the connection once it has read the
+            // answer. Closing it here would lose the answer on Windows, where
+            // disconnecting a pipe discards what the other end has not read.
+            // A later start that never closes is cut off.
+            QTimer::singleShot(kCloseAfterMs, socket, &QLocalSocket::abort);
             emit activationRequested(message.value(kDataKey).toString());
         });
     }
