@@ -6,7 +6,7 @@ The GitLab module is the model. Its [README](../../src/modules/gitlab/README.md)
 
 ## Decisions
 
-- [Decision 0102](../decisions/0102-github-module.md), proposed: a GitHub module shaped like the GitLab module, with lists from the search API, one web base URL, `GetOptions::arrayKey`, rate limits that wait on `403`, run groups by commit, and reviews instead of approvals.
+- [Decision 0102](../decisions/0102-github-module.md), accepted: a GitHub module shaped like the GitLab module, with lists from the search API, one web base URL, `GetOptions::arrayKey`, rate limits that wait on `403`, run groups by commit, and reviews instead of approvals.
 
 Smaller choices made here:
 

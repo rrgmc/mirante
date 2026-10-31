@@ -134,14 +134,14 @@ See [the M10 plan](plans/m10-packaging.md). Checked by hand with [the M10 checkl
 
 See [the M11 plan](plans/m11-github-module.md) and [decision 0102](decisions/0102-github-module.md). Checked by hand with [the M11 checklist](plans/m11-checks.md).
 
-- [ ] The `github` module, with GitHub PR (summary), PR (page), PR List, Actions Run, Actions Run List, Issue (summary), Issue (page) and Issue List, for github.com and GitHub Enterprise Server.
-- [ ] Its General Configuration holds the web address, the token and the repositories. The API address follows from the web address.
-- [ ] Status and attention: failed checks, review requested, approved, changes requested and conflicts on a pull request; a failed run in a branch's newest commit.
-- [ ] Re-run a run, its failed jobs or one job, and cancel a run.
-- [ ] The lists across repositories use the search API, with the presets and a custom filter.
-- [ ] Pasting a GitHub link picks the right type, and quick add takes a pull request address.
-- [ ] `ApiClient` joins pages of answers that wrap their rows, and GitHub's rate limits wait instead of pausing the server.
-- [ ] Tests cover URL recognition, status and attention, list queries and the views, on recorded answers.
+- [x] The `github` module, with GitHub PR (summary), PR (page), PR List, Actions Run, Actions Run List, Issue (summary), Issue (page) and Issue List, for github.com and GitHub Enterprise Server.
+- [x] Its General Configuration holds the web address, the token and the repositories. The API address follows from the web address.
+- [x] Status and attention: failed checks, review requested, approved, changes requested and conflicts on a pull request; a failed run in a branch's newest commit.
+- [x] Re-run a run, its failed jobs or one job, and cancel a run.
+- [x] The lists across repositories use the search API, with the presets and a custom filter.
+- [x] Pasting a GitHub link picks the right type, and quick add takes a pull request address.
+- [x] `ApiClient` joins pages of answers that wrap their rows, and GitHub's rate limits wait instead of pausing the server.
+- [x] Tests cover URL recognition, status and attention, list queries and the views, on recorded answers.
 
 ## Future: Custom builds
 
