@@ -29,9 +29,6 @@ env:
   # The runners have three or four cores. Most tests spend their time waiting
   # on timers, so four at a time keeps the cores busy.
   CTEST_PARALLEL_LEVEL: 4
-  # Lets ccache cache the files that GCC and Clang compile with the
-  # precompiled header. It cannot cache those of MSVC.
-  CCACHE_SLOPPINESS: pch_defines,time_macros,include_file_mtime,include_file_ctime
 
 jobs:
   build:

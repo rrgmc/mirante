@@ -27,11 +27,13 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 # Each worktree has its own build folder, since a CMake build folder belongs to
 # one source folder. ccache, where it is installed, shares the compiling between
 # them. It cannot cache MSVC's separate debug files, so objects hold their debug
-# information.
+# information. ccache caches files compiled with a precompiled header only
+# with this sloppiness, which ccache 4.8 and later take on the command line.
 find_program(MIRANTE_CCACHE ccache)
 if(MIRANTE_CCACHE)
     message(STATUS "Compiling through ${MIRANTE_CCACHE}")
-    set(CMAKE_CXX_COMPILER_LAUNCHER "${MIRANTE_CCACHE}")
+    set(CMAKE_CXX_COMPILER_LAUNCHER "${MIRANTE_CCACHE}"
+        "sloppiness=pch_defines,time_macros,include_file_mtime,include_file_ctime")
     set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT "$<$<CONFIG:Debug,RelWithDebInfo>:Embedded>")
 endif()
 
