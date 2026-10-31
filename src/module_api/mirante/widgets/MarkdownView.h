@@ -23,6 +23,8 @@ namespace mirante::widgets {
 // fetcher, which reads images on the view's behalf.
 class MarkdownView : public QTextBrowser
 {
+    Q_OBJECT
+
 public:
     // Reads the resource at url, which is already resolved against the
     // base, and calls done once with its bytes, or with empty bytes if it
