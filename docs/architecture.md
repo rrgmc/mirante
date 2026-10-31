@@ -179,7 +179,7 @@ A worker thread is added only if a measured problem needs one.
 ## Build
 
 - CMake 3.21 or newer.
-- `find_package(Qt6 6.8 REQUIRED COMPONENTS Widgets WebEngineWidgets WebChannel Network LinguistTools)`. `Qt6::Test` is used for tests.
+- `find_package(Qt6 6.8 REQUIRED COMPONENTS Widgets Svg WebEngineWidgets WebChannel Network LinguistTools)`. The app links Qt Svg so that the packages carry the plugins that load its SVG icons. `Qt6::Test` is used for tests.
 - **Translations:** `qt_add_translations()` in `src/CMakeLists.txt` compiles `translations/mirante_pt_BR.ts` and the English plural forms, `mirante_en.ts`, into the app's resources under `:/i18n`. `lupdate` reads every source file under `src/`, modules included, also in a build without them, so the files stay complete. The `update_translations` target, which `task translations` runs, updates them. See [translations/README.md](../translations/README.md).
 - qtkeychain and QHotkey come through `FetchContent`, built for Qt 6.
 - **Compilers:** MSVC 2022 64-bit on Windows, because Qt WebEngine does not support MinGW. Clang on macOS. GCC on Linux.

@@ -35,6 +35,9 @@ elseif(APPLE)
         MACOSX_BUNDLE_COPYRIGHT "Copyright (c) 2026 Rangel Reale")
 endif()
 target_link_libraries(mirante PRIVATE mirante_ui)
+# The icons are SVG files, which Qt loads with the plugins of Qt Svg. Linking
+# it makes the deploy tools copy those plugins into the packages.
+target_link_libraries(mirante PRIVATE Qt6::Svg)
 mirante_set_warnings(mirante)
 mirante_finish_modules(mirante)
 # A copy of the app with its Qt files, in <build>/bin.
