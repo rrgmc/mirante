@@ -15,6 +15,29 @@ function(mirante_set_warnings target)
     endif()
 endfunction()
 
+# Makes AUTOMOC run again for <target> when its list of sources changes.
+#
+# With Ninja, the moc step of a target depends only on moc, uic and the files
+# that its last run scanned. A header added later, for example by a merge, is
+# not among them, so moc skips it and the link fails on the missing
+# metaObject(), qt_metacast() and qt_metacall(). AUTOGEN_TARGET_DEPENDS does
+# not help in CMake 3.25, since Ninja gets those files only as order-only
+# inputs. So when the sources differ from the ones of the last configure, this
+# removes the stamp file of the moc step, and Ninja runs it again.
+function(mirante_autogen_tracks_sources target)
+    get_target_property(sources ${target} SOURCES)
+    list(SORT sources)
+    set(list_file "${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles/${target}_autogen_sources.txt")
+    set(previous "")
+    if(EXISTS "${list_file}")
+        file(READ "${list_file}" previous)
+    endif()
+    if(NOT previous STREQUAL "${sources}")
+        file(REMOVE "${CMAKE_CURRENT_BINARY_DIR}/${target}_autogen/timestamp")
+        file(WRITE "${list_file}" "${sources}")
+    endif()
+endfunction()
+
 # mirante_add_library(<name> LIBS <targets...>)
 #
 # Builds a static library from every .cpp and .h file in the current folder.
@@ -31,6 +54,7 @@ function(mirante_add_library name)
         "${PROJECT_BINARY_DIR}/generated")
     target_link_libraries(${name} PUBLIC ${ARG_LIBS})
     mirante_set_warnings(${name})
+    mirante_autogen_tracks_sources(${name})
 endfunction()
 
 # mirante_add_test(<name> SOURCES <files...> LIBS <targets...>)
