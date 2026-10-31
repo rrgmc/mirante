@@ -162,7 +162,7 @@ The settings window holds settings of this device. They are kept in the [device 
   - "Check servers every", a number of minutes from 1 to 60, 2 by default. It sets how often the app asks the servers for the status of the items it watches. See [polling and caching](integrations.md#polling-and-caching).
 - **Window:**
   - "Global hotkey", the [keys](#keyboard) that show or hide Mirante from any application. "Clear" turns it off. Below it, a message says if the keys could not be registered.
-  - "Closing the window keeps Mirante running in the tray", on by default. See [tray and notifications](#tray-and-notifications). Without a tray it is off and disabled.
+  - "Closing the window keeps Mirante running in the tray", off by default. See [tray and notifications](#tray-and-notifications). Without a tray it is off and disabled.
   - "Start Mirante when I sign in". Mirante then starts hidden in the [tray](#tray-and-notifications). The system holds this choice, so a change made in its own settings shows here. On macOS, the system may ask the user to allow it in System Settings > General > Login Items, and Mirante offers to open that page. Not shown before macOS 13. See [decision 0106](decisions/0106-start-at-sign-in.md).
 - **Terminal:**
   - "Terminal command", the command that opens a terminal, with `{dir}` for the folder and `{command}` for the program to run. Empty, the default, uses the system's terminal; the grey placeholder says so and shows an example. See [terminal launch](integrations.md#terminal-launch).
@@ -487,7 +487,8 @@ The global hotkey uses the QHotkey library. It works on Windows, macOS and X11, 
 
 ## Tray and notifications
 
-- Closing the main window hides it to the system tray, the menu bar on macOS. Polling and notifications continue. A device setting turns this off, and closing then quits. See [decision 0075](decisions/0075-hide-to-tray-and-show-hide-hotkey.md).
+- Closing the main window quits Mirante. A device setting, off by default, makes closing hide the window to the system tray, the menu bar on macOS, instead. The tray icon and the global hotkey work either way: the hotkey hides the app to the tray even with the setting off. See decisions [0075](decisions/0075-hide-to-tray-and-show-hide-hotkey.md) and [0107](decisions/0107-closing-quits-by-default.md).
+- While the app is hidden to the tray, polling and notifications continue, and the web pages are frozen: they run no scripts and load nothing until the app shows again. See the [memory policy](web-views.md#memory-policy) and [decision 0108](decisions/0108-freeze-web-pages-in-the-tray.md).
 - Hiding also hides the other open windows, such as detached dashboards and the settings window. They come back with the main window, and detached dashboards stay detached. The window's place and the open tabs are saved each time it hides.
 - On macOS Mirante leaves the Dock while it is hidden.
 - Mirante can start when the user signs in, set in the [settings window](#settings) or on the last page of the Windows setup. It then starts hidden in the tray, as `--hidden` does, until the tray, the global hotkey or a second start calls it. If no tray appears within the minute Mirante waits for one, the window shows minimized. The Windows setup's last page also has "Run Mirante". See [decision 0106](decisions/0106-start-at-sign-in.md).

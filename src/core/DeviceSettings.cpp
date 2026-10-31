@@ -457,7 +457,7 @@ void DeviceSettings::setGlobalHotkey(const QString &sequence)
 
 bool DeviceSettings::closeToTray() const
 {
-    return d->settings->value(closeToTrayKey, true).toBool();
+    return d->settings->value(closeToTrayKey, false).toBool();
 }
 
 void DeviceSettings::setCloseToTray(bool on)

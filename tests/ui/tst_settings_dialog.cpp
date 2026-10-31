@@ -161,7 +161,8 @@ private slots:
         QVERIFY(label->isHidden());
     }
 
-    // Without a tray the box is off and disabled, and the stored choice stays.
+    // The box is off by default. Without a tray it is off and disabled, and
+    // the stored choice stays.
     void closeToTray()
     {
         QTemporaryDir dir;
@@ -170,7 +171,9 @@ private slots:
         SettingsDialog dialog(settings);
         auto *box = dialog.findChild<QCheckBox *>(QStringLiteral("closeToTray"));
         QVERIFY(box);
-        QVERIFY(box->isChecked());
+        QVERIFY(!box->isChecked());
+        box->setChecked(true);
+        QVERIFY(settings.closeToTray());
 
         dialog.setTrayAvailable(false);
         QVERIFY(!box->isChecked());

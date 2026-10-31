@@ -20,7 +20,7 @@ Each [release](https://github.com/rrgmc/mirante/releases) has three files:
 2. Choose File > New Workspace… and pick an empty folder for your own data. A folder synced by Dropbox, OneDrive or iCloud Drive makes the workspace available on your other computers. Logins and tokens stay on each computer.
 3. Choose File > New Group…, then add projects, tasks and their items from the sidebar's context menu. File > New Task from Link… makes a task from a Jira issue or a merge request link.
 4. To see GitLab or Jira status, open the module's settings in the Profiles menu, such as Profiles > Default (default) > Modules > GitLab > General Configuration…, and enter the server and a token. Tokens are kept in the system's keychain.
-5. Closing the window keeps Mirante in the system tray, or the menu bar on macOS. `Alt+Shift+D`, or `Control+Shift+D` on macOS, shows or hides it from any application. File > Quit ends it.
+5. `Alt+Shift+D`, or `Control+Shift+D` on macOS, hides Mirante to the system tray, or the menu bar on macOS, and shows it again from any application. Closing the window quits Mirante. To keep it running in the tray instead, turn on "Closing the window keeps Mirante running in the tray" in Tools > Settings…, or Mirante > Settings… on macOS.
 
 The [user interface](docs/ui.md) describes everything in detail.
 
