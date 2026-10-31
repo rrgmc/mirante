@@ -228,6 +228,26 @@ private slots:
         QCOMPARE(copied.readAll(), QByteArray("%PDF-1.4 test"));
         QVERIFY(QFileInfo::exists(path));
         QVERIFY(f.told.isEmpty());
+        QCOMPARE(f.window->statusBar()->currentMessage(), QStringLiteral("datasheet.pdf was copied into the workspace."));
+    }
+
+    // A file already in the workspace's files/ is used as it is, not copied
+    // again, and nothing says it was copied.
+    void fileAlreadyInTheWorkspaceIsNotCopied()
+    {
+        Fixture f;
+        QVERIFY(f.writable());
+        QVERIFY(QDir(f.workspace.path()).mkpath(QStringLiteral("files")));
+        const QString path = f.dataStore.filePath(QStringLiteral("kept.pdf"));
+        QVERIFY(writeFile(path, "%PDF-1.4 kept"));
+        const int before = int(QDir(f.workspace.filePath(QStringLiteral("files"))).entryList(QDir::Files).size());
+        f.window->statusBar()->clearMessage();
+
+        const QString id = f.actions()->addFile(kHomeTask, path);
+        QVERIFY(!id.isEmpty());
+        QCOMPARE(f.model.item(kHomeTask, id)->config.value(QStringLiteral("file")).toString(), QStringLiteral("kept.pdf"));
+        QCOMPARE(int(QDir(f.workspace.filePath(QStringLiteral("files"))).entryList(QDir::Files).size()), before);
+        QVERIFY(f.window->statusBar()->currentMessage().isEmpty());
     }
 
     // A file inside one of the project's folders is referred to, not copied,

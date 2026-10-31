@@ -377,6 +377,11 @@ private slots:
         };
         mirante::modules::document::DocumentEditor editor(context, nullptr);
         editor.setConfig({{QStringLiteral("extra"), 1}});
+        // The notice that the file is copied is always there.
+        auto *notice = editor.findChild<QLabel *>(QStringLiteral("copyNoticeText"));
+        QVERIFY(notice);
+        QVERIFY(!notice->isHidden());
+        QVERIFY(notice->text().contains(QLatin1String("copied into the workspace")));
         QCOMPARE(editor.problems(), QStringList{QStringLiteral("Choose a file.")});
 
         editor.setChooser([] { return QStringLiteral("/downloads/datasheet.pdf"); });
@@ -390,7 +395,8 @@ private slots:
         QCOMPARE(config.value(QStringLiteral("originalName")).toString(), QStringLiteral("datasheet.pdf"));
         QCOMPARE(config.value(QStringLiteral("format")).toString(), QStringLiteral("pdf"));
         QCOMPARE(config.value(QStringLiteral("extra")).toInt(), 1);
-        QCOMPARE(editor.findChild<QLabel *>(QStringLiteral("fileName"))->text(), QStringLiteral("datasheet.pdf"));
+        QCOMPARE(editor.findChild<QLabel *>(QStringLiteral("fileName"))->text(),
+                 QStringLiteral("datasheet.pdf (a copy in the workspace)"));
 
         // A copy that fails, or a cancelled choice, changes nothing.
         context.saveFile = [](const QString &) { return QString(); };

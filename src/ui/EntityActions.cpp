@@ -517,6 +517,7 @@ QString EntityActions::addFile(const QString &taskId, const QString &path)
         const std::optional<FileMatch> match = type->fromFile(drop);
         if (!match)
             continue;
+        bool copied = false;
         Item item;
         item.id = edits::newId();
         item.type = type->id();
@@ -529,12 +530,17 @@ QString EntityActions::addFile(const QString &taskId, const QString &path)
             if (name.isEmpty())
                 return {};
             item.config.insert(match->copyKey, name);
+            // A file already in files/ keeps its name; a copy gets a new one.
+            copied = name != QFileInfo(drop.path).fileName();
         }
         // A question above may have let the task change.
         const Task *current = d->model.task(taskId);
         if (!current)
             return {};
         d->model.setTask(edits::addItem(*current, item));
+        // A copy is made silently otherwise, so say so.
+        if (copied)
+            emit message(tr("%1 was copied into the workspace.").arg(QFileInfo(drop.path).fileName()));
         return item.id;
     }
     emit message(tr("No item type can show this file."));
