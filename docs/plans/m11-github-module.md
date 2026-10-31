@@ -274,7 +274,7 @@ Tests in `tests/tst_list_views.cpp`.
 
 `GitHubQuickAdd.cpp`, as GitLab's:
 
-- **`GitHubQuickAddHandler`** takes a pull request's address below the web base of the dialog's profile, or on `github.com`. It asks for the pull request, and proposes the title; `github.pr.summary` named `#42` and `github.run` named `#42 CI` with `branchSource` `pullRequest`; the project whose setting `repository` is the address's repository, compared without case; and the texts title and `head.ref`.
+- **`GitHubQuickAddHandler`** takes a pull request's address below the web base of the dialog's profile, and only there, because the request goes to that server. It asks for the pull request, and proposes the title; `github.pr.summary` named `#42` and `github.run` named `#42 CI` with `branchSource` `pullRequest`; the project whose setting `repository` is the address's repository, compared without case; and the texts title and `head.ref`.
 - **`GitHubRelatedItemFinder`** reads Jira-style keys as GitLab's. With the project setting `repository`: one `repositoryPullRequests()` with `state=open&sort=updated&direction=desc`, up to 100, matching `title` or `head.ref`, without case. Without it: one `searchIssues()` with `is:pr is:open in:title (<key1> OR <key2> …)` and a `repo:` qualifier for each repository of the profile's General Configuration, up to 100, with the title checked for the key again. Without listed repositories it finds nothing, because a search without `repo:` would cover all of GitHub. Each match is a `github.pr.summary` named `#42` in the setting's repository, else `owner/repo#42`.
 
 Tests in `tests/tst_quick_add.cpp`.

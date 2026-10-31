@@ -172,11 +172,15 @@ Modules poll through the cache, never around it. A view asks the server directly
 - A `401` on any request, or a `403` on a `GET`, marks the profile's server as failing. The main window's warning bar shows a line for it, and the server's requests return without being sent until its token or its settings screen changes.
 - A `403` on a `POST` or a `PUT` is a missing permission for that one action, such as a `read_api` token retrying a pipeline. Only that action fails; the server keeps working.
 - A `429` waits for `Retry-After` seconds, or 30 without one, and sends again, at most three times. The server's other requests wait too.
+- A `403` or `429` with `x-ratelimit-remaining: 0` is a spent rate limit, as GitHub sends it. It waits until the Unix time in `x-ratelimit-reset`, at least 1 second and at most 1 hour. A `403` with `Retry-After` waits that many seconds. Both then send again like a `429`, and the server's other requests wait too. Neither marks the server as failing. After three tries, the request fails with "Rate limited (403)" or "Too many requests (429)".
+- Header names are matched without regard to case.
 - A request that gets no answer in 30 seconds fails as a network error.
 - Network errors keep the last data and show its age, such as "Updated 12 min ago".
 - Status data is kept in memory only, not on disk. After a start, cells show no status until the first poll returns. A disk cache can come later if the wait is a problem.
 
 Each server client keeps the `ETag` and body of the 500 URLs it used last, and sends `If-None-Match`, so an unchanged answer costs a `304`. With Link paging, it follows `rel="next"` only to the same server, so the token is never sent elsewhere.
+
+Link paging joins the rows of every page, up to `GetOptions::maxRows`. The rows are the page itself when it is a JSON array. With `GetOptions::arrayKey`, the page is an object and the rows are the array under that key. The answer is then the first page's object, with all the rows under the key. A first page without the key ends the paging and is the answer as it is. A later page without the key ends the paging with the rows so far. A page that answers `304` takes the body kept for it, so paging works the same with ETags.
 
 ## Terminal launch
 
