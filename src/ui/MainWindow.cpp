@@ -1327,8 +1327,6 @@ struct MainWindow::Private
     {
         const QString name = workspaceDisplayName();
         q->setWindowTitle(MainWindow::tr("%1 - %2").arg(name, QStringLiteral(MIRANTE_APP_NAME)));
-        if (sidebar)
-            sidebar->setTitle(name);
     }
 
     // Opens a workspace from the menus. A folder that exists but is not a
@@ -2113,7 +2111,6 @@ MainWindow::MainWindow(Model &model, const ItemTypeRegistry &types, Store &store
             openRootDashboard(id);
     });
     connect(d->sidebar, &Sidebar::collapseRequested, this, [this] { d->showSidebar(false); });
-    connect(d->sidebar, &Sidebar::titleDoubleClicked, this, [this] { d->promptRename(); });
     // An image dropped from another app on a task or its Items row becomes a
     // new item, as Paste Image… does.
     connect(d->sidebar, &Sidebar::imageDropped, d->actions, &EntityActions::addImage);

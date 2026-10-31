@@ -4309,10 +4309,6 @@ Os dados são de %2.</translation>
 <context>
     <name>mirante::Sidebar</name>
     <message>
-        <source>The workspace. Double-click to rename it.</source>
-        <translation>O espaço de trabalho. Clique duas vezes para renomeá-lo.</translation>
-    </message>
-    <message>
         <source>Hide sidebar</source>
         <translation>Ocultar barra lateral</translation>
     </message>
