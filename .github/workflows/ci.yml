@@ -3,19 +3,32 @@
 # text is translated. Each build also makes its package and keeps it for a
 # week. The packages are not signed; releases come from release.yml.
 # Qt comes from tools/setup-qt, as in local builds, into a cached folder
-# outside the checkout. See docs/plans/m2-app-skeleton.md, part 1, and
-# docs/plans/m10-packaging.md.
+# outside the checkout. ccache keeps compiled objects between runs, and the
+# tests run in parallel. See docs/plans/m2-app-skeleton.md, part 1,
+# docs/plans/m10-packaging.md and
+# docs/decisions/0110-ci-runs-once-per-change-and-caches-compiling.md.
 
 name: CI
 
 on:
-  # Tags start release.yml, which builds and tests on its own.
+  # Work branches are checked by their pull request, so a push to one does not
+  # start a second run of the same commit. Tags start release.yml, which builds
+  # and tests on its own.
   push:
-    branches: ['**']
+    branches: [master]
   pull_request:
+
+# A new push to a pull request cancels its run that is still going. Runs on
+# master all finish, since they fill the caches that pull requests read.
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   QT_VERSION: 6.8.3
+  # The runners have three or four cores. Most tests spend their time waiting
+  # on timers, so four at a time keeps the cores busy.
+  CTEST_PARALLEL_LEVEL: 4
 
 jobs:
   build:
@@ -36,6 +49,16 @@ jobs:
           path: ${{ runner.temp }}/qt
           # Change the last part when setup-qt installs other archives.
           key: qt-${{ runner.os }}-${{ env.QT_VERSION }}-qtbase-qtsvg-qtdeclarative-qttools-qttranslations-icu-webengine-imageformats-pdf
+
+      # CMakeLists.txt compiles through ccache when it finds it. Only runs on
+      # master save the cache: a pull request's cache would be visible to that
+      # pull request only, and would push master's out of the 10 GB limit.
+      - name: Cache compiling
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          key: ${{ matrix.os }}-ci
+          max-size: 500M
+          save: ${{ github.event_name == 'push' }}
 
       - name: Install Linux packages
         if: runner.os == 'Linux'
@@ -110,6 +133,13 @@ jobs:
         with:
           path: ${{ runner.temp }}/qt
           key: qt-${{ runner.os }}-${{ env.QT_VERSION }}-qtbase-qtsvg-qtdeclarative-qttools-qttranslations-icu-webengine-imageformats-pdf
+
+      - name: Cache compiling
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          key: ubuntu-24.04-ci-no-modules
+          max-size: 500M
+          save: ${{ github.event_name == 'push' }}
 
       - name: Install Linux packages
         run: |
