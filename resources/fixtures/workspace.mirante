@@ -15,20 +15,6 @@
             "name": "Default"
         },
         {
-            "connections": [
-                {
-                    "baseUrl": "https://time.acme.example",
-                    "fields": {
-                        "workspace": "acme-dev"
-                    },
-                    "id": "e4977249-d87d-5c68-9a67-55ecadcf9381",
-                    "kind": "timetrack",
-                    "name": "Acme time tracking"
-                }
-            ],
-            "defaultConnections": {
-                "timetrack": "e4977249-d87d-5c68-9a67-55ecadcf9381"
-            },
             "id": "3f6c2a8e-5d1b-4c7a-9e2f-8b0d4a6c1e93",
             "moduleSettings": {
                 "gitlab": {

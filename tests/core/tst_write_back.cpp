@@ -1,6 +1,7 @@
 // Tests that serialise(load(fixtures)) gives back the fixture files, compared
-// as parsed JSON. This covers unknown fields and the data of the missing
-// timetrack module.
+// as parsed JSON. The sample data covers unknown fields, and
+// fixtures/missing-module covers the data of the missing timetrack module and
+// of a removed item type.
 #include "core/Model.h"
 #include "core/Store.h"
 
@@ -16,10 +17,10 @@ using namespace mirante;
 namespace {
 
 // The fixture files, by path relative to the fixture folder.
-std::map<QString, QJsonObject> readFixtures()
+std::map<QString, QJsonObject> readFixtures(const QString &folderPath)
 {
     std::map<QString, QJsonObject> files;
-    const QDir root(QStringLiteral(MIRANTE_FIXTURES_DIR));
+    const QDir root(folderPath);
     const QStringList subfolders = {QStringLiteral("groups"), QStringLiteral("projects"), QStringLiteral("tasks"),
                                     QStringLiteral("dashboards")};
     for (const QString &subfolder : subfolders) {
@@ -53,16 +54,26 @@ class TestWriteBack : public QObject
     Q_OBJECT
 
 private slots:
+    void writesBackFixtures_data();
     void writesBackFixtures();
 };
 
+void TestWriteBack::writesBackFixtures_data()
+{
+    QTest::addColumn<QString>("folder");
+    QTest::newRow("sample data") << QStringLiteral(MIRANTE_FIXTURES_DIR);
+    QTest::newRow("missing module") << QStringLiteral(MIRANTE_FIXTURES_DIR)
+            + QStringLiteral("/../../tests/core/fixtures/missing-module");
+}
+
 void TestWriteBack::writesBackFixtures()
 {
-    const std::map<QString, QJsonObject> expected = readFixtures();
+    QFETCH(QString, folder);
+    const std::map<QString, QJsonObject> expected = readFixtures(folder);
     QVERIFY(!expected.empty());
 
     Model model;
-    QVERIFY(store::load(QStringLiteral(MIRANTE_FIXTURES_DIR), model).empty());
+    QVERIFY(store::load(folder, model).empty());
     const std::map<QString, QJsonObject> written = store::serialise(model);
 
     QCOMPARE(keys(written), keys(expected));
