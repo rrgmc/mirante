@@ -4,7 +4,7 @@ Mirante is a personal desktop dashboard for all of one person's work. Work is or
 
 The design is in [docs/README.md](docs/README.md).
 
-![Mirante's main window. The sidebar lists groups, projects and tasks. A root dashboard shows a task's web page and notes beside tabs from other tasks.](docs/images/root-dashboard.png)
+![Mirante's main window. The sidebar lists groups, projects and tasks. A root dashboard shows a task's web page and notes above tabs from other tasks.](docs/images/root-dashboard.png)
 
 ## Installing
 
