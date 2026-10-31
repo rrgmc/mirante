@@ -1,6 +1,6 @@
 # 0102. A GitHub module, shaped like the GitLab module
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-10-30
 
 ## Context
