@@ -119,6 +119,7 @@ Each file records one design decision: what was decided, what else was considere
 | [0112](0112-precompiled-headers.md) | Precompiled headers, with ccache | Accepted |
 | [0113](0113-ci-skips-documentation-only-changes.md) | CI skips pull requests that change only documentation | Accepted |
 | [0114](0114-links-and-file-tree-items.md) | Links lists and file trees join the Notes and Folder modules | Accepted |
+| [0115](0115-ci-builds-without-precompiled-headers.md) | CI builds without precompiled headers | Accepted |
 
 ## Template
 

@@ -3,12 +3,13 @@
 # text is translated. Each build also makes its package and keeps it for a
 # week. The packages are not signed; releases come from release.yml.
 # Qt comes from tools/setup-qt, as in local builds, into a cached folder
-# outside the checkout. ccache keeps compiled objects between runs, and the
-# tests run in parallel. A pull request that changes only documentation
-# builds nothing. See docs/plans/m2-app-skeleton.md, part 1,
-# docs/plans/m10-packaging.md,
-# docs/decisions/0110-ci-runs-once-per-change-and-caches-compiling.md and
-# docs/decisions/0113-ci-skips-documentation-only-changes.md.
+# outside the checkout. ccache keeps compiled objects between runs, so builds
+# here use no precompiled headers, and the tests run in parallel. A pull request
+# that changes only documentation builds nothing. See
+# docs/plans/m2-app-skeleton.md, part 1, docs/plans/m10-packaging.md,
+# docs/decisions/0110-ci-runs-once-per-change-and-caches-compiling.md,
+# docs/decisions/0113-ci-skips-documentation-only-changes.md and
+# docs/decisions/0115-ci-builds-without-precompiled-headers.md.
 
 name: CI
 # Pull request runs lead with the number. Other runs keep GitHub's default
@@ -105,7 +106,7 @@ jobs:
         if: env.CODE != 'false'
         uses: hendrikmuhs/ccache-action@v1.2
         with:
-          key: ${{ matrix.os }}-ci
+          key: ${{ matrix.os }}-ci-no-pch
           max-size: 500M
           save: ${{ github.event_name == 'push' }}
 
@@ -131,13 +132,13 @@ jobs:
 
       # build.ps1 gets Qt, enters the Visual Studio 2022 developer shell,
       # configures, builds and tests the preset, then installs, checks and
-      # packages it.
+      # packages it. ccache finds little to reuse with precompiled headers.
       - name: Build, test and package (Windows)
         if: env.CODE != 'false' && runner.os == 'Windows'
         shell: pwsh
         env:
           MIRANTE_QT_ROOT: ${{ runner.temp }}/qt
-        run: ./tools/build.ps1 -Preset ci -Package
+        run: ./tools/build.ps1 -Preset ci -NoPch -Package
 
       - name: Build and test (macOS, Linux)
         if: env.CODE != 'false' && runner.os != 'Windows'
@@ -149,7 +150,7 @@ jobs:
           QTWEBENGINE_DISABLE_SANDBOX: 1
         run: |
           QT_DIR=$(sh tools/setup-qt.sh)
-          cmake --preset ci -DCMAKE_PREFIX_PATH="$QT_DIR"
+          cmake --preset ci -DCMAKE_PREFIX_PATH="$QT_DIR" -DMIRANTE_PCH=OFF
           cmake --build --preset ci
           ctest --preset ci
 
@@ -212,8 +213,6 @@ jobs:
           QTWEBENGINE_DISABLE_SANDBOX: 1
         run: |
           QT_DIR=$(sh tools/setup-qt.sh)
-          # Without precompiled headers, a file that misses an include fails.
-          # This job ends before the Windows build, so it costs no time.
           cmake --preset ci-no-modules -DCMAKE_PREFIX_PATH="$QT_DIR" -DMIRANTE_PCH=OFF
           cmake --build --preset ci-no-modules
           ctest --preset ci-no-modules
