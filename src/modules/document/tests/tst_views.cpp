@@ -206,7 +206,7 @@ private slots:
         context.itemConfig = {{QStringLiteral("folder"), QStringLiteral("f1")},
                               {QStringLiteral("path"), QStringLiteral("docs/design.md")}};
         auto view = make(QStringLiteral("document.project"), context);
-        auto *markdown = qobject_cast<MarkdownView *>(page(view.get()));
+        auto *markdown = dynamic_cast<MarkdownView *>(page(view.get()));
         QVERIFY(markdown);
         QCOMPARE(markdown->markdownText(), QStringLiteral("# First"));
 
@@ -242,7 +242,7 @@ private slots:
 
         // The file appears later.
         QVERIFY(writeFile(folder.filePath(QStringLiteral("missing.md")), "here"));
-        QTRY_VERIFY(qobject_cast<MarkdownView *>(page(view.get())));
+        QTRY_VERIFY(dynamic_cast<MarkdownView *>(page(view.get())));
 
         context.itemConfig.insert(QStringLiteral("path"), QString());
         view = make(QStringLiteral("document.project"), context);
@@ -273,7 +273,7 @@ private slots:
 
         context.itemConfig.insert(QStringLiteral("format"), QStringLiteral("markdown"));
         view = make(QStringLiteral("document.project"), context);
-        QVERIFY(qobject_cast<MarkdownView *>(page(view.get())));
+        QVERIFY(dynamic_cast<MarkdownView *>(page(view.get())));
 
         context.itemConfig = {{QStringLiteral("folder"), QStringLiteral("f1")}, {QStringLiteral("path"), QStringLiteral("large.txt")}};
         view = make(QStringLiteral("document.project"), context);
@@ -311,7 +311,7 @@ private slots:
         context.itemConfig = {{QStringLiteral("file"), QStringLiteral("0a1b.txt")},
                               {QStringLiteral("originalName"), QStringLiteral("notes.md")}};
         auto view = make(QStringLiteral("document.file"), context);
-        QVERIFY(qobject_cast<MarkdownView *>(page(view.get())));
+        QVERIFY(dynamic_cast<MarkdownView *>(page(view.get())));
 
         context.itemConfig.insert(QStringLiteral("file"), QStringLiteral("gone.md"));
         view = make(QStringLiteral("document.file"), context);
@@ -327,8 +327,8 @@ private slots:
         FakeContext context;
         context.itemConfig = {{QStringLiteral("url"), server.url(QStringLiteral("README.md")).toString()}};
         auto view = make(QStringLiteral("document.url"), context);
-        QTRY_VERIFY(qobject_cast<MarkdownView *>(page(view.get())));
-        auto *markdown = qobject_cast<MarkdownView *>(page(view.get()));
+        QTRY_VERIFY(dynamic_cast<MarkdownView *>(page(view.get())));
+        auto *markdown = dynamic_cast<MarkdownView *>(page(view.get()));
         QCOMPARE(markdown->markdownText(), QStringLiteral("# Remote"));
 
         server.replies << HttpServer::Reply{304, {}, {}, "\"v1\""};
