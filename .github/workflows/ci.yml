@@ -4,9 +4,11 @@
 # week. The packages are not signed; releases come from release.yml.
 # Qt comes from tools/setup-qt, as in local builds, into a cached folder
 # outside the checkout. ccache keeps compiled objects between runs, and the
-# tests run in parallel. See docs/plans/m2-app-skeleton.md, part 1,
-# docs/plans/m10-packaging.md and
-# docs/decisions/0110-ci-runs-once-per-change-and-caches-compiling.md.
+# tests run in parallel. A pull request that changes only documentation
+# builds nothing. See docs/plans/m2-app-skeleton.md, part 1,
+# docs/plans/m10-packaging.md,
+# docs/decisions/0110-ci-runs-once-per-change-and-caches-compiling.md and
+# docs/decisions/0113-ci-skips-documentation-only-changes.md.
 
 name: CI
 
@@ -24,6 +26,10 @@ concurrency:
   group: ci-${{ github.event.pull_request.number || github.sha }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
+permissions:
+  contents: read
+  pull-requests: read
+
 env:
   QT_VERSION: 6.8.3
   # The runners have three or four cores. Most tests spend their time waiting
@@ -31,19 +37,58 @@ env:
   CTEST_PARALLEL_LEVEL: 4
 
 jobs:
+  # Decides whether the run builds anything. A pull request whose files are
+  # all under docs/ or end in .md changes no build input, so code is false.
+  # Pushes to master always build, since they fill the caches. The other jobs
+  # skip only when code is exactly false, so if this job fails, they build.
+  changes:
+    runs-on: ubuntu-24.04
+    outputs:
+      code: ${{ steps.files.outputs.code }}
+    steps:
+      - name: Changed files
+        id: files
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          if [ "$GITHUB_EVENT_NAME" != pull_request ]; then
+            echo "code=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          files=$(gh api --paginate "repos/$GH_REPO/pulls/$PR/files" --jq '.[].filename')
+          echo "$files"
+          if echo "$files" | grep -qvE '^docs/|\.md$'; then
+            echo "code=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Only documentation changed, so nothing is built."
+            echo "code=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  # Each step checks code rather than the job, because a skipped matrix job
+  # reports one check under an unexpanded name, and the required checks
+  # "build (windows-2022)" and "build (ubuntu-24.04)" would never report.
   build:
     name: build (${{ matrix.os }})
+    needs: changes
+    if: ${{ !cancelled() }}
     runs-on: ${{ matrix.os }}
+    env:
+      CODE: ${{ needs.changes.outputs.code }}
     strategy:
       fail-fast: false
       matrix:
         os: [windows-2022, macos-15, ubuntu-24.04]
     steps:
       - uses: actions/checkout@v4
+        if: env.CODE != 'false'
 
       - uses: astral-sh/setup-uv@v6
+        if: env.CODE != 'false'
 
       - name: Cache Qt
+        if: env.CODE != 'false'
         uses: actions/cache@v4
         with:
           path: ${{ runner.temp }}/qt
@@ -54,6 +99,7 @@ jobs:
       # master save the cache: a pull request's cache would be visible to that
       # pull request only, and would push master's out of the 10 GB limit.
       - name: Cache compiling
+        if: env.CODE != 'false'
         uses: hendrikmuhs/ccache-action@v1.2
         with:
           key: ${{ matrix.os }}-ci
@@ -61,7 +107,7 @@ jobs:
           save: ${{ github.event_name == 'push' }}
 
       - name: Install Linux packages
-        if: runner.os == 'Linux'
+        if: env.CODE != 'false' && runner.os == 'Linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
@@ -72,11 +118,11 @@ jobs:
             libxcb-icccm4 libxcb-keysyms1 libxcb-shape0 dpkg-dev
 
       - name: Install macOS packages
-        if: runner.os == 'macOS'
+        if: env.CODE != 'false' && runner.os == 'macOS'
         run: brew install ninja
 
       - name: Install NSIS (Windows)
-        if: runner.os == 'Windows'
+        if: env.CODE != 'false' && runner.os == 'Windows'
         shell: pwsh
         run: if (-not (Get-Command makensis -ErrorAction SilentlyContinue)) { choco install nsis -y --no-progress }
 
@@ -84,14 +130,14 @@ jobs:
       # configures, builds and tests the preset, then installs, checks and
       # packages it.
       - name: Build, test and package (Windows)
-        if: runner.os == 'Windows'
+        if: env.CODE != 'false' && runner.os == 'Windows'
         shell: pwsh
         env:
           MIRANTE_QT_ROOT: ${{ runner.temp }}/qt
         run: ./tools/build.ps1 -Preset ci -Package
 
       - name: Build and test (macOS, Linux)
-        if: runner.os != 'Windows'
+        if: env.CODE != 'false' && runner.os != 'Windows'
         env:
           MIRANTE_QT_ROOT: ${{ runner.temp }}/qt
           # Ubuntu 24.04 blocks the user namespaces that Chromium's sandbox
@@ -105,13 +151,14 @@ jobs:
           ctest --preset ci
 
       - name: Package (macOS, Linux)
-        if: runner.os != 'Windows'
+        if: env.CODE != 'false' && runner.os != 'Windows'
         run: |
           cmake --install build/ci --component Mirante --prefix "$PWD/build/ci/install"
           python3 tools/check-package.py build/ci/install
           cd build/ci && cpack
 
       - uses: actions/upload-artifact@v4
+        if: env.CODE != 'false'
         with:
           name: mirante-${{ runner.os }}
           path: |
@@ -121,7 +168,11 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+  # A job skipped by its condition counts as passed for a required check.
+  # !cancelled() lets it run when the changes job failed.
   no-modules:
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
@@ -174,6 +225,8 @@ jobs:
           git diff --exit-code translations/
 
   module-includes:
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
