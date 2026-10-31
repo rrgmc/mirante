@@ -75,6 +75,7 @@ function(mirante_add_module id)
         target_link_libraries(${target} PUBLIC Qt6::${qt_lib})
     endforeach()
     mirante_set_warnings(${target})
+    mirante_precompile_headers(${target})
     mirante_autogen_tracks_sources(${target})
 
     # Qt 6 links the resources of a static library as object files, so no
@@ -85,11 +86,18 @@ function(mirante_add_module id)
             FILES ${ARG_RESOURCES})
     endif()
 
+    # The module's tests link the same libraries, so they share the first
+    # test's precompiled header.
+    set(pch_from "")
     foreach(test_source IN LISTS ARG_TESTS)
         get_filename_component(test_name "${test_source}" NAME_WE)
         mirante_add_test(module_${id}_${test_name}
             SOURCES "${test_source}"
-            LIBS ${target} mirante_items mirante::module_api_testing)
+            LIBS ${target} mirante_items mirante::module_api_testing
+            PCH_FROM ${pch_from})
+        if(NOT pch_from)
+            set(pch_from "module_${id}_${test_name}")
+        endif()
     endforeach()
 endfunction()
 

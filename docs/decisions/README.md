@@ -116,6 +116,7 @@ Each file records one design decision: what was decided, what else was considere
 | [0109](0109-pull-requests-into-master.md) | Changes reach `master` only through pull requests | Accepted; merging by sessions superseded by 0111 |
 | [0110](0110-ci-runs-once-per-change-and-caches-compiling.md) | CI runs once per change and caches compiling | Accepted |
 | [0111](0111-only-the-user-merges.md) | Only the user merges pull requests | Accepted |
+| [0112](0112-precompiled-headers.md) | Precompiled headers, with ccache | Accepted |
 
 ## Template
 
