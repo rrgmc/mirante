@@ -52,7 +52,11 @@ function(mirante_add_install target)
     endif()
     install(SCRIPT "${deploy_script}" COMPONENT Mirante)
     if(NOT app_dir STREQUAL ".")
+        # Qt's NMEA positioning plugin needs Qt Serial Port, which the
+        # downloaded Qt lacks, so dpkg-shlibdeps refuses the package. Mirante
+        # uses no positioning, so the plugin is left out.
         install(CODE "
+            file(REMOVE \"\${CMAKE_INSTALL_PREFIX}/plugins/position/libqtposition_nmea.so\")
             set(ENV{DESTDIR} \"\${mirante_destdir}\")
             set(CMAKE_INSTALL_PREFIX \"\${mirante_install_prefix}\")
         " COMPONENT Mirante)
