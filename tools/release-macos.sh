@@ -92,7 +92,18 @@ if ! echo "$RESULT" | grep -q "status: Accepted"; then
     notary log "$ID" >&2 || true
     exit 1
 fi
-xcrun stapler staple "$DMG"
+# Apple's ticket server sometimes drops the connection, so the staple is tried
+# a few times before the release fails.
+attempt=1
+until xcrun stapler staple "$DMG"; do
+    if [ "$attempt" -ge 5 ]; then
+        echo "Stapling failed $attempt times." >&2
+        exit 1
+    fi
+    attempt=$((attempt + 1))
+    echo "Stapling failed; trying again in 30 seconds." >&2
+    sleep 30
+done
 spctl --assess --type open --context context:primary-signature --verbose "$DMG"
 
 echo "Notarised disk image: $DMG"
