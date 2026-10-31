@@ -243,7 +243,7 @@ The types follow the GitLab types. A pull request is GitLab's merge request, an 
 - **Top:** the title; pills for the state and for a draft; the head and base branches, as `head` → `base`.
 - **Sections and fields,** in this order:
   - Checks (`showChecks`): a pill for the checks of the head commit, and each check run and commit status that did not pass, with its name, a pill and a "Details" link, which opens in the external browser. When all passed, the count, such as "12 checks passed".
-  - Reviews (`showReviews`): each reviewer's latest review, with a pill (Approved, Changes requested, Commented), and the requested reviewers who have not reviewed yet, as "Waiting".
+  - Reviews (`showReviews`): each reviewer's latest review, with a pill (Approved, Changes requested, Commented), and the requested reviewers and teams who have not reviewed yet, as "Waiting".
   - People (`showPeople`): the author and the assignees.
   - Labels (`showLabels`).
 - **Actions:** "Open page" and "Web". There is no re-run, because a check run can be re-run only by the GitHub App that made it.
@@ -275,7 +275,7 @@ The types follow the GitLab types. A pull request is GitLab's merge request, an 
   - `filter`: extra search qualifiers, such as `label:bug base:main`;
   - `limit`, `pageSize`, `showChecks` and `showReviews`, as for GitLab's merge request list.
 - **The list is a search.** Its query holds `is:pr is:open`, then `repo:<repository>` or `user:<owner>` for the scope, then `author:@me`, `review-requested:@me` or `assignee:@me` for the preset, then the filter. "All open" with the scope "All" means `involves:@me`, because all of GitHub is not a useful list.
-- **Shows:** a sortable table, sorted on Updated, newest first, with the columns Ref (such as `backend#42`, with the repository's name), Title, Author, Checks (a pill), Reviews (such as "2 approved", "changes requested" or a dash), Updated and the links. A narrow cell hides Author, Reviews, Updated, Checks and Ref, in that order.
+- **Shows:** a sortable table, sorted on Updated, newest first, with the columns Ref (such as `backend#42`, with the repository's name), Title, Author, Checks (a pill: "Passed", "Failed" or "Running", or a dash without checks), Reviews (such as "2 approved", "changes requested" or a dash), Updated and the links. A narrow cell hides Author, Reviews, Updated, Checks and Ref, in that order.
 - **Checks and Reviews** are filled by the view for the first 25 rows of the current page, as GitLab's Pipeline and Approvals.
 - **Links of a row:** "Web", "Open" and "Add", which adds a GitHub PR (summary) named such as `owner/repo#42`. The row menu is GitLab's.
 - **The Web link** opens the same search on the site: `<web address>/<repository>/pulls?q=<query>`, or `<web address>/pulls?q=<query>` for the other scopes.
@@ -292,7 +292,7 @@ The types follow the GitLab types. A pull request is GitLab's merge request, an 
   - `branch`, for `fixed`. Empty means the repository's default branch, and the placeholder says so;
   - `workflow`, a workflow file such as `ci.yml`. Empty means all workflows.
 - **The group.** One push starts one run of each workflow that matches it. The group is the runs of the branch's newest commit, or of the pull request's head commit. The newest run of the group leads.
-- **Top:** the run shown, at first the lead: its workflow's name and run number; a pill for its status; the branch, the duration and when it started. With more than one run in the group, a row of pills, one per workflow, switches between them. "Previous" and "Next" step through all of the latest 20 runs, also those of older commits.
+- **Top:** the run shown, at first the lead: its workflow's name and run number; a pill for its status; the branch, the duration and when it started. With more than one run in the group, a row of pills, one per workflow, switches between them. "Previous" and "Next" step through all of the latest 20 runs, also those of older commits, newest first. The jobs of an older run are read when it shows.
 - **Jobs:** one table of the shown run's jobs, each with a pill, the name, the duration and links: "Log", on a job that started, in the external browser; "Re-run", on a completed job.
 - **Actions:**
   - "Re-run failed jobs", when the shown run failed;
@@ -310,7 +310,7 @@ The types follow the GitLab types. A pull request is GitLab's merge request, an 
 `github.run.list`, native. The runs of one repository.
 
 - **Configuration:** `repository`; `source`: `all` ("All runs", the default), `mine` ("Started by me"), `branch` ("Of a branch") or `pullRequest` ("Of a pull request"); `branch`, for `branch`, empty for the default branch; `number`, the pull request, for `pullRequest`; `workflow`, to show one workflow's runs; `limit` and `pageSize`.
-- **Shows:** a sortable table, sorted on Run, newest first, with the columns Run (such as `#318`), Workflow, Status (a pill), Branch (which takes the free width), Actor, Started and the links. A narrow cell hides Actor, Started, Workflow, Run and Status, in that order. Filters: Status and Workflow.
+- **Shows:** a sortable table, sorted on Run, newest first, with the columns Run (such as `#318`, sorted by the run's id, because run numbers count per workflow), Workflow, Status (a pill), Branch (which takes the free width), Actor, Started and the links. A narrow cell hides Actor, Started, Workflow, Run and Status, in that order. Filters: Status and Workflow.
 - **Links of a row:** "Web", "Open" and "Add". "Add" adds a GitHub Actions Run: for a run of a pull request, one that follows that pull request, named such as `owner/repo#42 CI`; otherwise one that follows the run's branch, named such as `owner/repo main CI`. The item's `workflow` is kept.
 - **The Web link** opens `<web address>/<repository>/actions`, or the workflow's page.
 - **Messages:** as for GitLab's lists, with the line "No runs".
@@ -323,7 +323,7 @@ The types follow the GitLab types. A pull request is GitLab's merge request, an 
 - **The summary's top:** the title and a pill for the state. An issue closed as completed or as not planned reads "Closed" either way.
 - **The summary's sections and fields:** Details (`showDetails`: the assignees and the milestone), Labels (`showLabels`) and Comments (`showComments`: the latest five, newest first, as plain text, "No comments", or "The comments could not be read.").
 - **Configuration:** the summary and the page have `repository` and `number`. The list has `scope`, `repository`, `owner`, `preset`, `filter`, `limit` and `pageSize`, as for pull requests, with the presets `assignedToMe` (the default), `createdByMe` and `allOpen`, and `is:issue` in its search.
-- **The list shows** the columns Ref, Title, Assignees, Labels, Updated and the links, and makes no further requests. "Add" adds a GitHub Issue (summary) named such as `owner/repo#7`. The empty line is "No issues".
+- **The list shows** the columns Ref, Title, Assignees, Labels, Updated and the links, sorted on Updated, newest first, and makes no further requests. A narrow cell hides Labels, Assignees, Updated and Ref, in that order. "Add" adds a GitHub Issue (summary) named such as `owner/repo#7`. The empty line is "No issues".
 - **The page's address** is `<web address>/<repository>/issues/<number>`. Its messages are those of the pull request page.
 - **The summary's actions:** "Open page" and "Web".
 - **Status:** a summary such as "Open · assigned to ana", closed when the issue is closed, and no attention. The list reports "12 issues" or "100+ issues".
