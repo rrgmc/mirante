@@ -241,7 +241,7 @@ public:
 
 The core then gives the module an `ApiClient` for the server of each profile, through `ItemContext::server()` in a view and `StatusJob::server()` in a status fetch:
 
-- **`get()`, `post()` and `put()`:** the normal way to call an API. The path is relative to the base URL. The client adds the token, sends the last ETag, follows `Link` pages when asked, waits on `429`, and runs at most four requests at once for each profile's server. Item code never sees the token.
+- **`get()`, `post()` and `put()`:** the normal way to call an API. The path is relative to the base URL. The client adds the token, sends the last ETag, follows `Link` pages when asked, waits on `429` and on a rate-limited `403`, and runs at most four requests at once for each profile's server. Item code never sees the token.
 - **`authorize(request)`:** adds the authentication to a `QNetworkRequest` the module makes itself.
 - **`secret()`:** returns the raw token, asynchronously. Use it only when a request is not enough, such as passing a token to a command in a terminal. Every call needs a comment that says why `authorize()` does not work there.
 
