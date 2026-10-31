@@ -59,6 +59,20 @@
             <numerusform>%1 of %n runs failed</numerusform>
         </translation>
     </message>
+    <message numerus="yes">
+        <source>%n approved</source>
+        <translation>
+            <numerusform>%n approved</numerusform>
+            <numerusform>%n approved</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>%n check(s) passed</source>
+        <translation>
+            <numerusform>%n check passed</numerusform>
+            <numerusform>%n checks passed</numerusform>
+        </translation>
+    </message>
 </context>
 <context>
     <name>mirante::DashBridge</name>
