@@ -22,7 +22,7 @@ Each file records one design decision: what was decided, what else was considere
 | [0014](0014-name-mirante.md) | Name the app Mirante | Accepted |
 | [0015](0015-app-skeleton-instead-of-spike.md) | Build the app skeleton directly, with CI from M2 | Accepted; macOS in CI by 0077 |
 | [0016](0016-generic-items.md) | Generic items: any `QWidget`, with two view flags | Accepted |
-| [0017](0017-parallel-tasks-with-fixed-interfaces.md) | Parallel tasks with fixed interfaces and globbed sources | Accepted; merging by 0109 |
+| [0017](0017-parallel-tasks-with-fixed-interfaces.md) | Parallel tasks with fixed interfaces and globbed sources | Accepted; merging by 0109 and 0111 |
 | [0018](0018-no-default-task.md) | No Default task in projects | Accepted |
 | [0019](0019-fixed-task-cells-and-item-windows.md) | Task cells show one dashboard, and items open alone | Accepted |
 | [0020](0020-edit-task-dashboards-alone.md) | Task dashboards are edited only on their own | Accepted |
@@ -113,8 +113,9 @@ Each file records one design decision: what was decided, what else was considere
 | [0106](0106-start-at-sign-in.md) | Mirante can start at sign-in, hidden in the tray | Accepted |
 | [0107](0107-closing-quits-by-default.md) | Closing the window quits by default | Accepted |
 | [0108](0108-freeze-web-pages-in-the-tray.md) | Web pages freeze while the app is hidden to the tray | Accepted |
-| [0109](0109-pull-requests-into-master.md) | Changes reach `master` only through pull requests | Accepted |
+| [0109](0109-pull-requests-into-master.md) | Changes reach `master` only through pull requests | Accepted; merging by sessions superseded by 0111 |
 | [0110](0110-ci-runs-once-per-change-and-caches-compiling.md) | CI runs once per change and caches compiling | Accepted |
+| [0111](0111-only-the-user-merges.md) | Only the user merges pull requests | Accepted |
 
 ## Template
 
