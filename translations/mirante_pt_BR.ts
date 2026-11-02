@@ -1,5 +1,61 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE TS>
+<!-- Terms: each glossary term of docs/README.md always takes the same Portuguese
+     word. The list comes from translations/README.md; edit it there.
+     Group: Grupo
+     Project: Projeto
+     Folder: Pasta
+     Main folder: Pasta principal
+     Task: Tarefa
+     Item: Item (plural itens)
+     Item type: Tipo de item
+     Module: Módulo
+     Settings screen: Tela de configurações
+     Placement: Posição
+     Dashboard: Painel
+     Task dashboard: Painel da tarefa
+     Root dashboard: Painel raiz
+     Built-in panel: Quadro interno (never "painel", which is a dashboard)
+     Layout tree: Árvore de layout
+     Layout: Layout
+     Split: Divisão
+     Tabs, tab: Abas, aba
+     Cell: Célula
+     Preview slot, preview: Prévia
+     Focus slot, Focus view, Focus: Foco
+     Priority: Urgent, High, Normal, Low: Prioridade: Urgente, Alta, Normal, Baixa
+     Task state: active, done, archived: Ativa, concluída, arquivada
+     Attention: Atenção
+     Watch, watched item: Acompanhar, item acompanhado
+     Server: Servidor
+     Token: Token
+     Profile, default profile: Perfil, perfil padrão
+     Status: Status
+     Status cache: Cache de status
+     Data folder: Pasta de dados
+     Web data folder: Pasta de dados da web
+     Workspace: Espaço de trabalho
+     Sample data: Dados de exemplo
+     Sidebar: Barra lateral
+     Settings: Configurações
+     Device settings: Configurações do dispositivo
+     Trash: Lixeira
+     Lock, unlock (a dashboard): Travar, destravar
+     Detach, detached window: Destacar, janela destacada
+     Tray: Bandeja
+     Global hotkey: Atalho global
+     Quick add: Adição rápida
+     Quick switcher: Troca rápida
+     Log: Log
+     Keychain: Chaveiro
+     Web login: Login na web
+     Conflict copy: Cópia em conflito
+     Paste, crop: Colar, recortar
+     Merge request, issue, pipeline, job, sprint: Merge request, issue, pipeline, job, sprint (kept in English, as GitLab and Jira do)
+     Label (GitLab): Etiqueta
+     Assignee, reporter: Responsável, relator
+     Comment: Comentário
+-->
 <TS version="2.1" language="pt_BR" sourcelanguage="en">
 <context>
     <name>DashboardCellFactory</name>
