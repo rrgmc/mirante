@@ -181,7 +181,7 @@ Made in this repository, before the split into repositories for [custom builds](
 
 ## Future: Custom builds
 
-Not scheduled. It starts after M13, and builds on the packaging from M10 ([decision 0098](decisions/0098-packages-from-cmake-install.md)). Anyone can build their own Mirante with the modules they choose, including modules from other people's repositories, and get its executables from CI. Modules stay compiled in and linked statically, as in decisions [0013](decisions/0013-compiled-in-modules.md) and [0121](decisions/0121-modules-are-trusted-code.md). A code plan is written when this work starts. [The custom builds research](research/custom-builds.md) checks the first version of this entry against M10 and the work after it.
+Started after M13, and builds on the packaging from M10 ([decision 0098](decisions/0098-packages-from-cmake-install.md)). Anyone can build their own Mirante with the modules they choose, including modules from other people's repositories, and get its executables from CI. Modules stay compiled in and linked statically, as in decisions [0013](decisions/0013-compiled-in-modules.md) and [0121](decisions/0121-modules-are-trusted-code.md). See [the code plan](plans/custom-builds.md). [The custom builds research](research/custom-builds.md) checks the first version of this entry against M10 and the work after it.
 
 **Direction:**
 
