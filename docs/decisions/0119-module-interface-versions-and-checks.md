@@ -32,7 +32,7 @@ All 45 commits that changed `src/module_api` by 2 November were made between 28 
 - External modules are not built with `MIRANTE_WERROR`, so a new enum value or a newer compiler's warning does not stop an old module from building.
 - Once outside authors exist, the template offers a scheduled build of a module against the latest core.
 
-**Work before publishing the interface.**
+**Work before publishing the interface.** This is done first, in `mirante`, as part of [M13](../roadmap.md#m13-module-interface-before-the-split). The version and the checks above come with the split, because they matter only once modules live in other repositories.
 
 - Remove what no module uses: `ItemContext::profile()`, `ItemContext::itemName()`, `ApiClient::secret()`, `ApiClient::authorize()`, `ItemType::singleView()` and `ItemType::reparentSafe()`. Any of them can return when a module needs it.
 - Remove the planned `Values.h` and the planned `item()`, `task()`, `project()` and `group()` from the documentation. Correct the documentation's section on attention, which does not match `Status.h`.

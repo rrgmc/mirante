@@ -9,6 +9,7 @@
 
 ## Decision
 
+- **The split comes after [M13](../roadmap.md#m13-module-interface-before-the-split),** which settles the module interface in this repository first.
 - **Three new public repositories, all under the MIT License:**
   - `mirante-core` holds the core and the module interface. It is extracted from this repository with its history.
   - `mirante-modules` holds all first-party modules.
@@ -28,7 +29,7 @@
 - **Keep the core and first-party modules together, as the roadmap said.** One commit could then change the interface and every module. But the official app would not be built like a custom build, so the process would not be tested by its own project.
 - **Keep the first-party modules inside `mirante-app`.** This needs the fewest repositories, but those modules would not be fetched, so the sample would not test fetching.
 - **One repository per first-party module.** This is closest to a third-party module, but an interface change could touch up to ten repositories while the interface still changes often.
-- **Freeze `mirante` completely.** There would be no drift, but security fixes such as [issue 14](https://github.com/rrgmc/mirante/issues/14) would wait for the approval.
+- **Freeze `mirante` completely.** There would be no drift, but security fixes would wait for the approval.
 - **Keep developing in `mirante`.** Every feature would then have to be synced, and the sample would have to stay short.
 - **Private repositories.** Windows and macOS builds would use up a limited allowance of CI minutes, FetchContent would need an access token, and a free account has no branch protection on them.
 

@@ -17,7 +17,7 @@ A module's configuration screens are built from `Field` declarations, with a fix
 - **`Field` stays as the description of the data, and grows little:** help text, groups and possibly a condition for showing a field. Anything more complex uses a custom editor.
 - **Custom editors can do what `FieldForm` can,** including secrets, validation messages, folder and image pickers, and knowing the profile being edited. `FieldForm` uses only the public interface.
 - **The core keeps the dialog's frame,** such as its buttons and the project dialog's group box.
-- **This is separate work,** done before the module interface reaches 1.0 and not part of the sample of [decision 0116](0116-custom-builds-in-separate-repositories.md).
+- **This is done first, in `mirante`,** as part of [M13](../roadmap.md#m13-module-interface-before-the-split), before the split of [decision 0116](0116-custom-builds-in-separate-repositories.md). One commit can then still change the interface and every module, and the sample tests only the split.
 
 ## Alternatives
 
