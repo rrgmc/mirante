@@ -158,7 +158,7 @@ See [the M12 plan](plans/m12-document-items.md), [decision 0104](decisions/0104-
 
 ## M13: Module interface before the split
 
-Made in this repository, before the split into repositories for [custom builds](#future-custom-builds), while one commit can still change the interface and every module. See decisions [0119](decisions/0119-module-interface-versions-and-checks.md), [0120](decisions/0120-fields-are-a-shortcut.md) and [0121](decisions/0121-modules-are-trusted-code.md).
+Made in this repository, before the split into repositories for [custom builds](#future-custom-builds), while one commit can still change the interface and every module. See [the M13 plan](plans/m13-module-interface.md) and decisions [0119](decisions/0119-module-interface-versions-and-checks.md), [0120](decisions/0120-fields-are-a-shortcut.md), [0121](decisions/0121-modules-are-trusted-code.md), [0122](decisions/0122-custom-configuration-screens.md) and [0123](decisions/0123-tokens-stay-on-their-origin.md).
 
 **Configuration screens:**
 
