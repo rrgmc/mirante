@@ -19,7 +19,6 @@ An example, whose exact fields the code plan settles:
 
 ```json
 {
-  "app": { "id": "com.example.mymirante", "name": "My Mirante" },
   "qt": ["WebEngineWidgets", "Pdf", "PdfWidgets"],
   "core": { "repo": "https://github.com/rrgmc/mirante-core", "ref": "v0.6.0" },
   "modules": [
@@ -31,7 +30,7 @@ An example, whose exact fields the code plan settles:
 
 ## Alternatives
 
-- **The core as the top-level project.** The core would then have to know about apps, and an app repository could not own its identity, resources and packaging as simply.
+- **The core as the top-level project.** The core would then have to know about apps, and an app repository could not own its resources and packaging as simply.
 - **YAML or TOML.** They are easier to write by hand, but CMake has no reader for them.
 - **A CMake file as the manifest.** It needs no parsing in CMake, but scripts could not read the Qt modules without running CMake, which needs Qt.
 - **Commits only.** A commit cannot change, but a version is easier to read, and a pull request per release is less noise than one per commit.

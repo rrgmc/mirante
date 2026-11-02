@@ -122,7 +122,7 @@ Each file records one design decision: what was decided, what else was considere
 | [0115](0115-ci-builds-without-precompiled-headers.md) | CI builds without precompiled headers | Accepted |
 | [0116](0116-custom-builds-in-separate-repositories.md) | Custom builds split the core, the modules and the app into repositories, tried first as a sample | Accepted |
 | [0117](0117-app-repository-and-json-manifest.md) | The app is the top-level project, and a JSON manifest pins what it fetches | Accepted |
-| [0118](0118-custom-builds-are-their-own-app.md) | A custom build is its own app by default | Accepted |
+| [0118](0118-all-builds-are-one-app.md) | All builds are the same app | Accepted |
 | [0119](0119-module-interface-versions-and-checks.md) | The module interface has a version, compatibility rules and checks | Accepted |
 | [0120](0120-fields-are-a-shortcut.md) | Declared fields are a shortcut, and every configuration screen can be custom | Accepted |
 | [0121](0121-modules-are-trusted-code.md) | Modules are trusted code, linked statically, without a sandbox | Accepted |

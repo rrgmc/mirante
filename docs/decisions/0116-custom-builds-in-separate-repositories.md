@@ -15,6 +15,7 @@
   - `mirante-app` is the sample: the main app, which fetches the core and the modules. It holds no signing secrets, and its test packages are unsigned prereleases.
 - **`mirante` takes only bug and security fixes during the sample.** Each fix is carried to the new repositories by hand. New features wait.
 - **The final state.** If the user approves, the code of `mirante-app` replaces the code in `mirante`, which then pins `mirante-core` and `mirante-modules` as any custom build does. `mirante-app` is then archived or deleted.
+- **The sample stays away from real data.** It has the same names as Mirante, by [decision 0118](0118-all-builds-are-one-app.md). So for daily use it is run from its build, not installed, with the existing options for the settings file, the data folder and the web data folder, and with a copy of the workspace. It still reads the real tokens from the keychain, and could change them if they are edited in the sample.
 - **The user approves when all of these hold:**
   - `mirante-app` builds, tests and packages all modules on Windows, macOS and Linux;
   - at least one change to the module interface has been carried across the repositories, and the user finds the effort acceptable;

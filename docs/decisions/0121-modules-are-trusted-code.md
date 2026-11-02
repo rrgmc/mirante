@@ -23,7 +23,6 @@ Custom builds can include modules from other people's repositories. A module is 
   - the build job holds no signing secrets, because a module's CMake code runs any command it likes;
   - a scan reports which modules use sensitive APIs, such as `QProcess`, `QLibrary`, the keychain or their own network access. A malicious author can evade it, so it only helps a review.
 - **Damage is limited:**
-  - a custom build has its own identity. See [decision 0118](0118-custom-builds-are-their-own-app.md);
   - the documentation recommends narrow, read-only tokens where a service allows them;
   - each module's web pages get their own origin, in place of the shared `qrc:` origin. This one is a real barrier, because web content runs in a separate renderer process.
 
