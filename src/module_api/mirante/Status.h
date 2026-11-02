@@ -66,6 +66,7 @@ inline ItemStatus statusFromReply(const ApiReply &reply)
     case ApiReply::Error::Forbidden:
     case ApiReply::Error::Http:
     case ApiReply::Error::Network:
+    case ApiReply::Error::OtherServer:
         status.state = ItemStatus::State::Error;
         break;
     }

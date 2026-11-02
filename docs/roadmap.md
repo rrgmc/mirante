@@ -177,7 +177,7 @@ Made in this repository, before the split into repositories for [custom builds](
 
 **Tokens:**
 
-- [ ] A token goes only to the origin of its server, for requests and redirects, with tests for both. See [issue 14](https://github.com/rrgmc/mirante/issues/14).
+- [x] A token goes only to the origin of its server, for requests and redirects, with tests for both. See [issue 14](https://github.com/rrgmc/mirante/issues/14).
 
 ## Future: Custom builds
 

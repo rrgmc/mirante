@@ -4441,6 +4441,14 @@ Os dados são de %2.</translation>
 <context>
     <name>mirante::ServerClients</name>
     <message>
+        <source>The address %1 is not on the configured server</source>
+        <translation>O endereço %1 não está no servidor configurado</translation>
+    </message>
+    <message>
+        <source>The server redirected to %1, which is not the configured server</source>
+        <translation>O servidor redirecionou para %1, que não é o servidor configurado</translation>
+    </message>
+    <message>
         <source>No server set</source>
         <translation>Nenhum servidor definido</translation>
     </message>

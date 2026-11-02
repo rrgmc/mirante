@@ -174,6 +174,7 @@ Modules poll through the cache, never around it. A view asks the server directly
 - A `429` waits for `Retry-After` seconds, or 30 without one, and sends again, at most three times. The server's other requests wait too.
 - A `403` or `429` with `x-ratelimit-remaining: 0` is a spent rate limit, as GitHub sends it. It waits until the Unix time in `x-ratelimit-reset`, at least 1 second and at most 1 hour. A `403` with `Retry-After` waits that many seconds. Both then send again like a `429`, and the server's other requests wait too. Neither marks the server as failing. After three tries, the request fails with "Rate limited (403)" or "Too many requests (429)".
 - Header names are matched without regard to case.
+- A token goes only to the origin of its server: the same scheme, host and port as the base URL. A path that holds an address on another origin fails with `OtherServer` without being sent. A redirect on the same origin is followed, and a redirect to another origin fails with `OtherServer`, naming the address. This includes `http` to `https` on one host, where the base URL should be corrected. Neither marks the server as failing. See [decision 0123](decisions/0123-tokens-stay-on-their-origin.md).
 - A request that gets no answer in 30 seconds fails as a network error.
 - Network errors keep the last data and show its age, such as "Updated 12 min ago".
 - Status data is kept in memory only, not on disk. After a start, cells show no status until the first poll returns. A disk cache can come later if the wait is a problem.

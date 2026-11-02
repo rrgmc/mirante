@@ -45,8 +45,8 @@ Each member was searched for across `src`, `tests` and `docs`. No module uses an
 | `ItemContext::profile()` | `ItemContextImpl::createWebView()` | It becomes a private non-virtual method of `ItemContextImpl`. The `QWebEngineProfile` forward declaration goes. |
 | `ApiClient::authorize()` | `tst_server_client`, `FakeApiClient`, `StatusCache`'s client | The overrides and tests. `ServerType::authorize()` stays: it is how a module adds its token. |
 | `ApiClient::secret()` | `FakeApiClient`, `StatusCache`'s client | The overrides. `ServerClient` keeps its own private token loading. |
-| `ItemType::singleView()` | `CellFrame`, one test type | `CellFrameSingleView`, `SingleViewTracker`, `LayoutView::setSingleViewTracker()`, the tracker in `LayoutServices` and `MainWindow`, and the test. No type can turn it on, so this code could never run. |
-| `ItemType::reparentSafe()` | `DashboardCellFactory::canReparent()` | `CellFactory::canReparent()`, the branches in `LayoutView` and their tests, for the same reason. |
+| `ItemType::singleView()` | `CellFrame`, one test type | Only the member. The user chose to keep `CellFrameSingleView`, `SingleViewTracker` and their test in the core, so they are easy to bring back. `CellFrame` learns from its creator whether an item has one view, and the app always says no. |
+| `ItemType::reparentSafe()` | `DashboardCellFactory::canReparent()` | Only the member and that override. `CellFactory::canReparent()`, the branches in `LayoutView` and their tests stay, and the base class's default of true applies. |
 
 Also:
 

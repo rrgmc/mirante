@@ -61,6 +61,9 @@ struct ApiReply
         Http,       // any other status of 400 or more
         Network,    // no answer: DNS, TLS, timeout, offline
         Paused,     // the server is failing; nothing was sent
+        // The address, or a redirect, is on another origin than the base URL.
+        // Nothing was sent there, so the token stays with its server.
+        OtherServer,
     };
 
     Error error = Error::None;
