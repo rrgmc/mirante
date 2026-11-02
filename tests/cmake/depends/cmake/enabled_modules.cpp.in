@@ -1,0 +1,10 @@
+// Generated from tests/cmake/depends/cmake/enabled_modules.cpp.in.
+namespace mirante {
+class ModuleRegistrar;
+}
+
+@MIRANTE_MODULE_DECLARATIONS@
+// Referring to each module's function makes the linker keep it.
+void *enabledModuleCalls[] = {
+@MIRANTE_MODULE_REFERENCES@    nullptr,
+};

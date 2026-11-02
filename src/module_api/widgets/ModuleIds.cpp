@@ -1,4 +1,4 @@
-#include "items/ItemTypeIds.h"
+#include <mirante/ModuleIds.h>
 
 namespace mirante {
 
@@ -28,6 +28,16 @@ bool idBelongsToModule(const QString &id, const QString &moduleId)
         || rest.contains(QLatin1String("..")))
         return false;
     return true;
+}
+
+bool projectSettingTakes(Field::Type type)
+{
+    return type != Field::Type::Secret && type != Field::Type::Folder && type != Field::Type::Image;
+}
+
+bool deviceSettingTakes(Field::Type type)
+{
+    return type != Field::Type::Secret && type != Field::Type::Folder && type != Field::Type::Image;
 }
 
 } // namespace mirante

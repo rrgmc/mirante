@@ -23,7 +23,7 @@ Mirante creates these `QWebEngineProfile`s:
 
 A step that names a profile not in the list is skipped. This happens when the profile was deleted, or when its entry has not arrived from another device yet. The code is `profiles::effective` in `src/core/Profiles.h`. The same profile gives the item its module settings, with its servers.
 
-**Every item in a profile can read all its logins.** Browsers keep each site's storage apart from other sites. Module code is different. A module that takes the profile with `ItemContext::profile()` can read the cookies of every site in it, and load any page in it. A Jira item and a GitLab item in the same profile can therefore reach each other's sessions. They also share the profile's servers and tokens. Putting items in one profile means the user trusts them together. The profiles dialog shows this warning. To keep two things apart, use two profiles.
+**Every item in a profile can read all its logins.** Browsers keep each site's storage apart from other sites. Module code is different. A module runs in the app's process, so it can reach the cookies of every site in a profile and load any page in it. See [decision 0121](decisions/0121-modules-are-trusted-code.md). A Jira item and a GitLab item in the same profile can therefore reach each other's sessions. They also share the profile's servers and tokens. Putting items in one profile means the user trusts them together. The profiles dialog shows this warning. To keep two things apart, use two profiles.
 
 Rules:
 

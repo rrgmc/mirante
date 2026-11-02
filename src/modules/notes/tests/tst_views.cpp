@@ -2,7 +2,7 @@
 // the view back as the core does. See README.md#view.
 #include "../NotesView.h"
 
-#include <mirante/ItemContext.h>
+#include <mirante/testing/FakeItemContext.h>
 
 #include <QApplication>
 #include <QFontDatabase>
@@ -27,22 +27,13 @@ namespace {
 
 const QString kText = QStringLiteral("text");
 
-class FakeContext : public mirante::ItemContext
+class FakeContext : public mirante::testing::FakeItemContext
 {
 public:
-    QJsonObject itemConfig;
     QList<QJsonObject> saved;
     QPointer<QObject> receiver;
     std::function<void(const QJsonObject &)> changed;
 
-    QString itemName() const override { return QStringLiteral("Notes"); }
-    QJsonObject config() const override { return itemConfig; }
-    QJsonValue projectSetting(const QString &) const override { return {}; }
-    QJsonObject moduleSettings(const QString &) const override { return {}; }
-    QString folderPath(const QString &) const override { return {}; }
-    QWidget *createWebView(const QUrl &, QWidget *) override { return nullptr; }
-    QWebEngineProfile *profile() override { return nullptr; }
-    QWidget *createMessageView(const QString &, QWidget *) override { return nullptr; }
 
     // Stores the change and tells the view, as a placement does for a change
     // of view keys only.

@@ -9,7 +9,7 @@
 #include "core/Store.h"
 #include "items/ItemTypeRegistry.h"
 #include "ui/EntityActions.h"
-#include "ui/FieldForm.h"
+#include <mirante/widgets/FieldForm.h>
 #include "ui/ItemDialog.h"
 
 #include <mirante/ItemEditor.h>
@@ -31,6 +31,7 @@
 #include <memory>
 
 using namespace mirante;
+using mirante::widgets::FieldForm;
 
 namespace {
 

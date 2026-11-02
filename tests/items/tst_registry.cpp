@@ -1,5 +1,5 @@
 // Tests ItemTypeRegistry, UnknownItemType and the id rules.
-#include "items/ItemTypeIds.h"
+#include <mirante/ModuleIds.h>
 #include "items/ItemTypeRegistry.h"
 #include "items/UnknownItemType.h"
 

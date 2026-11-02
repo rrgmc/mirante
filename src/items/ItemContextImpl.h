@@ -12,6 +12,8 @@
 
 class QLabel;
 
+class QWebEngineProfile;
+
 namespace mirante {
 
 class ItemType;
@@ -43,13 +45,14 @@ public:
     // docs/web-views.md#built-in-panels.
     QWidget *createDashPanel(const QString &panel, QWidget *parent);
 
-    QString itemName() const override;
     QJsonObject config() const override;
     QJsonValue projectSetting(const QString &key) const override;
     QJsonObject moduleSettings(const QString &screenId) const override;
     QString folderPath(const QString &folderId) const override;
     QWidget *createWebView(const QUrl &url, QWidget *parent) override;
-    QWebEngineProfile *profile() override;
+    // The web logins of the item's profile: its own, else its group's default,
+    // else Default. Null without a profile manager.
+    QWebEngineProfile *profile();
     QWidget *createMessageView(const QString &text, QWidget *parent) override;
     void updateConfig(const QJsonObject &config) override;
     void showPage(const QUrl &url) override;

@@ -41,6 +41,12 @@ struct Field
     // Text: values offered in a drop-down list. The user may still type
     // another. Such as the project paths of a module's settings.
     QStringList suggestions;
+    // A short explanation, shown in small text under the editor.
+    QString help;
+    // The title of a box that holds this field and the others of the same
+    // group. Fields without a group come first, then the groups in the order
+    // they first appear.
+    QString group;
 };
 
 } // namespace mirante

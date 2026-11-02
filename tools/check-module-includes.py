@@ -6,9 +6,8 @@ if its path starts with "../" or contains "/../", or if it names a core
 header, that is, a path that starts with one of the core source folders.
 <mirante/...> includes are the module API and are allowed.
 
-Module tests in src/modules/<id>/tests/ are skipped. They register the module
-into the real ItemTypeRegistry and link mirante_items, so they may include
-core headers.
+Module tests in src/modules/<id>/tests/ follow the same rules, except that they
+may include their module's files with one "../".
 
 The build already keeps the core folders off a module's include path. This
 check catches relative paths, which the build cannot block.
@@ -25,8 +24,10 @@ SOURCE_SUFFIXES = {".h", ".cpp"}
 INCLUDE = re.compile(r'^\s*#\s*include\s*[<"]([^>"]+)[>"]')
 
 
-def problem(path):
+def problem(path, in_tests):
     """Returns why an include path is not allowed, or None if it is."""
+    if in_tests and path.startswith("../"):
+        path = path[len("../"):]
     if path.startswith("../") or "/../" in path:
         return "path with \"..\""
     if path.startswith(CORE_FOLDERS):
@@ -38,16 +39,16 @@ def main():
     repo = pathlib.Path(__file__).resolve().parent.parent
     modules = repo / "src" / "modules"
     failures = []
-    files = sorted(p for p in modules.rglob("*") if p.is_file() and p.suffix in SOURCE_SUFFIXES
-                   and p.relative_to(modules).parts[1:2] != ("tests",))
+    files = sorted(p for p in modules.rglob("*") if p.is_file() and p.suffix in SOURCE_SUFFIXES)
     for file in files:
+        in_tests = file.relative_to(modules).parts[1:2] == ("tests",)
         text = file.read_text(encoding="utf-8", errors="replace")
         for number, line in enumerate(text.splitlines(), start=1):
             match = INCLUDE.match(line)
             if not match:
                 continue
             path = match.group(1).replace("\\", "/")
-            reason = problem(path)
+            reason = problem(path, in_tests)
             if reason:
                 name = file.relative_to(repo).as_posix()
                 failures.append(f"{name}:{number}: {reason}: {line.strip()}")

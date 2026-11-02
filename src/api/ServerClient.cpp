@@ -126,8 +126,6 @@ public:
               std::function<void(const ApiReply &)> done) override;
     void put(const QString &path, const QJsonDocument &body, QObject *receiver,
              std::function<void(const ApiReply &)> done) override;
-    bool authorize(QNetworkRequest &request) override;
-    void secret(QObject *receiver, std::function<void(std::optional<QString>)> done) override;
 
 private:
     enum class Method { Get, Post, Put };
@@ -146,6 +144,7 @@ private:
         QJsonArray rows;         // the rows of the pages so far, with followLinks
         QJsonObject firstPage;   // the first page's object, with an arrayKey
         int pages = 0;           // the pages joined so far
+        QUrl refusedRedirect;    // where the server sent the reply, if refused
     };
     using RequestPtr = std::shared_ptr<Request>;
 
@@ -310,6 +309,13 @@ void ServerClient::enqueue(Method method, const QString &path, const QUrlQuery &
     }
 
     request->url = urlFor(request->values, path);
+    // The token goes only to the server it belongs to. A path can hold a full
+    // address, such as a URL passed on from an API response.
+    if (!sameOrigin(request->url, base)) {
+        answerLater(request, errorReply(ApiReply::Error::OtherServer,
+                                        ServerClients::tr("The address %1 is not on the configured server").arg(path)));
+        return;
+    }
     if (!query.isEmpty())
         request->url.setQuery(query);
     m_queue.push_back(request);
@@ -381,6 +387,9 @@ void ServerClient::send(const RequestPtr &request)
     network.setRawHeader("User-Agent", QByteArrayLiteral("Mirante/") + MIRANTE_VERSION);
     network.setTransferTimeout(kTransferTimeoutMs);
     m_type->authorize(network, *m_token, request->values);
+    // Qt keeps the token's header on a redirect, whatever the host, so each
+    // redirect is checked first. See decision 0123.
+    network.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::UserVerifiedRedirectPolicy);
 
     QNetworkReply *reply = nullptr;
     if (request->method == Method::Get) {
@@ -394,6 +403,15 @@ void ServerClient::send(const RequestPtr &request)
                                                : m_network->post(network, request->body);
     }
     m_running.insert(reply);
+    connect(reply, &QNetworkReply::redirected, this, [reply, request](const QUrl &target) {
+        const QUrl resolved = request->url.resolved(target);
+        if (sameOrigin(resolved, request->url)) {
+            emit reply->redirectAllowed();
+            return;
+        }
+        request->refusedRedirect = resolved;
+        reply->abort();
+    });
     connect(reply, &QNetworkReply::finished, this, [this, reply, request] { finished(reply, request); });
 }
 
@@ -401,6 +419,14 @@ void ServerClient::finished(QNetworkReply *reply, const RequestPtr &request)
 {
     m_running.erase(reply);
     reply->deleteLater();
+
+    if (request->refusedRedirect.isValid()) {
+        answer(request, errorReply(ApiReply::Error::OtherServer,
+                                   ServerClients::tr("The server redirected to %1, which is not the configured server")
+                                       .arg(request->refusedRedirect.toString(QUrl::RemoveUserInfo))));
+        pump();
+        return;
+    }
 
     const bool isGet = request->method == Method::Get;
 
@@ -554,23 +580,6 @@ void ServerClient::setFailing(bool failing)
         return;
     m_failing = failing;
     emit m_owner->failingChanged(m_profileId, m_moduleId);
-}
-
-bool ServerClient::authorize(QNetworkRequest &request)
-{
-    if (!m_tokenKnown) {
-        loadToken();
-        return false;
-    }
-    if (!m_token)
-        return false;
-    m_type->authorize(request, *m_token, values());
-    return true;
-}
-
-void ServerClient::secret(QObject *receiver, std::function<void(std::optional<QString>)> done)
-{
-    m_secrets->read(tokenKey(), receiver, std::move(done));
 }
 
 struct ServerClients::Private

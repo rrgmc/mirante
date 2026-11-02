@@ -28,9 +28,11 @@ class CellFrame : public QFrame
 
 public:
     // type is null for an empty cell. removed is set for a cell whose
-    // reference was deleted.
+    // reference was deleted. singleView makes the cell give way to another cell
+    // of the same item, as SingleViewTracker decides. The app never asks for
+    // it now, because no item type could; see docs/plans/m13-module-interface.md.
     CellFrame(const std::optional<CellRef> &ref, bool removed, const ItemType *type, const QString &itemName,
-              QWidget *parent = nullptr);
+              QWidget *parent = nullptr, bool singleView = false);
     ~CellFrame() override;
 
     std::optional<CellRef> ref() const;

@@ -3007,73 +3007,6 @@
     </message>
 </context>
 <context>
-    <name>mirante::FieldForm</name>
-    <message>
-        <source>Removed when you press OK. Type to set a new one.</source>
-        <translation>Removido quando você clicar em OK. Digite para definir um novo.</translation>
-    </message>
-    <message>
-        <source>Set on this device. Type to replace it.</source>
-        <translation>Definido neste dispositivo. Digite para substituí-lo.</translation>
-    </message>
-    <message>
-        <source>Not set on this device.</source>
-        <translation>Não definido neste dispositivo.</translation>
-    </message>
-    <message>
-        <source>Unknown folder (%1)</source>
-        <translation>Pasta desconhecida (%1)</translation>
-    </message>
-    <message>
-        <source>Unknown value (%1)</source>
-        <translation>Valor desconhecido (%1)</translation>
-    </message>
-    <message>
-        <source>No image</source>
-        <translation>Sem imagem</translation>
-    </message>
-    <message>
-        <source>Remove</source>
-        <translation>Remover</translation>
-    </message>
-    <message>
-        <source>Remove the token from this device when you press OK.</source>
-        <translation>Remover o token deste dispositivo ao clicar em OK.</translation>
-    </message>
-    <message>
-        <source>One entry per line.</source>
-        <translation>Uma entrada por linha.</translation>
-    </message>
-    <message>
-        <source>Paste</source>
-        <translation>Colar</translation>
-    </message>
-    <message>
-        <source>Choose file…</source>
-        <translation>Escolher arquivo…</translation>
-    </message>
-    <message>
-        <source>Image</source>
-        <translation>Imagem</translation>
-    </message>
-    <message>
-        <source>The image could not be saved.</source>
-        <translation>Não foi possível salvar a imagem.</translation>
-    </message>
-    <message>
-        <source>Choose image</source>
-        <translation>Escolher imagem</translation>
-    </message>
-    <message>
-        <source>Images (%1)</source>
-        <translation>Imagens (%1)</translation>
-    </message>
-    <message>
-        <source>The file is not an image that can be read.</source>
-        <translation>O arquivo não é uma imagem legível.</translation>
-    </message>
-</context>
-<context>
     <name>mirante::FocusView</name>
     <message>
         <source>All groups</source>
@@ -3157,33 +3090,6 @@
     <message>
         <source>A profile called &quot;%1&quot; already exists.</source>
         <translation>Já existe um perfil chamado &quot;%1&quot;.</translation>
-    </message>
-</context>
-<context>
-    <name>mirante::ImagePasteDialog</name>
-    <message>
-        <source>Paste Image</source>
-        <translation>Colar imagem</translation>
-    </message>
-    <message>
-        <source>Drag on the image to crop it.</source>
-        <translation>Arraste sobre a imagem para recortá-la.</translation>
-    </message>
-    <message>
-        <source>Whole Image</source>
-        <translation>Imagem inteira</translation>
-    </message>
-    <message>
-        <source>Paste</source>
-        <translation>Colar</translation>
-    </message>
-    <message>
-        <source>Crop: %1 × %2 of %3 × %4 pixels</source>
-        <translation>Recorte: %1 × %2 de %3 × %4 pixels</translation>
-    </message>
-    <message>
-        <source>%1 × %2 pixels</source>
-        <translation>%1 × %2 pixels</translation>
     </message>
 </context>
 <context>
@@ -4441,6 +4347,14 @@ Os dados são de %2.</translation>
 <context>
     <name>mirante::ServerClients</name>
     <message>
+        <source>The address %1 is not on the configured server</source>
+        <translation>O endereço %1 não está no servidor configurado</translation>
+    </message>
+    <message>
+        <source>The server redirected to %1, which is not the configured server</source>
+        <translation>O servidor redirecionou para %1, que não é o servidor configurado</translation>
+    </message>
+    <message>
         <source>No server set</source>
         <translation>Nenhum servidor definido</translation>
     </message>
@@ -4892,6 +4806,100 @@ Os dados são de %2.</translation>
     <message>
         <source>Send</source>
         <translation>Enviar</translation>
+    </message>
+</context>
+<context>
+    <name>mirante::widgets::FieldForm</name>
+    <message>
+        <source>Removed when you press OK. Type to set a new one.</source>
+        <translation>Removido quando você clicar em OK. Digite para definir um novo.</translation>
+    </message>
+    <message>
+        <source>Set on this device. Type to replace it.</source>
+        <translation>Definido neste dispositivo. Digite para substituí-lo.</translation>
+    </message>
+    <message>
+        <source>Not set on this device.</source>
+        <translation>Não definido neste dispositivo.</translation>
+    </message>
+    <message>
+        <source>Unknown folder (%1)</source>
+        <translation>Pasta desconhecida (%1)</translation>
+    </message>
+    <message>
+        <source>Unknown value (%1)</source>
+        <translation>Valor desconhecido (%1)</translation>
+    </message>
+    <message>
+        <source>No image</source>
+        <translation>Sem imagem</translation>
+    </message>
+    <message>
+        <source>Remove</source>
+        <translation>Remover</translation>
+    </message>
+    <message>
+        <source>Remove the token from this device when you press OK.</source>
+        <translation>Remover o token deste dispositivo ao clicar em OK.</translation>
+    </message>
+    <message>
+        <source>One entry per line.</source>
+        <translation>Uma entrada por linha.</translation>
+    </message>
+    <message>
+        <source>Paste</source>
+        <translation>Colar</translation>
+    </message>
+    <message>
+        <source>Choose file…</source>
+        <translation>Escolher arquivo…</translation>
+    </message>
+    <message>
+        <source>Image</source>
+        <translation>Imagem</translation>
+    </message>
+    <message>
+        <source>The image could not be saved.</source>
+        <translation>Não foi possível salvar a imagem.</translation>
+    </message>
+    <message>
+        <source>Choose image</source>
+        <translation>Escolher imagem</translation>
+    </message>
+    <message>
+        <source>Images (%1)</source>
+        <translation>Imagens (%1)</translation>
+    </message>
+    <message>
+        <source>The file is not an image that can be read.</source>
+        <translation>O arquivo não é uma imagem legível.</translation>
+    </message>
+</context>
+<context>
+    <name>mirante::widgets::ImagePasteDialog</name>
+    <message>
+        <source>Paste Image</source>
+        <translation>Colar imagem</translation>
+    </message>
+    <message>
+        <source>Drag on the image to crop it.</source>
+        <translation>Arraste sobre a imagem para recortá-la.</translation>
+    </message>
+    <message>
+        <source>Whole Image</source>
+        <translation>Imagem inteira</translation>
+    </message>
+    <message>
+        <source>Paste</source>
+        <translation>Colar</translation>
+    </message>
+    <message>
+        <source>Crop: %1 × %2 of %3 × %4 pixels</source>
+        <translation>Recorte: %1 × %2 de %3 × %4 pixels</translation>
+    </message>
+    <message>
+        <source>%1 × %2 pixels</source>
+        <translation>%1 × %2 pixels</translation>
     </message>
 </context>
 <context>

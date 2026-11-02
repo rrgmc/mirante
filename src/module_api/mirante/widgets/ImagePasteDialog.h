@@ -8,7 +8,7 @@
 class QLabel;
 class QPushButton;
 
-namespace mirante {
+namespace mirante::widgets {
 
 class ImageCropView;
 
@@ -52,4 +52,4 @@ private:
     QPushButton *m_accept = nullptr;
 };
 
-} // namespace mirante
+} // namespace mirante::widgets

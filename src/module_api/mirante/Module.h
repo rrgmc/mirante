@@ -82,6 +82,12 @@ public:
     // Image are refused. See docs/data-model.md#project.
     virtual void addProjectSetting(const Field &field) = 0;
 
+    // Replaces the form of the project dialog's section for this module. The
+    // editor gets the module's whole object in the project with setConfig(),
+    // and its config() is stored. The fields of addProjectSetting() stay the
+    // description of the data. A module sets it once. See decision 0122.
+    virtual void setProjectEditor(EditorFactory factory) = 0;
+
     // Takes ownership of a handler that reads text pasted into quick add.
     // Include <mirante/QuickAdd.h> to implement it. See
     // docs/modules.md#quick-add.
@@ -92,10 +98,15 @@ public:
 
     // A field kept on this device, never synced, such as the command that
     // opens an editor. The settings window edits it, and items read it with
-    // ItemContext::deviceSetting(). Fields of the types Text, Integer, Bool
-    // and Choice only; others are refused, as is a repeated key. See
-    // decision 0079.
+    // ItemContext::deviceSetting(). Fields of the types Secret, Folder and
+    // Image are refused, as is a repeated key. See decisions 0079 and 0122.
     virtual void addDeviceSetting(const Field &field) = 0;
+
+    // Replaces the form of the settings window's section for this module. The
+    // editor must emit ItemEditor::changed(), because the window saves as the
+    // user types. Only keys declared with addDeviceSetting() are stored. A
+    // module sets it once. See decision 0122.
+    virtual void setDeviceEditor(EditorFactory factory) = 0;
 };
 
 } // namespace mirante

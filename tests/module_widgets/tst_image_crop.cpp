@@ -2,8 +2,8 @@
 // preview and the image, handles, clamping), the view under the mouse, and
 // ImagePasteDialog: the size text, Whole Image, the cropped image at full
 // resolution, and Enter and Escape.
-#include "ui/ImageCropView.h"
-#include "ui/ImagePasteDialog.h"
+#include <mirante/widgets/ImageCropView.h>
+#include <mirante/widgets/ImagePasteDialog.h>
 
 #include <QLabel>
 #include <QPushButton>
@@ -12,6 +12,9 @@
 #include <QTimer>
 
 using namespace mirante;
+using namespace mirante::widgets;
+using mirante::widgets::ImageCropView;
+using mirante::widgets::ImagePasteDialog;
 using imagecrop::Handle;
 
 namespace {

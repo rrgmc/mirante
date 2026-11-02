@@ -126,6 +126,8 @@ Each file records one design decision: what was decided, what else was considere
 | [0119](0119-module-interface-versions-and-checks.md) | The module interface has a version, compatibility rules and checks | Accepted |
 | [0120](0120-fields-are-a-shortcut.md) | Declared fields are a shortcut, and every configuration screen can be custom | Accepted |
 | [0121](0121-modules-are-trusted-code.md) | Modules are trusted code, linked statically, without a sandbox | Accepted |
+| [0122](0122-custom-configuration-screens.md) | How a module gives a custom configuration screen | Accepted |
+| [0123](0123-tokens-stay-on-their-origin.md) | A token goes only to the origin of its server | Accepted |
 
 ## Template
 

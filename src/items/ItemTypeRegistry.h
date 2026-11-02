@@ -95,8 +95,10 @@ public:
     // The module's project settings, in the order it added them. Empty for
     // an unknown module. See ModuleRegistrar::addProjectSetting().
     std::vector<Field> projectSettings(const QString &moduleId) const;
-    // The ids of the modules with project settings, sorted.
+    // The ids of the modules with project settings or a project editor, sorted.
     QStringList projectSettingModules() const;
+    // What makes the module's own project editor, or null to use a form.
+    EditorFactory projectEditor(const QString &moduleId) const;
 
     // Quick add. See docs/modules.md#quick-add and decision 0078.
     struct ModuleHandler
@@ -117,8 +119,10 @@ public:
     // The module's device settings, in the order it added them. Empty for an
     // unknown module. See decision 0079.
     std::vector<Field> deviceSettings(const QString &moduleId) const;
-    // The ids of the modules with device settings, sorted.
+    // The ids of the modules with device settings or a device editor, sorted.
     QStringList deviceSettingModules() const;
+    // What makes the module's own device editor, or null to use a form.
+    EditorFactory deviceEditor(const QString &moduleId) const;
 
 private:
     struct Private;

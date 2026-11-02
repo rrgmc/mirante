@@ -4,7 +4,7 @@
 #include "../FolderView.h"
 
 #include <mirante/GitState.h>
-#include <mirante/ItemContext.h>
+#include <mirante/testing/FakeItemContext.h>
 #include <mirante/widgets/ActionRow.h>
 #include <mirante/widgets/SummaryView.h>
 
@@ -31,10 +31,14 @@ namespace {
 
 const QString kPath = QStringLiteral("C:/work/My Project");
 
-class FakeContext : public mirante::ItemContext
+class FakeContext : public mirante::testing::FakeItemContext
 {
 public:
-    QJsonObject itemConfig{{QStringLiteral("folder"), QStringLiteral("f1")}};
+    FakeContext()
+    {
+        itemConfig = QJsonObject{{QStringLiteral("folder"), QStringLiteral("f1")}};
+    }
+
     QHash<QString, QString> paths{{QStringLiteral("f1"), kPath}};
     QHash<QString, QString> pathsAfterMap;
     QJsonObject deviceSettings;
@@ -60,10 +64,6 @@ public:
     };
     QList<Read> reads;
 
-    QString itemName() const override { return QStringLiteral("Item"); }
-    QJsonObject config() const override { return itemConfig; }
-    QJsonValue projectSetting(const QString &) const override { return {}; }
-    QJsonObject moduleSettings(const QString &) const override { return {}; }
     QString folderPath(const QString &folderId) const override { return paths.value(folderId); }
     void mapFolder(const QString &folderId) override
     {
@@ -71,9 +71,6 @@ public:
         if (pathsAfterMap.contains(folderId))
             paths.insert(folderId, pathsAfterMap.value(folderId));
     }
-    QWidget *createWebView(const QUrl &, QWidget *) override { return nullptr; }
-    QWebEngineProfile *profile() override { return nullptr; }
-    QWidget *createMessageView(const QString &, QWidget *) override { return nullptr; }
     void updateConfig(const QJsonObject &) override {}
     QJsonValue deviceSetting(const QString &key) const override
     {

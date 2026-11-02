@@ -13,7 +13,7 @@ namespace mirante {
 // window colour as its background.
 //
 // Besides the model's own drags, a task row or its Items row takes an image
-// dropped from another app, as ImagePaste::imageFromMime() reads it, and
+// dropped from another app, as widgets::imageFromMime() reads it, and
 // tints that row while the image is over it. Other rows, and every row of
 // the Trash list, refuse it. See
 // docs/decisions/0085-drop-images-from-other-apps.md. The same rows take a

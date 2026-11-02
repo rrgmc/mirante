@@ -216,6 +216,10 @@ private slots:
     void tokenIsTrimmed();
     void noServerSendsNothing();
     void problemSendsNothing();
+    void otherOriginSendsNothing_data();
+    void otherOriginSendsNothing();
+    void otherOriginPostAndPutSendNothing();
+    void fullAddressOnTheServerIsSent();
     void noTokenSendsNothing();
     void fourAtATime();
     void etagServesKeptBody();
@@ -352,10 +356,6 @@ void TestServerClient::headersAndToken()
     QCOMPARE(header(sent, "Accept"), QByteArray("application/json"));
     QVERIFY(header(sent, "User-Agent").startsWith("Mirante/"));
     QCOMPARE(sent.request.transferTimeout(), 30000);
-
-    QNetworkRequest own;
-    QVERIFY(client()->authorize(own));
-    QCOMPARE(own.rawHeader("X-Token"), QByteArray("secret-1"));
 }
 
 void TestServerClient::tokenIsTrimmed()
@@ -384,6 +384,49 @@ void TestServerClient::problemSendsNothing()
     QVERIFY(m_network->sent.isEmpty());
 }
 
+void TestServerClient::otherOriginSendsNothing_data()
+{
+    QTest::addColumn<QString>("path");
+    QTest::newRow("another host") << QStringLiteral("https://other.example/x");
+    QTest::newRow("another scheme") << QStringLiteral("http://git.example/x");
+    QTest::newRow("another port") << QStringLiteral("https://git.example:8443/x");
+    QTest::newRow("a name read as a scheme") << QStringLiteral("foo:bar/x");
+}
+
+// See issue 14. The answer comes without a request.
+void TestServerClient::otherOriginSendsNothing()
+{
+    QFETCH(QString, path);
+    const ApiReply reply = getAndWait(path);
+    QCOMPARE(reply.error, ApiReply::Error::OtherServer);
+    QVERIFY(reply.message.contains(path));
+    QVERIFY(m_network->sent.isEmpty());
+    // It is the caller's mistake, so the server keeps working.
+    m_network->handler = [](const FakeNetwork::Sent &) { return Answer{200, "{}", {}}; };
+    QVERIFY(getAndWait(QStringLiteral("api/v4/user")).ok());
+}
+
+void TestServerClient::otherOriginPostAndPutSendNothing()
+{
+    int answers = 0;
+    const auto check = [&](const ApiReply &reply) {
+        QCOMPARE(reply.error, ApiReply::Error::OtherServer);
+        ++answers;
+    };
+    const QString path = QStringLiteral("https://other.example/x");
+    client()->post(path, QJsonDocument(QJsonObject()), this, check);
+    client()->put(path, QJsonDocument(QJsonObject()), this, check);
+    QTRY_COMPARE(answers, 2);
+    QVERIFY(m_network->sent.isEmpty());
+}
+
+void TestServerClient::fullAddressOnTheServerIsSent()
+{
+    m_network->handler = [](const FakeNetwork::Sent &) { return Answer{200, "{}", {}}; };
+    QVERIFY(getAndWait(QStringLiteral("https://git.example/x")).ok());
+    QCOMPARE(m_network->url(0), QStringLiteral("https://git.example/x"));
+}
+
 void TestServerClient::noTokenSendsNothing()
 {
     m_secrets->remove(key());
@@ -391,8 +434,6 @@ void TestServerClient::noTokenSendsNothing()
     const ApiReply reply = getAndWait(QStringLiteral("api/v4/user"));
     QCOMPARE(reply.error, ApiReply::Error::NoToken);
     QVERIFY(m_network->sent.isEmpty());
-    QNetworkRequest own;
-    QVERIFY(!client()->authorize(own));
 }
 
 void TestServerClient::fourAtATime()

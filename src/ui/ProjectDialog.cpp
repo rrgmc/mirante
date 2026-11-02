@@ -3,8 +3,9 @@
 #include "core/DeviceSettings.h"
 #include "core/Edits.h"
 #include "core/Model.h"
+#include "core/Profiles.h"
 #include "items/ItemTypeRegistry.h"
-#include "ui/FieldForm.h"
+#include <mirante/widgets/FieldForm.h>
 
 #include <QComboBox>
 #include <QDialogButtonBox>
@@ -26,6 +27,8 @@
 #include <algorithm>
 
 namespace mirante {
+
+using widgets::FieldForm;
 
 namespace {
 
@@ -57,6 +60,7 @@ struct ProjectDialog::Private
     };
 
     ProjectDialog *q = nullptr;
+    const Model *model = nullptr;
     Project project;
     std::vector<Row> rows;
     bool filling = false;   // true while the table is rebuilt, to ignore its signals
@@ -76,11 +80,18 @@ struct ProjectDialog::Private
         QString moduleName;
         std::vector<Field> fields;
         QGroupBox *box = nullptr;
-        FieldForm *form = nullptr;
+        ItemEditor *editor = nullptr;   // the module's own, or else a form
         bool shown = false;
     };
     std::vector<Section> sections;
     QPushButton *addSettings = nullptr;     // its menu lists the sections not shown
+
+    // The profile a project in the chosen group uses.
+    QString groupProfile() const
+    {
+        const Group *chosen = model->group(group->currentData().toString());
+        return chosen ? profiles::groupDefault(*model, *chosen) : model->defaultProfile();
+    }
 
     // "Add settings": shows the section, and takes its entry out of the menu.
     void showSection(const QString &moduleId, QAction *entry)
@@ -236,11 +247,12 @@ struct ProjectDialog::Private
 };
 
 ProjectDialog::ProjectDialog(const Project &project, const Model &model, const DeviceSettings &settings,
-                             const ItemTypeRegistry &types, QWidget *parent)
+                             const ItemTypeRegistry &types, EditorContext context, QWidget *parent)
     : QDialog(parent)
     , d(std::make_unique<Private>())
 {
     d->q = this;
+    d->model = &model;
     d->project = project;
     for (const Folder &folder : project.folders)
         d->rows.push_back({folder, settings.folderPath(folder.id)});
@@ -314,6 +326,7 @@ ProjectDialog::ProjectDialog(const Project &project, const Model &model, const D
     // d->project.
     auto *sections = new QVBoxLayout;
     auto *addMenu = new QMenu(this);
+    context.profileId = d->groupProfile();
     for (const QString &moduleId : types.projectSettingModules()) {
         Private::Section section;
         section.moduleId = moduleId;
@@ -324,11 +337,14 @@ ProjectDialog::ProjectDialog(const Project &project, const Model &model, const D
         // The macOS style leaves the title out of the box's layout rectangle,
         // so the title overlaps the widget above it.
         box->setAttribute(Qt::WA_LayoutUsesWidgetRect);
-        section.form = new FieldForm(section.fields, EditorContext(), box);
-        section.form->setObjectName(QStringLiteral("moduleSettings.") + moduleId);
-        section.form->setConfig(project.moduleSettings.value(moduleId).toObject());
+        const EditorFactory factory = types.projectEditor(moduleId);
+        section.editor = factory ? factory(context, box) : nullptr;
+        if (!section.editor)
+            section.editor = new FieldForm(section.fields, EditorContext(), box);
+        section.editor->setObjectName(QStringLiteral("moduleSettings.") + moduleId);
+        section.editor->setConfig(project.moduleSettings.value(moduleId).toObject());
         auto *boxLayout = new QVBoxLayout(box);
-        boxLayout->addWidget(section.form);
+        boxLayout->addWidget(section.editor);
         sections->addWidget(box);
         section.box = box;
         section.shown = !project.moduleSettings.value(moduleId).toObject().isEmpty();
@@ -354,6 +370,10 @@ ProjectDialog::ProjectDialog(const Project &project, const Model &model, const D
     connect(addFolder, &QPushButton::clicked, this, [this] { d->addFolder(); });
     connect(d->removeFolder, &QPushButton::clicked, this, [this] { d->removeCurrentFolder(); });
     connect(d->folders, &QTableWidget::cellChanged, this, [this](int row, int column) { d->cellChanged(row, column); });
+    connect(d->group, &QComboBox::currentIndexChanged, this, [this] {
+        for (const Private::Section &section : d->sections)
+            section.editor->setProfile(d->groupProfile());
+    });
 
     auto *layout = new QVBoxLayout(this);
     layout->addLayout(form, 1);
@@ -368,8 +388,9 @@ ProjectDialog::ProjectDialog(const Project &project, const Model &model, const D
 
 ProjectDialog::~ProjectDialog()
 {
-    // The table outlives d, so its signals must not reach it.
+    // The table and the group list outlive d, so their signals must not reach it.
     d->folders->disconnect(this);
+    d->group->disconnect(this);
 }
 
 Project ProjectDialog::value() const
@@ -386,9 +407,9 @@ Project ProjectDialog::value() const
     for (const Private::Section &section : d->sections) {
         if (!section.shown)
             continue;
-        // The form keeps the keys it does not show. Of those it shows, an
+        // The editor keeps the keys it does not show. Of the declared fields, an
         // empty value removes its key, and an empty module object goes.
-        QJsonObject values = section.form->config();
+        QJsonObject values = section.editor->config();
         for (const Field &field : section.fields) {
             if (isEmptyValue(values.value(field.key)))
                 values.remove(field.key);
@@ -434,7 +455,7 @@ void ProjectDialog::accept()
         for (const Private::Section &section : d->sections) {
             if (!section.shown)
                 continue;
-            for (const QString &message : section.form->problems())
+            for (const QString &message : section.editor->problems())
                 problems << tr("%1: %2").arg(section.moduleName, message);
         }
         problem = problems.join(QLatin1Char('\n'));

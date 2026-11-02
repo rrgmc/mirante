@@ -64,7 +64,7 @@ All changes go through `Model` methods. Views never change entities directly. `S
 
 | Class | Responsibility |
 |---|---|
-| `LayoutView` | Builds widgets from a tree: `QSplitter` for splits, `QTabWidget` for tabs, `CellFrame` for cells. It updates the widgets in place when the tree changes, without rebuilding everything. After the whole view moves to another window, `remakeUnsafeCells()` makes again the cells whose type is not `reparentSafe`. |
+| `LayoutView` | Builds widgets from a tree: `QSplitter` for splits, `QTabWidget` for tabs, `CellFrame` for cells. It updates the widgets in place when the tree changes, without rebuilding everything. After the whole view moves to another window, `remakeUnsafeCells()` makes again the cells that `CellFactory::canReparent()` refuses. The app's factory refuses none, and no cell asks for a single view, since M13 removed the two `ItemType` flags. The code stays so they are easy to bring back. |
 | `CellFrame` | Cell header and body. The header holds the type pill, the item name, a widget of the view such as a web toolbar, the menu button and the maximise button. The body is a placeholder until `DashboardCellFactory` gives it a `Placement`. |
 | `DashboardCellFactory` | Makes the cells of real dashboards. An item cell gets a `Placement` as its body when `LayoutServices::placements` is set, and a maximise button when `LayoutServices::toggleMaximised` is set. The cell of an item whose type has a `pastedImageField` takes images dropped from other apps when `LayoutServices::readImageDrop` and `dropImage` are set. |
 | `DropOverlay` | Shows the five drop zones while dragging, and returns where the drop lands |
@@ -77,7 +77,7 @@ The same `LayoutView` shows task dashboards and root dashboards. A task cell ins
 
 | Class | Responsibility |
 |---|---|
-| `ItemType` | Interface: id, name, icon, fields, rendering, status, actions, `fromUrl`, `createView`, and the view flags `singleView` and `reparentSafe`. See [the view](item-types.md#the-view). |
+| `ItemType` | Interface: id, name, icon, fields, rendering, status, actions, `fromUrl` and `createView`. See [the view](item-types.md#the-view). |
 | `ItemTypeRegistry` | Holds all types, finds a type by id, and finds the type that recognises a pasted URL. It knows which module is built in. It also holds each module's name, settings screens, device settings, quick add handlers and related-item finders, and gives each module a `ModuleSettings` that reads the model through a reader set in `main.cpp`. |
 | `ModuleRegistrar` | Receives what each module registers: item types, its name, settings screens, settings, quick add handlers, related-item finders. See [modules](modules.md#what-a-module-registers). |
 | `ItemContext` | What an item's code can reach: settings, module settings, status, profile, folders, terminal. See [modules](modules.md#item-context). |
@@ -138,7 +138,7 @@ Code that differs per platform lives only here, behind these classes.
 | `FocusView` | The [Focus](ui.md#focus-view) list |
 | `ConflictBar` | One line for each conflict copy, with "Keep current", "Use other" and "Compare". See [sync](sync.md#conflict-copies). |
 | `ImagePaste` | Pastes an image from the clipboard into an image item, or as a new item of a task, on no dashboard. See [image](item-types.md#image). |
-| `ImagePasteDialog` | The paste dialog: a preview of a pasted image, with an `ImageCropView` to crop it. See [pasting images](ui.md#pasting-images). |
+| `ImagePasteDialog` | The paste dialog: a preview of a pasted image, with an `ImageCropView` to crop it, in the [view kit](modules.md#the-view-kit). See [pasting images](ui.md#pasting-images). |
 | `QuickSwitcher` | `Ctrl+K` fuzzy search |
 | `QuickAddDialog` | The [quick add](ui.md#quick-add) dialog. It shows what a `QuickAddRun` proposes and finds, and creates the task, "New Task from Link". Opened for a task, it adds the items to that task, "Add Items from Link". See decisions [0078](decisions/0078-quick-add-dialog.md) and [0083](decisions/0083-quick-add-into-a-task.md). |
 | `DashboardPage` | One tab's or slot's page: a `LayoutView` of one dashboard with its cell factory, or the Focus list. A detached window holds one too. |

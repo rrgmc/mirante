@@ -10,7 +10,6 @@
 #include <QUrlQuery>
 
 #include <functional>
-#include <optional>
 
 class QNetworkRequest;
 class QObject;
@@ -61,6 +60,9 @@ struct ApiReply
         Http,       // any other status of 400 or more
         Network,    // no answer: DNS, TLS, timeout, offline
         Paused,     // the server is failing; nothing was sent
+        // The address, or a redirect, is on another origin than the base URL.
+        // Nothing was sent there, so the token stays with its server.
+        OtherServer,
     };
 
     Error error = Error::None;
@@ -107,15 +109,6 @@ public:
     // Like post(), for an API that changes an object with PUT.
     virtual void put(const QString &path, const QJsonDocument &body, QObject *receiver,
                      std::function<void(const ApiReply &)> done) = 0;
-
-    // Adds the authentication to a request the module makes itself. False if
-    // the token is not loaded yet or not set. Prefer get() and post().
-    virtual bool authorize(QNetworkRequest &request) = 0;
-
-    // The raw token, loaded from the keychain if needed. Use it only where a
-    // request is not enough, such as passing the token to a command. Each
-    // call needs a comment that says why authorize() does not work there.
-    virtual void secret(QObject *receiver, std::function<void(std::optional<QString>)> done) = 0;
 };
 
 } // namespace mirante

@@ -1,6 +1,6 @@
 // Registers the web module into a fresh registry and checks its types.
-#include "items/FieldValidation.h"
-#include "items/ItemTypeRegistry.h"
+#include <mirante/FieldValidation.h>
+#include <mirante/testing/TestRegistrar.h>
 
 #include <QIcon>
 #include <QPixmap>
@@ -17,7 +17,7 @@ class TestRegister : public QObject
 private slots:
     void registersTypes()
     {
-        mirante::ItemTypeRegistry registry;
+        mirante::testing::TestRegistrar registry;
         registry.registerModule(QStringLiteral("web"), &mirante::modules::web::registerModule);
 
         QStringList ids;
@@ -30,7 +30,7 @@ private slots:
 
     void iconsRender()
     {
-        mirante::ItemTypeRegistry registry;
+        mirante::testing::TestRegistrar registry;
         registry.registerModule(QStringLiteral("web"), &mirante::modules::web::registerModule);
 
         for (const mirante::ItemType *type : registry.types()) {
@@ -41,7 +41,7 @@ private slots:
     }
     void fieldKeys()
     {
-        mirante::ItemTypeRegistry registry;
+        mirante::testing::TestRegistrar registry;
         registry.registerModule(QStringLiteral("web"), &mirante::modules::web::registerModule);
 
         QMap<QString, QStringList> expected;
@@ -61,7 +61,7 @@ private slots:
     // validate, except that each required field without a default is reported.
     void fieldsValidateTheirDefaults()
     {
-        mirante::ItemTypeRegistry registry;
+        mirante::testing::TestRegistrar registry;
         registry.registerModule(QStringLiteral("web"), &mirante::modules::web::registerModule);
 
         for (const mirante::ItemType *type : registry.types()) {
@@ -93,7 +93,7 @@ private slots:
     // Help > Modules. See docs/decisions/0056-modules-window.md.
     void namesAndDescriptions()
     {
-        mirante::ItemTypeRegistry registry;
+        mirante::testing::TestRegistrar registry;
         registry.registerModule(QStringLiteral("web"), &mirante::modules::web::registerModule);
 
         QCOMPARE(registry.moduleName(QStringLiteral("web")), QStringLiteral("Web"));
@@ -106,7 +106,7 @@ private slots:
     // Modules. See docs/decisions/0089-module-identity.md.
     void identity()
     {
-        mirante::ItemTypeRegistry registry;
+        mirante::testing::TestRegistrar registry;
         registry.registerModule(QStringLiteral("web"), &mirante::modules::web::registerModule);
 
         const QString id = QStringLiteral("web");

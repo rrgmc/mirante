@@ -20,7 +20,7 @@ public:
     virtual QWidget *createCell(const std::optional<CellRef> &ref, bool removed, QWidget *parent) = 0;
 
     // False if the widget for ref must be made again instead of being moved to
-    // another parent. See ItemType::reparentSafe().
+    // another parent. The app's factory never says so now.
     virtual bool canReparent(const std::optional<CellRef> &) const { return true; }
 };
 

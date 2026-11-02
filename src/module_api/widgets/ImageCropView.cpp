@@ -1,4 +1,4 @@
-#include "ui/ImageCropView.h"
+#include <mirante/widgets/ImageCropView.h>
 
 #include <QMouseEvent>
 #include <QPainter>
@@ -7,7 +7,7 @@
 #include <algorithm>
 #include <cmath>
 
-namespace mirante {
+namespace mirante::widgets {
 
 namespace imagecrop {
 
@@ -329,4 +329,4 @@ void ImageCropView::updateCursor(const QPointF &point)
     setCursor(cursorFor(imagecrop::handleAt(cropInView(), point, grabDistance)));
 }
 
-} // namespace mirante
+} // namespace mirante::widgets

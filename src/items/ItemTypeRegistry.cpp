@@ -1,6 +1,6 @@
 #include "items/ItemTypeRegistry.h"
 
-#include "items/ItemTypeIds.h"
+#include <mirante/ModuleIds.h>
 #include "items/UnknownItemType.h"
 
 #include <mirante/QuickAdd.h>
@@ -56,6 +56,8 @@ struct ItemTypeRegistry::Private
         std::vector<std::unique_ptr<QuickAddHandler>> handlers;
         std::vector<std::unique_ptr<RelatedItemFinder>> finders;
         std::vector<Field> deviceSettings;
+        EditorFactory projectEditor;
+        EditorFactory deviceEditor;
         bool builtIn = false;
     };
 
@@ -116,8 +118,7 @@ void ItemTypeRegistry::Private::addProjectSetting(const QString &moduleId, const
     QString problem;
     if (field.key.isEmpty())
         problem = QStringLiteral("has no key");
-    else if (field.type == Field::Type::Secret || field.type == Field::Type::Folder
-             || field.type == Field::Type::Image)
+    else if (!projectSettingTakes(field.type))
         problem = QStringLiteral("has a type that project settings do not take");
     Module &module = modules[moduleId];
     if (problem.isEmpty()) {
@@ -137,12 +138,12 @@ void ItemTypeRegistry::Private::addProjectSetting(const QString &moduleId, const
 void ItemTypeRegistry::Private::addDeviceSetting(const QString &moduleId, const Field &field)
 {
     // As for project settings, a field the settings window cannot show is
-    // left out with a warning. See decision 0079.
+    // left out with a warning. A device has no profile or folders. See
+    // decisions 0079 and 0122.
     QString problem;
     if (field.key.isEmpty())
         problem = QStringLiteral("has no key");
-    else if (field.type != Field::Type::Text && field.type != Field::Type::Integer
-             && field.type != Field::Type::Bool && field.type != Field::Type::Choice)
+    else if (!deviceSettingTakes(field.type))
         problem = QStringLiteral("has a type that device settings do not take");
     Module &module = modules[moduleId];
     if (problem.isEmpty()) {
@@ -268,7 +269,26 @@ void ItemTypeRegistry::registerModule(const QString &moduleId, RegisterFunction 
 
         void addDeviceSetting(const Field &field) override { m_registry.addDeviceSetting(m_moduleId, field); }
 
+        void setProjectEditor(EditorFactory factory) override
+        {
+            setEditor(m_registry.modules[m_moduleId].projectEditor, std::move(factory), "project");
+        }
+
+        void setDeviceEditor(EditorFactory factory) override
+        {
+            setEditor(m_registry.modules[m_moduleId].deviceEditor, std::move(factory), "device");
+        }
+
     private:
+        void setEditor(EditorFactory &slot, EditorFactory factory, const char *kind)
+        {
+            if (!factory)
+                qFatal("Module %s set a null %s editor", qUtf8Printable(m_moduleId), kind);
+            if (slot)
+                qFatal("Module %s set its %s editor twice", qUtf8Printable(m_moduleId), kind);
+            slot = std::move(factory);
+        }
+
         Private &m_registry;
         QString m_moduleId;
     };
@@ -444,10 +464,16 @@ QStringList ItemTypeRegistry::projectSettingModules() const
 {
     QStringList ids;
     for (const auto &entry : d->modules) {
-        if (!entry.second.projectSettings.empty())
+        if (!entry.second.projectSettings.empty() || entry.second.projectEditor)
             ids << entry.first;
     }
     return ids;
+}
+
+EditorFactory ItemTypeRegistry::projectEditor(const QString &moduleId) const
+{
+    const auto found = d->modules.find(moduleId);
+    return found == d->modules.end() ? EditorFactory() : found->second.projectEditor;
 }
 
 std::vector<ItemTypeRegistry::ModuleHandler> ItemTypeRegistry::quickAddHandlers() const
@@ -480,10 +506,16 @@ QStringList ItemTypeRegistry::deviceSettingModules() const
 {
     QStringList ids;
     for (const auto &entry : d->modules) {
-        if (!entry.second.deviceSettings.empty())
+        if (!entry.second.deviceSettings.empty() || entry.second.deviceEditor)
             ids << entry.first;
     }
     return ids;
+}
+
+EditorFactory ItemTypeRegistry::deviceEditor(const QString &moduleId) const
+{
+    const auto found = d->modules.find(moduleId);
+    return found == d->modules.end() ? EditorFactory() : found->second.deviceEditor;
 }
 
 } // namespace mirante

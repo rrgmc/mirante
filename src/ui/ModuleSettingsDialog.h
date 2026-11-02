@@ -23,17 +23,19 @@ class ModuleSettingsDialog : public QDialog
 public:
     // The title names the profile, the module and the screen, such as
     // "Default: GitLab General Configuration". values are the screen's stored
-    // values in that profile. A field the values lack shows its default.
+    // values in that profile. A field the values lack shows its default. The
+    // screen's editor gets context, which names the profile.
     ModuleSettingsDialog(const QString &profileName, const QString &moduleName, const SettingsScreen &screen,
-                         const QJsonObject &values, QWidget *parent = nullptr);
+                         const QJsonObject &values, const EditorContext &context = EditorContext(),
+                         QWidget *parent = nullptr);
     ~ModuleSettingsDialog() override;
 
     // The edited values; keys the editor does not show as given.
     QJsonObject values() const;
 
-    // The secrets typed into the form's Secret fields, such as a token, by
-    // field key. They are never part of values(); the caller keeps them in
-    // the keychain. See decision 0054.
+    // The secrets typed into the editor, such as a token, by field key. They
+    // are never part of values(); the caller keeps them in the keychain. See
+    // decision 0054.
     QJsonObject secrets() const;
 
     ItemEditor *editor() const;   // for tests

@@ -12,13 +12,12 @@
 #     SOURCES   <files...>
 #     TESTS     <files...>
 #     RESOURCES <files...>
-#     DEPENDS   <module ids...>
+#     DEPENDS   <module ids...>     links them and makes their headers available
 #     QT_LIBS   <Qt components...>
 #     DEFAULT   ON|OFF)
 #
-# QT_LIBS links further Qt components, such as WebEngineWidgets for a module
-# that builds its own web view from ItemContext::profile(). See
-# docs/decisions/0037-core-makes-web-views.md.
+# QT_LIBS links further Qt components, such as PdfWidgets for the document
+# module.
 function(mirante_add_module id)
     cmake_parse_arguments(ARG "" "DEFAULT" "SOURCES;TESTS;RESOURCES;DEPENDS;QT_LIBS" ${ARGN})
     if(ARG_UNPARSED_ARGUMENTS)
@@ -69,6 +68,10 @@ function(mirante_add_module id)
     # Only the module interface and Qt. src/ is never on the include path, so a
     # module cannot include core headers.
     set(target mirante_module_${id})
+    # What a module that lists this one in DEPENDS gets: its folder on the
+    # include path. mirante_finish_modules() links it. The app does not get it.
+    add_library(${target}_headers INTERFACE)
+    target_include_directories(${target}_headers INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}")
     add_library(${target} STATIC ${ARG_SOURCES})
     target_link_libraries(${target} PUBLIC mirante::module_api Qt6::Core Qt6::Gui Qt6::Widgets)
     foreach(qt_lib IN LISTS ARG_QT_LIBS)
@@ -93,7 +96,7 @@ function(mirante_add_module id)
         get_filename_component(test_name "${test_source}" NAME_WE)
         mirante_add_test(module_${id}_${test_name}
             SOURCES "${test_source}"
-            LIBS ${target} mirante_items mirante::module_api_testing
+            LIBS ${target} mirante::module_api_testing
             PCH_FROM ${pch_from})
         if(NOT pch_from)
             set(pch_from "module_${id}_${test_name}")
@@ -129,12 +132,16 @@ function(mirante_finish_modules target)
                 message(FATAL_ERROR "Module ${id} depends on the module ${dependency}, which is disabled. "
                     "Enable ${dependency} or disable ${id}.")
             endif()
+            # After the check, since the modules' folders are added in any order.
+            target_link_libraries(mirante_module_${id} PUBLIC
+                mirante_module_${dependency} mirante_module_${dependency}_headers)
         endforeach()
     endforeach()
 
     list(SORT enabled)
     set(MIRANTE_MODULE_DECLARATIONS "")
     set(MIRANTE_MODULE_CALLS "")
+    set(MIRANTE_MODULE_REFERENCES "")
     set(ids "")
     foreach(id IN LISTS enabled)
         string(APPEND MIRANTE_MODULE_DECLARATIONS
@@ -143,6 +150,8 @@ function(mirante_finish_modules target)
             "}\n")
         string(APPEND MIRANTE_MODULE_CALLS
             "    registry.registerModule(QStringLiteral(\"${id}\"), &mirante::modules::${id}::registerModule);\n")
+        string(APPEND MIRANTE_MODULE_REFERENCES
+            "    reinterpret_cast<void *>(&mirante::modules::${id}::registerModule),\n")
         list(APPEND ids "QStringLiteral(\"${id}\")")
         target_link_libraries(${target} PRIVATE mirante_module_${id})
     endforeach()

@@ -1,8 +1,8 @@
 // Tests FieldForm: one editor per field type, reading back an unchanged
 // configuration, keeping keys it does not show, edits, problems, images,
 // pasted or dropped from another app, and the state of Secret fields.
-#include "ui/FieldForm.h"
-#include "ui/ImagePasteDialog.h"
+#include <mirante/widgets/FieldForm.h>
+#include <mirante/widgets/ImagePasteDialog.h>
 
 #include <QApplication>
 #include <QCheckBox>
@@ -19,11 +19,16 @@
 #include <QMimeData>
 #include <QPlainTextEdit>
 #include <QPushButton>
+#include <QFormLayout>
+#include <QGroupBox>
+#include <QRegularExpression>
 #include <QSignalSpy>
 #include <QSpinBox>
 #include <QTest>
 
 using namespace mirante;
+using mirante::widgets::FieldForm;
+using mirante::widgets::ImagePasteDialog;
 
 namespace {
 
@@ -54,6 +59,28 @@ std::vector<Field> allFields()
         field(QStringLiteral("file"), QStringLiteral("Image"), Field::Type::Image),
     };
 }
+
+// A line that upper-cases what it stores, and refuses "bad".
+class ShoutEditor : public mirante::widgets::FieldEditor
+{
+public:
+    explicit ShoutEditor(QWidget *parent = nullptr)
+        : FieldEditor(parent)
+        , line(new QLineEdit(this))
+    {
+        connect(line, &QLineEdit::textEdited, this, &FieldEditor::changed);
+    }
+    void setValue(const QJsonValue &value) override { line->setText(value.toString().toLower()); }
+    QJsonValue value() const override
+    {
+        return line->text().isEmpty() ? QJsonValue(QJsonValue::Undefined) : QJsonValue(line->text().toUpper());
+    }
+    QStringList problems() const override
+    {
+        return line->text() == QLatin1String("bad") ? QStringList{QStringLiteral("Bad.")} : QStringList();
+    }
+    QLineEdit *line;
+};
 
 EditorContext context(QStringList *saved = nullptr)
 {
@@ -319,7 +346,7 @@ private slots:
         QCOMPARE(dragAndDrop(editor->findChild<QPushButton *>(QStringLiteral("pasteImage")), &mime), Qt::CopyAction);
         // The dialog opens once the drop is over.
         QVERIFY(dialogs.isEmpty());
-        QTRY_COMPARE(dialogs, QStringList{QStringLiteral("mirante::ImagePasteDialog")});
+        QTRY_COMPARE(dialogs, QStringList{QStringLiteral("mirante::widgets::ImagePasteDialog")});
         QCOMPARE(saved, QStringList{QStringLiteral("dropped.png")});
         QCOMPARE(savedSize, QSize(10, 20));
         QCOMPARE(form.config().value(QStringLiteral("file")).toString(), QStringLiteral("dropped.png"));
@@ -477,6 +504,106 @@ private slots:
         QCOMPARE(form.removedSecrets(), QStringList());
         QVERIFY(remove->isEnabled());
         QCOMPARE(line->placeholderText(), QStringLiteral("Set on this device. Type to replace it."));
+    }
+
+    // One field has a module's own editor, and the rest stay automatic.
+    void customFieldEditor()
+    {
+        Field required = field(QStringLiteral("name"), QStringLiteral("Name"), Field::Type::Text, true);
+        FieldForm form({required, field(QStringLiteral("other"), QStringLiteral("Other"), Field::Type::Text)},
+                       context());
+        form.setConfig({{QStringLiteral("name"), QStringLiteral("ANN")}, {QStringLiteral("keep"), 1}});
+        auto *shout = new ShoutEditor;
+        form.setFieldEditor(QStringLiteral("name"), shout);
+
+        QCOMPARE(form.editorFor(QStringLiteral("name")), shout);
+        QVERIFY(qobject_cast<QLineEdit *>(form.editorFor(QStringLiteral("other"))));
+        QCOMPARE(shout->line->text(), QStringLiteral("ann"));
+        // An untouched value is kept as stored, even one the editor changes.
+        QCOMPARE(form.config().value(QStringLiteral("name")).toString(), QStringLiteral("ANN"));
+
+        QSignalSpy changed(&form, &ItemEditor::changed);
+        QTest::keyClicks(shout->line, QStringLiteral("a"));
+        QCOMPARE(changed.count(), 1);
+        QCOMPARE(form.config().value(QStringLiteral("name")).toString(), QStringLiteral("ANNA"));
+        QCOMPARE(form.config().value(QStringLiteral("keep")).toInt(), 1);
+
+        // The field's own rules still apply, and so do the editor's.
+        QVERIFY(form.problems().isEmpty());
+        shout->line->setText(QStringLiteral("bad"));
+        QCOMPARE(form.problems(), QStringList{QStringLiteral("Bad.")});
+        shout->line->clear();
+        emit shout->changed();
+        QCOMPARE(form.problems().size(), 1);
+        QVERIFY(form.problems().constFirst().contains(QStringLiteral("Name")));
+
+        // setConfig() reaches it, without counting as an edit.
+        changed.clear();
+        form.setConfig({{QStringLiteral("name"), QStringLiteral("BOB")}});
+        QCOMPARE(shout->line->text(), QStringLiteral("bob"));
+        QCOMPARE(changed.count(), 0);
+    }
+
+    void customFieldEditorRefused()
+    {
+        FieldForm form({field(QStringLiteral("token"), QStringLiteral("Token"), Field::Type::Secret)}, context());
+        QWidget *before = form.editorFor(QStringLiteral("token"));
+
+        QTest::ignoreMessage(QtWarningMsg, QRegularExpression(QStringLiteral("is a Secret field")));
+        form.setFieldEditor(QStringLiteral("token"), new ShoutEditor);
+        QCOMPARE(form.editorFor(QStringLiteral("token")), before);
+
+        QTest::ignoreMessage(QtWarningMsg, QRegularExpression(QStringLiteral("no field")));
+        form.setFieldEditor(QStringLiteral("nothing"), new ShoutEditor);
+        QVERIFY(!form.editorFor(QStringLiteral("nothing")));
+    }
+
+    // An image field's box goes too, and a group keeps its place.
+    void customFieldEditorInAGroup()
+    {
+        Field image = field(QStringLiteral("file"), QStringLiteral("Image"), Field::Type::Image);
+        image.group = QStringLiteral("Look");
+        FieldForm form({image}, context());
+        auto *shout = new ShoutEditor;
+        form.setFieldEditor(QStringLiteral("file"), shout);
+        auto *box = form.findChild<QGroupBox *>(QStringLiteral("group.Look"));
+        QVERIFY(box);
+        QVERIFY(box->layout()->indexOf(shout) >= 0);
+        QVERIFY(!form.findChild<QPushButton *>(QStringLiteral("pasteImage")));
+    }
+
+    void helpAndGroups()
+    {
+        Field plain = field(QStringLiteral("plain"), QStringLiteral("Plain"), Field::Type::Text);
+        plain.help = QStringLiteral("Plain help");
+        Field first = field(QStringLiteral("first"), QStringLiteral("First"), Field::Type::Text);
+        first.group = QStringLiteral("One");
+        Field second = field(QStringLiteral("second"), QStringLiteral("Second"), Field::Type::Text);
+        second.group = QStringLiteral("Two");
+        Field third = field(QStringLiteral("third"), QStringLiteral("Third"), Field::Type::Text);
+        third.group = QStringLiteral("One");
+        Field last = field(QStringLiteral("last"), QStringLiteral("Last"), Field::Type::Text);
+        FieldForm form({first, plain, second, third, last}, context());
+
+        QCOMPARE(form.findChild<QLabel *>(QStringLiteral("help.plain"))->text(), QStringLiteral("Plain help"));
+        QVERIFY(!form.findChild<QLabel *>(QStringLiteral("help.first")));
+
+        auto *one = form.findChild<QGroupBox *>(QStringLiteral("group.One"));
+        auto *two = form.findChild<QGroupBox *>(QStringLiteral("group.Two"));
+        QVERIFY(one && two);
+        QCOMPARE(one->title(), QStringLiteral("One"));
+        QVERIFY(one->layout()->indexOf(form.editorFor(QStringLiteral("first"))) >= 0);
+        QVERIFY(one->layout()->indexOf(form.editorFor(QStringLiteral("third"))) >= 0);
+        QVERIFY(two->layout()->indexOf(form.editorFor(QStringLiteral("second"))) >= 0);
+
+        // Fields without a group come first, then the groups in order.
+        auto *layout = qobject_cast<QFormLayout *>(form.layout());
+        QVERIFY(layout->indexOf(form.editorFor(QStringLiteral("last"))) < layout->indexOf(one));
+        QVERIFY(layout->indexOf(one) < layout->indexOf(two));
+
+        // A group changes no keys.
+        qobject_cast<QLineEdit *>(form.editorFor(QStringLiteral("third")))->setText(QStringLiteral("x"));
+        QCOMPARE(form.config(), (QJsonObject{{QStringLiteral("third"), QStringLiteral("x")}}));
     }
 };
 

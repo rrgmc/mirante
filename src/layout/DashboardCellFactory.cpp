@@ -142,13 +142,4 @@ QWidget *DashboardCellFactory::createCell(const std::optional<CellRef> &ref, boo
     return frame;
 }
 
-bool DashboardCellFactory::canReparent(const std::optional<CellRef> &ref) const
-{
-    if (!ref)
-        return true;
-    const Item *item = d->item(*ref);
-    const ItemType *type = item ? d->type(*item) : nullptr;
-    return type ? type->reparentSafe() : true;
-}
-
 } // namespace mirante

@@ -38,6 +38,8 @@ A module may add more folders inside its own folder. It never adds files outside
 ## Ids
 
 - A module id is lowercase letters and digits only, such as `gitlab`.
+- A third-party module id starts with its owner's name, which keeps two authors' modules from clashing: `acmetickets` for the module `tickets` of the owner `acme`. Use your GitHub name or your organisation's, in lowercase without separators. The ids of the first-party modules in [the table above](#the-modules) are reserved, and a third-party module does not take a short name like them.
+- An id is stored in users' data, in their items and their settings, so it never changes. Renaming a module means their items show as a missing module.
 - Every id a module registers is the module id, or starts with the module id and a dot. This applies to item types (`gitlab.mr.summary`) and settings.
 - The prefix `dash` is reserved for the core. The build refuses a module with the id `dash`.
 - An id has no empty parts: `gitlab..mr` and `gitlab.` are refused.
@@ -53,7 +55,7 @@ mirante_add_module(gitlab
     SOURCES GitLabModule.cpp GitLabClient.cpp ...
     TESTS   tests/tst_urls.cpp tests/tst_attention.cpp
     RESOURCES icons/gitlab.svg
-    DEPENDS          # other module ids, usually none
+    DEPENDS          # other module ids, usually none; see below
     QT_LIBS          # further Qt components, usually none
     DEFAULT ON)
 ```
@@ -62,12 +64,14 @@ The function:
 
 1. creates the option `MIRANTE_MODULE_GITLAB`, with the given default;
 2. if the option is off, does nothing more;
-3. builds a static library `mirante_module_gitlab`, linked only to the module interface and Qt: Core, Gui and Widgets, and the components in `QT_LIBS`, such as `WebEngineWidgets` for a module that builds its own web view from `profile()`;
+3. builds a static library `mirante_module_gitlab`, linked only to the module interface and Qt: Core, Gui and Widgets, and the components in `QT_LIBS`, such as `PdfWidgets` for the `document` module;
 4. compiles the resources in, served as `:/modules/<id>/<path>`, such as `:/modules/gitlab/icons/gitlab.svg`;
 5. adds the module's tests to CTest, named `module_<id>_<file>`;
 6. adds the module to the list of enabled modules.
 
 The top-level `CMakeLists.txt` adds every folder in `src/modules/` that has a `CMakeLists.txt`. After all modules are added, it checks `DEPENDS`. If an enabled module depends on a disabled one, configuration stops with a message that names both.
+
+**`DEPENDS`.** A module listed there is linked, and its folder goes on the include path, so its headers are included by file name, such as `#include "GitLabClient.h"`. A module not listed stays out of reach, and the app itself gets none of these paths. Quick add handlers and related-item finders need no dependency, so prefer them where they fit. A test in `tests/cmake/depends/` covers this.
 
 **Choosing modules:**
 
@@ -103,17 +107,18 @@ The module interface contains the headers below. The "Since" column gives the mi
 | `ItemType.h` | The `ItemType` interface. See [item types](item-types.md#the-type-registry). `shortName()`, the short label in cell headers, was added after M3; see [decision 0033](decisions/0033-cell-header-pills.md). M4 adds `rendering()` and `createView()`; its `connectionKinds()` was removed by [decision 0054](decisions/0054-module-settings-replace-connections.md). `fromUrl()` was added after M4; see [items from a link](#items-from-a-link). So was `fieldsForProfile()`; see [decision 0050](decisions/0050-profiles-hold-logins-connections-and-settings.md). `description()` was added after M4; see [decision 0056](decisions/0056-modules-window.md). M5 adds `hasStatus()` and `fetchStatus()`; see [status](#status). M7 adds `viewKeys()`; see [decision 0081](decisions/0081-views-that-keep-their-own-keys.md). | M2 |
 | `UrlMatch.h` | `UrlMatch`, what an item type makes of a pasted web address, and `pathBelow()`, which reads an address below a server's base URL. See [items from a link](#items-from-a-link). | after M4 |
 | `FileMatch.h` | `FileDrop`, a local file dropped on a task with the project's local folders, and `FileMatch`, what an item type makes of it. See [items from a dropped file](#items-from-a-dropped-file). | M12 |
-| `Fields.h` | `Field`: a key, a label, a type, a default value, a required flag, and for a choice its values and labels. The types are text, multi-line text, URL, integer, boolean, choice, folder, image, text list and secret. A text field can offer `suggestions` in an editable drop-down list. A secret, such as a token, is for settings screens only; its value is never stored with the others. Used for item configuration and settings screens, and from M5 for project settings. See decisions [0028](decisions/0028-item-fields-in-m3.md), [0044](decisions/0044-module-settings-in-the-workspace.md) and [0054](decisions/0054-module-settings-replace-connections.md). | M3 |
-| `ItemEditor.h` | `ItemEditor`, the base of an item type's own configuration editor, and `EditorContext`, what an editor can reach: the project's folders and a way to save an image into `files/`. M12 adds `saveFile`, which copies any file into `files/` with the workspace's size limits. `folderPath`, a folder's local path on this device, was added after M12; see [decision 0114](decisions/0114-links-and-file-tree-items.md). | M3 |
+| `Fields.h` | `Field`: a key, a label, a type, a default value, a required flag, and for a choice its values and labels. The types are text, multi-line text, URL, integer, boolean, choice, folder, image, text list and secret. A text field can offer `suggestions` in an editable drop-down list. A secret, such as a token, is for settings screens only; its value is never stored with the others. M13 adds `help`, a short explanation under the editor, and `group`, the title of a box that holds the field. Used for item configuration and settings screens, and from M5 for project settings. See decisions [0028](decisions/0028-item-fields-in-m3.md), [0044](decisions/0044-module-settings-in-the-workspace.md) and [0054](decisions/0054-module-settings-replace-connections.md). | M3 |
+| `FieldValidation.h` | `validate()`, which checks values against their fields, and `defaultConfig()`, the values of a new item. Moved out of the core in M13, so a custom editor and a module's tests can use them. | M13 |
+| `ModuleIds.h` | The rules of [ids](#ids), as functions. | M13 |
+| `ItemEditor.h` | `ItemEditor`, the base of an item type's own configuration editor, and `EditorContext`, what an editor can reach: the project's folders and a way to save an image into `files/`. M12 adds `saveFile`, which copies any file into `files/` with the workspace's size limits. `folderPath`, a folder's local path on this device, was added after M12; see [decision 0114](decisions/0114-links-and-file-tree-items.md). M13 adds `profileId`, and to `ItemEditor` the `changed()` signal, `setProfile()`, `secrets()`, `removedSecrets()` and `setSecretState()`; see [custom screens](#custom-screens). | M3 |
 | `ItemContext.h` | `ItemContext`, everything an item's code can reach. See [below](#item-context). | M4 |
 | `ApiClient.h` | `ServerType`, how a module's server is set up and authenticated, and `ApiClient`, a module's server in one profile: requests with ETags, paging, rate limits and request limits. See [servers and tokens](#servers-and-tokens). | M5 |
 | `Status.h` | `ItemStatus`, `AttentionReason`, `StatusJob` and `ItemStatusSource`, for the [status cache](integrations.md#polling-and-caching). See [status](#status). M7 adds `StatusJob::folderPath()` and `gitHead()`. | M5 |
 | `widgets/*.h` | The [view kit](#the-view-kit): small widgets that native views share. | M6 |
 | `QuickAdd.h` | Quick add handlers and related-item finders. See [quick add](#quick-add). | M7 |
 | `GitState.h` | `GitState`, a folder's Git state, as `ItemContext::gitStatus()` reports it | M7 |
-| `Values.h` | Read-only views of a group, project, task, item and folder | planned |
 
-Modules see entities only through read-only views. Changes go through actions on `ItemContext`, which call the core's `Model` methods.
+A module does not see the core's entities. It reads what it needs from `ItemContext`, and changes go through actions on it, which call the core's `Model` methods.
 
 ## What a module registers
 
@@ -126,13 +131,48 @@ The register function receives a `ModuleRegistrar` and adds any of the following
 | Module description | One or two plain sentences that say what the module adds, with `setModuleDescription()`, such as "Merge requests, pipelines and issues from a GitLab server." The [Modules window](ui.md#modules-window) shows it under the module's name. |
 | Module identity | A UUID with `setModuleUuid()`, a version such as `1.2.0` with `setModuleVersion()`, an author with `setModuleAuthor()` and an `http` or `https` homepage with `setModuleHomepage()`. The UUID never changes and no two modules share one; a new module takes a newly generated one. The Modules window shows all four. See [decision 0089](decisions/0089-module-identity.md). |
 | Settings screens | Configuration screens of the whole module, such as GitLab's "General Configuration", with values kept in each profile of the workspace. See [settings screens](#settings-screens). |
-| Project settings | Fields shown in the project dialog, such as the GitLab project path, with `addProjectSetting()`. They are defaults for the module's items. |
+| Project settings | Fields shown in the project dialog, such as the GitLab project path, with `addProjectSetting()`. They are defaults for the module's items. A module can replace the form with `setProjectEditor()`; see [custom screens](#custom-screens). |
 | Server | How the module's server is set up and authenticated, with `setServerType()`. See [servers and tokens](#servers-and-tokens). |
-| Device settings | Fields kept on each device, such as an editor command, with `addDeviceSetting()`. Types Text, Integer, Bool and Choice. The [settings window](ui.md#settings) edits them, and items read them with `ItemContext::deviceSetting()`. See [decision 0079](decisions/0079-module-device-settings.md). |
+| Device settings | Fields kept on each device, such as an editor command, with `addDeviceSetting()`. Any type except Secret, Folder and Image. The [settings window](ui.md#settings) edits them, and items read them with `ItemContext::deviceSetting()`. A module can replace the form with `setDeviceEditor()`; see [custom screens](#custom-screens) and [decision 0079](decisions/0079-module-device-settings.md). |
 | Quick add handlers | Recognise pasted text and propose a task, with `addQuickAddHandler()`. See [quick add](#quick-add). |
 | Related-item finders | Find items related to a piece of text, such as merge requests whose branch contains a Jira key, with `addRelatedItemFinder()` |
 
-The core builds every dialog from the field definitions, and checks the values against them. It stores and edits the values without knowing what they mean. The one exception is an item type with its own editor: the item dialog shows that editor instead of a form. Either way, keys of the configuration that the form or editor does not show are kept unchanged.
+The core builds a form from the field definitions, and checks the values against them. It stores and edits the values without knowing what they mean. A module can replace any form with its own editor; see [custom screens](#custom-screens). Either way, keys of the configuration that the form or editor does not show are kept unchanged.
+
+## Custom screens
+
+Declared fields are a shortcut. Every screen a module can add also accepts a custom one, and the core keeps the dialog's frame, such as its buttons and the project dialog's group box. See decisions [0120](decisions/0120-fields-are-a-shortcut.md) and [0122](decisions/0122-custom-configuration-screens.md).
+
+| Screen | How to give an editor | The context holds |
+|---|---|---|
+| Item configuration | `ItemType::createEditor()` | The project's folders, files, the profile the item would use |
+| Settings screen | `SettingsScreen::createEditor()` | Files, the profile being edited |
+| Project settings | `ModuleRegistrar::setProjectEditor()` | The project's folders as the dialog opened, files, the profile of the chosen group |
+| Device settings | `ModuleRegistrar::setDeviceEditor()` | Nothing, because no project or profile applies |
+
+```cpp
+// The whole screen is the module's. It can hold a FieldForm for the plain part.
+class QueueEditor : public mirante::ItemEditor { /* setConfig(), config(), problems() */ };
+
+registrar.setProjectEditor([](const mirante::EditorContext &context, QWidget *parent) -> mirante::ItemEditor * {
+    return new QueueEditor(context, parent);
+});
+
+// Only one field is the module's, and the rest of the form stays automatic.
+mirante::ItemEditor *createEditor(const mirante::EditorContext &context, QWidget *parent) const override
+{
+    auto *form = new mirante::widgets::FieldForm(fields(), context, parent);
+    form->setFieldEditor(QStringLiteral("query"), new QueryEditor);
+    return form;
+}
+```
+
+- **Fields still describe the data.** `fields()`, `addProjectSetting()` and `addDeviceSetting()` keep giving defaults, validation and the list of secrets, also with a custom editor.
+- **Device settings.** The settings window saves as the user types, so the editor emits `changed()`. Only declared keys are stored.
+- **Secrets.** On a settings screen, an editor can write a token but never read it. It returns what the user typed from `secrets()` and what was removed from `removedSecrets()`, and hears whether a token is set through `setSecretState()`. Each key must be a `Secret` field in the screen's `fields()`; the core logs and drops a token for any other key, because it would outlive its profile. Project and device editors have no tokens.
+- **Profile.** `EditorContext::profileId` names the profile at the start, and `setProfile()` reports a change. Read the module's values for that profile with `registrar.settings()`.
+- **Validation.** `validate()`, in `FieldValidation.h`, checks values against fields, for an editor that wants the same messages as the form. `problems()` refuses OK.
+- **Pickers.** A `FieldForm` inside the editor gives the folder and image fields. `ImagePasteDialog` and `imageFromMime()` are in the view kit too.
 
 ## Settings screens
 
@@ -158,7 +198,7 @@ void registerModule(ModuleRegistrar &registrar)
 ```
 
 - **Id and name.** The id names the stored values, so it never changes. It has lowercase letters and digits only, and is unique within the module. The name is the menu entry and the dialog title.
-- **Fields or an editor.** As for item types, a screen lists its `fields()`, and the core builds the form, or returns its own `ItemEditor` from `createEditor()`. The editor gets the stored object with `setConfig()`, and its `config()` is stored. Keys that the form or editor does not show are kept.
+- **Fields or an editor.** As for item types, a screen lists its `fields()`, and the core builds the form, or returns its own `ItemEditor` from `createEditor()`. The editor gets the stored object with `setConfig()`, and its `config()` is stored. Keys that the form or editor does not show are kept. See [custom screens](#custom-screens).
 - **Values.** Each screen's values are one JSON object per profile, in that profile's entry of `workspace.mirante`, under `moduleSettings.<module id>.<screen id>`. They sync with the workspace. See [data model](data-model.md#module-settings).
 - **Secrets.** A token or a password goes in a field of type `Secret`. Its value is never part of the stored values, so it never reaches the workspace. The core keeps it in the keychain, under `<workspace id>/<profile id>/<module id>/<field key>`; see [servers and tokens](#servers-and-tokens).
 - **Reading.** Module code reads the values of the profile an item uses. There are three ways:
@@ -206,8 +246,7 @@ Each item's code gets an `ItemContext`. It gives access to the configuration the
 
 | Member | Description | Since |
 |---|---|---|
-| `itemName()`, `config()` | The item's name and configuration, read from the model on each call | M4 |
-| `item()`, `task()`, `project()`, `group()` | Read-only views of the item and where it sits | planned |
+| `config()` | The item's configuration, read from the model on each call | M4 |
 | `projectSetting(key)` | A project setting the module declared, such as `project` for GitLab. Undefined if the project does not set it. | M4 |
 | `deviceSetting(key)` | A device setting the module declared, or its field's default | M7 |
 | `filePath(fileName)` | The absolute path of a file in the data folder's `files/`, such as an image | M7 |
@@ -215,7 +254,6 @@ Each item's code gets an `ItemContext`. It gives access to the configuration the
 | `server()` | The module's server in the item's profile, or null for a module without a `ServerType`. See [servers and tokens](#servers-and-tokens). | M5 |
 | `status()` | This item's entry in the status cache: read the current status, refresh, subscribe. Null for a type without status. See [status](#status). | M5 |
 | `createWebView(url)` | A live web page in a plain `QWidget`, in the web logins of the item's [profile](web-views.md#profiles), with popups, permissions, downloads and the toolbar handled by the core. The normal way for a web type to show a page. See [decision 0037](decisions/0037-core-makes-web-views.md). | M4 |
-| `profile()` | The web logins of the item's [profile](web-views.md#profiles), as a `QWebEngineProfile`, for a module that builds its own `QWebEngineView`. Such a module links Qt WebEngine with `QT_LIBS`, and handles popups, permissions and downloads itself. The profile holds the logins of every site that its items visit, including those of other modules; see [decision 0042](decisions/0042-user-managed-web-profiles.md). | M4 |
 | `createMessageView(text)` | A grey message in the cell, such as "Set the issue key in the item's settings." | M4 |
 | `folderPath(folderId)` | The local path of a project folder on this device, or empty if not mapped. An empty id means the main folder, from M7. | M4 |
 | `mapFolder(folderId)` | Asks the user for a folder's local path on this device, and stores it | M7 |
@@ -251,9 +289,7 @@ public:
 
 The core then gives the module an `ApiClient` for the server of each profile, through `ItemContext::server()` in a view and `StatusJob::server()` in a status fetch:
 
-- **`get()`, `post()` and `put()`:** the normal way to call an API. The path is relative to the base URL. The client adds the token, sends the last ETag, follows `Link` pages when asked, waits on `429` and on a rate-limited `403`, and runs at most four requests at once for each profile's server. Item code never sees the token.
-- **`authorize(request)`:** adds the authentication to a `QNetworkRequest` the module makes itself.
-- **`secret()`:** returns the raw token, asynchronously. Use it only when a request is not enough, such as passing a token to a command in a terminal. Every call needs a comment that says why `authorize()` does not work there.
+- **`get()`, `post()` and `put()`:** the way to call an API. The path is relative to the base URL. The client adds the token, sends the last ETag, follows `Link` pages when asked, waits on `429` and on a rate-limited `403`, and runs at most four requests at once for each profile's server. Item code never sees the token, and the token goes only to the origin of the base URL; see [decision 0123](decisions/0123-tokens-stay-on-their-origin.md).
 
 Tokens are loaded from the keychain, under `<workspace id>/<profile id>/<module id>/<field key>`, before the first request. If no token is stored, a request fails with `NoToken` without being sent, and the cell shows "Token not set", as described in [errors](integrations.md#errors).
 
@@ -267,7 +303,7 @@ A view reads its item's status with `ItemContext::status()`, and subscribes to i
 
 ### The view kit
 
-Native views of different modules need the same small widgets, and modules cannot depend on each other. The library `mirante_module_widgets`, linked through `mirante::module_api`, holds them under `<mirante/widgets/...>`. It uses only Qt, never core headers.
+Native views of different modules need the same small widgets, and modules rarely depend on each other. The library `mirante_module_widgets`, linked through `mirante::module_api`, holds them under `<mirante/widgets/...>`. It uses only Qt, never core headers.
 
 - `StatusPill` and `statusColours()`: a pill for a `StatusRole`. A module names a role, never a colour.
 - `FlowRow`: a layout that wraps.
@@ -283,12 +319,22 @@ Native views of different modules need the same small widgets, and modules canno
   - `setDescription(text)` shows a line above the table that says what the list shows, such as "Of merge request !42 · acme/backend". Each list type sets it from its configuration.
   - The object names `filter.<column>`, `previousPage`, `nextPage` and `pageLine` let tests find the controls.
   - A selected row keeps its highlight across new rows, sorts and pages, so that Return acts on the row the user chose.
+- `FieldForm`: the form the core builds from a list of fields, one row per field, as an `ItemEditor`. A custom editor can place one inside its own widgets, and `setFieldEditor()` replaces the editor of one field with a `FieldEditor`. See [custom screens](#custom-screens).
+- `ImagePasteDialog` and `ImageCropView`: the dialog every image paste opens first, with a preview and a crop. See [pasting images](ui.md#pasting-images).
+- `imageFromMime()`: the image a drag from another app carries.
 - `compactDate()`: a date for a table, in local time: `10-30 14:32` in this year, `2025-10-30` otherwise.
 - `MarkdownView`: a read-only `QTextBrowser` that shows Markdown with GitHub's extensions. Before Qt reads the text, void HTML elements such as `<img ...>` and `<br>` are written as self-closing, outside code, because Qt's importer would otherwise drop all the text after them. Code blocks and code spans get a light background, and the text has a 10-pixel margin. Web and mail links open in the external programs. Loading images is off by default, as the Notes preview needs. `setResourceFetcher()` turns it on: the view asks the fetcher for each image, resolved against the base given to `setMarkdownText()`, and lays the document out again when it arrives. The Notes preview and the document items use it. See [decision 0104](decisions/0104-document-items.md).
 
 ### Testing
 
-A module's tests also link `mirante::module_api_testing`. It holds `<mirante/testing/FakeApiClient.h>`, an `ApiClient` that answers from a table of recorded replies and records the requests, `<mirante/testing/FakeStatusJob.h>`, and `<mirante/testing/FakeQuickAdd.h>`. Recorded responses live in the module's `tests/data/` folder.
+A module's tests link the module, the module interface and `mirante::module_api_testing`, and no core code. `tools/check-module-includes.py` refuses a core header in them too. The testing library holds:
+
+- `<mirante/testing/TestRegistrar.h>`: registers one module and gives back what it registered, such as `types()`, `type(id)` and `settingsScreens(moduleId)`. It stops the program on a broken id, as the core does.
+- `<mirante/testing/FakeItemContext.h>`: an `ItemContext` with what a view reads set by the test, and what it does recorded. Without a web engine, a web view is a plain widget with the address in its `url` property, and a message view one with the text in its `message` property. A test that needs more derives from it.
+- `<mirante/testing/FakeApiClient.h>`: an `ApiClient` that answers from a table of recorded replies and records the requests.
+- `<mirante/testing/FakeStatusJob.h>` and `<mirante/testing/FakeQuickAdd.h>`.
+
+Recorded responses live in the module's `tests/data/` folder.
 
 ## Quick add
 
@@ -332,12 +378,14 @@ void registerModule(ModuleRegistrar &registrar)
 
 ## Attention
 
-Item types report attention reasons through `status()`. A reason has a text, such as "Pipeline failed", and two flags:
+An item type reports attention through the `ItemStatus` it gives `job.finish()`; see [status](#status). `ItemStatus::attention` lists the reasons, and each `AttentionReason` has:
 
+- `key`: stable while the reason is the same, such as `status:10001`;
+- `text`: what the user sees, such as "Pipeline failed";
 - `notify`: also send a [desktop notification](ui.md#tray-and-notifications);
-- `closed`: the item's work is finished, such as a merged merge request or a closed Jira issue.
+- `clearsOnView`: an event, which stops counting once the user has seen the item.
 
-The core suggests marking a task done when every item whose type reports `closed` reports it as true. See [data model](data-model.md#task).
+Whether the work is finished is not an attention reason. `ItemStatus::closed` says so, such as for a merged merge request or a closed Jira issue, and stays empty when the type cannot tell. The core suggests marking a task done when every item that reports `closed` reports it as true. See [data model](data-model.md#task).
 
 ## Missing modules
 

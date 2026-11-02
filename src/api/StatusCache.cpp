@@ -61,14 +61,6 @@ public:
         answer(receiver, std::move(done));
     }
 
-    bool authorize(QNetworkRequest &) override { return false; }
-
-    void secret(QObject *receiver, std::function<void(std::optional<QString>)> done) override
-    {
-        if (!receiver || !done)
-            return;
-        QTimer::singleShot(0, receiver, [done = std::move(done)] { done(std::nullopt); });
-    }
 
 private:
     static void answer(QObject *receiver, std::function<void(const ApiReply &)> done)

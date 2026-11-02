@@ -45,7 +45,8 @@
 #include "ui/QuickAddDialog.h"
 #include "ui/ProfileSettingsDialog.h"
 #include "ui/ImagePaste.h"
-#include "ui/ImagePasteDialog.h"
+#include <mirante/widgets/ImageMime.h>
+#include <mirante/widgets/ImagePasteDialog.h>
 #include "ui/QuickSwitcher.h"
 #include "ui/RootDashboardsDialog.h"
 #include "ui/RootTabBar.h"
@@ -107,6 +108,8 @@
 #include <tuple>
 
 namespace mirante {
+
+using widgets::ImagePasteDialog;
 
 namespace {
 
@@ -2064,7 +2067,7 @@ MainWindow::MainWindow(Model &model, const ItemTypeRegistry &types, Store &store
     };
     // An image dropped from another app on an image item's cell replaces its
     // image, as Ctrl+V does. See docs/decisions/0085-drop-images-from-other-apps.md.
-    d->services.readImageDrop = &ImagePaste::imageFromMime;
+    d->services.readImageDrop = &widgets::imageFromMime;
     d->services.dropImage = [this](const QString &taskId, const QString &itemId, const QImage &image) {
         dropImageOnItem(taskId, itemId, image);
     };

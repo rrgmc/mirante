@@ -1,5 +1,5 @@
 // Tests validate() and defaultConfig() of FieldValidation.
-#include "items/FieldValidation.h"
+#include <mirante/FieldValidation.h>
 
 #include <QJsonArray>
 #include <QTest>

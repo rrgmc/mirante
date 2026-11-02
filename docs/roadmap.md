@@ -158,26 +158,26 @@ See [the M12 plan](plans/m12-document-items.md), [decision 0104](decisions/0104-
 
 ## M13: Module interface before the split
 
-Made in this repository, before the split into repositories for [custom builds](#future-custom-builds), while one commit can still change the interface and every module. See decisions [0119](decisions/0119-module-interface-versions-and-checks.md), [0120](decisions/0120-fields-are-a-shortcut.md) and [0121](decisions/0121-modules-are-trusted-code.md).
+Made in this repository, before the split into repositories for [custom builds](#future-custom-builds), while one commit can still change the interface and every module. See [the M13 plan](plans/m13-module-interface.md) and decisions [0119](decisions/0119-module-interface-versions-and-checks.md), [0120](decisions/0120-fields-are-a-shortcut.md), [0121](decisions/0121-modules-are-trusted-code.md), [0122](decisions/0122-custom-configuration-screens.md) and [0123](decisions/0123-tokens-stay-on-their-origin.md).
 
 **Configuration screens:**
 
-- [ ] Project settings and device settings accept a custom editor, as item configuration and settings screens do.
-- [ ] `FieldForm` and its editors are in the view kit and use only the public interface, so a custom editor can combine automatic sections with its own widgets.
-- [ ] A custom editor can do what `FieldForm` can, including secrets, validation messages, folder and image pickers, and knowing the profile being edited.
-- [ ] A single field can have a custom widget, and the rest of the form stays automatic.
-- [ ] `Field` gains help text and groups. A condition for showing a field is added if a screen needs it.
+- [x] Project settings and device settings accept a custom editor, as item configuration and settings screens do.
+- [x] `FieldForm` and its editors are in the view kit and use only the public interface, so a custom editor can combine automatic sections with its own widgets.
+- [x] A custom editor can do what `FieldForm` can, including secrets, validation messages, folder and image pickers, and knowing the profile being edited.
+- [x] A single field can have a custom widget, and the rest of the form stays automatic.
+- [x] `Field` gains help text and groups. A condition for showing a field is added if a screen needs it.
 
 **Interface cleanup:**
 
-- [ ] The unused members named in [decision 0119](decisions/0119-module-interface-versions-and-checks.md) are removed, and so are the planned `Values.h` and read-only views. The section on attention in [modules](modules.md#attention) matches `Status.h`.
-- [ ] Module tests use only the module interface and its testing library, not `items/ItemTypeRegistry.h`, `items/FieldValidation.h` or `mirante_items`. The testing library has a `FakeItemContext` and a registration test helper.
-- [ ] `DEPENDS` links the other module and makes its headers available.
-- [ ] [Modules](modules.md#ids) gives a naming rule for third-party module ids, which are permanent.
+- [x] The unused members named in [decision 0119](decisions/0119-module-interface-versions-and-checks.md) are removed, and so are the planned `Values.h` and read-only views. The section on attention in [modules](modules.md#attention) matches `Status.h`.
+- [x] Module tests use only the module interface and its testing library, not `items/ItemTypeRegistry.h`, `items/FieldValidation.h` or `mirante_items`. The testing library has a `FakeItemContext` and a registration test helper.
+- [x] `DEPENDS` links the other module and makes its headers available.
+- [x] [Modules](modules.md#ids) gives a naming rule for third-party module ids, which are permanent.
 
 **Tokens:**
 
-- [ ] A token goes only to the origin of its server, for requests and redirects, with tests for both. See [issue 14](https://github.com/rrgmc/mirante/issues/14).
+- [x] A token goes only to the origin of its server, for requests and redirects, with tests for both. See [issue 14](https://github.com/rrgmc/mirante/issues/14).
 
 ## Future: Custom builds
 

@@ -117,12 +117,6 @@ ItemContextImpl::ItemContextImpl(const PlacementServices &services, const QStrin
 
 ItemContextImpl::~ItemContextImpl() = default;
 
-QString ItemContextImpl::itemName() const
-{
-    const Item *item = m_services.model ? m_services.model->item(m_taskId, m_itemId) : nullptr;
-    return item ? item->name : QString();
-}
-
 QJsonObject ItemContextImpl::config() const
 {
     const Item *item = m_services.model ? m_services.model->item(m_taskId, m_itemId) : nullptr;

@@ -5,6 +5,7 @@
 #include <QJsonObject>
 #include <QString>
 
+#include <functional>
 #include <vector>
 
 class QWidget;
@@ -12,6 +13,11 @@ class QWidget;
 namespace mirante {
 
 class ItemEditor;
+struct EditorContext;
+
+// Makes a module's own editor of its project or device settings. Include
+// <mirante/ItemEditor.h> to implement it.
+using EditorFactory = std::function<ItemEditor *(const EditorContext &context, QWidget *parent)>;
 
 // One configuration screen of a module, such as GitLab's "General
 // Configuration". Each profile's Modules submenu, in the Profiles menu, lists
@@ -34,14 +40,17 @@ public:
     // The menu entry and the dialog title, such as "General Configuration".
     virtual QString name() const = 0;
 
-    // The fields of the form the core builds.
+    // The screen's data: the fields of the form the core builds. A screen with
+    // its own editor still lists its Secret fields here, so the core can load
+    // their state and delete them with the profile.
     virtual std::vector<Field> fields() const { return {}; }
 
     // An editor of the screen's own, or null to use a form built from
     // fields(). It is given the stored object with setConfig(), and its
     // config() is stored. Include <mirante/ItemEditor.h> to implement it.
-    virtual ItemEditor *createEditor(QWidget *parent) const
+    virtual ItemEditor *createEditor(const EditorContext &context, QWidget *parent) const
     {
+        Q_UNUSED(context)
         Q_UNUSED(parent)
         return nullptr;
     }

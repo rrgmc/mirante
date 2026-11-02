@@ -2,6 +2,7 @@
 
 #include <mirante/Fields.h>
 #include <mirante/ItemEditor.h>
+#include <mirante/widgets/FieldEditor.h>
 
 #include <functional>
 #include <memory>
@@ -9,7 +10,7 @@
 
 class QDialog;
 
-namespace mirante {
+namespace mirante::widgets {
 
 // An ItemEditor built from a list of fields: one row per field, with an editor
 // that fits its type. Folder fields list EditorContext::folders. Image fields
@@ -18,8 +19,9 @@ namespace mirante {
 // dropped from another app on the field does the same as "Paste" (decision
 // 0085). A text
 // field with suggestions is an editable combo box. A text list is edited one
-// entry per line. See the M3 plan, part 5, and decision 0044. Implemented in
-// FieldForm.cpp.
+// entry per line. A field's help text shows under its editor, and fields of a
+// group sit in a titled box. See the M3 plan, part 5, and decisions 0044 and
+// 0122. Implemented in FieldForm.cpp.
 class FieldForm : public ItemEditor
 {
     Q_OBJECT
@@ -32,17 +34,22 @@ public:
     QJsonObject config() const override;
     // The values typed into Secret fields, by key; only those changed and
     // not empty. config() never holds them. See decision 0054.
-    QJsonObject secrets() const;
+    QJsonObject secrets() const override;
 
     // Whether a Secret field's token is set on this device. The placeholder
     // says so, and a set token gets a Remove button. Unknown until set. See
     // the M5 plan, part 8.
-    enum class SecretState { Unknown, Set, NotSet };
-    void setSecretState(const QString &key, SecretState state);
+    void setSecretState(const QString &key, SecretState state) override;
     // The keys of Secret fields whose Remove button was pressed.
-    QStringList removedSecrets() const;
+    QStringList removedSecrets() const override;
     // The messages of validate() for the current values.
     QStringList problems() const override;
+
+    // Replaces the editor of one field, and takes ownership of the new one. The
+    // rest of the form stays as it is. The field's other rules, such as being
+    // required, still apply. Refused with a warning for an unknown key or a
+    // Secret field: a token needs an ItemEditor of its own. See decision 0122.
+    void setFieldEditor(const QString &key, FieldEditor *editor);
 
     // The editor widget of a field, for tests. Null for an unknown key.
     QWidget *editorFor(const QString &key) const;
@@ -50,12 +57,9 @@ public:
     // accepted. The default calls exec(); tests work the dialog instead.
     void setExec(std::function<bool(QDialog &dialog)> exec);
 
-signals:
-    void changed();
-
 private:
     struct Private;
     std::unique_ptr<Private> d;
 };
 
-} // namespace mirante
+} // namespace mirante::widgets
