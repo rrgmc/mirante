@@ -7,7 +7,6 @@
 #include <QJsonParseError>
 #include <QMap>
 #include <QMetaObject>
-#include <QNetworkRequest>
 #include <QObject>
 #include <QPointer>
 #include <QStringList>
@@ -81,7 +80,6 @@ public:
     }
 
     void setSynchronous(bool on) { m_synchronous = on; }
-    void setToken(std::optional<QString> token) { m_token = std::move(token); }
 
     const QList<Request> &requests() const { return m_requests; }
     QStringList requestKeys() const
@@ -115,19 +113,6 @@ public:
         answer(key(QStringLiteral("PUT"), path), receiver, std::move(done));
     }
 
-    bool authorize(QNetworkRequest &request) override
-    {
-        if (!m_token)
-            return false;
-        request.setRawHeader("X-Fake-Token", m_token->toUtf8());
-        return true;
-    }
-
-    void secret(QObject *receiver, std::function<void(std::optional<QString>)> done) override
-    {
-        const std::optional<QString> token = m_token;
-        deliver(receiver, [done = std::move(done), token] { done(token); });
-    }
 
 private:
     void answer(const QString &requestKey, QObject *receiver, std::function<void(const ApiReply &)> done)
@@ -161,7 +146,6 @@ private:
     QList<Request> m_requests;
     ApiReply::Error m_failAll = ApiReply::Error::None;
     QString m_failMessage;
-    std::optional<QString> m_token = QStringLiteral("fake-token");
     bool m_synchronous = false;
 };
 

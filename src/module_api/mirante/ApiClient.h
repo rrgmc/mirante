@@ -10,7 +10,6 @@
 #include <QUrlQuery>
 
 #include <functional>
-#include <optional>
 
 class QNetworkRequest;
 class QObject;
@@ -110,15 +109,6 @@ public:
     // Like post(), for an API that changes an object with PUT.
     virtual void put(const QString &path, const QJsonDocument &body, QObject *receiver,
                      std::function<void(const ApiReply &)> done) = 0;
-
-    // Adds the authentication to a request the module makes itself. False if
-    // the token is not loaded yet or not set. Prefer get() and post().
-    virtual bool authorize(QNetworkRequest &request) = 0;
-
-    // The raw token, loaded from the keychain if needed. Use it only where a
-    // request is not enough, such as passing the token to a command. Each
-    // call needs a comment that says why authorize() does not work there.
-    virtual void secret(QObject *receiver, std::function<void(std::optional<QString>)> done) = 0;
 };
 
 } // namespace mirante

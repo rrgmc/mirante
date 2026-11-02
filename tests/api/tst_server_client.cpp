@@ -356,10 +356,6 @@ void TestServerClient::headersAndToken()
     QCOMPARE(header(sent, "Accept"), QByteArray("application/json"));
     QVERIFY(header(sent, "User-Agent").startsWith("Mirante/"));
     QCOMPARE(sent.request.transferTimeout(), 30000);
-
-    QNetworkRequest own;
-    QVERIFY(client()->authorize(own));
-    QCOMPARE(own.rawHeader("X-Token"), QByteArray("secret-1"));
 }
 
 void TestServerClient::tokenIsTrimmed()
@@ -438,8 +434,6 @@ void TestServerClient::noTokenSendsNothing()
     const ApiReply reply = getAndWait(QStringLiteral("api/v4/user"));
     QCOMPARE(reply.error, ApiReply::Error::NoToken);
     QVERIFY(m_network->sent.isEmpty());
-    QNetworkRequest own;
-    QVERIFY(!client()->authorize(own));
 }
 
 void TestServerClient::fourAtATime()

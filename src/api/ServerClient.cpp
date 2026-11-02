@@ -126,8 +126,6 @@ public:
               std::function<void(const ApiReply &)> done) override;
     void put(const QString &path, const QJsonDocument &body, QObject *receiver,
              std::function<void(const ApiReply &)> done) override;
-    bool authorize(QNetworkRequest &request) override;
-    void secret(QObject *receiver, std::function<void(std::optional<QString>)> done) override;
 
 private:
     enum class Method { Get, Post, Put };
@@ -582,23 +580,6 @@ void ServerClient::setFailing(bool failing)
         return;
     m_failing = failing;
     emit m_owner->failingChanged(m_profileId, m_moduleId);
-}
-
-bool ServerClient::authorize(QNetworkRequest &request)
-{
-    if (!m_tokenKnown) {
-        loadToken();
-        return false;
-    }
-    if (!m_token)
-        return false;
-    m_type->authorize(request, *m_token, values());
-    return true;
-}
-
-void ServerClient::secret(QObject *receiver, std::function<void(std::optional<QString>)> done)
-{
-    m_secrets->read(tokenKey(), receiver, std::move(done));
 }
 
 struct ServerClients::Private

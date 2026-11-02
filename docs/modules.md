@@ -285,9 +285,7 @@ public:
 
 The core then gives the module an `ApiClient` for the server of each profile, through `ItemContext::server()` in a view and `StatusJob::server()` in a status fetch:
 
-- **`get()`, `post()` and `put()`:** the normal way to call an API. The path is relative to the base URL. The client adds the token, sends the last ETag, follows `Link` pages when asked, waits on `429` and on a rate-limited `403`, and runs at most four requests at once for each profile's server. Item code never sees the token.
-- **`authorize(request)`:** adds the authentication to a `QNetworkRequest` the module makes itself.
-- **`secret()`:** returns the raw token, asynchronously. Use it only when a request is not enough, such as passing a token to a command in a terminal. Every call needs a comment that says why `authorize()` does not work there.
+- **`get()`, `post()` and `put()`:** the way to call an API. The path is relative to the base URL. The client adds the token, sends the last ETag, follows `Link` pages when asked, waits on `429` and on a rate-limited `403`, and runs at most four requests at once for each profile's server. Item code never sees the token, and the token goes only to the origin of the base URL; see [decision 0123](decisions/0123-tokens-stay-on-their-origin.md).
 
 Tokens are loaded from the keychain, under `<workspace id>/<profile id>/<module id>/<field key>`, before the first request. If no token is stored, a request fails with `NoToken` without being sent, and the cell shows "Token not set", as described in [errors](integrations.md#errors).
 
@@ -376,12 +374,14 @@ void registerModule(ModuleRegistrar &registrar)
 
 ## Attention
 
-Item types report attention reasons through `status()`. A reason has a text, such as "Pipeline failed", and two flags:
+An item type reports attention through the `ItemStatus` it gives `job.finish()`; see [status](#status). `ItemStatus::attention` lists the reasons, and each `AttentionReason` has:
 
+- `key`: stable while the reason is the same, such as `status:10001`;
+- `text`: what the user sees, such as "Pipeline failed";
 - `notify`: also send a [desktop notification](ui.md#tray-and-notifications);
-- `closed`: the item's work is finished, such as a merged merge request or a closed Jira issue.
+- `clearsOnView`: an event, which stops counting once the user has seen the item.
 
-The core suggests marking a task done when every item whose type reports `closed` reports it as true. See [data model](data-model.md#task).
+Whether the work is finished is not an attention reason. `ItemStatus::closed` says so, such as for a merged merge request or a closed Jira issue, and stays empty when the type cannot tell. The core suggests marking a task done when every item that reports `closed` reports it as true. See [data model](data-model.md#task).
 
 ## Missing modules
 

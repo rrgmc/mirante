@@ -171,7 +171,7 @@ void CellFrame::Private::showStatus()
 }
 
 CellFrame::CellFrame(const std::optional<CellRef> &ref, bool removed, const ItemType *type, const QString &itemName,
-                     QWidget *parent)
+                     QWidget *parent, bool singleView)
     : QFrame(parent)
     , d(std::make_unique<Private>())
 {
@@ -320,8 +320,8 @@ CellFrame::CellFrame(const std::optional<CellRef> &ref, bool removed, const Item
     }
     d->body->addWidget(centredLabel(text, d->body));
 
-    // A frame of a singleView item may have to give way to another cell.
-    if (ref && ref->isItem() && !removed && type && type->singleView()) {
+    // A frame of a single view may have to give way to another cell.
+    if (ref && ref->isItem() && !removed && type && singleView) {
         d->elsewhere = new QWidget(d->body);
         auto *elsewhereLayout = new QVBoxLayout(d->elsewhere);
         elsewhereLayout->addStretch(1);

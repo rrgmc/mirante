@@ -91,7 +91,7 @@ public:
     {
         ++created;
         if (frameType)
-            return new CellFrame(ref, removed, frameType, ref ? ref->item.toUpper() : QString(), parent);
+            return new CellFrame(ref, removed, frameType, ref ? ref->item.toUpper() : QString(), parent, singleViewFrames);
         auto *label = new QLabel(ref ? ref->item : QStringLiteral("empty"), parent);
         label->setObjectName(ref ? ref->item : QStringLiteral("empty"));
         return label;
@@ -105,23 +105,15 @@ public:
     int created = 0;
     std::set<QString> notReparentable;
     const ItemType *frameType = nullptr;
+    bool singleViewFrames = false;
 };
 
 class TestType : public ItemType
 {
 public:
-    explicit TestType(bool single)
-        : m_single(single)
-    {
-    }
-
     QString id() const override { return QStringLiteral("test.type"); }
     QString name() const override { return QStringLiteral("Test type"); }
     QIcon icon() const override { return QIcon(); }
-    bool singleView() const override { return m_single; }
-
-private:
-    bool m_single;
 };
 
 QStringList labelTexts(const QWidget *widget)
@@ -625,7 +617,7 @@ void TestLayoutView::tabChangeReportsAtOnce()
 
 void TestLayoutView::cellSignalsCarryPath()
 {
-    TestType type(false);
+    TestType type;
     FakeFactory factory;
     factory.frameType = &type;
     LayoutView view(&factory);
@@ -650,7 +642,7 @@ void TestLayoutView::cellSignalsCarryPath()
 
 void TestLayoutView::editModeReachesFrames()
 {
-    TestType type(false);
+    TestType type;
     FakeFactory factory;
     factory.frameType = &type;
     LayoutView view(&factory);
@@ -727,9 +719,10 @@ void TestLayoutView::detachAndReattach()
 
 void TestLayoutView::singleView()
 {
-    TestType type(true);
+    TestType type;
     FakeFactory factory;
     factory.frameType = &type;
+    factory.singleViewFrames = true;
     SingleViewTracker tracker;
     LayoutView view(&factory);
     view.setSingleViewTracker(&tracker);
@@ -766,7 +759,7 @@ void TestLayoutView::singleView()
 
 void TestLayoutView::frameTexts()
 {
-    TestType type(false);
+    TestType type;
     UnknownItemType unknown(QStringLiteral("timetrack.entry"));
 
     CellFrame empty(std::nullopt, false, nullptr, QString());
@@ -844,7 +837,7 @@ void TestLayoutView::remakeUnsafeCells()
 
 void TestLayoutView::frameBody()
 {
-    TestType type(false);
+    TestType type;
     CellFrame frame(itemRef(QStringLiteral("i1")), false, &type, QStringLiteral("Item"));
     QVERIFY(!frame.body());
     QVERIFY(bodyContains(&frame, QStringLiteral("Id: i1")));
@@ -862,7 +855,7 @@ void TestLayoutView::frameBody()
 
 void TestLayoutView::frameHeaderWidget()
 {
-    TestType type(false);
+    TestType type;
     CellFrame frame(itemRef(QStringLiteral("i1")), false, &type, QStringLiteral("Item"));
     frame.setMaximiseButtonVisible(true);
     frame.setEditMode(true);
@@ -902,7 +895,7 @@ void TestLayoutView::frameHeaderWidget()
 
 void TestLayoutView::menuButtonInEditMode()
 {
-    TestType type(false);
+    TestType type;
     CellFrame frame(itemRef(QStringLiteral("i1")), false, &type, QStringLiteral("Item"));
     QToolButton *menu = toolButton(&frame, QStringLiteral("Cell menu"));
     QVERIFY(menu);
@@ -915,7 +908,7 @@ void TestLayoutView::menuButtonInEditMode()
 
 void TestLayoutView::maximiseButton()
 {
-    TestType type(false);
+    TestType type;
     CellFrame frame(itemRef(QStringLiteral("i1")), false, &type, QStringLiteral("Item"));
     auto *button = frame.findChild<QToolButton *>(QStringLiteral("maximiseButton"));
     QVERIFY(button);

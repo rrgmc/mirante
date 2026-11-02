@@ -27,8 +27,6 @@ A module registers each of its types in the `ItemTypeRegistry` with:
 | `actions` | Optional: the light actions it offers |
 | `fromUrl` | Optional: recognises a pasted web address and returns a configuration, a suggested name and the base URL of its server. See [items from a link](#items-from-a-link). |
 | `createView` | Creates the item's view for one placement. See [the view](#the-view). |
-| `singleView` | Optional, off by default: the item can have only one view at a time |
-| `reparentSafe` | Optional, on by default: the view can be moved to another cell without being created again |
 
 A new item starts with a tree of the registered types under their modules, where the user picks one, then edits the item of that type; see [the item dialog](ui.md#item-dialog). The item dialog keeps the configuration keys that its form or editor does not show. For a type that uses a [profile](data-model.md#profile), the dialog also offers a **Profile** choice: "<name> (from the group)", such as "Work (from the group)", which is the default, or any profile of the list. A type uses a profile when its `rendering` is web or its module has settings screens. The choice is stored in the item's `profile`, not in its configuration. See [web views](web-views.md#profiles). An item whose module is missing has neither fields nor an editor; its dialog edits the name only and keeps the configuration unchanged.
 
@@ -59,11 +57,6 @@ A pasted web address can make an item. The new item dialog asks every type's `fr
 ## The view
 
 `createView` returns a plain `QWidget`. The item type may put anything inside it, such as Qt widgets, a web view, or a container around a native window made with `QWidget::createWindowContainer`. The core places the widget in a cell, a tab or a detached window, and never looks inside it. See [decision 0016](decisions/0016-generic-items.md).
-
-Two flags tell the core what the view cannot do. Both default to what an ordinary widget can do.
-
-- **`singleView`.** Normally each placement gets its own view, as in [decision 0003](decisions/0003-view-per-placement.md). Some content can exist only once, such as a device camera or a window from a library that allows one instance. When `singleView` is on, only one placement shows the view. The others show "Shown in another cell", with a button to show it there instead.
-- **`reparentSafe`.** When a layout is edited, `LayoutView` keeps each view and moves it to its new parent widget, so a web page keeps its state. Some views, such as containers around native windows, do not survive that move. When `reparentSafe` is off, `LayoutView` creates the view again after an edit instead of moving it. The view loses its state.
 
 ## Light actions
 

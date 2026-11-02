@@ -51,12 +51,6 @@ public:
     // shows it under the type's name. Defaults to none. See docs/item-types.md.
     virtual QString description() const { return {}; }
 
-    // True if only one cell may show the item at a time. See docs/item-types.md#the-view.
-    virtual bool singleView() const { return false; }
-
-    // False if the view must be made again instead of being moved to another parent.
-    virtual bool reparentSafe() const { return true; }
-
     // How the configuration is edited: either a list of fields, from which the
     // core builds a form, or an editor of the type's own. See
     // docs/decisions/0028-item-fields-in-m3.md.

@@ -18,7 +18,6 @@ public:
     ~DashboardCellFactory() override;
 
     QWidget *createCell(const std::optional<CellRef> &ref, bool removed, QWidget *parent) override;
-    bool canReparent(const std::optional<CellRef> &ref) const override;
 
 private:
     struct Private;
