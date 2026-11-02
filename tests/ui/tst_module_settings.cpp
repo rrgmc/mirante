@@ -11,7 +11,7 @@
 #include "core/Store.h"
 #include "items/ItemTypeRegistry.h"
 #include "ui/EntityActions.h"
-#include "ui/FieldForm.h"
+#include <mirante/widgets/FieldForm.h>
 #include "ui/MainWindow.h"
 #include "ui/ModuleSettingsDialog.h"
 #include "ui/ProfilesDialog.h"
@@ -33,6 +33,7 @@
 #include <memory>
 
 using namespace mirante;
+using mirante::widgets::FieldForm;
 
 namespace {
 
@@ -135,7 +136,7 @@ class EditorScreen : public SettingsScreen
 public:
     QString id() const override { return QStringLiteral("look"); }
     QString name() const override { return QStringLiteral("Look"); }
-    ItemEditor *createEditor(QWidget *parent) const override { return new OwnEditor(parent); }
+    ItemEditor *createEditor(const EditorContext &, QWidget *parent) const override { return new OwnEditor(parent); }
 };
 
 void registerWithScreens(ModuleRegistrar &registrar)

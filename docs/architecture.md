@@ -138,7 +138,7 @@ Code that differs per platform lives only here, behind these classes.
 | `FocusView` | The [Focus](ui.md#focus-view) list |
 | `ConflictBar` | One line for each conflict copy, with "Keep current", "Use other" and "Compare". See [sync](sync.md#conflict-copies). |
 | `ImagePaste` | Pastes an image from the clipboard into an image item, or as a new item of a task, on no dashboard. See [image](item-types.md#image). |
-| `ImagePasteDialog` | The paste dialog: a preview of a pasted image, with an `ImageCropView` to crop it. See [pasting images](ui.md#pasting-images). |
+| `ImagePasteDialog` | The paste dialog: a preview of a pasted image, with an `ImageCropView` to crop it, in the [view kit](modules.md#the-view-kit). See [pasting images](ui.md#pasting-images). |
 | `QuickSwitcher` | `Ctrl+K` fuzzy search |
 | `QuickAddDialog` | The [quick add](ui.md#quick-add) dialog. It shows what a `QuickAddRun` proposes and finds, and creates the task, "New Task from Link". Opened for a task, it adds the items to that task, "Add Items from Link". See decisions [0078](decisions/0078-quick-add-dialog.md) and [0083](decisions/0083-quick-add-into-a-task.md). |
 | `DashboardPage` | One tab's or slot's page: a `LayoutView` of one dashboard with its cell factory, or the Focus list. A detached window holds one too. |

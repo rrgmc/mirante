@@ -1,4 +1,4 @@
-#include "items/ItemTypeIds.h"
+#include <mirante/ModuleIds.h>
 
 namespace mirante {
 

@@ -1,9 +1,9 @@
 #include "ui/ItemDialog.h"
 
-#include "items/FieldValidation.h"
+#include <mirante/FieldValidation.h>
 #include "items/ItemTypeRegistry.h"
 #include "items/UrlMatches.h"
-#include "ui/FieldForm.h"
+#include <mirante/widgets/FieldForm.h>
 
 #include <mirante/ItemType.h>
 
@@ -28,6 +28,8 @@
 
 namespace mirante {
 
+using widgets::FieldForm;
+
 namespace {
 
 // The data role of a type row's type id. A module row has none.
@@ -48,6 +50,7 @@ struct ItemDialog::Private
     Item item;
     Item original;                      // as given, for its configuration
     bool creating = false;
+    bool ownEditor = false;             // the editor is the type's own, not a form of the core
 
     QStackedWidget *pages = nullptr;
     QWidget *typePage = nullptr;        // only when creating
@@ -229,9 +232,12 @@ struct ItemDialog::Private
         if (!types->contains(item.type))
             return;
         const ItemType &itemType = types->type(item.type);
-        editor = itemType.createEditor(context, q);
+        EditorContext editorContext = context;
+        editorContext.profileId = effectiveProfile();
+        editor = itemType.createEditor(editorContext, q);
+        ownEditor = editor != nullptr;
         if (!editor)
-            editor = new FieldForm(itemType.fieldsForProfile(effectiveProfile()), context, q);
+            editor = new FieldForm(itemType.fieldsForProfile(editorContext.profileId), editorContext, q);
         editor->setObjectName(QStringLiteral("editor"));
         editor->setConfig(config);
         editorBox->addWidget(editor);
@@ -324,10 +330,15 @@ struct ItemDialog::Private
 
     // The fields of a form may depend on the profile, such as the
     // suggestions of a module's settings, so the form is built again for
-    // another profile, keeping what was entered. A type's own editor stays.
+    // another profile, keeping what was entered. A type's own editor stays,
+    // and is told.
     void profileChosen()
     {
-        if (editor && qobject_cast<FieldForm *>(editor) && types->contains(item.type))
+        if (!editor || !types->contains(item.type))
+            return;
+        if (ownEditor)
+            editor->setProfile(effectiveProfile());
+        else
             makeEditor(editor->config());
     }
 

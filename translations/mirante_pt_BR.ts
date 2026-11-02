@@ -3007,7 +3007,7 @@
     </message>
 </context>
 <context>
-    <name>mirante::FieldForm</name>
+    <name>mirante::widgets::FieldForm</name>
     <message>
         <source>Removed when you press OK. Type to set a new one.</source>
         <translation>Removido quando você clicar em OK. Digite para definir um novo.</translation>
@@ -3160,7 +3160,7 @@
     </message>
 </context>
 <context>
-    <name>mirante::ImagePasteDialog</name>
+    <name>mirante::widgets::ImagePasteDialog</name>
     <message>
         <source>Paste Image</source>
         <translation>Colar imagem</translation>

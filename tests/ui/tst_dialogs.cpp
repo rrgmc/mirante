@@ -11,7 +11,7 @@
 #include "items/ItemTypeRegistry.h"
 #include "layout/Presets.h"
 #include "ui/DashboardDialog.h"
-#include "ui/FieldForm.h"
+#include <mirante/widgets/FieldForm.h>
 #include "ui/GroupDialog.h"
 #include "ui/ItemDialog.h"
 #include "ui/ProfilesDialog.h"
@@ -42,6 +42,7 @@
 #include <memory>
 
 using namespace mirante;
+using mirante::widgets::FieldForm;
 
 namespace {
 

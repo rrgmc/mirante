@@ -2,7 +2,7 @@
 
 #include <QString>
 
-// The id rules from docs/modules.md#ids, used by ItemTypeRegistry.
+// The id rules from docs/modules.md#ids, used by the item type registry and by the test registrar.
 
 namespace mirante {
 

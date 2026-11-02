@@ -6,7 +6,7 @@
 #include <QRectF>
 #include <QWidget>
 
-namespace mirante {
+namespace mirante::widgets {
 
 // The maths of ImageCropView, kept apart so tests can check it. A crop is a
 // rectangle in image pixels. Its edges lie on pixel boundaries, from 0 to the
@@ -101,4 +101,4 @@ private:
     bool m_dragging = false;
 };
 
-} // namespace mirante
+} // namespace mirante::widgets

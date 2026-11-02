@@ -103,8 +103,10 @@ The module interface contains the headers below. The "Since" column gives the mi
 | `ItemType.h` | The `ItemType` interface. See [item types](item-types.md#the-type-registry). `shortName()`, the short label in cell headers, was added after M3; see [decision 0033](decisions/0033-cell-header-pills.md). M4 adds `rendering()` and `createView()`; its `connectionKinds()` was removed by [decision 0054](decisions/0054-module-settings-replace-connections.md). `fromUrl()` was added after M4; see [items from a link](#items-from-a-link). So was `fieldsForProfile()`; see [decision 0050](decisions/0050-profiles-hold-logins-connections-and-settings.md). `description()` was added after M4; see [decision 0056](decisions/0056-modules-window.md). M5 adds `hasStatus()` and `fetchStatus()`; see [status](#status). M7 adds `viewKeys()`; see [decision 0081](decisions/0081-views-that-keep-their-own-keys.md). | M2 |
 | `UrlMatch.h` | `UrlMatch`, what an item type makes of a pasted web address, and `pathBelow()`, which reads an address below a server's base URL. See [items from a link](#items-from-a-link). | after M4 |
 | `FileMatch.h` | `FileDrop`, a local file dropped on a task with the project's local folders, and `FileMatch`, what an item type makes of it. See [items from a dropped file](#items-from-a-dropped-file). | M12 |
-| `Fields.h` | `Field`: a key, a label, a type, a default value, a required flag, and for a choice its values and labels. The types are text, multi-line text, URL, integer, boolean, choice, folder, image, text list and secret. A text field can offer `suggestions` in an editable drop-down list. A secret, such as a token, is for settings screens only; its value is never stored with the others. Used for item configuration and settings screens, and from M5 for project settings. See decisions [0028](decisions/0028-item-fields-in-m3.md), [0044](decisions/0044-module-settings-in-the-workspace.md) and [0054](decisions/0054-module-settings-replace-connections.md). | M3 |
-| `ItemEditor.h` | `ItemEditor`, the base of an item type's own configuration editor, and `EditorContext`, what an editor can reach: the project's folders and a way to save an image into `files/`. M12 adds `saveFile`, which copies any file into `files/` with the workspace's size limits. `folderPath`, a folder's local path on this device, was added after M12; see [decision 0114](decisions/0114-links-and-file-tree-items.md). | M3 |
+| `Fields.h` | `Field`: a key, a label, a type, a default value, a required flag, and for a choice its values and labels. The types are text, multi-line text, URL, integer, boolean, choice, folder, image, text list and secret. A text field can offer `suggestions` in an editable drop-down list. A secret, such as a token, is for settings screens only; its value is never stored with the others. M13 adds `help`, a short explanation under the editor, and `group`, the title of a box that holds the field. Used for item configuration and settings screens, and from M5 for project settings. See decisions [0028](decisions/0028-item-fields-in-m3.md), [0044](decisions/0044-module-settings-in-the-workspace.md) and [0054](decisions/0054-module-settings-replace-connections.md). | M3 |
+| `FieldValidation.h` | `validate()`, which checks values against their fields, and `defaultConfig()`, the values of a new item. Moved out of the core in M13, so a custom editor and a module's tests can use them. | M13 |
+| `ModuleIds.h` | The rules of [ids](#ids), as functions. | M13 |
+| `ItemEditor.h` | `ItemEditor`, the base of an item type's own configuration editor, and `EditorContext`, what an editor can reach: the project's folders and a way to save an image into `files/`. M12 adds `saveFile`, which copies any file into `files/` with the workspace's size limits. `folderPath`, a folder's local path on this device, was added after M12; see [decision 0114](decisions/0114-links-and-file-tree-items.md). M13 adds `profileId`, and to `ItemEditor` the `changed()` signal, `setProfile()`, `secrets()`, `removedSecrets()` and `setSecretState()`; see [custom screens](#custom-screens). | M3 |
 | `ItemContext.h` | `ItemContext`, everything an item's code can reach. See [below](#item-context). | M4 |
 | `ApiClient.h` | `ServerType`, how a module's server is set up and authenticated, and `ApiClient`, a module's server in one profile: requests with ETags, paging, rate limits and request limits. See [servers and tokens](#servers-and-tokens). | M5 |
 | `Status.h` | `ItemStatus`, `AttentionReason`, `StatusJob` and `ItemStatusSource`, for the [status cache](integrations.md#polling-and-caching). See [status](#status). M7 adds `StatusJob::folderPath()` and `gitHead()`. | M5 |
@@ -126,13 +128,48 @@ The register function receives a `ModuleRegistrar` and adds any of the following
 | Module description | One or two plain sentences that say what the module adds, with `setModuleDescription()`, such as "Merge requests, pipelines and issues from a GitLab server." The [Modules window](ui.md#modules-window) shows it under the module's name. |
 | Module identity | A UUID with `setModuleUuid()`, a version such as `1.2.0` with `setModuleVersion()`, an author with `setModuleAuthor()` and an `http` or `https` homepage with `setModuleHomepage()`. The UUID never changes and no two modules share one; a new module takes a newly generated one. The Modules window shows all four. See [decision 0089](decisions/0089-module-identity.md). |
 | Settings screens | Configuration screens of the whole module, such as GitLab's "General Configuration", with values kept in each profile of the workspace. See [settings screens](#settings-screens). |
-| Project settings | Fields shown in the project dialog, such as the GitLab project path, with `addProjectSetting()`. They are defaults for the module's items. |
+| Project settings | Fields shown in the project dialog, such as the GitLab project path, with `addProjectSetting()`. They are defaults for the module's items. A module can replace the form with `setProjectEditor()`; see [custom screens](#custom-screens). |
 | Server | How the module's server is set up and authenticated, with `setServerType()`. See [servers and tokens](#servers-and-tokens). |
-| Device settings | Fields kept on each device, such as an editor command, with `addDeviceSetting()`. Types Text, Integer, Bool and Choice. The [settings window](ui.md#settings) edits them, and items read them with `ItemContext::deviceSetting()`. See [decision 0079](decisions/0079-module-device-settings.md). |
+| Device settings | Fields kept on each device, such as an editor command, with `addDeviceSetting()`. Any type except Secret, Folder and Image. The [settings window](ui.md#settings) edits them, and items read them with `ItemContext::deviceSetting()`. A module can replace the form with `setDeviceEditor()`; see [custom screens](#custom-screens) and [decision 0079](decisions/0079-module-device-settings.md). |
 | Quick add handlers | Recognise pasted text and propose a task, with `addQuickAddHandler()`. See [quick add](#quick-add). |
 | Related-item finders | Find items related to a piece of text, such as merge requests whose branch contains a Jira key, with `addRelatedItemFinder()` |
 
-The core builds every dialog from the field definitions, and checks the values against them. It stores and edits the values without knowing what they mean. The one exception is an item type with its own editor: the item dialog shows that editor instead of a form. Either way, keys of the configuration that the form or editor does not show are kept unchanged.
+The core builds a form from the field definitions, and checks the values against them. It stores and edits the values without knowing what they mean. A module can replace any form with its own editor; see [custom screens](#custom-screens). Either way, keys of the configuration that the form or editor does not show are kept unchanged.
+
+## Custom screens
+
+Declared fields are a shortcut. Every screen a module can add also accepts a custom one, and the core keeps the dialog's frame, such as its buttons and the project dialog's group box. See decisions [0120](decisions/0120-fields-are-a-shortcut.md) and [0122](decisions/0122-custom-configuration-screens.md).
+
+| Screen | How to give an editor | The context holds |
+|---|---|---|
+| Item configuration | `ItemType::createEditor()` | The project's folders, files, the profile the item would use |
+| Settings screen | `SettingsScreen::createEditor()` | Files, the profile being edited |
+| Project settings | `ModuleRegistrar::setProjectEditor()` | The project's folders as the dialog opened, files, the profile of the chosen group |
+| Device settings | `ModuleRegistrar::setDeviceEditor()` | Nothing, because no project or profile applies |
+
+```cpp
+// The whole screen is the module's. It can hold a FieldForm for the plain part.
+class QueueEditor : public mirante::ItemEditor { /* setConfig(), config(), problems() */ };
+
+registrar.setProjectEditor([](const mirante::EditorContext &context, QWidget *parent) -> mirante::ItemEditor * {
+    return new QueueEditor(context, parent);
+});
+
+// Only one field is the module's, and the rest of the form stays automatic.
+mirante::ItemEditor *createEditor(const mirante::EditorContext &context, QWidget *parent) const override
+{
+    auto *form = new mirante::widgets::FieldForm(fields(), context, parent);
+    form->setFieldEditor(QStringLiteral("query"), new QueryEditor);
+    return form;
+}
+```
+
+- **Fields still describe the data.** `fields()`, `addProjectSetting()` and `addDeviceSetting()` keep giving defaults, validation and the list of secrets, also with a custom editor.
+- **Device settings.** The settings window saves as the user types, so the editor emits `changed()`. Only declared keys are stored.
+- **Secrets.** On a settings screen, an editor can write a token but never read it. It returns what the user typed from `secrets()` and what was removed from `removedSecrets()`, and hears whether a token is set through `setSecretState()`. Each key must be a `Secret` field in the screen's `fields()`; the core logs and drops a token for any other key, because it would outlive its profile. Project and device editors have no tokens.
+- **Profile.** `EditorContext::profileId` names the profile at the start, and `setProfile()` reports a change. Read the module's values for that profile with `registrar.settings()`.
+- **Validation.** `validate()`, in `FieldValidation.h`, checks values against fields, for an editor that wants the same messages as the form. `problems()` refuses OK.
+- **Pickers.** A `FieldForm` inside the editor gives the folder and image fields. `ImagePasteDialog` and `imageFromMime()` are in the view kit too.
 
 ## Settings screens
 
@@ -158,7 +195,7 @@ void registerModule(ModuleRegistrar &registrar)
 ```
 
 - **Id and name.** The id names the stored values, so it never changes. It has lowercase letters and digits only, and is unique within the module. The name is the menu entry and the dialog title.
-- **Fields or an editor.** As for item types, a screen lists its `fields()`, and the core builds the form, or returns its own `ItemEditor` from `createEditor()`. The editor gets the stored object with `setConfig()`, and its `config()` is stored. Keys that the form or editor does not show are kept.
+- **Fields or an editor.** As for item types, a screen lists its `fields()`, and the core builds the form, or returns its own `ItemEditor` from `createEditor()`. The editor gets the stored object with `setConfig()`, and its `config()` is stored. Keys that the form or editor does not show are kept. See [custom screens](#custom-screens).
 - **Values.** Each screen's values are one JSON object per profile, in that profile's entry of `workspace.mirante`, under `moduleSettings.<module id>.<screen id>`. They sync with the workspace. See [data model](data-model.md#module-settings).
 - **Secrets.** A token or a password goes in a field of type `Secret`. Its value is never part of the stored values, so it never reaches the workspace. The core keeps it in the keychain, under `<workspace id>/<profile id>/<module id>/<field key>`; see [servers and tokens](#servers-and-tokens).
 - **Reading.** Module code reads the values of the profile an item uses. There are three ways:
@@ -283,6 +320,9 @@ Native views of different modules need the same small widgets, and modules canno
   - `setDescription(text)` shows a line above the table that says what the list shows, such as "Of merge request !42 · acme/backend". Each list type sets it from its configuration.
   - The object names `filter.<column>`, `previousPage`, `nextPage` and `pageLine` let tests find the controls.
   - A selected row keeps its highlight across new rows, sorts and pages, so that Return acts on the row the user chose.
+- `FieldForm`: the form the core builds from a list of fields, one row per field, as an `ItemEditor`. A custom editor can place one inside its own widgets, and `setFieldEditor()` replaces the editor of one field with a `FieldEditor`. See [custom screens](#custom-screens).
+- `ImagePasteDialog` and `ImageCropView`: the dialog every image paste opens first, with a preview and a crop. See [pasting images](ui.md#pasting-images).
+- `imageFromMime()`: the image a drag from another app carries.
 - `compactDate()`: a date for a table, in local time: `10-30 14:32` in this year, `2025-10-30` otherwise.
 - `MarkdownView`: a read-only `QTextBrowser` that shows Markdown with GitHub's extensions. Before Qt reads the text, void HTML elements such as `<img ...>` and `<br>` are written as self-closing, outside code, because Qt's importer would otherwise drop all the text after them. Code blocks and code spans get a light background, and the text has a 10-pixel margin. Web and mail links open in the external programs. Loading images is off by default, as the Notes preview needs. `setResourceFetcher()` turns it on: the view asks the fetcher for each image, resolved against the base given to `setMarkdownText()`, and lays the document out again when it arrives. The Notes preview and the document items use it. See [decision 0104](decisions/0104-document-items.md).
 

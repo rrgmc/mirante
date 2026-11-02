@@ -15,7 +15,7 @@
 #include "layout/TaskCell.h"
 #include "ui/EntityActions.h"
 #include "ui/ImagePaste.h"
-#include "ui/ImagePasteDialog.h"
+#include <mirante/widgets/ImagePasteDialog.h>
 #include "ui/MainWindow.h"
 #include "ui/SidebarModel.h"
 #include "ui/SidebarTree.h"
@@ -46,6 +46,7 @@
 #include <memory>
 
 using namespace mirante;
+using mirante::widgets::ImagePasteDialog;
 
 namespace {
 
@@ -256,7 +257,7 @@ private slots:
         QCOMPARE(dragAndDrop(f.tree()->viewport(), f.centre(f.row(kImageTask)), file.get()), Qt::CopyAction);
         // The dialog opens once the drop is over.
         QVERIFY(f.dialogs.isEmpty());
-        QTRY_COMPARE(f.dialogs, QStringList{QStringLiteral("mirante::ImagePasteDialog")});
+        QTRY_COMPARE(f.dialogs, QStringList{QStringLiteral("mirante::widgets::ImagePasteDialog")});
         const Task *task = f.model.task(kImageTask);
         QCOMPARE(task->items.size(), before + 1);
         QCOMPARE(task->items.back().type, QStringLiteral("image"));

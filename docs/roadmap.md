@@ -162,11 +162,11 @@ Made in this repository, before the split into repositories for [custom builds](
 
 **Configuration screens:**
 
-- [ ] Project settings and device settings accept a custom editor, as item configuration and settings screens do.
-- [ ] `FieldForm` and its editors are in the view kit and use only the public interface, so a custom editor can combine automatic sections with its own widgets.
-- [ ] A custom editor can do what `FieldForm` can, including secrets, validation messages, folder and image pickers, and knowing the profile being edited.
-- [ ] A single field can have a custom widget, and the rest of the form stays automatic.
-- [ ] `Field` gains help text and groups. A condition for showing a field is added if a screen needs it.
+- [x] Project settings and device settings accept a custom editor, as item configuration and settings screens do.
+- [x] `FieldForm` and its editors are in the view kit and use only the public interface, so a custom editor can combine automatic sections with its own widgets.
+- [x] A custom editor can do what `FieldForm` can, including secrets, validation messages, folder and image pickers, and knowing the profile being edited.
+- [x] A single field can have a custom widget, and the rest of the form stays automatic.
+- [x] `Field` gains help text and groups. A condition for showing a field is added if a screen needs it.
 
 **Interface cleanup:**
 

@@ -1,8 +1,8 @@
-#include "ui/FieldForm.h"
+#include <mirante/widgets/FieldForm.h>
 
-#include "items/FieldValidation.h"
-#include "ui/ImagePaste.h"
-#include "ui/ImagePasteDialog.h"
+#include <mirante/FieldValidation.h>
+#include <mirante/widgets/ImageMime.h>
+#include <mirante/widgets/ImagePasteDialog.h>
 
 #include <QCheckBox>
 #include <QClipboard>
@@ -13,6 +13,7 @@
 #include <QDropEvent>
 #include <QFileDialog>
 #include <QFormLayout>
+#include <QGroupBox>
 #include <QGuiApplication>
 #include <QHBoxLayout>
 #include <QImage>
@@ -31,14 +32,14 @@
 #include <limits>
 #include <utility>
 
-namespace mirante {
+namespace mirante::widgets {
 
 namespace {
 
 const QSize thumbnailSize(96, 72);
 
 // The editor of an image field. It takes an image dropped from another app,
-// as ImagePaste::imageFromMime() reads it, and passes it to onDrop once the
+// as imageFromMime() reads it, and passes it to onDrop once the
 // drop is over, so the drag's source is not kept waiting while the paste
 // dialog is open. The drag is copied, never moved. See
 // docs/decisions/0085-drop-images-from-other-apps.md.
@@ -52,7 +53,7 @@ public:
 protected:
     void dragEnterEvent(QDragEnterEvent *event) override
     {
-        m_image = onDrop && (event->possibleActions() & Qt::CopyAction) ? ImagePaste::imageFromMime(event->mimeData())
+        m_image = onDrop && (event->possibleActions() & Qt::CopyAction) ? imageFromMime(event->mimeData())
                                                                          : QImage();
         accept(event);
     }
@@ -92,6 +93,9 @@ struct FieldForm::Private
     {
         Field field;
         QWidget *editor = nullptr;      // what editorFor() returns
+        QWidget *shown = nullptr;       // what the layout holds: editor, or a box around it
+        QFormLayout *layout = nullptr;  // the form, or the box of the field's group
+        FieldEditor *custom = nullptr;  // set by setFieldEditor(); the pointers below are then null
         QLineEdit *line = nullptr;
         QPlainTextEdit *text = nullptr;
         QSpinBox *spin = nullptr;
@@ -114,6 +118,11 @@ struct FieldForm::Private
     std::vector<Row> rows;
     QJsonObject config;
     bool loading = false;
+    // The box of each group, in the order they first appear.
+    std::vector<std::pair<QString, QGroupBox *>> groups;
+
+    // The layout of a field's row: the form, or the box of its group.
+    QFormLayout *layoutOf(const Field &field, QFormLayout *form, QWidget *parent);
 
     // The value the editor of row shows, or Undefined for an empty one.
     static QJsonValue value(const Row &row);
@@ -122,6 +131,24 @@ struct FieldForm::Private
     // Shows a Secret field's state in its placeholder and Remove button.
     static void showSecretState(Row &row);
 };
+
+QFormLayout *FieldForm::Private::layoutOf(const Field &field, QFormLayout *form, QWidget *parent)
+{
+    if (field.group.isEmpty())
+        return form;
+    for (const auto &[name, box] : groups) {
+        if (name == field.group)
+            return qobject_cast<QFormLayout *>(box->layout());
+    }
+    auto *box = new QGroupBox(field.group, parent);
+    box->setObjectName(QStringLiteral("group.") + field.group);
+    // The macOS style leaves the title out of the box's layout rectangle, so
+    // the title overlaps the widget above it.
+    box->setAttribute(Qt::WA_LayoutUsesWidgetRect);
+    auto *layout = new QFormLayout(box);
+    groups.emplace_back(field.group, box);
+    return layout;
+}
 
 void FieldForm::Private::showSecretState(Row &row)
 {
@@ -140,6 +167,8 @@ void FieldForm::Private::showSecretState(Row &row)
 
 QJsonValue FieldForm::Private::value(const Row &row)
 {
+    if (row.custom)
+        return row.custom->value();
     switch (row.field.type) {
     case Field::Type::Text:
     case Field::Type::Url:
@@ -215,6 +244,10 @@ void FieldForm::Private::fillCombo(Row &row, const QJsonValue &value) const
 
 void FieldForm::Private::show(Row &row, const QJsonValue &value)
 {
+    if (row.custom) {
+        row.custom->setValue(value);
+        return;
+    }
     switch (row.field.type) {
     case Field::Type::Text:
     case Field::Type::Url:
@@ -441,8 +474,23 @@ FieldForm::FieldForm(std::vector<Field> fields, EditorContext context, QWidget *
             break;
         }
         }
-        form->addRow(row.field.label, field ? field : row.editor);
+        row.shown = field ? field : row.editor;
+        row.layout = d->layoutOf(row.field, form, this);
+        row.layout->addRow(row.field.label, row.shown);
+        if (!row.field.help.isEmpty()) {
+            auto *help = new QLabel(row.field.help, this);
+            help->setObjectName(QStringLiteral("help.") + row.field.key);
+            help->setWordWrap(true);
+            help->setForegroundRole(QPalette::PlaceholderText);
+            QFont font = help->font();
+            font.setPointSizeF(font.pointSizeF() * 0.9);
+            help->setFont(font);
+            row.layout->addRow(QString(), help);
+        }
     }
+    // After the fields without a group.
+    for (const auto &[name, box] : d->groups)
+        form->addRow(box);
 
     setConfig({});
 }
@@ -496,6 +544,45 @@ QJsonObject FieldForm::secrets() const
     return secrets;
 }
 
+void FieldForm::setFieldEditor(const QString &key, FieldEditor *editor)
+{
+    for (std::size_t i = 0; i < d->rows.size(); ++i) {
+        Private::Row &row = d->rows[i];
+        if (row.field.key != key)
+            continue;
+        if (row.field.type == Field::Type::Secret) {
+            qWarning("FieldForm: the field \"%s\" is a Secret field, so it keeps its editor", qUtf8Printable(key));
+            delete editor;
+            return;
+        }
+        editor->setParent(this);
+        delete row.layout->replaceWidget(row.shown, editor);
+        delete row.shown;
+        row.line = nullptr;
+        row.text = nullptr;
+        row.spin = nullptr;
+        row.check = nullptr;
+        row.combo = nullptr;
+        row.thumbnail = nullptr;
+        row.imageName = nullptr;
+        row.editor = editor;
+        row.shown = editor;
+        row.custom = editor;
+        connect(editor, &FieldEditor::changed, this, [this, i] {
+            if (d->loading)
+                return;
+            d->rows[i].edited = true;
+            emit changed();
+        });
+        d->loading = true;
+        d->show(row, d->config.value(key));
+        d->loading = false;
+        return;
+    }
+    qWarning("FieldForm: there is no field \"%s\" to give an editor", qUtf8Printable(key));
+    delete editor;
+}
+
 QStringList FieldForm::problems() const
 {
     std::vector<Field> fields;
@@ -505,6 +592,10 @@ QStringList FieldForm::problems() const
     QStringList messages;
     for (const FieldProblem &problem : validate(fields, config()))
         messages << problem.message;
+    for (const Private::Row &row : d->rows) {
+        if (row.custom)
+            messages << row.custom->problems();
+    }
     return messages;
 }
 
@@ -538,4 +629,4 @@ QStringList FieldForm::removedSecrets() const
     return keys;
 }
 
-} // namespace mirante
+} // namespace mirante::widgets

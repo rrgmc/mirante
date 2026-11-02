@@ -2,6 +2,8 @@
 
 #include "core/Entities.h"
 
+#include <mirante/ItemEditor.h>
+
 #include <QDialog>
 #include <QMap>
 
@@ -28,9 +30,10 @@ class ProjectDialog : public QDialog
 public:
     // settings gives the folders' current local paths. The dialog does not
     // write them; the caller saves folderPaths() after OK. types gives the
-    // modules' project settings.
+    // modules' project settings. A module's own project editor gets context,
+    // with the profile of the chosen group.
     ProjectDialog(const Project &project, const Model &model, const DeviceSettings &settings,
-                  const ItemTypeRegistry &types, QWidget *parent = nullptr);
+                  const ItemTypeRegistry &types, EditorContext context = EditorContext(), QWidget *parent = nullptr);
     ~ProjectDialog() override;
 
     // The project with the edited fields; every other field as given. New

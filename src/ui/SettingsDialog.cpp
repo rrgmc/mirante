@@ -2,7 +2,7 @@
 
 #include "core/DeviceSettings.h"
 #include "items/ItemTypeRegistry.h"
-#include "ui/FieldForm.h"
+#include <mirante/widgets/FieldForm.h>
 
 #include <QCheckBox>
 #include <QComboBox>
@@ -20,6 +20,8 @@
 #include <QVBoxLayout>
 
 namespace mirante {
+
+using widgets::FieldForm;
 
 struct SettingsDialog::Private
 {
@@ -212,14 +214,17 @@ void SettingsDialog::setModules(const ItemTypeRegistry &types)
         // The macOS style leaves the title out of the box's layout rectangle,
         // so the title overlaps the "Modules" heading above it.
         box->setAttribute(Qt::WA_LayoutUsesWidgetRect);
-        auto *form = new FieldForm(fields, EditorContext(), box);
-        form->setObjectName(QStringLiteral("deviceSettingsForm.") + moduleId);
-        form->setConfig(shown);
+        const EditorFactory factory = types.deviceEditor(moduleId);
+        ItemEditor *editor = factory ? factory(EditorContext(), box) : nullptr;
+        if (!editor)
+            editor = new FieldForm(fields, EditorContext(), box);
+        editor->setObjectName(QStringLiteral("deviceSettingsForm.") + moduleId);
+        editor->setConfig(shown);
         auto *boxLayout = new QVBoxLayout(box);
-        boxLayout->addWidget(form);
+        boxLayout->addWidget(editor);
         modules->addRow(box);
-        connect(form, &FieldForm::changed, this, [this, form, moduleId, fields, shown]() mutable {
-            const QJsonObject values = form->config();
+        connect(editor, &ItemEditor::changed, this, [this, editor, moduleId, fields, shown]() mutable {
+            const QJsonObject values = editor->config();
             for (const Field &field : fields) {
                 const QJsonValue value = values.value(field.key);
                 if (value == shown.value(field.key))

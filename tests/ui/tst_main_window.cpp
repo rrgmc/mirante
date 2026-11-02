@@ -23,10 +23,10 @@
 #include "ui/DashboardPage.h"
 #include "ui/DetachedWindow.h"
 #include "ui/EntityActions.h"
-#include "ui/FieldForm.h"
+#include <mirante/widgets/FieldForm.h>
 #include "ui/FocusView.h"
 #include "ui/ImagePaste.h"
-#include "ui/ImagePasteDialog.h"
+#include <mirante/widgets/ImagePasteDialog.h>
 #include "ui/MainWindow.h"
 #include "ui/RootDashboardsDialog.h"
 #include "ui/RootTabBar.h"
@@ -82,6 +82,8 @@
 #include <memory>
 
 using namespace mirante;
+using mirante::widgets::FieldForm;
+using mirante::widgets::ImagePasteDialog;
 
 namespace {
 
@@ -1469,7 +1471,7 @@ private slots:
             return false;
         });
         f.window->pasteImage(image);
-        QCOMPARE(dialogs, QStringList{QStringLiteral("mirante::ImagePasteDialog")});
+        QCOMPARE(dialogs, QStringList{QStringLiteral("mirante::widgets::ImagePasteDialog")});
         QCOMPARE(file(), before);
 
         f.window->setExec(cropTo(QRect(100, 50, 40, 30)));
@@ -1564,7 +1566,7 @@ private slots:
             return false;
         });
         trigger();
-        QCOMPARE(dialogs, QStringList{QStringLiteral("mirante::ImagePasteDialog")});
+        QCOMPARE(dialogs, QStringList{QStringLiteral("mirante::widgets::ImagePasteDialog")});
         QVERIFY(*f.model.task(kImageTask) == before);
 
         actions->setExec(cropTo(QRect(100, 50, 40, 30)));

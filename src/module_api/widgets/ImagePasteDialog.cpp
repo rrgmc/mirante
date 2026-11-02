@@ -1,6 +1,6 @@
-#include "ui/ImagePasteDialog.h"
+#include <mirante/widgets/ImagePasteDialog.h>
 
-#include "ui/ImageCropView.h"
+#include <mirante/widgets/ImageCropView.h>
 
 #include <QDialogButtonBox>
 #include <QHBoxLayout>
@@ -8,7 +8,7 @@
 #include <QPushButton>
 #include <QVBoxLayout>
 
-namespace mirante {
+namespace mirante::widgets {
 
 ImagePasteDialog::ImagePasteDialog(const QImage &image, QWidget *parent)
     : QDialog(parent)
@@ -107,4 +107,4 @@ QImage ImagePasteDialog::ask(const QImage &image, QWidget *parent, const Exec &e
     return dialog.croppedImage();
 }
 
-} // namespace mirante
+} // namespace mirante::widgets

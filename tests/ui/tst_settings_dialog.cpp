@@ -3,7 +3,7 @@
 // the language, the terminal and the modules' device settings.
 #include "core/DeviceSettings.h"
 #include "items/ItemTypeRegistry.h"
-#include "ui/FieldForm.h"
+#include <mirante/widgets/FieldForm.h>
 #include "ui/SettingsDialog.h"
 
 #include <QCheckBox>
@@ -21,6 +21,7 @@
 #include <QTest>
 
 using namespace mirante;
+using mirante::widgets::FieldForm;
 
 namespace {
 

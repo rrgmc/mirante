@@ -7,15 +7,15 @@
 #include "core/Model.h"
 #include "core/Profiles.h"
 #include "core/Store.h"
-#include "items/FieldValidation.h"
+#include <mirante/FieldValidation.h>
 #include "items/ItemTypeRegistry.h"
 #include "items/UrlMatches.h"
 #include "layout/Presets.h"
 #include "ui/DashboardDialog.h"
-#include "ui/FieldForm.h"
+#include <mirante/widgets/FieldForm.h>
 #include "ui/GroupDialog.h"
 #include "ui/ImagePaste.h"
-#include "ui/ImagePasteDialog.h"
+#include <mirante/widgets/ImagePasteDialog.h>
 #include "ui/ItemDialog.h"
 #include "ui/ModuleSettingsDialog.h"
 #include "ui/ProfilesDialog.h"
@@ -42,6 +42,9 @@
 #include <climits>
 
 namespace mirante {
+
+using widgets::FieldForm;
+using widgets::ImagePasteDialog;
 
 namespace {
 
@@ -136,13 +139,24 @@ struct EntityActions::Private
 
     EditorContext editorContext(const QString &taskId) const
     {
+        const Task *task = model.task(taskId);
+        const Project *project = task ? model.project(task->projectId) : nullptr;
+        return project ? projectEditorContext(*project) : filesContext();
+    }
+
+    // What an editor can reach for a project: its folders and the files.
+    EditorContext projectEditorContext(const Project &project) const
+    {
+        EditorContext context = filesContext();
+        for (const Folder &folder : project.folders)
+            context.folders.emplace_back(folder.id, folder.name);
+        return context;
+    }
+
+    // What an editor can reach without a project: the workspace's files.
+    EditorContext filesContext() const
+    {
         EditorContext context;
-        if (const Task *task = model.task(taskId)) {
-            if (const Project *project = model.project(task->projectId)) {
-                for (const Folder &folder : project->folders)
-                    context.folders.emplace_back(folder.id, folder.name);
-            }
-        }
         Store *s = &store;
         context.saveImage = [s](const QImage &image) {
             QByteArray bytes;
@@ -180,7 +194,7 @@ struct EntityActions::Private
     // Runs the project dialog and applies its value and folder paths.
     bool runProjectDialog(const Project &project)
     {
-        ProjectDialog dialog(project, model, settings, types, dialogParent);
+        ProjectDialog dialog(project, model, settings, types, projectEditorContext(project), dialogParent);
         if (!exec(dialog))
             return false;
         const QMap<QString, QString> paths = dialog.folderPaths();
@@ -291,33 +305,40 @@ void EntityActions::editModuleSettings(const QString &profileId, const QString &
     const SettingsScreen *screen = d->types.settingsScreen(moduleId, screenId);
     if (!screen || !d->model.profile(profileId))
         return;
+    EditorContext context = d->filesContext();
+    context.profileId = profileId;
     ModuleSettingsDialog dialog(profiles::nameOf(d->model, profileId), d->types.moduleName(moduleId), *screen,
-                                d->model.moduleSettings(profileId, moduleId, screenId), d->dialogParent);
+                                d->model.moduleSettings(profileId, moduleId, screenId), context, d->dialogParent);
     const QString workspaceId = d->model.workspaceId();
-    auto *form = qobject_cast<FieldForm *>(dialog.editor());
-    // The form says whether each token is set on this device, loading it
+    ItemEditor *editor = dialog.editor();
+    // Only a declared Secret field may be stored, since a key the core does
+    // not know would stay in the keychain when its profile is deleted.
+    QStringList secretFields;
+    for (const Field &field : screen->fields()) {
+        if (field.type == Field::Type::Secret)
+            secretFields << field.key;
+    }
+    // The editor says whether each token is set on this device, loading it
     // from the keychain if this session has not yet.
-    if (form && d->secrets) {
+    if (d->secrets) {
         SecretStore *secrets = d->secrets;
         const auto stateOf = [secrets](const QString &key) {
             switch (secrets->state(key)) {
             case SecretStore::State::Set:
-                return FieldForm::SecretState::Set;
+                return ItemEditor::SecretState::Set;
             case SecretStore::State::NotSet:
-                return FieldForm::SecretState::NotSet;
+                return ItemEditor::SecretState::NotSet;
             case SecretStore::State::Unknown:
                 break;
             }
-            return FieldForm::SecretState::Unknown;
+            return ItemEditor::SecretState::Unknown;
         };
-        for (const Field &field : screen->fields()) {
-            if (field.type != Field::Type::Secret)
-                continue;
-            const QString key = secretKey(workspaceId, profileId, moduleId, field.key);
-            form->setSecretState(field.key, stateOf(key));
+        for (const QString &fieldKey : secretFields) {
+            const QString key = secretKey(workspaceId, profileId, moduleId, fieldKey);
+            editor->setSecretState(fieldKey, stateOf(key));
             if (secrets->state(key) == SecretStore::State::Unknown) {
-                secrets->read(key, form, [form, stateOf, key, fieldKey = field.key](const std::optional<QString> &) {
-                    form->setSecretState(fieldKey, stateOf(key));
+                secrets->read(key, editor, [editor, stateOf, key, fieldKey](const std::optional<QString> &) {
+                    editor->setSecretState(fieldKey, stateOf(key));
                 });
             }
         }
@@ -328,14 +349,19 @@ void EntityActions::editModuleSettings(const QString &profileId, const QString &
     // Tokens stay on this device, in the keychain. Without a secret store,
     // as in some tests, they are dropped.
     if (SecretStore *secrets = d->secrets) {
-        if (form) {
-            for (const QString &fieldKey : form->removedSecrets())
+        for (const QString &fieldKey : editor->removedSecrets()) {
+            if (secretFields.contains(fieldKey))
                 secrets->remove(secretKey(workspaceId, profileId, moduleId, fieldKey));
         }
         // A pasted token often brings a line break along, which a server
         // refuses; no token has spaces at its ends.
         const QJsonObject typed = dialog.secrets();
         for (auto it = typed.begin(); it != typed.end(); ++it) {
+            if (!secretFields.contains(it.key())) {
+                qWarning("Module %s: the editor of screen %s gave a token for \"%s\", which is not a Secret field",
+                         qUtf8Printable(moduleId), qUtf8Printable(screenId), qUtf8Printable(it.key()));
+                continue;
+            }
             const QString token = it.value().toString().trimmed();
             if (!token.isEmpty())
                 secrets->write(secretKey(workspaceId, profileId, moduleId, it.key()), token);

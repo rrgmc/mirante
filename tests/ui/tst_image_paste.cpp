@@ -9,6 +9,7 @@
 #include "items/ItemTypeRegistry.h"
 #include "ui/ImagePaste.h"
 
+#include <mirante/widgets/ImageMime.h>
 #include <mirante/Module.h>
 
 #include <QDir>
@@ -437,43 +438,43 @@ void TestImagePaste::imageFromMime()
     text.close();
     const QUrl textUrl = QUrl::fromLocalFile(text.fileName());
 
-    QVERIFY(ImagePaste::imageFromMime(nullptr).isNull());
+    QVERIFY(widgets::imageFromMime(nullptr).isNull());
     QMimeData empty;
-    QVERIFY(ImagePaste::imageFromMime(&empty).isNull());
+    QVERIFY(widgets::imageFromMime(&empty).isNull());
 
     // An image file.
     QMimeData file;
     file.setUrls({png});
-    QCOMPARE(ImagePaste::imageFromMime(&file).size(), QSize(5, 4));
-    QCOMPARE(ImagePaste::imageFromMime(&file).pixelColor(0, 0), QColor(Qt::blue));
+    QCOMPARE(widgets::imageFromMime(&file).size(), QSize(5, 4));
+    QCOMPARE(widgets::imageFromMime(&file).pixelColor(0, 0), QColor(Qt::blue));
     // The suffix is compared without case.
     file.setUrls({jpeg});
-    QCOMPARE(ImagePaste::imageFromMime(&file).size(), QSize(3, 2));
+    QCOMPARE(widgets::imageFromMime(&file).size(), QSize(3, 2));
 
     // The first of several that is read: a file that is not an image, one
     // with another suffix, an unreadable one and a link are skipped.
     QMimeData several;
     several.setUrls({textUrl, ico, brokenUrl, QUrl(QStringLiteral("https://example.com/a.png")), bmp, png});
-    QCOMPARE(ImagePaste::imageFromMime(&several).size(), QSize(3, 2));
+    QCOMPARE(widgets::imageFromMime(&several).size(), QSize(3, 2));
 
     // Image data, as a browser gives.
     QMimeData data;
     data.setImageData(blue);
-    QCOMPARE(ImagePaste::imageFromMime(&data).size(), QSize(5, 4));
+    QCOMPARE(widgets::imageFromMime(&data).size(), QSize(5, 4));
     // A file comes before the image data.
     data.setUrls({bmp});
-    QCOMPARE(ImagePaste::imageFromMime(&data).size(), QSize(3, 2));
+    QCOMPARE(widgets::imageFromMime(&data).size(), QSize(3, 2));
     // Without a readable file, the image data.
     data.setUrls({textUrl, brokenUrl});
-    QCOMPARE(ImagePaste::imageFromMime(&data).size(), QSize(5, 4));
+    QCOMPARE(widgets::imageFromMime(&data).size(), QSize(5, 4));
 
     // Only files that are not images, or cannot be read: no image.
     QMimeData others;
     others.setUrls({textUrl, brokenUrl, ico});
-    QVERIFY(ImagePaste::imageFromMime(&others).isNull());
+    QVERIFY(widgets::imageFromMime(&others).isNull());
     QMimeData words;
     words.setText(QStringLiteral("blue.png"));
-    QVERIFY(ImagePaste::imageFromMime(&words).isNull());
+    QVERIFY(widgets::imageFromMime(&words).isNull());
 }
 
 QTEST_MAIN(TestImagePaste)

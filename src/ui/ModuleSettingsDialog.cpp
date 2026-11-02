@@ -1,12 +1,14 @@
 #include "ui/ModuleSettingsDialog.h"
 
-#include "ui/FieldForm.h"
+#include <mirante/widgets/FieldForm.h>
 
 #include <QDialogButtonBox>
 #include <QLabel>
 #include <QVBoxLayout>
 
 namespace mirante {
+
+using widgets::FieldForm;
 
 struct ModuleSettingsDialog::Private
 {
@@ -15,7 +17,8 @@ struct ModuleSettingsDialog::Private
 };
 
 ModuleSettingsDialog::ModuleSettingsDialog(const QString &profileName, const QString &moduleName,
-                                           const SettingsScreen &screen, const QJsonObject &values, QWidget *parent)
+                                           const SettingsScreen &screen, const QJsonObject &values,
+                                           const EditorContext &context, QWidget *parent)
     : QDialog(parent)
     , d(std::make_unique<Private>())
 {
@@ -30,9 +33,9 @@ ModuleSettingsDialog::ModuleSettingsDialog(const QString &profileName, const QSt
     note->setObjectName(QStringLiteral("note"));
     note->setWordWrap(true);
 
-    d->editor = screen.createEditor(this);
+    d->editor = screen.createEditor(context, this);
     if (!d->editor)
-        d->editor = new FieldForm(screen.fields(), EditorContext(), this);
+        d->editor = new FieldForm(screen.fields(), context, this);
     d->editor->setObjectName(QStringLiteral("editor"));
     // A field without a stored value shows its default as real text, such as
     // GitLab's https://gitlab.com, since that is the value the module uses.
@@ -63,11 +66,7 @@ ModuleSettingsDialog::~ModuleSettingsDialog() = default;
 
 QJsonObject ModuleSettingsDialog::values() const { return d->editor->config(); }
 
-QJsonObject ModuleSettingsDialog::secrets() const
-{
-    const auto *form = qobject_cast<const FieldForm *>(d->editor);
-    return form ? form->secrets() : QJsonObject();
-}
+QJsonObject ModuleSettingsDialog::secrets() const { return d->editor->secrets(); }
 
 ItemEditor *ModuleSettingsDialog::editor() const { return d->editor; }
 

@@ -4,6 +4,7 @@
 #include "ui/SidebarDelegate.h"
 #include "ui/SidebarModel.h"
 
+#include <mirante/widgets/ImageMime.h>
 #include <QDragEnterEvent>
 #include <QDragLeaveEvent>
 #include <QDragMoveEvent>
@@ -145,7 +146,7 @@ void SidebarTree::dragEnterEvent(QDragEnterEvent *event)
     endImageDrag();
     if (!isOwnDrag(event->mimeData()) && (event->possibleActions() & Qt::CopyAction)
         && model() && (model()->flags(QModelIndex()) & Qt::ItemIsDropEnabled)) {
-        m_dragImage = ImagePaste::imageFromMime(event->mimeData());
+        m_dragImage = widgets::imageFromMime(event->mimeData());
         if (m_dragImage.isNull())
             m_dragFile = localFileOf(event->mimeData());
         if (draggingFromOutside()) {

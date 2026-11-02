@@ -14,10 +14,10 @@
 #include "layout/Presets.h"
 #include "ui/DashboardDialog.h"
 #include "ui/EntityActions.h"
-#include "ui/FieldForm.h"
+#include <mirante/widgets/FieldForm.h>
 #include "ui/GroupDialog.h"
 #include "ui/ImagePaste.h"
-#include "ui/ImagePasteDialog.h"
+#include <mirante/widgets/ImagePasteDialog.h>
 #include "ui/ItemDialog.h"
 #include "ui/ProfilesDialog.h"
 #include "ui/ProjectDialog.h"
@@ -35,6 +35,7 @@
 #include <QMenu>
 #include <QSettings>
 #include <QTemporaryDir>
+#include <QRegularExpression>
 #include <QTest>
 
 #include <algorithm>
@@ -42,6 +43,8 @@
 #include <memory>
 
 using namespace mirante;
+using mirante::widgets::FieldForm;
+using mirante::widgets::ImagePasteDialog;
 
 namespace {
 
@@ -131,6 +134,53 @@ public:
         return {server, token};
     }
 };
+
+// An editor of a screen's own, which handles a token without a FieldForm. It
+// also offers a token for a key the screen does not declare.
+class OwnTokenEditor : public ItemEditor
+{
+    Q_OBJECT
+
+public:
+    using ItemEditor::ItemEditor;
+
+    void setConfig(const QJsonObject &) override {}
+    QJsonObject config() const override { return {}; }
+    void setSecretState(const QString &key, SecretState state) override { states.insert(key, state); }
+    QJsonObject secrets() const override { return typed; }
+    QStringList removedSecrets() const override { return removed; }
+
+    QMap<QString, SecretState> states;
+    QJsonObject typed;
+    QStringList removed;
+};
+
+class OwnTokenScreen : public SettingsScreen
+{
+public:
+    QString id() const override { return QStringLiteral("general"); }
+    QString name() const override { return QStringLiteral("General"); }
+    std::vector<Field> fields() const override
+    {
+        Field token;
+        token.key = QStringLiteral("key");
+        token.label = QStringLiteral("Key");
+        token.type = Field::Type::Secret;
+        return {token};
+    }
+    ItemEditor *createEditor(const EditorContext &context, QWidget *parent) const override
+    {
+        profileSeen = context.profileId;
+        return new OwnTokenEditor(parent);
+    }
+
+    mutable QString profileSeen;
+};
+
+void registerOwnTokenModule(ModuleRegistrar &registrar)
+{
+    registrar.addSettingsScreen(std::make_unique<OwnTokenScreen>());
+}
 
 void registerTokenModule(ModuleRegistrar &registrar)
 {
@@ -260,6 +310,7 @@ private slots:
     void trashMenus();
     void pasteImageMenu();
     void typedTokenIsWritten();
+    void ownEditorHandlesTokens();
     void tokenStateAndRemove();
     void deletingProfileRemovesTokens();
 };
@@ -268,6 +319,7 @@ void TestEntityActions::initTestCase()
 {
     types.registerModule(QStringLiteral("testmod"), registerTestModule);
     types.registerModule(QStringLiteral("tokens"), registerTokenModule);
+    types.registerModule(QStringLiteral("owntokens"), registerOwnTokenModule);
     store = std::make_unique<Store>(model);
 }
 
@@ -960,6 +1012,52 @@ void TestEntityActions::typedTokenIsWritten()
 
 // The screen shows whether the token is set, read from the store, and its
 // Remove button removes it on OK.
+void TestEntityActions::ownEditorHandlesTokens()
+{
+    const QString key = secretKey(fixtureWorkspaceId, workProfile, QStringLiteral("owntokens"), QStringLiteral("key"));
+    SecretStore secrets(makeMemoryBackend());
+    actions->setSecretStore(&secrets);
+    secrets.write(key, QStringLiteral("old"));
+
+    // It hears the state, and what it types is written. A token for a key the
+    // screen does not declare is not, or it would outlive its profile.
+    ItemEditor::SecretState state = ItemEditor::SecretState::Unknown;
+    fill = [&state](QDialog &dialog) {
+        auto *editor = dialog.findChild<OwnTokenEditor *>();
+        QVERIFY(editor);
+        state = editor->states.value(QStringLiteral("key"));
+        editor->typed = QJsonObject{{QStringLiteral("key"), QStringLiteral(" new ")},
+                                    {QStringLiteral("stray"), QStringLiteral("x")}};
+    };
+    QTest::ignoreMessage(QtWarningMsg, QRegularExpression(QStringLiteral("not a Secret field")));
+    actions->editModuleSettings(workProfile, QStringLiteral("owntokens"), QStringLiteral("general"));
+    QCOMPARE(state, ItemEditor::SecretState::Set);
+    QCOMPARE(secrets.cached(key), std::optional<QString>(QStringLiteral("new")));
+    const QString stray = secretKey(fixtureWorkspaceId, workProfile, QStringLiteral("owntokens"), QStringLiteral("stray"));
+    QVERIFY(!secrets.cached(stray));
+
+    // It knows the profile it edits.
+    const auto *screen = dynamic_cast<const OwnTokenScreen *>(
+        types.settingsScreen(QStringLiteral("owntokens"), QStringLiteral("general")));
+    QCOMPARE(screen->profileSeen, workProfile);
+
+    // It can remove a token.
+    fill = [](QDialog &dialog) {
+        dialog.findChild<OwnTokenEditor *>()->removed = QStringList{QStringLiteral("key")};
+    };
+    actions->editModuleSettings(workProfile, QStringLiteral("owntokens"), QStringLiteral("general"));
+    QCOMPARE(secrets.state(key), SecretStore::State::NotSet);
+
+    // A token goes with its profile.
+    secrets.write(key, QStringLiteral("again"));
+    actions->setEditProfiles([](ProfilesDialog &dialog) {
+        dialog.select(workProfile);
+        dialog.deleteSelected();
+    });
+    actions->editProfiles();
+    QCOMPARE(secrets.state(key), SecretStore::State::NotSet);
+}
+
 void TestEntityActions::tokenStateAndRemove()
 {
     SecretStore secrets(makeMemoryBackend());
