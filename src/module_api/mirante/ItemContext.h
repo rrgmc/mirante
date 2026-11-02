@@ -13,7 +13,6 @@
 #include <optional>
 
 class QObject;
-class QWebEngineProfile;
 class QWidget;
 
 namespace mirante {
@@ -27,8 +26,6 @@ class ItemContext
 {
 public:
     virtual ~ItemContext() = default;
-
-    virtual QString itemName() const = 0;
 
     // The item's configuration. Read from the model on each call, so it is
     // current after an external change.
@@ -56,14 +53,6 @@ public:
     // the cell header. The normal way for a web type to show a page. See
     // docs/web-views.md.
     virtual QWidget *createWebView(const QUrl &url, QWidget *parent) = 0;
-
-    // The web logins of the item's profile: its own, else its group's
-    // default, else Default. For a module that builds its own
-    // QWebEngineView. The profile holds the logins of every site its items
-    // visit, not only this module's. Declared, not defined, here; such a
-    // module links Qt WebEngine with QT_LIBS. See decisions 0037, 0042 and
-    // 0050 in docs/decisions/.
-    virtual QWebEngineProfile *profile() = 0;
 
     // A grey message in the middle of the cell, such as "Set the issue key in
     // the item's settings.", in the style of the core's placeholders.

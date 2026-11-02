@@ -62,7 +62,7 @@ The function:
 
 1. creates the option `MIRANTE_MODULE_GITLAB`, with the given default;
 2. if the option is off, does nothing more;
-3. builds a static library `mirante_module_gitlab`, linked only to the module interface and Qt: Core, Gui and Widgets, and the components in `QT_LIBS`, such as `WebEngineWidgets` for a module that builds its own web view from `profile()`;
+3. builds a static library `mirante_module_gitlab`, linked only to the module interface and Qt: Core, Gui and Widgets, and the components in `QT_LIBS`, such as `PdfWidgets` for the `document` module;
 4. compiles the resources in, served as `:/modules/<id>/<path>`, such as `:/modules/gitlab/icons/gitlab.svg`;
 5. adds the module's tests to CTest, named `module_<id>_<file>`;
 6. adds the module to the list of enabled modules.
@@ -113,9 +113,8 @@ The module interface contains the headers below. The "Since" column gives the mi
 | `widgets/*.h` | The [view kit](#the-view-kit): small widgets that native views share. | M6 |
 | `QuickAdd.h` | Quick add handlers and related-item finders. See [quick add](#quick-add). | M7 |
 | `GitState.h` | `GitState`, a folder's Git state, as `ItemContext::gitStatus()` reports it | M7 |
-| `Values.h` | Read-only views of a group, project, task, item and folder | planned |
 
-Modules see entities only through read-only views. Changes go through actions on `ItemContext`, which call the core's `Model` methods.
+A module does not see the core's entities. It reads what it needs from `ItemContext`, and changes go through actions on it, which call the core's `Model` methods.
 
 ## What a module registers
 
@@ -243,8 +242,7 @@ Each item's code gets an `ItemContext`. It gives access to the configuration the
 
 | Member | Description | Since |
 |---|---|---|
-| `itemName()`, `config()` | The item's name and configuration, read from the model on each call | M4 |
-| `item()`, `task()`, `project()`, `group()` | Read-only views of the item and where it sits | planned |
+| `config()` | The item's configuration, read from the model on each call | M4 |
 | `projectSetting(key)` | A project setting the module declared, such as `project` for GitLab. Undefined if the project does not set it. | M4 |
 | `deviceSetting(key)` | A device setting the module declared, or its field's default | M7 |
 | `filePath(fileName)` | The absolute path of a file in the data folder's `files/`, such as an image | M7 |
@@ -252,7 +250,6 @@ Each item's code gets an `ItemContext`. It gives access to the configuration the
 | `server()` | The module's server in the item's profile, or null for a module without a `ServerType`. See [servers and tokens](#servers-and-tokens). | M5 |
 | `status()` | This item's entry in the status cache: read the current status, refresh, subscribe. Null for a type without status. See [status](#status). | M5 |
 | `createWebView(url)` | A live web page in a plain `QWidget`, in the web logins of the item's [profile](web-views.md#profiles), with popups, permissions, downloads and the toolbar handled by the core. The normal way for a web type to show a page. See [decision 0037](decisions/0037-core-makes-web-views.md). | M4 |
-| `profile()` | The web logins of the item's [profile](web-views.md#profiles), as a `QWebEngineProfile`, for a module that builds its own `QWebEngineView`. Such a module links Qt WebEngine with `QT_LIBS`, and handles popups, permissions and downloads itself. The profile holds the logins of every site that its items visit, including those of other modules; see [decision 0042](decisions/0042-user-managed-web-profiles.md). | M4 |
 | `createMessageView(text)` | A grey message in the cell, such as "Set the issue key in the item's settings." | M4 |
 | `folderPath(folderId)` | The local path of a project folder on this device, or empty if not mapped. An empty id means the main folder, from M7. | M4 |
 | `mapFolder(folderId)` | Asks the user for a folder's local path on this device, and stores it | M7 |
@@ -328,7 +325,14 @@ Native views of different modules need the same small widgets, and modules canno
 
 ### Testing
 
-A module's tests also link `mirante::module_api_testing`. It holds `<mirante/testing/FakeApiClient.h>`, an `ApiClient` that answers from a table of recorded replies and records the requests, `<mirante/testing/FakeStatusJob.h>`, and `<mirante/testing/FakeQuickAdd.h>`. Recorded responses live in the module's `tests/data/` folder.
+A module's tests link the module, the module interface and `mirante::module_api_testing`, and no core code. `tools/check-module-includes.py` refuses a core header in them too. The testing library holds:
+
+- `<mirante/testing/TestRegistrar.h>`: registers one module and gives back what it registered, such as `types()`, `type(id)` and `settingsScreens(moduleId)`. It stops the program on a broken id, as the core does.
+- `<mirante/testing/FakeItemContext.h>`: an `ItemContext` with what a view reads set by the test, and what it does recorded. Without a web engine, a web view is a plain widget with the address in its `url` property, and a message view one with the text in its `message` property. A test that needs more derives from it.
+- `<mirante/testing/FakeApiClient.h>`: an `ApiClient` that answers from a table of recorded replies and records the requests.
+- `<mirante/testing/FakeStatusJob.h>` and `<mirante/testing/FakeQuickAdd.h>`.
+
+Recorded responses live in the module's `tests/data/` folder.
 
 ## Quick add
 

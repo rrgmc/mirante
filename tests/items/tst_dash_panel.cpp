@@ -22,13 +22,11 @@ class OtherContext : public ItemContext
 public:
     QJsonObject configValue;
 
-    QString itemName() const override { return QStringLiteral("Panel"); }
     QJsonObject config() const override { return configValue; }
     QJsonValue projectSetting(const QString &) const override { return {}; }
     QJsonObject moduleSettings(const QString &) const override { return {}; }
     QString folderPath(const QString &) const override { return {}; }
     QWidget *createWebView(const QUrl &, QWidget *) override { return nullptr; }
-    QWebEngineProfile *profile() override { return nullptr; }
     QWidget *createMessageView(const QString &text, QWidget *parent) override { return new QLabel(text, parent); }
     void updateConfig(const QJsonObject &) override {}
 };

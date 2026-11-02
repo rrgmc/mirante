@@ -30,4 +30,14 @@ bool idBelongsToModule(const QString &id, const QString &moduleId)
     return true;
 }
 
+bool projectSettingTakes(Field::Type type)
+{
+    return type != Field::Type::Secret && type != Field::Type::Folder && type != Field::Type::Image;
+}
+
+bool deviceSettingTakes(Field::Type type)
+{
+    return type != Field::Type::Secret && type != Field::Type::Folder && type != Field::Type::Image;
+}
+
 } // namespace mirante

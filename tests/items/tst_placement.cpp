@@ -672,7 +672,6 @@ private slots:
         services.settings = &device;
 
         ItemContextImpl context(services, QStringLiteral("t1"), QStringLiteral("n1"));
-        QCOMPARE(context.itemName(), QStringLiteral("Item n1"));
         QCOMPARE(context.config().value(QStringLiteral("text")).toString(), QStringLiteral("one"));
         QCOMPARE(context.projectSetting(QStringLiteral("project")).toString(), QStringLiteral("acme/app"));
         QVERIFY(context.projectSetting(QStringLiteral("missing")).isUndefined());
@@ -706,7 +705,6 @@ private slots:
             item.name = QStringLiteral("Changed");
             item.config[QStringLiteral("text")] = QStringLiteral("two");
         });
-        QCOMPARE(context.itemName(), QStringLiteral("Changed"));
         QCOMPARE(context.config().value(QStringLiteral("text")).toString(), QStringLiteral("two"));
 
         // Without a profile manager there is no page, but no crash either.

@@ -2,7 +2,7 @@
 // after its host, as a generic match.
 #include "../WebUrls.h"
 
-#include "items/ItemTypeRegistry.h"
+#include <mirante/testing/TestRegistrar.h>
 
 #include <mirante/ItemType.h>
 
@@ -46,7 +46,7 @@ private slots:
 
     void registeredType()
     {
-        mirante::ItemTypeRegistry registry;
+        mirante::testing::TestRegistrar registry;
         registry.registerModule(QStringLiteral("web"), &mirante::modules::web::registerModule);
         const auto match = registry.type(QStringLiteral("web.page")).fromUrl(QUrl(QStringLiteral("https://a.b/")), {});
         QVERIFY(match);

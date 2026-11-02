@@ -171,7 +171,7 @@ Made in this repository, before the split into repositories for [custom builds](
 **Interface cleanup:**
 
 - [ ] The unused members named in [decision 0119](decisions/0119-module-interface-versions-and-checks.md) are removed, and so are the planned `Values.h` and read-only views. The section on attention in [modules](modules.md#attention) matches `Status.h`.
-- [ ] Module tests use only the module interface and its testing library, not `items/ItemTypeRegistry.h`, `items/FieldValidation.h` or `mirante_items`. The testing library has a `FakeItemContext` and a registration test helper.
+- [x] Module tests use only the module interface and its testing library, not `items/ItemTypeRegistry.h`, `items/FieldValidation.h` or `mirante_items`. The testing library has a `FakeItemContext` and a registration test helper.
 - [ ] `DEPENDS` links the other module and makes its headers available.
 - [ ] [Modules](modules.md#ids) gives a naming rule for third-party module ids, which are permanent.
 

@@ -3,9 +3,9 @@
 // from a local HTTP server that checks the ETag. See README.md#view.
 #include "../DocumentEditor.h"
 
-#include "items/ItemTypeRegistry.h"
+#include <mirante/testing/TestRegistrar.h>
 
-#include <mirante/ItemContext.h>
+#include <mirante/testing/FakeItemContext.h>
 #include <mirante/ItemEditor.h>
 #include <mirante/ItemType.h>
 #include <mirante/widgets/MarkdownView.h>
@@ -41,29 +41,21 @@ using mirante::widgets::MarkdownView;
 
 namespace {
 
-class FakeContext : public mirante::ItemContext
+class FakeContext : public mirante::testing::FakeItemContext
 {
 public:
-    QJsonObject itemConfig;
     QHash<QString, QString> folders;    // id → local path
     QHash<QString, QString> files;      // files/ name → path
     QStringList mapped;
 
-    QString itemName() const override { return QStringLiteral("Document"); }
-    QJsonObject config() const override { return itemConfig; }
-    QJsonValue projectSetting(const QString &) const override { return {}; }
-    QJsonObject moduleSettings(const QString &) const override { return {}; }
     QString folderPath(const QString &id) const override { return folders.value(id); }
     void mapFolder(const QString &id) override { mapped << id; }
-    QWidget *createWebView(const QUrl &, QWidget *) override { return nullptr; }
-    QWebEngineProfile *profile() override { return nullptr; }
     QWidget *createMessageView(const QString &text, QWidget *parent) override
     {
         auto *label = new QLabel(text, parent);
         label->setObjectName(QStringLiteral("contextMessage"));
         return label;
     }
-    void updateConfig(const QJsonObject &config) override { itemConfig = config; }
     QString filePath(const QString &name) const override
     {
         const QString path = files.value(name);
@@ -180,7 +172,7 @@ class TestViews : public QObject
 {
     Q_OBJECT
 
-    mirante::ItemTypeRegistry registry;
+    mirante::testing::TestRegistrar registry;
 
     std::unique_ptr<QWidget> make(const QString &typeId, FakeContext &context)
     {

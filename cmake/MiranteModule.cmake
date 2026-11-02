@@ -16,9 +16,8 @@
 #     QT_LIBS   <Qt components...>
 #     DEFAULT   ON|OFF)
 #
-# QT_LIBS links further Qt components, such as WebEngineWidgets for a module
-# that builds its own web view from ItemContext::profile(). See
-# docs/decisions/0037-core-makes-web-views.md.
+# QT_LIBS links further Qt components, such as PdfWidgets for the document
+# module.
 function(mirante_add_module id)
     cmake_parse_arguments(ARG "" "DEFAULT" "SOURCES;TESTS;RESOURCES;DEPENDS;QT_LIBS" ${ARGN})
     if(ARG_UNPARSED_ARGUMENTS)
@@ -93,7 +92,7 @@ function(mirante_add_module id)
         get_filename_component(test_name "${test_source}" NAME_WE)
         mirante_add_test(module_${id}_${test_name}
             SOURCES "${test_source}"
-            LIBS ${target} mirante_items mirante::module_api_testing
+            LIBS ${target} mirante::module_api_testing
             PCH_FROM ${pch_from})
         if(NOT pch_from)
             set(pch_from "module_${id}_${test_name}")

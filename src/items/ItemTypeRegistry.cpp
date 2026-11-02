@@ -118,8 +118,7 @@ void ItemTypeRegistry::Private::addProjectSetting(const QString &moduleId, const
     QString problem;
     if (field.key.isEmpty())
         problem = QStringLiteral("has no key");
-    else if (field.type == Field::Type::Secret || field.type == Field::Type::Folder
-             || field.type == Field::Type::Image)
+    else if (!projectSettingTakes(field.type))
         problem = QStringLiteral("has a type that project settings do not take");
     Module &module = modules[moduleId];
     if (problem.isEmpty()) {
@@ -144,8 +143,7 @@ void ItemTypeRegistry::Private::addDeviceSetting(const QString &moduleId, const 
     QString problem;
     if (field.key.isEmpty())
         problem = QStringLiteral("has no key");
-    else if (field.type == Field::Type::Secret || field.type == Field::Type::Folder
-             || field.type == Field::Type::Image)
+    else if (!deviceSettingTakes(field.type))
         problem = QStringLiteral("has a type that device settings do not take");
     Module &module = modules[moduleId];
     if (problem.isEmpty()) {

@@ -3,7 +3,7 @@
 // README.md#view.
 #include "../ImageView.h"
 
-#include <mirante/ItemContext.h>
+#include <mirante/testing/FakeItemContext.h>
 
 #include <QDesktopServices>
 #include <QDir>
@@ -21,21 +21,13 @@ namespace image = mirante::modules::image;
 
 namespace {
 
-class FakeContext : public mirante::ItemContext
+class FakeContext : public mirante::testing::FakeItemContext
 {
 public:
-    QJsonObject itemConfig;
     QString filesDir;
     bool makesMessages = true;
     QStringList messages;
 
-    QString itemName() const override { return QStringLiteral("Image"); }
-    QJsonObject config() const override { return itemConfig; }
-    QJsonValue projectSetting(const QString &) const override { return {}; }
-    QJsonObject moduleSettings(const QString &) const override { return {}; }
-    QString folderPath(const QString &) const override { return {}; }
-    QWidget *createWebView(const QUrl &, QWidget *) override { return nullptr; }
-    QWebEngineProfile *profile() override { return nullptr; }
     QWidget *createMessageView(const QString &text, QWidget *parent) override
     {
         messages << text;

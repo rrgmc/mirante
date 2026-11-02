@@ -1,6 +1,6 @@
 // Registers the document module into a fresh registry and checks its types.
 #include <mirante/FieldValidation.h>
-#include "items/ItemTypeRegistry.h"
+#include <mirante/testing/TestRegistrar.h>
 
 #include <QIcon>
 #include <QMap>
@@ -18,7 +18,7 @@ class TestRegister : public QObject
 private slots:
     void registersTypes()
     {
-        mirante::ItemTypeRegistry registry;
+        mirante::testing::TestRegistrar registry;
         registry.registerModule(QStringLiteral("document"), &mirante::modules::document::registerModule);
 
         // Expected id and name of each type. QMap keeps the ids sorted.
@@ -41,7 +41,7 @@ private slots:
 
     void iconsRender()
     {
-        mirante::ItemTypeRegistry registry;
+        mirante::testing::TestRegistrar registry;
         registry.registerModule(QStringLiteral("document"), &mirante::modules::document::registerModule);
 
         for (const mirante::ItemType *type : registry.types()) {
@@ -52,7 +52,7 @@ private slots:
     }
     void fieldKeys()
     {
-        mirante::ItemTypeRegistry registry;
+        mirante::testing::TestRegistrar registry;
         registry.registerModule(QStringLiteral("document"), &mirante::modules::document::registerModule);
 
         QMap<QString, QStringList> expected;
@@ -78,7 +78,7 @@ private slots:
     // validate, except that each required field without a default is reported.
     void fieldsValidateTheirDefaults()
     {
-        mirante::ItemTypeRegistry registry;
+        mirante::testing::TestRegistrar registry;
         registry.registerModule(QStringLiteral("document"), &mirante::modules::document::registerModule);
 
         for (const mirante::ItemType *type : registry.types()) {
@@ -109,7 +109,7 @@ private slots:
     // A native type that needs no connection.
     void renderingAndConnection()
     {
-        mirante::ItemTypeRegistry registry;
+        mirante::testing::TestRegistrar registry;
         registry.registerModule(QStringLiteral("document"), &mirante::modules::document::registerModule);
 
         for (const mirante::ItemType *type : registry.types()) {
@@ -121,7 +121,7 @@ private slots:
     // Help > Modules. See docs/decisions/0056-modules-window.md.
     void namesAndDescriptions()
     {
-        mirante::ItemTypeRegistry registry;
+        mirante::testing::TestRegistrar registry;
         registry.registerModule(QStringLiteral("document"), &mirante::modules::document::registerModule);
 
         QCOMPARE(registry.moduleName(QStringLiteral("document")), QStringLiteral("Documents"));
@@ -134,7 +134,7 @@ private slots:
     // Modules. See docs/decisions/0089-module-identity.md.
     void identity()
     {
-        mirante::ItemTypeRegistry registry;
+        mirante::testing::TestRegistrar registry;
         registry.registerModule(QStringLiteral("document"), &mirante::modules::document::registerModule);
 
         const QString id = QStringLiteral("document");
