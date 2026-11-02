@@ -38,6 +38,8 @@ A module may add more folders inside its own folder. It never adds files outside
 ## Ids
 
 - A module id is lowercase letters and digits only, such as `gitlab`.
+- A third-party module id starts with its owner's name, which keeps two authors' modules from clashing: `acmetickets` for the module `tickets` of the owner `acme`. Use your GitHub name or your organisation's, in lowercase without separators. The ids of the first-party modules in [the table above](#the-modules) are reserved, and a third-party module does not take a short name like them.
+- An id is stored in users' data, in their items and their settings, so it never changes. Renaming a module means their items show as a missing module.
 - Every id a module registers is the module id, or starts with the module id and a dot. This applies to item types (`gitlab.mr.summary`) and settings.
 - The prefix `dash` is reserved for the core. The build refuses a module with the id `dash`.
 - An id has no empty parts: `gitlab..mr` and `gitlab.` are refused.
@@ -53,7 +55,7 @@ mirante_add_module(gitlab
     SOURCES GitLabModule.cpp GitLabClient.cpp ...
     TESTS   tests/tst_urls.cpp tests/tst_attention.cpp
     RESOURCES icons/gitlab.svg
-    DEPENDS          # other module ids, usually none
+    DEPENDS          # other module ids, usually none; see below
     QT_LIBS          # further Qt components, usually none
     DEFAULT ON)
 ```
@@ -68,6 +70,8 @@ The function:
 6. adds the module to the list of enabled modules.
 
 The top-level `CMakeLists.txt` adds every folder in `src/modules/` that has a `CMakeLists.txt`. After all modules are added, it checks `DEPENDS`. If an enabled module depends on a disabled one, configuration stops with a message that names both.
+
+**`DEPENDS`.** A module listed there is linked, and its folder goes on the include path, so its headers are included by file name, such as `#include "GitLabClient.h"`. A module not listed stays out of reach, and the app itself gets none of these paths. Quick add handlers and related-item finders need no dependency, so prefer them where they fit. A test in `tests/cmake/depends/` covers this.
 
 **Choosing modules:**
 
@@ -299,7 +303,7 @@ A view reads its item's status with `ItemContext::status()`, and subscribes to i
 
 ### The view kit
 
-Native views of different modules need the same small widgets, and modules cannot depend on each other. The library `mirante_module_widgets`, linked through `mirante::module_api`, holds them under `<mirante/widgets/...>`. It uses only Qt, never core headers.
+Native views of different modules need the same small widgets, and modules rarely depend on each other. The library `mirante_module_widgets`, linked through `mirante::module_api`, holds them under `<mirante/widgets/...>`. It uses only Qt, never core headers.
 
 - `StatusPill` and `statusColours()`: a pill for a `StatusRole`. A module names a role, never a colour.
 - `FlowRow`: a layout that wraps.

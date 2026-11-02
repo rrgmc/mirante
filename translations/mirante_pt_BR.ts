@@ -1,61 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE TS>
-<!-- Terms: each glossary term of docs/README.md always takes the same Portuguese
-     word. The list comes from translations/README.md; edit it there.
-     Group: Grupo
-     Project: Projeto
-     Folder: Pasta
-     Main folder: Pasta principal
-     Task: Tarefa
-     Item: Item (plural itens)
-     Item type: Tipo de item
-     Module: Módulo
-     Settings screen: Tela de configurações
-     Placement: Posição
-     Dashboard: Painel
-     Task dashboard: Painel da tarefa
-     Root dashboard: Painel raiz
-     Built-in panel: Quadro interno (never "painel", which is a dashboard)
-     Layout tree: Árvore de layout
-     Layout: Layout
-     Split: Divisão
-     Tabs, tab: Abas, aba
-     Cell: Célula
-     Preview slot, preview: Prévia
-     Focus slot, Focus view, Focus: Foco
-     Priority: Urgent, High, Normal, Low: Prioridade: Urgente, Alta, Normal, Baixa
-     Task state: active, done, archived: Ativa, concluída, arquivada
-     Attention: Atenção
-     Watch, watched item: Acompanhar, item acompanhado
-     Server: Servidor
-     Token: Token
-     Profile, default profile: Perfil, perfil padrão
-     Status: Status
-     Status cache: Cache de status
-     Data folder: Pasta de dados
-     Web data folder: Pasta de dados da web
-     Workspace: Espaço de trabalho
-     Sample data: Dados de exemplo
-     Sidebar: Barra lateral
-     Settings: Configurações
-     Device settings: Configurações do dispositivo
-     Trash: Lixeira
-     Lock, unlock (a dashboard): Travar, destravar
-     Detach, detached window: Destacar, janela destacada
-     Tray: Bandeja
-     Global hotkey: Atalho global
-     Quick add: Adição rápida
-     Quick switcher: Troca rápida
-     Log: Log
-     Keychain: Chaveiro
-     Web login: Login na web
-     Conflict copy: Cópia em conflito
-     Paste, crop: Colar, recortar
-     Merge request, issue, pipeline, job, sprint: Merge request, issue, pipeline, job, sprint (kept in English, as GitLab and Jira do)
-     Label (GitLab): Etiqueta
-     Assignee, reporter: Responsável, relator
-     Comment: Comentário
--->
 <TS version="2.1" language="pt_BR" sourcelanguage="en">
 <context>
     <name>DashboardCellFactory</name>
@@ -3007,73 +2951,6 @@
     </message>
 </context>
 <context>
-    <name>mirante::widgets::FieldForm</name>
-    <message>
-        <source>Removed when you press OK. Type to set a new one.</source>
-        <translation>Removido quando você clicar em OK. Digite para definir um novo.</translation>
-    </message>
-    <message>
-        <source>Set on this device. Type to replace it.</source>
-        <translation>Definido neste dispositivo. Digite para substituí-lo.</translation>
-    </message>
-    <message>
-        <source>Not set on this device.</source>
-        <translation>Não definido neste dispositivo.</translation>
-    </message>
-    <message>
-        <source>Unknown folder (%1)</source>
-        <translation>Pasta desconhecida (%1)</translation>
-    </message>
-    <message>
-        <source>Unknown value (%1)</source>
-        <translation>Valor desconhecido (%1)</translation>
-    </message>
-    <message>
-        <source>No image</source>
-        <translation>Sem imagem</translation>
-    </message>
-    <message>
-        <source>Remove</source>
-        <translation>Remover</translation>
-    </message>
-    <message>
-        <source>Remove the token from this device when you press OK.</source>
-        <translation>Remover o token deste dispositivo ao clicar em OK.</translation>
-    </message>
-    <message>
-        <source>One entry per line.</source>
-        <translation>Uma entrada por linha.</translation>
-    </message>
-    <message>
-        <source>Paste</source>
-        <translation>Colar</translation>
-    </message>
-    <message>
-        <source>Choose file…</source>
-        <translation>Escolher arquivo…</translation>
-    </message>
-    <message>
-        <source>Image</source>
-        <translation>Imagem</translation>
-    </message>
-    <message>
-        <source>The image could not be saved.</source>
-        <translation>Não foi possível salvar a imagem.</translation>
-    </message>
-    <message>
-        <source>Choose image</source>
-        <translation>Escolher imagem</translation>
-    </message>
-    <message>
-        <source>Images (%1)</source>
-        <translation>Imagens (%1)</translation>
-    </message>
-    <message>
-        <source>The file is not an image that can be read.</source>
-        <translation>O arquivo não é uma imagem legível.</translation>
-    </message>
-</context>
-<context>
     <name>mirante::FocusView</name>
     <message>
         <source>All groups</source>
@@ -3157,33 +3034,6 @@
     <message>
         <source>A profile called &quot;%1&quot; already exists.</source>
         <translation>Já existe um perfil chamado &quot;%1&quot;.</translation>
-    </message>
-</context>
-<context>
-    <name>mirante::widgets::ImagePasteDialog</name>
-    <message>
-        <source>Paste Image</source>
-        <translation>Colar imagem</translation>
-    </message>
-    <message>
-        <source>Drag on the image to crop it.</source>
-        <translation>Arraste sobre a imagem para recortá-la.</translation>
-    </message>
-    <message>
-        <source>Whole Image</source>
-        <translation>Imagem inteira</translation>
-    </message>
-    <message>
-        <source>Paste</source>
-        <translation>Colar</translation>
-    </message>
-    <message>
-        <source>Crop: %1 × %2 of %3 × %4 pixels</source>
-        <translation>Recorte: %1 × %2 de %3 × %4 pixels</translation>
-    </message>
-    <message>
-        <source>%1 × %2 pixels</source>
-        <translation>%1 × %2 pixels</translation>
     </message>
 </context>
 <context>
@@ -4900,6 +4750,100 @@ Os dados são de %2.</translation>
     <message>
         <source>Send</source>
         <translation>Enviar</translation>
+    </message>
+</context>
+<context>
+    <name>mirante::widgets::FieldForm</name>
+    <message>
+        <source>Removed when you press OK. Type to set a new one.</source>
+        <translation>Removido quando você clicar em OK. Digite para definir um novo.</translation>
+    </message>
+    <message>
+        <source>Set on this device. Type to replace it.</source>
+        <translation>Definido neste dispositivo. Digite para substituí-lo.</translation>
+    </message>
+    <message>
+        <source>Not set on this device.</source>
+        <translation>Não definido neste dispositivo.</translation>
+    </message>
+    <message>
+        <source>Unknown folder (%1)</source>
+        <translation>Pasta desconhecida (%1)</translation>
+    </message>
+    <message>
+        <source>Unknown value (%1)</source>
+        <translation>Valor desconhecido (%1)</translation>
+    </message>
+    <message>
+        <source>No image</source>
+        <translation>Sem imagem</translation>
+    </message>
+    <message>
+        <source>Remove</source>
+        <translation>Remover</translation>
+    </message>
+    <message>
+        <source>Remove the token from this device when you press OK.</source>
+        <translation>Remover o token deste dispositivo ao clicar em OK.</translation>
+    </message>
+    <message>
+        <source>One entry per line.</source>
+        <translation>Uma entrada por linha.</translation>
+    </message>
+    <message>
+        <source>Paste</source>
+        <translation>Colar</translation>
+    </message>
+    <message>
+        <source>Choose file…</source>
+        <translation>Escolher arquivo…</translation>
+    </message>
+    <message>
+        <source>Image</source>
+        <translation>Imagem</translation>
+    </message>
+    <message>
+        <source>The image could not be saved.</source>
+        <translation>Não foi possível salvar a imagem.</translation>
+    </message>
+    <message>
+        <source>Choose image</source>
+        <translation>Escolher imagem</translation>
+    </message>
+    <message>
+        <source>Images (%1)</source>
+        <translation>Imagens (%1)</translation>
+    </message>
+    <message>
+        <source>The file is not an image that can be read.</source>
+        <translation>O arquivo não é uma imagem legível.</translation>
+    </message>
+</context>
+<context>
+    <name>mirante::widgets::ImagePasteDialog</name>
+    <message>
+        <source>Paste Image</source>
+        <translation>Colar imagem</translation>
+    </message>
+    <message>
+        <source>Drag on the image to crop it.</source>
+        <translation>Arraste sobre a imagem para recortá-la.</translation>
+    </message>
+    <message>
+        <source>Whole Image</source>
+        <translation>Imagem inteira</translation>
+    </message>
+    <message>
+        <source>Paste</source>
+        <translation>Colar</translation>
+    </message>
+    <message>
+        <source>Crop: %1 × %2 of %3 × %4 pixels</source>
+        <translation>Recorte: %1 × %2 de %3 × %4 pixels</translation>
+    </message>
+    <message>
+        <source>%1 × %2 pixels</source>
+        <translation>%1 × %2 pixels</translation>
     </message>
 </context>
 <context>

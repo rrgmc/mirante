@@ -9,6 +9,17 @@ mirante_add_tests(layout LIBS mirante_layout)
 mirante_add_tests(ui LIBS mirante_ui)
 mirante_add_tests(module_widgets LIBS mirante_module_widgets)
 
+# DEPENDS of mirante_add_module(), in a small project of its own.
+add_test(NAME cmake_module_depends
+    COMMAND "${CMAKE_COMMAND}"
+        "-DSOURCE=${CMAKE_CURRENT_SOURCE_DIR}/cmake/depends"
+        "-DBINARY=${CMAKE_CURRENT_BINARY_DIR}/cmake_module_depends"
+        "-DGENERATOR=${CMAKE_GENERATOR}"
+        "-DCOMPILER=${CMAKE_CXX_COMPILER}"
+        "-DPREFIX=${CMAKE_PREFIX_PATH}"
+        -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/depends/run_test.cmake")
+set_tests_properties(cmake_module_depends PROPERTIES SKIP_REGULAR_EXPRESSION "SKIPPED:")
+
 # The pages that tst_dash_scheme loads from dash://panels/test/.
 qt_add_resources(web_tst_dash_scheme dash_test_pages
     PREFIX /panels/test
