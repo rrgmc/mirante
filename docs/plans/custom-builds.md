@@ -90,7 +90,15 @@ This part creates public repositories, so it starts only after the user confirms
 4. Make `mirante-app` empty.
 5. Give each repository the MIT `LICENSE`, its own `CLAUDE.md` and README, and branch protection that requires CI, as in [decision 0109](../decisions/0109-pull-requests-into-master.md). `mirante-core` also moves `docs/` by subject, as decision 0116 says.
 
-`mirante-modules` has no build yet at the end of this part, so its required checks are set in part 3.
+`mirante-modules` and `mirante-app` have no build yet at the end of this part, so their required checks are set in part 3.
+
+What the extraction changes in `mirante-core`, so that its CI passes from the first push:
+
+- **No version tags are copied.** A pushed tag `vX.Y.Z` would start `release.yml`, so the extraction deletes the tags, and `release.yml` leaves the core. The core makes no releases of its own. Its tags only give apps something to pin.
+- **`src/modules` leaves `src/CMakeLists.txt`,** so the core builds with no modules until part 2.
+- **`Qt6Pdf` leaves `tools/check-package.py`,** because nothing links it without the document module. Part 4 makes this list follow from the manifest.
+- **The translation files are regenerated,** so the module texts leave them, and CI's check stays green. Modules show in English until part 5. Part 5 takes their translated texts from `mirante_pt_BR.ts` in `mirante`, at the tag from step 1.
+- **Links to `src/modules/` in the core's documents are broken** until part 3, except in the README, which now points at `mirante-modules`.
 
 ## Part 2: The core builds with outside modules
 
