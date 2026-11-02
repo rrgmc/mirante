@@ -158,29 +158,46 @@ See [the M12 plan](plans/m12-document-items.md), [decision 0104](decisions/0104-
 
 ## Future: Custom builds
 
-Not scheduled. It builds on the packaging from M10 ([decision 0098](decisions/0098-packages-from-cmake-install.md)). Anyone can build their own Mirante with the modules they choose, including modules from other people's repositories, and get its executables from CI. Modules stay compiled in, as in [decision 0013](decisions/0013-compiled-in-modules.md). Decision records and a code plan are written when this work starts. [The custom builds research](research/custom-builds.md) checks this entry against M10 and the work after it.
+Not scheduled. It builds on the packaging from M10 ([decision 0098](decisions/0098-packages-from-cmake-install.md)). Anyone can build their own Mirante with the modules they choose, including modules from other people's repositories, and get its executables from CI. Modules stay compiled in and linked statically, as in decisions [0013](decisions/0013-compiled-in-modules.md) and [0121](decisions/0121-modules-are-trusted-code.md). A code plan is written when this work starts. [The custom builds research](research/custom-builds.md) checks the first version of this entry against M10 and the work after it.
 
 **Direction:**
 
-- **App repository.** A repository made from a GitHub template holds a manifest and a short workflow. The manifest pins the core and each module repository to a commit, and lists the modules to build one by one, each with its repository and folder. All selected modules from one repository share one commit. The manifest maps onto `MIRANTE_MODULES`, and the app repository's tags set `MIRANTE_VERSION`.
-- **Fetching.** The core reads the manifest and fetches the modules with CMake's FetchContent, because it must know them before it generates their registration. Git submodules, ExternalProject, package managers and a prebuilt core were considered and not chosen.
-- **Repositories.** The core and the first-party modules stay in one repository while the module interface changes every milestone, so a change to the interface and to the modules that use it stays one commit. They can be split later, with `git subtree split`, if the modules need their own releases. Manifests then change only a URL.
-- **Qt.** The pinned core commit decides the Qt version.
+- **Repositories.** The core moves to `mirante-core` and the first-party modules to `mirante-modules`. `mirante-app` is a temporary sample of the main app. `mirante` takes only bug and security fixes until the user approves the result; its code is then replaced by that of `mirante-app`. All are public, under the MIT License. See [decision 0116](decisions/0116-custom-builds-in-separate-repositories.md).
+- **App repository.** A repository made from a GitHub template holds a manifest and a short workflow. It is the top-level CMake project. The manifest is JSON. It pins the core and each module repository to a tag or a commit, and lists the modules to build one by one, each with its repository and folder. All selected modules from one repository share one pin. The manifest maps onto `MIRANTE_MODULES`, and the app repository's tags set `MIRANTE_VERSION`. See [decision 0117](decisions/0117-app-repository-and-json-manifest.md).
+- **Fetching.** The app fetches the core, and a function from the core fetches the modules, all with CMake's FetchContent, because the core must know the modules before it generates their registration. Git submodules, ExternalProject, package managers and a prebuilt core were considered and not chosen.
+- **App identity.** A custom build is its own app, with an app id and a display name from the manifest. Only the official app uses the official names. See [decision 0118](decisions/0118-custom-builds-are-their-own-app.md).
+- **Module interface.** It has a version, compatibility rules and checks. It is published as 0.x with no promise of stability. See [decision 0119](decisions/0119-module-interface-versions-and-checks.md).
+- **Configuration screens.** Declared fields are a shortcut, and every screen can be custom. This is separate work, done before the interface reaches 1.0 and not part of the sample. See [decision 0120](decisions/0120-fields-are-a-shortcut.md).
+- **Trust.** Modules are trusted code, without a sandbox. See [decision 0121](decisions/0121-modules-are-trusted-code.md).
+- **Qt.** The pinned core decides the Qt version.
 
-**Open question:** whether a custom build replaces Mirante, sharing its settings, workspace and tokens, or is an app of its own beside it. See [app identity](research/custom-builds.md#app-identity). It is decided before the plan is written.
+**The user approves replacing `mirante` when:**
+
+- [ ] `mirante-app` builds, tests and packages all modules on Windows, macOS and Linux.
+- [ ] At least one change to the module interface has been carried across the repositories, and the user finds the effort acceptable.
+- [ ] One module has been built by following the documentation alone, without changing the core.
+- [ ] The user has used the sample app for their own work for a period, whose length is set when the sample starts.
 
 **Acceptance criteria:**
 
-- [ ] The core builds with module folders from outside its source tree, including one first-party module moved out as a test.
-- [ ] The module interface has a version. Each module states the version it needs, and a mismatch stops configuration with a message that names the module.
-- [ ] Module tests use only the module interface and its testing library, not `items/ItemTypeRegistry.h` or `mirante_items`.
+- [ ] The core builds with module folders from outside its source tree, with all first-party modules fetched from `mirante-modules`.
+- [ ] The core's CMake code works with the app as the top-level project.
+- [ ] The module interface has a version, also as a C++ macro. Each module states the version it needs, and a mismatch stops configuration with a message that names the module.
+- [ ] The module interface's folder configures on its own, so a module can compile and run its tests alone.
+- [ ] The unused members and planned parts named in [decision 0119](decisions/0119-module-interface-versions-and-checks.md) are removed, and the documentation matches the code.
+- [ ] Module tests use only the module interface and its testing library, not `items/ItemTypeRegistry.h`, `items/FieldValidation.h` or `mirante_items`. The testing library has a `FakeItemContext` and a registration test helper.
+- [ ] CI fails if `src/module_api` changes without an entry in the interface changelog. The core's CI builds the first-party modules, and a small module that implements only the required methods.
+- [ ] Modules are built with `-Werror=suggest-override` on GCC and Clang, and external modules are not built with `MIRANTE_WERROR`.
 - [ ] An app repository can build without the core's own tests, and still runs the tests of its modules.
 - [ ] `DEPENDS` works across repositories: it links the other module and makes its headers available.
-- [ ] A module can use further Qt components. The modules' `QT_LIBS` or the manifest give one list of Qt modules, and the Qt setup scripts, the CI cache keys, `find_package` and the package check follow from it.
+- [ ] A module can use further Qt components. The manifest gives one list of Qt modules, and the Qt setup scripts, the CI cache keys, `find_package` and the package check follow from it. Configuration stops if a module's `QT_LIBS` names a Qt module that the list lacks.
 - [ ] The module include check also covers external modules. The modules are also built with `MIRANTE_PCH=OFF`, so a missing include is found.
 - [ ] Each module carries its own translation files, and the core loads them for the enabled modules. CI checks each module's translations.
-- [ ] The bundle identifier, organisation and application name, keychain service, package name and install folder follow the answer to the open question above.
+- [ ] The bundle identifier, organisation and application name, keychain service, package name and install folder follow from the manifest's app id and display name.
 - [ ] The About dialog shows each module's source and commit.
 - [ ] The core publishes a reusable workflow that builds, tests and packages an app repository. The build job has no signing secrets. On macOS, a separate job signs, notarises and staples the finished bundle and runs no code from the build. Mirante's own release uses the same jobs.
-- [ ] A scheduled job in the app repository opens a pull request when a pinned repository has newer commits. CI builds it, and merging it publishes a release. A failed update leaves the last release in place. The job uses a GitHub App token or a personal access token, because a pull request opened with the workflow's own token starts no CI.
-- [ ] The documentation tells module authors how to choose an id that will not clash, and tells people who build what a third-party module can reach: it runs in the app process and can read tokens and web logins, and its web pages share the `qrc:` origin with every other module's pages. It also says that the licence of each module applies to the binary, and that builds are unsigned without the builder's own certificates.
+- [ ] A scheduled job in the app repository opens a pull request when a pinned repository has a newer tag or commit, with a link to each module's diff. CI builds it, and merging it publishes a release. A failed update leaves the last release in place. The job uses a GitHub App token or a personal access token, because a pull request opened with the workflow's own token starts no CI.
+- [ ] A token goes only to the origin of its server, for requests and redirects. See [issue 14](https://github.com/rrgmc/mirante/issues/14).
+- [ ] A scan reports which modules use sensitive APIs, as a help for reviews.
+- [ ] Each module's web pages have their own origin, in place of the shared `qrc:` origin.
+- [ ] The documentation tells module authors how to choose an id that will not clash, and tells people who build what a third-party module can reach: it runs in the app process and can read tokens and web logins. It recommends narrow tokens. It also says that the licence of each module applies to the binary, and that builds are unsigned without the builder's own certificates.

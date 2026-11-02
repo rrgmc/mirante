@@ -1,6 +1,6 @@
 # Custom builds after M10
 
-- Status: Research. Nothing here is decided or built.
+- Status: Research. Nothing here is built. Decisions [0116](../decisions/0116-custom-builds-in-separate-repositories.md) to [0121](../decisions/0121-modules-are-trusted-code.md) decide the direction, and take precedence where they differ.
 - Date: 2026-10-31
 
 [Custom builds](../roadmap.md#future-custom-builds) let anyone build their own Mirante with the modules they choose, including modules from other people's repositories, and get its executables from CI. The roadmap entry was written on 30 October, before the packaging of M10 was merged. This document checks that entry against what M10 and the work after it built, and lists what the entry missed.
@@ -13,7 +13,7 @@ Nothing here was tested. Where a statement depends on behaviour that was not tri
 |---|---|---|
 | [Packaging](#packaging) | `cmake --install` and CPack make all three packages | The prerequisite is met |
 | [Signing](#signing) | The macOS job holds the secrets while it builds | Building and signing must become separate jobs |
-| [App identity](#app-identity) | The bundle identifier, package name, keychain service and settings are fixed | A custom build must replace Mirante or stand beside it; not decided |
+| [App identity](#app-identity) | The bundle identifier, package name, keychain service and settings are fixed | A custom build stands beside Mirante, by [decision 0118](../decisions/0118-custom-builds-are-their-own-app.md) |
 | [Translations](#translations) | One set of translation files for the whole app | External modules would not be translated |
 | [Qt components](#further-qt-components) | Qt PDF showed every place a Qt module is named | The manifest must name the Qt modules |
 | [Automatic updates](#automatic-updates) | Changes reach `master` only by pull request | A pull request opened by a workflow starts no CI |
@@ -67,7 +67,7 @@ A custom build can keep these names or change them.
 - **Keep them: a custom build replaces Mirante.** It reads the same settings, workspace and tokens. Installing it removes the official package, and the other way round. The macOS keychain asks again for each token, because the certificate differs. A workspace that uses item types of a module the build lacks must already cope with missing types.
 - **Change them: a custom build is its own app.** It installs beside Mirante, with its own settings, workspace and tokens. The manifest would then give an app id and a display name, and every name above would follow from them. The tokens of one app are not visible to the other.
 
-The second is safer, because a third-party module never sees the official app's tokens. The first is simpler for someone who wants Mirante with one more module. This needs a decision before the plan is written.
+The second is safer, because a third-party module never sees the official app's tokens. The first is simpler for someone who wants Mirante with one more module. [Decision 0118](../decisions/0118-custom-builds-are-their-own-app.md) chooses the second.
 
 ## Translations
 
