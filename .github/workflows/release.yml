@@ -7,6 +7,8 @@
 # mirante-core.
 
 name: Release
+# Each run is titled after its tag, such as "Release v0.8.1".
+run-name: Release ${{ github.ref_name }}
 
 on:
   push:
