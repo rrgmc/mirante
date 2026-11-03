@@ -3,7 +3,7 @@
 cmake_minimum_required(VERSION 3.21)
 
 # Raise it in the pull request that prepares a release, then push the tag vX.Y.Z.
-set(MIRANTE_VERSION "0.8.1" CACHE STRING "Mirante's version, as X.Y.Z")
+set(MIRANTE_VERSION "0.8.2" CACHE STRING "Mirante's version, as X.Y.Z")
 project(mirante LANGUAGES NONE)
 enable_testing()
 

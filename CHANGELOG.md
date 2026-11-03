@@ -4,6 +4,12 @@ All notable changes to Mirante are documented in this file. The format is based 
 
 ## [Unreleased]
 
+## [0.8.2] - 2026-11-03
+
+### Changed
+
+- Nothing changes in Mirante itself. It is built with the core's v0.8.4, whose build tools are up to date.
+
 ## [0.8.1] - 2026-11-03
 
 ### Changed
@@ -41,7 +47,8 @@ Links and File tree item types, a fix for starting Mirante a second time on Wind
 
 The first release. See the [release notes](https://github.com/rrgmc/mirante/releases/tag/v0.1.0).
 
-[Unreleased]: https://github.com/rrgmc/mirante/compare/v0.8.1...HEAD
+[Unreleased]: https://github.com/rrgmc/mirante/compare/v0.8.2...HEAD
+[0.8.2]: https://github.com/rrgmc/mirante/compare/v0.8.1...v0.8.2
 [0.8.1]: https://github.com/rrgmc/mirante/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/rrgmc/mirante/compare/v0.5.0...v0.8.0
 [0.5.0]: https://github.com/rrgmc/mirante/releases/tag/v0.5.0
