@@ -36,7 +36,7 @@ build/dev/bin/mirante --settings try/settings.ini --web-data try/web-data --no-k
 
 ## Releases
 
-1. A pull request raises `MIRANTE_VERSION` in `CMakeLists.txt`.
+1. A pull request raises `MIRANTE_VERSION` in `CMakeLists.txt`, and moves the entries under Unreleased in [CHANGELOG.md](CHANGELOG.md) to a section for the new version.
 2. After it merges, the tag `vX.Y.Z` is pushed on that commit. A tag `vX.Y.Z-rc.N` publishes a prerelease.
 3. `.github/workflows/release.yml` builds and tests on Windows, macOS and Linux. A separate job signs and notarises the macOS disk image with the Developer ID, and the release is published.
 

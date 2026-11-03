@@ -24,7 +24,7 @@ Mirante includes these modules. Each one provides one or more item types. [Item 
 
 ## Installing
 
-Each [release](https://github.com/rrgmc/mirante/releases) has three files:
+Each [release](https://github.com/rrgmc/mirante/releases) has three files. [CHANGELOG.md](CHANGELOG.md) says what changed in each.
 
 - **Windows 10 and 11, 64-bit:** `mirante-<version>-win64.exe`. Run it and follow the steps. The setup is not signed, so the first time Windows may say that it protected your PC. Choose **More info**, then **Run anyway**. Mirante is then in the Start menu, and Settings > Apps uninstalls it.
 - **macOS 12 or later, Apple silicon and Intel:** `mirante-<version>-macos.dmg`. Open it and drag Mirante to Applications. The app is signed and notarised, so it opens without a warning.
