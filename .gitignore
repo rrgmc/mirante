@@ -4,10 +4,6 @@
 # Build folders, one per CMake preset
 /build/
 
-# Qt downloaded by tools/setup-qt when MIRANTE_QT_ROOT is not set
-/.qt/
-aqtinstall.log
-
 # Local presets and editor settings
 /CMakeUserPresets.json
 .vs/
