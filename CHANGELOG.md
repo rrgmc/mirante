@@ -4,6 +4,15 @@ All notable changes to Mirante are documented in this file. The format is based 
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-11-03
+
+Built from the core's v0.8.5, `mirante-modules` v0.8.0 and `mirante-modules-work` v0.10.0.
+
+### Added
+
+- New GitHub and GitLab lists over several repositories or projects: pull requests, runs, merge requests and pipelines. Each row shows its repository or project, and the table has a filter on it.
+- A GitHub or GitLab list's filters can start with values from the item's settings: status, workflow, repository and project.
+
 ## [0.9.0] - 2026-11-03
 
 Built from the core's v0.8.5, `mirante-modules` v0.8.0 and `mirante-modules-work` v0.9.0.
@@ -55,7 +64,8 @@ Links and File tree item types, a fix for starting Mirante a second time on Wind
 
 The first release. See the [release notes](https://github.com/rrgmc/mirante/releases/tag/v0.1.0).
 
-[Unreleased]: https://github.com/rrgmc/mirante/compare/v0.9.0...HEAD
+[Unreleased]: https://github.com/rrgmc/mirante/compare/v0.10.0...HEAD
+[0.10.0]: https://github.com/rrgmc/mirante/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/rrgmc/mirante/compare/v0.8.1...v0.9.0
 [0.8.1]: https://github.com/rrgmc/mirante/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/rrgmc/mirante/compare/v0.5.0...v0.8.0
