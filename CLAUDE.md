@@ -23,4 +23,4 @@ A release is a pushed tag `vX.Y.Z`, after a merged pull request that raises `MIR
 
 ## README
 
-`README.md` is for people who use Mirante: what it does, the screenshot, the modules, installing, the first start, the author and the licence. Building, releases and the repositories behind Mirante belong in `BUILDING.md`, which the README links to in one line.
+`README.md` is for people who use Mirante: what it does, the screenshot, the modules, adding more modules, installing, the first start, the author and the licence. "Adding more modules" explains that modules are compiled in, and the repositories only as far as a user needs them to build a Mirante of their own. Building, releases and the repositories behind Mirante belong in `BUILDING.md`, which the README links to in one line.

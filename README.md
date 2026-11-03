@@ -22,6 +22,20 @@ Mirante includes these modules. Each one provides one or more item types. [Item 
 | [Notes](https://github.com/rrgmc/mirante-modules/blob/master/notes/README.md): Markdown notes, kept in the task's file | Notes |
 | [Web](https://github.com/rrgmc/mirante-modules/blob/master/web/README.md): any web page | Web page |
 
+## Adding more modules
+
+Modules are compiled into Mirante, not loaded while it runs. A module cannot be installed into a Mirante that is already built. To use other modules, you build a Mirante of your own that lists them.
+
+That is what the repositories behind Mirante are for:
+
+- [`mirante-core`](https://github.com/rrgmc/mirante-core) holds the app itself and the interface that modules use.
+- [`mirante-modules`](https://github.com/rrgmc/mirante-modules) and [`mirante-modules-work`](https://github.com/rrgmc/mirante-modules-work) hold the modules above. Anyone can keep modules in a repository of their own.
+- This repository holds only a list, `mirante.json`, of the core and the modules to build, each pinned to a release. GitHub Actions builds and publishes the result.
+
+[`mirante-app-template`](https://github.com/rrgmc/mirante-app-template) makes a repository like this one, with the modules you choose, and builds your Mirante on GitHub. [Writing a module](https://github.com/rrgmc/mirante-core/blob/master/docs/writing-a-module.md) says how to make a module, and [`mirante-modules-samples`](https://github.com/rrgmc/mirante-modules-samples) has small examples.
+
+A module runs inside Mirante with everything Mirante can reach, including your tokens and web logins, so add only modules whose authors you trust. Every build of Mirante is the same app, so a build of your own replaces this one when you install it, and keeps your settings and workspaces.
+
 ## Installing
 
 Each [release](https://github.com/rrgmc/mirante/releases) has three files. [CHANGELOG.md](CHANGELOG.md) says what changed in each.
