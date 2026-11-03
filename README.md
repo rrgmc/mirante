@@ -24,7 +24,7 @@ Mirante includes these modules. Each one provides one or more item types. [Item 
 
 ## Adding more modules
 
-Modules are compiled into Mirante, not loaded while it runs. A module cannot be installed into a Mirante that is already built. To use other modules, you build a Mirante of your own that lists them.
+Modules are compiled into Mirante, not loaded while it runs. A module cannot be installed into a Mirante that is already built. To use other modules, you build a Mirante of your own that lists them. [Why modules are compiled in](https://github.com/rrgmc/mirante-core#why-modules-are-compiled-in) gives the reasons, including that macOS would refuse modules loaded from elsewhere.
 
 That is what the repositories behind Mirante are for:
 
