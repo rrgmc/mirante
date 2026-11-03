@@ -4,6 +4,20 @@ All notable changes to Mirante are documented in this file. The format is based 
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-11-03
+
+Built from the core's v0.8.5, `mirante-modules` v0.8.0 and `mirante-modules-work` v0.9.0.
+
+### Changed
+
+- A new workspace starts with one group, "Default", so the first project has somewhere to go.
+- The Status filter of the GitHub, GitLab and Jira lists can choose several values. Clicking a value checks or unchecks it and leaves the list open; clicking "All" clears them.
+- The GitHub, GitLab and Jira summaries and lists are drawn by layouts that a build of your own can replace. Mirante's own layouts draw them as before.
+
+### Fixed
+
+- The Windows setup's last page shows the texts of its two checkboxes again. The "Start Mirante when I sign in" box starts unticked on a first install.
+
 ## [0.8.1] - 2026-11-03
 
 ### Changed
@@ -41,7 +55,8 @@ Links and File tree item types, a fix for starting Mirante a second time on Wind
 
 The first release. See the [release notes](https://github.com/rrgmc/mirante/releases/tag/v0.1.0).
 
-[Unreleased]: https://github.com/rrgmc/mirante/compare/v0.8.1...HEAD
+[Unreleased]: https://github.com/rrgmc/mirante/compare/v0.9.0...HEAD
+[0.9.0]: https://github.com/rrgmc/mirante/compare/v0.8.1...v0.9.0
 [0.8.1]: https://github.com/rrgmc/mirante/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/rrgmc/mirante/compare/v0.5.0...v0.8.0
 [0.5.0]: https://github.com/rrgmc/mirante/releases/tag/v0.5.0
