@@ -4,6 +4,18 @@ All notable changes to Mirante are documented in this file. The format is based 
 
 ## [Unreleased]
 
+## [0.8.1] - 2026-11-03
+
+### Changed
+
+- Help > About lists each module by its name and the release it came from, such as "Claude: 0.8.0".
+- The Windows setup no longer starts Mirante when you sign in, unless you tick the box on its last page. An upgrade keeps your choice.
+
+### Fixed
+
+- On Windows, the window no longer seems to close and open again the first time a tab with a web page opens.
+- The Windows setup's last page is in Portuguese when Windows is, as its other pages are.
+
 ## [0.8.0] - 2026-11-03
 
 ### Added
@@ -29,7 +41,8 @@ Links and File tree item types, a fix for starting Mirante a second time on Wind
 
 The first release. See the [release notes](https://github.com/rrgmc/mirante/releases/tag/v0.1.0).
 
-[Unreleased]: https://github.com/rrgmc/mirante/compare/v0.8.0...HEAD
+[Unreleased]: https://github.com/rrgmc/mirante/compare/v0.8.1...HEAD
+[0.8.1]: https://github.com/rrgmc/mirante/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/rrgmc/mirante/compare/v0.5.0...v0.8.0
 [0.5.0]: https://github.com/rrgmc/mirante/releases/tag/v0.5.0
 [0.1.0]: https://github.com/rrgmc/mirante/releases/tag/v0.1.0
