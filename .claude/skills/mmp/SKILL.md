@@ -8,7 +8,7 @@ model: sonnet
 # Pull request, merge and clean
 
 **`/mmp` is the owner asking for the merge.** It carries out the steps that `CLAUDE.md` and
-[decision 0109](../../../docs/decisions/0109-pull-requests-into-master.md) set for bringing a branch
+[decision 0109](https://github.com/rrgmc/mirante-core/blob/master/docs/decisions/0109-pull-requests-into-master.md) set for bringing a branch
 into `master`. It covers the work in the current worktree and nothing else.
 
 **Each step finishes before the next one starts.** A step that fails stops the run, and the last
@@ -45,24 +45,17 @@ Stage the files by name. `git add -A` takes whatever else is in the worktree.
 
 ## 3. Check, then push
 
-**A change that no compiler and no test reads leaves the build to CI.** That is prose under
-`docs/`, a `README.md`, `CLAUDE.md` or a skill. A cold build in a fresh worktree takes a long time,
-and CI builds it on Windows and Linux anyway.
+**A change that no build reads leaves the build to CI.** That is a `README.md`, `CLAUDE.md` or a
+skill. CI builds the rest on Windows, macOS and Linux anyway.
 
-**Anything else runs the local checks.** Source, a test, a translation, `CMakeLists.txt`, a preset,
-a script, `Taskfile.yml` and a workflow all count as anything else.
+**A change to `mirante.json`, `CMakeLists.txt`, a preset or a workflow builds locally first**, with
+the core's script from a checkout of `mirante-core`, which fetches the pinned core and modules:
 
 ```sh
-task check-includes
-task check-translations
-task test PRESET=ci
-task test PRESET=ci-no-modules
+<mirante-core>/tools/build.ps1 -Source . -Preset ci
 ```
 
-- **The `ci` presets treat warnings as errors**, as CI does. The `dev` preset of `task check` lets
-  some MSVC warnings through that fail the Windows job.
-- **`ci-no-modules` may be skipped** when the change touches nothing under `src/modules/` and no
-  code that modules use. Say so in the pull request.
+The code of the app is in `mirante-core` and the modules repositories, where their own checks run.
 
 ```sh
 git push -u origin <branch>
@@ -83,9 +76,9 @@ gh pr create --base master --title "<the commit's subject>" --body-file <file>
 
 ## 5. Wait for the required checks
 
-**`master` requires four checks:** `build (windows-2022)`, `build (ubuntu-24.04)`, `no-modules` and
-`module-includes`. `build (macos-15)` runs but is not required. The branch must also be up to date
-with `master`.
+**`master` requires two checks:** `build / build (windows-2022)` and `build / build (ubuntu-24.04)`.
+`build / build (macos-15)` and `build / sign-macos` run but are not required. The branch must also be
+up to date with `master`.
 
 **`gh pr checks --watch` can return before the checks exist.** It watches the checks GitHub has
 listed at that moment, and right after a push there may be none. So poll the merge state instead.
@@ -109,8 +102,8 @@ gh pr checks "$n"
 Start it only after the last push, so it does not read the state of an earlier run. `UNKNOWN`
 means GitHub is still computing the state, so the loop keeps waiting through it.
 
-- **`CLEAN`, or `UNSTABLE` with only `build (macos-15)` pending or failed**, goes on to step 6. A
-  failed macOS build is still reported in step 8.
+- **`CLEAN`, or `UNSTABLE` with only the macOS jobs pending or failed**, goes on to step 6. A
+  failed macOS job is still reported in step 8.
 - **A failed required check stops the run.** Read the job's log (`gh run view <run> --log-failed`),
   and report the failure with its output. A fix is a new commit, a push and a new wait, when the
   fault is in this branch.
@@ -164,7 +157,7 @@ One short message, with these and nothing else:
 
 - the pull request's link and the merge commit
 - what was removed: the worktree, the local branch and the remote branch
-- every check that did not run or did not pass, anywhere, including `build (macos-15)`
+- every check that did not run or did not pass, anywhere, including the macOS jobs
 
 ## When the run stops early
 

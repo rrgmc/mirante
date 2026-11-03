@@ -1,33 +1,20 @@
 # Mirante
 
-A personal "all work" desktop dashboard in Qt 6 (C++17, Qt Widgets, CMake) for Windows, macOS and Linux. Start with [docs/README.md](docs/README.md).
+The official app of Mirante, a personal desktop dashboard. This repository holds only a manifest, `mirante.json`, a short `CMakeLists.txt`, presets and workflows. The code, the design documents and the decisions are in `mirante-core`, and the modules in `mirante-modules` and `mirante-modules-work`. Make changes to the app there, and move the pins here.
 
 ## Git workflow
 
-Several sessions may work on this repository at the same time, so each piece of work happens in its own Git worktree.
+Each piece of work happens in its own Git worktree, with its own branch. Never edit files in the main checkout on `master` directly.
 
-- Before the first edit, create a worktree with its own branch (`EnterWorktree` in Claude Code, or `git worktree add -b <branch> <dir>`). Name the branch after the work, for example `m2-layout-engine`.
-- Never edit files in the main checkout on `master` directly. It stays clean, so other sessions can branch from it.
+- `master` is protected on GitHub. Changes reach it only through a pull request whose required CI checks pass.
+- Never merge a pull request on your own: only the user merges, on GitHub, by asking for the merge, or by typing `/mmp`. When the user asks for the merge, use a merge commit (`gh pr merge <number> --merge`).
 - Commit as work progresses, one focused commit per finished piece.
-- `master` is protected on GitHub. Changes reach it only through a pull request whose required CI checks pass. Never merge into `master` locally and never push `master`. See [decision 0109](docs/decisions/0109-pull-requests-into-master.md).
-- When the piece is finished and its build and tests pass, including `tools/build.ps1 -Preset ci`, push the branch and open a pull request with `gh pr create`.
-- Once the checks pass, stop and tell the user that the pull request is ready. Never merge a pull request on your own. Only the user merges, by merging it on GitHub, by asking for the merge, or by typing `/mmp`. See [decision 0111](docs/decisions/0111-only-the-user-merges.md).
-- When the user asks for the merge, use a merge commit (`gh pr merge <number> --merge`). Do not pass `--delete-branch`: from a worktree it fails, because it tries to check out `master`, which the main checkout already has. GitHub deletes the remote branch after the merge. Then leave the worktree, pull `master` in the main checkout, remove the worktree and delete the local branch.
-- When the user types `/mmp`, the [`mmp` skill](.claude/skills/mmp/SKILL.md) does all of the steps above, from the pull request to the cleanup.
-- If `master` moved since the branch started, merge `master` into the branch, resolve conflicts there and push again. The pull request cannot merge until the branch is up to date.
-- Split parallel work so that two worktrees rarely change the same files. For example, give each milestone part its own module.
-- When agents implement a milestone in parallel, follow [decision 0017](docs/decisions/0017-parallel-tasks-with-fixed-interfaces.md) and the task table in the milestone's plan. Each agent commits on its own branch and does not merge. The orchestrating session opens one pull request per branch and tells the user which order to merge them in.
 
-## Documentation
+## Pins
 
-- The design lives in `docs/`. Read the relevant documents before changing behaviour, and update them in the same commit when the behaviour changes.
-- Record each significant design decision as a new file in `docs/decisions/`, using the template in `docs/decisions/README.md`. Do not rewrite an accepted decision; add a new one that supersedes it.
-- Write a detailed code plan for a milestone just before implementing it, not earlier. The milestones are in `docs/roadmap.md`.
-- Use the terms defined in the glossary in `docs/README.md`.
+- The core and each repository of modules are pinned to a release tag `vX.Y.Z`. See decision 0134 in `mirante-core`.
+- The core's ref is in four places: `mirante.json`, `.github/workflows/ci.yml`, `release.yml` and `update.yml`. CI fails if they differ.
 
-## Building
+## Releases
 
-- `task` lists the common commands, such as `task test` and `task check`. See `Taskfile.yml`.
-- Qt 6.8 LTS with the WebEngine, WebChannel and Network modules.
-- Windows uses MSVC 2022 64-bit. Qt WebEngine does not support MinGW.
-- Development and verification happen on Windows. Changes must still build on macOS and Linux, so keep platform-specific code in `src/platform/`. CI checks Linux. It does not check macOS during development, so say so when a change touches macOS code; the user builds it by hand from time to time.
+A release is a pushed tag `vX.Y.Z`, after a merged pull request that raises `MIRANTE_VERSION` in `CMakeLists.txt`. Pushing a tag publishes, so only push one when the user asks. The `release` environment holds the Developer ID secrets and admits only tags.
