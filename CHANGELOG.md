@@ -4,6 +4,19 @@ All notable changes to Mirante are documented in this file. The format is based 
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-11-04
+
+Built from the core's v0.8.6, `mirante-modules` v0.8.1 and `mirante-modules-work` v0.11.0.
+
+### Added
+
+- The GitHub and GitLab settings have an **Add from Server…** button under their lists of repositories and project paths. It lists those your token can reach, to check and add, so you need not type them.
+- The GitHub and GitLab lists over several repositories or projects have an **Add from List…** button. It offers the repositories and projects of the profile's settings, to check and add.
+
+### Changed
+
+- A GitHub, GitLab or Jira list keeps your last filter choice and chooses it again at the next start. The item's form no longer has a "Filters at the start" group.
+
 ## [0.10.0] - 2026-11-03
 
 Built from the core's v0.8.5, `mirante-modules` v0.8.0 and `mirante-modules-work` v0.10.0.
@@ -64,7 +77,8 @@ Links and File tree item types, a fix for starting Mirante a second time on Wind
 
 The first release. See the [release notes](https://github.com/rrgmc/mirante/releases/tag/v0.1.0).
 
-[Unreleased]: https://github.com/rrgmc/mirante/compare/v0.10.0...HEAD
+[Unreleased]: https://github.com/rrgmc/mirante/compare/v0.11.0...HEAD
+[0.11.0]: https://github.com/rrgmc/mirante/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/rrgmc/mirante/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/rrgmc/mirante/compare/v0.8.1...v0.9.0
 [0.8.1]: https://github.com/rrgmc/mirante/compare/v0.8.0...v0.8.1
