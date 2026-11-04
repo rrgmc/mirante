@@ -4,6 +4,35 @@ All notable changes to Mirante are documented in this file. The format is based 
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-11-04
+
+Built from the core's v0.12.0, `mirante-modules` v0.12.0 and `mirante-modules-work` v0.12.0.
+
+### Added
+
+- The System module, with the System Resources item type: this computer's CPU use, free memory and free disk space, each with a bar, read again every few seconds.
+- Claude agents, a list of the Claude Code sessions on this device, with their title, status and repository. The optional `mirante-bridge` Claude Code plugin adds each session's tool, model, context use and cost, says when a session waits for a permission, and shows each account's rate limits.
+- GitHub Status and GitLab Status show the health of github.com and gitlab.com: open incidents, planned maintenance and the components that do not work. They need no token.
+- A profile can hold several accounts of a module, such as a personal GitHub account and a bot, each with its own settings and token. An item chooses its account in the item dialog.
+- **Duplicate item…** in the context menu of an item in the sidebar, and **Duplicate Item…** in the menu of an item cell, open the new item dialog filled with a copy of the item.
+- Item cells have an **Open in browser** button in their header when the item has a page on the web. It replaces the Web buttons of the GitHub, GitLab and Jira views and the button in a web page's toolbar.
+
+### Changed
+
+- **Profiles > Manage Profiles…** is now the one place for profile settings: a tree of profiles, their modules and the modules' accounts. The Modules, Set as Default and Settings… submenus of each profile are removed.
+- Every build has **Help > Show Log**.
+- **Add Items from Link…** and **New Task from Link…** take any web address. When no module recognises it, they offer an item of the type that shows it best, such as a Web page.
+
+### Removed
+
+- **Help > Open Sample Data**. The sample data still opens at start when there is no workspace.
+- **Paste URL…** in the context menu of a task and of its Items row. Use **Add Items from Link…** instead.
+
+### Fixed
+
+- A module's section in the project dialog has a **Remove** button.
+- On macOS, cell and page headers no longer cut a title that fits short with an ellipsis.
+
 ## [0.11.0] - 2026-11-04
 
 Built from the core's v0.8.6, `mirante-modules` v0.8.1 and `mirante-modules-work` v0.11.0.
@@ -77,7 +106,8 @@ Links and File tree item types, a fix for starting Mirante a second time on Wind
 
 The first release. See the [release notes](https://github.com/rrgmc/mirante/releases/tag/v0.1.0).
 
-[Unreleased]: https://github.com/rrgmc/mirante/compare/v0.11.0...HEAD
+[Unreleased]: https://github.com/rrgmc/mirante/compare/v0.12.0...HEAD
+[0.12.0]: https://github.com/rrgmc/mirante/compare/v0.11.0...v0.12.0
 [0.11.0]: https://github.com/rrgmc/mirante/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/rrgmc/mirante/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/rrgmc/mirante/compare/v0.8.1...v0.9.0
