@@ -20,4 +20,4 @@ permissions:
 
 jobs:
   build:
-    uses: rrgmc/mirante-core/.github/workflows/build-app.yml@v0.8.6
+    uses: rrgmc/mirante-core/.github/workflows/build-app.yml@v0.12.0

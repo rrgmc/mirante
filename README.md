@@ -12,14 +12,15 @@ Mirante includes these modules. Each one provides one or more item types. [Item 
 
 | Module | Item types |
 |---|---|
-| [Claude](https://github.com/rrgmc/mirante-modules-work/blob/master/claude/README.md): Claude sessions on claude.ai | Claude session (web) |
+| [Claude](https://github.com/rrgmc/mirante-modules-work/blob/master/claude/README.md): Claude sessions on claude.ai, and the Claude agents on this device | Claude session (web), Claude agents |
 | [Documents](https://github.com/rrgmc/mirante-modules/blob/master/document/README.md): Markdown, text and PDF files | Document (web address), Document (workspace file), Document (project file) |
 | [Folder](https://github.com/rrgmc/mirante-modules/blob/master/folder/README.md): a project's folder, with its Git state and shortcuts to a terminal and an editor | Folder / terminal |
-| [GitHub](https://github.com/rrgmc/mirante-modules-work/blob/master/github/README.md): github.com or GitHub Enterprise Server | GitHub PR (summary), GitHub PR (page), GitHub PR List, GitHub Actions Run, GitHub Actions Run List, GitHub Issue (summary), GitHub Issue (page), GitHub Issue List |
-| [GitLab](https://github.com/rrgmc/mirante-modules-work/blob/master/gitlab/README.md): a GitLab server | GitLab MR (summary), GitLab MR (page), GitLab MR List, GitLab CI Pipeline, GitLab CI Pipeline List, GitLab Issue (summary), GitLab Issue (page), GitLab Issue List |
+| [GitHub](https://github.com/rrgmc/mirante-modules-work/blob/master/github/README.md): github.com or GitHub Enterprise Server | GitHub PR (summary), GitHub PR (page), GitHub PR List, GitHub Actions Run, GitHub Actions Run List, GitHub Issue (summary), GitHub Issue (page), GitHub Issue List, GitHub Status |
+| [GitLab](https://github.com/rrgmc/mirante-modules-work/blob/master/gitlab/README.md): a GitLab server | GitLab MR (summary), GitLab MR (page), GitLab MR List, GitLab CI Pipeline, GitLab CI Pipeline List, GitLab Issue (summary), GitLab Issue (page), GitLab Issue List, GitLab Status |
 | [Image](https://github.com/rrgmc/mirante-modules/blob/master/image/README.md): screenshots or diagrams, with an optional link and memo | Image |
 | [Jira](https://github.com/rrgmc/mirante-modules-work/blob/master/jira/README.md): a Jira site | Jira Issue (summary), Jira Issue (page), Jira List |
 | [Notes](https://github.com/rrgmc/mirante-modules/blob/master/notes/README.md): Markdown notes, kept in the task's file | Notes |
+| [System](https://github.com/rrgmc/mirante-modules/blob/master/system/README.md): this computer's CPU use, free memory and free disk space | System Resources |
 | [Web](https://github.com/rrgmc/mirante-modules/blob/master/web/README.md): any web page | Web page |
 
 ## Adding more modules
@@ -49,7 +50,7 @@ Each [release](https://github.com/rrgmc/mirante/releases) has three files. [CHAN
 1. Mirante opens with the sample data, which shows what it can do. Changes to it are not saved.
 2. Choose File > New Workspace… and pick an empty folder for your own data. A folder synced by Dropbox, OneDrive or iCloud Drive makes the workspace available on your other computers. Logins and tokens stay on each computer.
 3. Choose File > New Group…, then add projects, tasks and their items from the sidebar's context menu. File > New Task from Link… makes a task from a Jira issue or a merge request link.
-4. To see GitLab or Jira status, open the module's settings in the Profiles menu, such as Profiles > Default (default) > Modules > GitLab > General Configuration…, and enter the server and a token. Tokens are kept in the system's keychain.
+4. To see GitLab or Jira status, choose Profiles > Manage Profiles…, select the module under the profile, such as GitLab under Default, and enter the server and a token. Tokens are kept in the system's keychain.
 5. `Alt+Shift+D`, or `Control+Shift+D` on macOS, hides Mirante to the system tray, or the menu bar on macOS, and shows it again from any application. Closing the window quits Mirante. To keep it running in the tray instead, turn on "Closing the window keeps Mirante running in the tray" in Tools > Settings…, or Mirante > Settings… on macOS.
 
 The [user interface](https://github.com/rrgmc/mirante-core/blob/master/docs/ui.md) describes everything in detail.
