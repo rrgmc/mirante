@@ -4,7 +4,10 @@ The official app of Mirante, a personal desktop dashboard. This repository holds
 
 ## Git workflow
 
-Each piece of work happens in its own Git worktree, with its own branch. Never edit files in the main checkout on `master` directly.
+Several sessions may work on this repository at the same time, so each piece of work happens in its own Git worktree, with its own branch.
+
+- Before the first edit, create a worktree with its own branch: `EnterWorktree` in Claude Code, or `git worktree add -b <branch> .claude/worktrees/<branch> origin/master`. A new branch in the main checkout is not enough, so never run `git checkout` or `git switch` there.
+- Never edit files in the main checkout on `master` directly. It stays clean, so other sessions can branch from it.
 
 - `master` is protected on GitHub. Changes reach it only through a pull request whose required CI checks pass.
 - Never merge a pull request on your own: only the user merges, on GitHub, by asking for the merge, or by typing `/mmp`. When the user asks for the merge, use a merge commit (`gh pr merge <number> --merge`).
