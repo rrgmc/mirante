@@ -4,6 +4,20 @@ All notable changes to Mirante are documented in this file. The format is based 
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-11-05
+
+Built from the core's v0.13.0, `mirante-modules` v0.13.0 and `mirante-modules-work` v0.12.0.
+
+### Changed
+
+- **Collapse All Tasks** works in two steps: the first press closes every task, and a second press, while every task is closed, closes the projects too. **Expand All Tasks** is the reverse. The sidebar's header buttons do the same.
+- On macOS, a left click on the menu bar icon shows or hides Mirante. A right click or a Control-click opens the menu.
+
+### Fixed
+
+- The colour dot of the current dashboard tab keeps its colour. Before, it turned white.
+- In lists such as Jira issues or GitLab merge requests, a long title no longer hides the other columns. Status pills no longer cut a word short on macOS.
+
 ## [0.12.0] - 2026-11-04
 
 Built from the core's v0.12.0, `mirante-modules` v0.12.0 and `mirante-modules-work` v0.12.0.
@@ -106,7 +120,8 @@ Links and File tree item types, a fix for starting Mirante a second time on Wind
 
 The first release. See the [release notes](https://github.com/rrgmc/mirante/releases/tag/v0.1.0).
 
-[Unreleased]: https://github.com/rrgmc/mirante/compare/v0.12.0...HEAD
+[Unreleased]: https://github.com/rrgmc/mirante/compare/v0.13.0...HEAD
+[0.13.0]: https://github.com/rrgmc/mirante/compare/v0.12.0...v0.13.0
 [0.12.0]: https://github.com/rrgmc/mirante/compare/v0.11.0...v0.12.0
 [0.11.0]: https://github.com/rrgmc/mirante/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/rrgmc/mirante/compare/v0.9.0...v0.10.0
