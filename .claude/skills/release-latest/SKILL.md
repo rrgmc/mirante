@@ -1,6 +1,6 @@
 ---
 name: release-latest
-description: Release the core, mirante-modules and mirante-modules-work from their master at one version, then release the Mirante app pinned to those tags. Only when the owner types /release-latest <X.Y.Z>.
+description: Release the core, mirante-modules and mirante-modules-work from their master at one version, skipping any with no changes, then release the Mirante app pinned to their latest tags. Only when the owner types /release-latest <X.Y.Z>.
 argument-hint: <X.Y.Z>
 disable-model-invocation: true
 ---
@@ -8,13 +8,17 @@ disable-model-invocation: true
 # Release the latest core and modules, then the app
 
 **`/release-latest <X.Y.Z>` is the owner asking for this release.** It releases every library
-repository from its `master` at version `X.Y.Z`, then releases Mirante built from those tags. The
-versions stay aligned: the core, both module repositories and the app all take `X.Y.Z`, as they
-did for 0.12.0. See decision 0134 in `mirante-core` for the release tags.
+repository that has changes on its `master` at version `X.Y.Z`, then releases Mirante built from
+the libraries' latest tags. The app always takes `X.Y.Z`. A library with no commits since its last
+tag is not released: it keeps its version, and the app stays pinned to its last tag. See decision
+0134 in `mirante-core` for the release tags.
+
+Below, **the released libraries** are the libraries this run releases, and **a library's tag** is
+`vX.Y.Z` for a released library and its last tag for the others.
 
 The version is `$ARGUMENTS`. Below it is written `X.Y.Z`, and the tag `vX.Y.Z`.
 
-**The invocation counts as the owner's request to merge** the four release pull requests, as
+**The invocation counts as the owner's request to merge** the release pull requests, as
 `/mmp` does. It does not count as a request to push the app's tag: step 7 asks first, because that
 tag publishes a signed build to the public.
 
@@ -64,15 +68,16 @@ git -C <folder> describe --tags --abbrev=0 origin/master
 git -C <folder> log --oneline --first-parent <last tag>..origin/master
 ```
 
-**A library with no commits since its last tag** still takes `X.Y.Z`, to keep the versions
-aligned, but only after the owner agrees. Ask once, naming each such library, before step 2.
+**A library with no commits since its last tag is not released.** Do not ask: skip it in steps 2
+and 3, and leave its pins in the app at its last tag. When no library has commits, only the app
+is released.
 
-Show the owner a short plan: each library's current version, its last tag, and the number of
-commits it gains. Then go on without waiting.
+Show the owner a short plan: each library's current version, its last tag, the number of
+commits it gains, and which libraries are skipped. Then go on without waiting.
 
 ## 2. Prepare each library's release
 
-Do this for the core, `mirante-modules` and `mirante-modules-work`, in that order.
+Do this for each released library, in the order core, `mirante-modules`, `mirante-modules-work`.
 
 ```sh
 git -C <folder> worktree add -b release-X.Y.Z <folder>/.claude/worktrees/release-X.Y.Z origin/master
@@ -85,12 +90,11 @@ In the worktree:
    and the entries under Unreleased move into it. `## [Unreleased]` stays, empty.
    - **The module repositories open the section with one sentence** that sums up the release, and
      says which core it needs, such as "It needs the core's vX.Y.Z." The core has no such sentence.
+     When the core is not released, name the core's last tag instead.
    - **When Unreleased is empty but commits exist**, write the entries from the merged pull
      requests since the last tag (`git log --first-parent`), in the file's own style: Keep a
      Changelog headings, one sentence per change, written for the people who use the repository.
      Read the pull requests through the MCP tools when a title is not enough.
-   - **When there are no commits** (the owner agreed in step 1), the section holds one line:
-     "No changes since v<last>. Released to keep the versions aligned."
    - **The link references at the end move on**: `[Unreleased]` compares from `vX.Y.Z` to `HEAD`,
      and a new line `[X.Y.Z]: https://github.com/rrgmc/<repo>/compare/v<last>...vX.Y.Z` goes
      right under it.
@@ -101,11 +105,11 @@ In the worktree:
    `Release X.Y.Z`. The body says which version this releases, that merging it tags `vX.Y.Z`
    and publishes its GitHub release, and ends with the session's pull request attribution.
 
-Open all three before waiting on any of them. Their checks then run at the same time.
+Open every pull request before waiting on any of them. Their checks then run at the same time.
 
 ## 3. Merge each library's release
 
-For each of the three pull requests:
+For each library pull request:
 
 1. **Wait for the checks.** MCP calls cannot sleep, so run `sleep 300` with `run_in_background`,
    and when it ends read the pull request's status and check runs with the MCP tool. Repeat until
@@ -154,19 +158,21 @@ git -C <root>/mirante worktree add -b release-X.Y.Z <root>/mirante/.claude/workt
 
 In the worktree, change these and nothing else:
 
-1. **The pins move to `vX.Y.Z`.** The core's ref is in four places and CI fails when they differ:
-   - `mirante.json`: the core's `ref`, and the `ref` of both module repositories;
+1. **Each released library's pins move to `vX.Y.Z`.** A skipped library's pins stay as they are.
+   The core's ref is in four places and CI fails when they differ:
+   - `mirante.json`: the core's `ref`, and the `ref` of each module repository;
    - `.github/workflows/ci.yml`, `release.yml` (two lines) and `update.yml`: the
      `rrgmc/mirante-core/.github/workflows/...@<ref>` lines.
-2. **New module folders join the manifest.** A folder with a module in a module repository at
-   `vX.Y.Z` that `mirante.json` does not list goes into that repository's `folders`, in
-   alphabetical order. A folder that holds a module has a `CMakeLists.txt` and a `README.md`;
+2. **New module folders join the manifest.** A folder with a module in a released module
+   repository at `vX.Y.Z` that `mirante.json` does not list goes into that repository's `folders`,
+   in alphabetical order. A folder that holds a module has a `CMakeLists.txt` and a `README.md`;
    compare with `git -C <folder> ls-tree -d --name-only vX.Y.Z`. A folder the app leaves out on
    purpose is not added: when in doubt, ask.
 3. **`MIRANTE_VERSION`** in `CMakeLists.txt` becomes `X.Y.Z`.
 4. **`CHANGELOG.md`** gets `## [X.Y.Z] - <today>` under `## [Unreleased]`, opening with
-   "Built from the core's vX.Y.Z, `mirante-modules` vX.Y.Z and `mirante-modules-work` vX.Y.Z."
-   The entries are the user-facing changes from the three libraries' `X.Y.Z` sections, merged under
+   "Built from the core's <tag>, `mirante-modules` <tag> and `mirante-modules-work` <tag>.", with
+   each library's tag. The entries are the user-facing changes from the released libraries'
+   `X.Y.Z` sections, merged under
    Added, Changed, Removed and Fixed, and written for people who use Mirante, not for developers.
    Leave out changes that only touch CI, builds, tests, the module interface or the docs. The link
    references at the end move on as in step 2.
@@ -185,8 +191,8 @@ Run it in the background: it takes several minutes. A failed build stops the run
 
 Commit with the subject `Prepare X.Y.Z with the latest core and modules` and a body that names the
 pins, any new module folders and the README's new item types. Push, and open the pull request with
-the MCP tool, with the same title and a body that lists the three library releases and the local
-build's result.
+the MCP tool, with the same title and a body that lists the library releases, the skipped
+libraries and the local build's result.
 
 ## 5. Merge the app's release
 
