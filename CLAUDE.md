@@ -24,6 +24,8 @@ A release is a pushed tag `vX.Y.Z`, after a merged pull request that raises `MIR
 
 `.github/workflows/update.yml` opens a weekly pull request with newer release tags and a raised patch version. It needs the secret `MIRANTE_UPDATE_TOKEN`, a fine-grained token with Contents, Pull requests and Workflows set to Read and write on this repository. After merging one, its tag is pushed by hand.
 
+When the user types `/release-latest <X.Y.Z>`, the [`release-latest` skill](.claude/skills/release-latest/SKILL.md) releases the core and both module repositories from their `master` at that version, then prepares and merges this repository's release pull request, and asks before pushing its tag.
+
 ## README
 
 `README.md` is for people who use Mirante: what it does, the screenshot, the modules, adding more modules, installing, the first start, the author and the licence. "Adding more modules" explains that modules are compiled in, and the repositories only as far as a user needs them to build a Mirante of their own. Building, releases and the repositories behind Mirante belong in `BUILDING.md`, which the README links to in one line.
