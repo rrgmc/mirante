@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to Mirante are documented in this file. The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and Mirante follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+All notable changes to Mirante are documented in this file. The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and Mirante follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html). A pull request does not edit this file. It adds a fragment to [changelog.d](changelog.d/README.md), and the release moves the fragments here. See [decision 0154](https://github.com/rrgmc/mirante-core/blob/master/docs/decisions/0154-changelog-fragments.md) in the core.
 
 ## [Unreleased]
 

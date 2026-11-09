@@ -12,6 +12,7 @@ Several sessions may work on this repository at the same time, so each piece of 
 - `master` is protected on GitHub. Changes reach it only through a pull request whose required CI checks pass.
 - Never merge a pull request on your own: only the user merges, on GitHub, by asking for the merge, or by typing `/mmp`. When the user asks for the merge, use a merge commit (`gh pr merge <number> --merge`).
 - Commit as work progresses, one focused commit per finished piece.
+- Never edit `CHANGELOG.md` in a pull request, except a release's. Add a fragment named after the branch to `changelog.d/`, as its `README.md` says. See decision 0154 in `mirante-core`.
 
 ## Pins
 

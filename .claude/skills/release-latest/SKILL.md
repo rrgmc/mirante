@@ -85,19 +85,29 @@ git -C <folder> worktree add -b release-X.Y.Z <folder>/.claude/worktrees/release
 
 In the worktree:
 
-1. **`VERSION`** holds `X.Y.Z` and a newline, nothing else.
-2. **`CHANGELOG.md`** gets a section `## [X.Y.Z] - <today, YYYY-MM-DD>` right under `## [Unreleased]`,
-   and the entries under Unreleased move into it. `## [Unreleased]` stays, empty.
+1. **Run the changelog script** from the core's main checkout, which holds the newest
+   `master`:
+
+   ```sh
+   python3 <root>/mirante-core/tools/release-changelog.py --root <worktree> release X.Y.Z
+   ```
+
+   It writes `X.Y.Z` to `VERSION`. It makes the section `## [X.Y.Z] - <today>` of `CHANGELOG.md`
+   from the entries under Unreleased and the fragments in `changelog.d/`, moves the link references
+   at the end, and deletes the fragments. In the core it also moves the fragments of
+   `src/module_api/changelog.d/` into the interface changelog. See decision 0154 in the core. A
+   failure, such as a fragment that is not well formed, stops the run.
+2. **Read the new section and finish it by hand:**
    - **The module repositories open the section with one sentence** that sums up the release, and
-     says which core it needs, such as "It needs the core's vX.Y.Z." The core has no such sentence.
-     When the core is not released, name the core's last tag instead.
-   - **When Unreleased is empty but commits exist**, write the entries from the merged pull
-     requests since the last tag (`git log --first-parent`), in the file's own style: Keep a
-     Changelog headings, one sentence per change, written for the people who use the repository.
-     Read the pull requests through the MCP tools when a title is not enough.
-   - **The link references at the end move on**: `[Unreleased]` compares from `vX.Y.Z` to `HEAD`,
-     and a new line `[X.Y.Z]: https://github.com/rrgmc/<repo>/compare/v<last>...vX.Y.Z` goes
-     right under it.
+     says which core it needs, such as "It needs the core's vX.Y.Z." Put it right under the
+     section's heading. The core has no such sentence. When the core is not released, name the
+     core's last tag instead.
+   - **When Unreleased and `changelog.d/` were both empty but commits exist**, the script stops
+     with "Nothing to release". Write the entries as fragments in `changelog.d/` from the merged
+     pull requests since the last tag (`git log --first-parent`), in the changelog's own style:
+     Keep a Changelog headings, one sentence per change, written for the people who use the
+     repository. Read the pull requests through the MCP tools when a title is not enough. Then run
+     the script again.
 3. **Commit** with the subject `Release X.Y.Z`, a body that names the changelog's highlights in a
    sentence or two, and the session's attribution lines.
 4. **Push**: `git -C <worktree> push -u origin release-X.Y.Z`.
@@ -169,13 +179,21 @@ In the worktree, change these and nothing else:
    compare with `git -C <folder> ls-tree -d --name-only vX.Y.Z`. A folder the app leaves out on
    purpose is not added: when in doubt, ask.
 3. **`MIRANTE_VERSION`** in `CMakeLists.txt` becomes `X.Y.Z`.
-4. **`CHANGELOG.md`** gets `## [X.Y.Z] - <today>` under `## [Unreleased]`, opening with
-   "Built from the core's <tag>, `mirante-modules` <tag> and `mirante-modules-work` <tag>.", with
-   each library's tag. The entries are the user-facing changes from the released libraries'
-   `X.Y.Z` sections, merged under
-   Added, Changed, Removed and Fixed, and written for people who use Mirante, not for developers.
-   Leave out changes that only touch CI, builds, tests, the module interface or the docs. The link
-   references at the end move on as in step 2.
+4. **`CHANGELOG.md`** gets its section from the script, as in step 2, which also moves this
+   repository's own fragments in `changelog.d/` into it:
+
+   ```sh
+   python3 <root>/mirante-core/tools/release-changelog.py --root <worktree> release X.Y.Z
+   ```
+
+   The app has no `VERSION` file, so the script leaves `MIRANTE_VERSION` to item 3. When
+   Unreleased and `changelog.d/` are both empty, it stops with "Nothing to release": then first
+   write a fragment in `changelog.d/` with the entries below, and run it again. Finish the section
+   by hand: it opens with "Built from the core's <tag>, `mirante-modules` <tag> and
+   `mirante-modules-work` <tag>.", with each library's tag, and holds the user-facing changes from
+   the released libraries' `X.Y.Z` sections, merged under Added, Changed, Removed and Fixed, and
+   written for people who use Mirante, not for developers. Leave out changes that only touch CI,
+   builds, tests, the module interface or the docs.
 5. **`README.md`** lists each module and its item types. A new module or item type in the
    libraries' changelogs gets its row or its name in the table, in the README's style. Read the
    README's section in `CLAUDE.md` before changing anything else in it.
