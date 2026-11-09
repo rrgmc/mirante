@@ -22,7 +22,7 @@ permissions:
 jobs:
   build:
     if: github.ref_type == 'tag'
-    uses: rrgmc/mirante-core/.github/workflows/build-app.yml@v0.14.0
+    uses: rrgmc/mirante-core/.github/workflows/build-app.yml@v0.15.0
     with:
       release-tag: ${{ github.ref_name }}
       macos-signing: developer-id
@@ -34,7 +34,7 @@ jobs:
     needs: build
     permissions:
       contents: write
-    uses: rrgmc/mirante-core/.github/workflows/release-app.yml@v0.14.0
+    uses: rrgmc/mirante-core/.github/workflows/release-app.yml@v0.15.0
     with:
       tag: ${{ github.ref_name }}
       edition: ${{ needs.build.outputs.edition }}

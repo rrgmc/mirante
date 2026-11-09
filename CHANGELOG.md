@@ -4,6 +4,19 @@ All notable changes to Mirante are documented in this file. The format is based 
 
 ## [Unreleased]
 
+## [0.15.0] - 2026-11-09
+
+Built from the core's v0.15.0, `mirante-modules` v0.15.0 and `mirante-modules-work` v0.15.0.
+
+### Changed
+
+- A double click on an item's title opens the item alone, as "Open Alone" does. "Edit Item…" in the cell's menu still opens the item's dialog.
+- The warning bar is amber with dark text, so a refused token stands out. Before, on macOS it was hard to tell from the window.
+
+### Fixed
+
+- A server that refuses one request with 403 no longer stops every item of the profile. GitLab answers 403 when a token cannot see one project, and that one project paused them all with "Token refused". Now only that item shows "Not allowed (403)".
+
 ## [0.14.0] - 2026-11-09
 
 Built from the core's v0.14.0, `mirante-modules` v0.13.0 and `mirante-modules-work` v0.12.0.
@@ -132,7 +145,8 @@ Links and File tree item types, a fix for starting Mirante a second time on Wind
 
 The first release. See the [release notes](https://github.com/rrgmc/mirante/releases/tag/v0.1.0).
 
-[Unreleased]: https://github.com/rrgmc/mirante/compare/v0.14.0...HEAD
+[Unreleased]: https://github.com/rrgmc/mirante/compare/v0.15.0...HEAD
+[0.15.0]: https://github.com/rrgmc/mirante/compare/v0.14.0...v0.15.0
 [0.14.0]: https://github.com/rrgmc/mirante/compare/v0.13.0...v0.14.0
 [0.13.0]: https://github.com/rrgmc/mirante/compare/v0.12.0...v0.13.0
 [0.12.0]: https://github.com/rrgmc/mirante/compare/v0.11.0...v0.12.0
