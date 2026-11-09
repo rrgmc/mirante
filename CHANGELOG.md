@@ -4,6 +4,18 @@ All notable changes to Mirante are documented in this file. The format is based 
 
 ## [Unreleased]
 
+## [0.14.0] - 2026-11-09
+
+Built from the core's v0.14.0, `mirante-modules` v0.13.0 and `mirante-modules-work` v0.12.0.
+
+### Changed
+
+- A double click on an item's title opens the item's dialog, in every dashboard. In a task cell, a double click opens the task dashboard only on the task's own title. Before, a double click anywhere in the cell did.
+
+### Fixed
+
+- On macOS, Mirante hidden to the menu bar shows again on the current desktop (Space). Before, macOS switched back to the desktop the window was hidden from.
+
 ## [0.13.0] - 2026-11-05
 
 Built from the core's v0.13.0, `mirante-modules` v0.13.0 and `mirante-modules-work` v0.12.0.
@@ -120,7 +132,8 @@ Links and File tree item types, a fix for starting Mirante a second time on Wind
 
 The first release. See the [release notes](https://github.com/rrgmc/mirante/releases/tag/v0.1.0).
 
-[Unreleased]: https://github.com/rrgmc/mirante/compare/v0.13.0...HEAD
+[Unreleased]: https://github.com/rrgmc/mirante/compare/v0.14.0...HEAD
+[0.14.0]: https://github.com/rrgmc/mirante/compare/v0.13.0...v0.14.0
 [0.13.0]: https://github.com/rrgmc/mirante/compare/v0.12.0...v0.13.0
 [0.12.0]: https://github.com/rrgmc/mirante/compare/v0.11.0...v0.12.0
 [0.11.0]: https://github.com/rrgmc/mirante/compare/v0.10.0...v0.11.0
