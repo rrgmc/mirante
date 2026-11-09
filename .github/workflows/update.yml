@@ -16,6 +16,6 @@ permissions:
 
 jobs:
   update:
-    uses: rrgmc/mirante-core/.github/workflows/update-app.yml@v0.14.0
+    uses: rrgmc/mirante-core/.github/workflows/update-app.yml@v0.15.0
     secrets:
       token: ${{ secrets.MIRANTE_UPDATE_TOKEN }}
